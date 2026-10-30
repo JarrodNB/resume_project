@@ -70,7 +70,7 @@ RSpec.describe "Interview practice services" do
     result = start_operation("regenerate_interview_question", confirmed: true)
     expect(result).to be_success
     expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision peer_revisions])
-    expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [peer.id, peer.question_revision] })
+    expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [ peer.id, peer.question_revision ] })
     expect(result.value.input.to_json).not_to include("Private", question.question_text)
   end
 
@@ -117,10 +117,12 @@ RSpec.describe "Interview practice services" do
     expect(question.reload.answer_revision).to eq(2)
   end
 
-  it "saves the feedback answer and snapshots its revisions" do
+  it "saves the feedback answer and queues only references, revisions and a freshness digest" do
     result = start_operation("review_interview_answer", answer_text: "I led a project.")
     expect(result).to be_success
-    expect(result.value.input).to include("answer_text" => "I led a project.", "question_revision" => 1, "answer_revision" => 1)
+    expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision normalized_answer_sha256])
+    expect(result.value.input).to include("question_revision" => 1, "answer_revision" => 1)
+    expect(result.value.input.to_json).not_to include("I led a project.", question.question_text, "screened_fields")
     expect(question.reload.answer_text).to eq("I led a project.")
     expect(user.career_contexts).to be_empty
   end
@@ -180,7 +182,7 @@ RSpec.describe "Interview practice services" do
     expect(start_operation("regenerate_interview_question")).not_to be_success
     result = start_operation("regenerate_interview_question", confirmed: true)
     expect(result).to be_success
-    expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [peer.id, peer.question_revision] })
+    expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [ peer.id, peer.question_revision ] })
     expect(question.reload.answer_text).to eq("Existing")
     expect(question.feedback).to be_present
   end

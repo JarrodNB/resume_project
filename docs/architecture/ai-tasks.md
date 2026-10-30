@@ -292,8 +292,16 @@ Per task type:
   General replacements use behavioral themes, not another introduction or role motivation,
   even in old saved sets; the worker retries an introduction category. Older in-flight single
   replacements with legacy categories remain accepted. Other saved slots are untouched.
-- `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
-  question_revision, answer_revision, set_type}`; the subject is the selected `InterviewQuestion`.
+- `review_interview_answer`: input `{source_version: 1, question_set_id, question_id,
+  question_revision, answer_revision, set_type, normalized_answer_sha256}`; the subject is
+  the selected `InterviewQuestion`. Python reads that owned active question's saved answer
+  and current approvals. Changes before the read fail before paid work; edits after the
+  read preserve feedback attribution to the commanded revisions without overwriting the
+  current answer. The digest preserves formatting-only freshness without a text copy.
+  Retained commands must match current owned text/revisions; their source copies never
+  become model input. Deploy readers/grants and the compatible result consumer before
+  reference-only producers. Exact current fingerprint/revision receipts persist for the
+  selected answer on success or failure; stale/foreign/unselected receipts are ignored.
   The result is `{interview_feedback: {strengths, improvements, example_answer,
   evidence_quotes}, warnings: [...]}`. Strengths and improvements are lists of coaching
   statements; personal examples use square-bracket placeholders for missing facts. Knowledge

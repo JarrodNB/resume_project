@@ -1,8 +1,15 @@
 # Description: Determines coaching freshness while ignoring capitalization and whitespace edits.
 # Index:
-#   - call: compares revisions and the persisted reviewed answer snapshot
+#   - call: compares revisions and the reviewed answer’s normalized digest
+require "digest"
+
 module InterviewPrep
   class FeedbackOutdatedService < ApplicationService
+    # Preserve formatting-only freshness without keeping another copy of the answer.
+    def self.answer_fingerprint(text)
+      Digest::SHA256.hexdigest(text.squish.downcase)
+    end
+
     # Receives the question whose saved feedback is displayed.
     def initialize(question:)
       @question = question
@@ -19,8 +26,11 @@ module InterviewPrep
           @question.feedback_question_revision.to_s, @question.feedback_answer_revision.to_s)
         .order(created_at: :desc, id: :desc).first
       reviewed = task&.input&.fetch("answer_text", nil)
+      fingerprint = task&.input&.fetch("normalized_answer_sha256", nil)
+      # Retained task copies are used only to verify old feedback, never as AI input.
+      fingerprint ||= self.class.answer_fingerprint(reviewed) if reviewed.is_a?(String)
       matching_feedback = task&.result&.fetch("interview_feedback", nil) == @question.feedback
-      unchanged = reviewed.is_a?(String) && reviewed.squish.downcase == @question.answer_text.squish.downcase
+      unchanged = fingerprint == self.class.answer_fingerprint(@question.answer_text)
       success(!(matching_feedback && unchanged))
     end
   end

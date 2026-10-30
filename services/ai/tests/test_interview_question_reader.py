@@ -115,3 +115,52 @@ def test_recent_history_is_bounded_active_and_same_type(admin_connection):
     recent = read_interview_question_sources(admin_connection, task)["recent_questions"]
     assert len(recent) == 20
     assert all(question.startswith("Practice") for question in recent)
+
+
+def feedback_task(connection, legacy=False):
+    task = saved_task(connection, replacement=True)
+    question = task.input["question_id"]
+    connection.execute("UPDATE interview_questions SET answer_text = 'Saved answer', answer_revision = 2, screened_fields = ARRAY['answer_text'] WHERE id = %s", (question,))
+    command = {key: value for key, value in task.input.items() if key not in {"peer_revisions", "set_number"}}
+    command["answer_revision"] = 2
+    if legacy:
+        command.pop("source_version")
+        command.update(question_text="Generated question 0?", answer_text="Saved answer", screened_fields=[])
+    connection.execute("UPDATE ai_tasks SET task_type = 'review_interview_answer', input = %s WHERE id = %s", (Jsonb(command), task.ai_task_id))
+    return task.model_copy(update={"task_type": "review_interview_answer", "input": command})
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_feedback_reads_owned_answer_and_current_approvals_not_copies(admin_connection, legacy):
+    from database.interview_questions import read_interview_question_sources
+    task = feedback_task(admin_connection, legacy)
+    task.input.update(answer_text="Transport forgery", screened_fields=[])
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    sources = read_interview_question_sources(admin_connection, task)
+    assert sources["answer_text"] == "Saved answer"
+    assert sources["screened_fields"] == ["answer_text"]
+    assert sources["question_revision"] == 1 and sources["answer_revision"] == 2
+    assert "other_questions" not in sources
+
+
+@pytest.mark.parametrize("mismatch", ["owner", "subject", "set", "question_revision", "answer_revision", "retired", "terminal", "legacy_text"])
+def test_feedback_rejects_changes_before_read_and_foreign_or_retired_rows(admin_connection, mismatch):
+    from database.interview_questions import read_interview_question_sources
+    task = feedback_task(admin_connection, legacy=mismatch == "legacy_text")
+    if mismatch == "owner":
+        task = task.model_copy(update={"user_id": uuid4()})
+    elif mismatch == "subject":
+        admin_connection.execute("UPDATE ai_tasks SET subject_id = %s WHERE id = %s", (uuid4(), task.ai_task_id))
+    elif mismatch == "set":
+        other = _insert_user(admin_connection)
+        admin_connection.execute("UPDATE interview_question_sets SET user_id = %s WHERE id = %s", (other, task.input["question_set_id"]))
+    elif mismatch in {"question_revision", "answer_revision"}:
+        admin_connection.execute(f"UPDATE interview_questions SET {mismatch} = {mismatch} + 1 WHERE id = %s", (task.input["question_id"],))
+    elif mismatch == "retired":
+        admin_connection.execute("UPDATE interview_questions SET position = NULL, retired_at = now() WHERE id = %s", (task.input["question_id"],))
+    elif mismatch == "terminal":
+        admin_connection.execute("UPDATE ai_tasks SET status = 'completed' WHERE id = %s", (task.ai_task_id,))
+    else:
+        admin_connection.execute("UPDATE interview_questions SET answer_text = 'Changed without revision' WHERE id = %s", (task.input["question_id"],))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert read_interview_question_sources(admin_connection, task) is None

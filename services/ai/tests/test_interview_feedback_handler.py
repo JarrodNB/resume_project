@@ -47,7 +47,8 @@ def dependencies(task_dependencies, monkeypatch):
     """Allows screening without network calls and uses an empty library."""
     monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
-    return replace(task_dependencies, read_career_library=lambda user: CareerLibrary())
+    return replace(task_dependencies, read_career_library=lambda user: CareerLibrary(),
+                   read_interview_question_sources=lambda request: dict(request.input))
 
 
 @pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
@@ -471,3 +472,23 @@ def test_approved_practice_fields_keep_aggregate_prompt_cap(dependencies, monkey
     monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback",
         lambda *a, **kw: pytest.fail("oversized prompt reached generation"))
     assert handle_ai_task(request, dependencies).status == "failed"
+
+
+
+def test_reference_feedback_uses_database_sources_and_ignores_command_text(dependencies):
+    request = task()
+    saved = dict(request.input)
+    request.input = {key: value for key, value in saved.items() if key not in {"question_text", "answer_text"}}
+    request.input.update(source_version=1, answer_text="Forged command copy")
+    with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+        result = handle_ai_task(request, replace(dependencies, read_interview_question_sources=lambda _: saved))
+    assert result.status == "completed"
+    assert result.result["interview_feedback"]["evidence_quotes"] == [saved["answer_text"]]
+
+
+def test_stale_feedback_fails_before_screening_or_library_or_provider(dependencies, monkeypatch):
+    monkeypatch.setattr("screening.records.screen_user_text", lambda *a, **kw: pytest.fail("stale source screened"))
+    result = handle_ai_task(task(), replace(dependencies, read_interview_question_sources=lambda _: None,
+        read_career_library=lambda _: pytest.fail("stale source read library")))
+    assert result.status == "failed"
+    assert not result.usage and "out of date" in result.error_message

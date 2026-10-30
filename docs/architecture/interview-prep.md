@@ -53,8 +53,8 @@ success it first keeps a nonblank answer as a retired copy (below), then increme
 revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest
 feedback task, but accepts a newer answer revision: coaching is stored against the reviewed
 revisions, so GraphQL `feedbackOutdated` marks substantive edits outdated. Capitalization and
-whitespace changes remain current when a completed task's matching feedback and reviewed
-answer snapshot verify that only formatting changed. Exact revisions still advance on saves.
+whitespace changes remain current when a completed task's matching feedback and normalized
+answer digest verify that only formatting changed. Exact revisions still advance on saves.
 Generated feedback never writes
 the answer. Deleted, superseded, or invalid targets fail cleanly. The finished-task guard
 prevents duplicate result persistence and usage accounting; failed application still retains
@@ -148,17 +148,22 @@ Duplicate wording (case, spacing, punctuation) saves once, including retries at 
 The store allows 50 questions of at most 2,000 characters each and returns explicit errors
 at either limit rather than clipping or dropping choices. `avoided` restores saved UI state.
 
-New written generation and replacement commands contain `source_version: 1`, set identity
-and type, and replacement target/peer revisions. Python validates the stored queued task,
-owner and subject, then reads current active slots, same-type recent history and saved
-avoidance preferences in one repeatable-read transaction. No source text, answers, field
-approvals or sibling copies are persisted in these commands. Narrow column grants keep
-answers, feedback and embeddings unavailable to this reader. Feedback retains its old
-command format until its separate migration.
+New written generation, replacement and feedback commands contain `source_version: 1`,
+set identity and type, with target revisions for replacement/feedback and peer revisions
+for replacement. Feedback also stores a SHA-256 digest of the normalized saved answer for
+formatting-only freshness checks. Python validates the stored queued task, owner and
+subject, then reads the owned sources in one repeatable-read transaction. Feedback loads
+only the selected active question's answer, revisions and current field approvals;
+changed revisions fail before screening or model work. Question generation loads current
+active slots, same-type recent history and saved avoidance preferences. No source text,
+answers, field approvals or sibling copies are persisted in these commands. Narrow column
+grants allow required answer fields while keeping feedback, vectors, provider receipts
+and accounting private.
 
 Retained generation commands also load current owned history/preferences. Retained
 replacement commands must match their target revisions and current target/peer wording;
-stale or deleted sources fail before generation. No retained command text becomes prompt
+retained feedback commands must match their current question/answer wording and revisions.
+Stale or deleted sources fail before generation. No retained command text becomes prompt
 input. During the staged rollout, deploy the new Python readers/grants before new producers;
 old workers cannot read reference-only commands. Existing saved command copies are removed
 by the final migration, without replaying work.
@@ -201,7 +206,8 @@ categories while choosing different concrete focuses within them.
 
 - **Feedback freshness ignores capitalization and whitespace.** Revision changes still track
   exact saved edits, but harmless formatting should not force another AI review. Completed
-  task snapshots verify saved-answer equivalence; missing or mismatched evidence stays outdated.
+  task digests verify saved-answer equivalence; retained task copies only verify older
+  feedback. Missing or mismatched evidence stays outdated.
 
 - **One successful feedback request per saved version.** Feedback enqueueing checks completed
   task history for the question/answer revision pair under the owner lock. Queued requests

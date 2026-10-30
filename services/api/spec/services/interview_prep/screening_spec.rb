@@ -20,7 +20,48 @@ RSpec.describe "Saved practice screening" do
 
   def apply(reports, target: task, status: "failed")
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => target.id,
-      "status" => status, "error_message" => "Generation failed", "record_screening" => reports })
+      "status" => status, "error_message" => "Generation failed", "record_screening" => reports,
+      "result" => { "interview_feedback" => { "strengths" => [ "Clear action" ], "improvements" => [ "Add outcome" ],
+        "example_answer" => "I led a team.", "evidence_quotes" => [ "I led a team." ] } } })
+  end
+
+  %w[completed failed].each do |outcome|
+    it "retains exact reference-command answer approvals on #{outcome} and duplicate results" do
+      command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1)
+      task.update!(input: command)
+      peer = question_set.questions.create!(position: 2, question_text: "Unselected?", answer_text: question.answer_text)
+      foreign = create(:user).interview_question_sets.create!(number: 1).questions.create!(position: 1,
+        question_text: question.question_text, answer_text: question.answer_text)
+      2.times { apply([ report, report(peer), report(foreign) ], status: outcome) }
+      expect(task.reload.status).to eq(outcome)
+      expect(question.reload.screened_fields).to match_array(%w[question_text answer_text])
+      expect(peer.reload.screened_fields).to be_empty
+      expect(foreign.reload.screened_fields).to be_empty
+    end
+  end
+
+  it "rejects reference receipts for changed answer revisions even after revert" do
+    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1)
+    task.update!(input: command)
+    receipt = report
+    InterviewPrep::SaveAnswerService.call(question: question, answer_text: "Edited")
+    InterviewPrep::SaveAnswerService.call(question: question, answer_text: snapshot["answer_text"])
+    apply([ receipt ])
+    expect(question.reload.screened_fields).to eq([ "question_text" ])
+  end
+
+  it "rejects reference receipts with stale fingerprints or revisions and unknown source versions" do
+    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1)
+    task.update!(input: command)
+    stale = report
+    stale["fingerprints"]["answer_text"] = "0" * 64
+    stale["revision"]["question_revision"] = 2
+    apply([ stale ])
+    expect(question.reload.screened_fields).to be_empty
+    unknown = create(:ai_task, user: user, subject: question, task_type: "review_interview_answer",
+      input: command.merge("source_version" => 2))
+    apply([ report ], target: unknown)
+    expect(question.reload.screened_fields).to be_empty
   end
 
   it "records only selected current revision fields for reference-only replacement receipts" do
@@ -29,9 +70,9 @@ RSpec.describe "Saved practice screening" do
     command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision")
       .merge("source_version" => 1, "peer_revisions" => { peer.id => peer.question_revision })
     replacement = create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question", input: command)
-    apply([report(question), report(peer), report(unselected)], target: replacement)
-    expect(question.reload.screened_fields).to eq(["question_text"])
-    expect(peer.reload.screened_fields).to eq(["question_text"])
+    apply([ report(question), report(peer), report(unselected) ], target: replacement)
+    expect(question.reload.screened_fields).to eq([ "question_text" ])
+    expect(peer.reload.screened_fields).to eq([ "question_text" ])
     expect(unselected.reload.screened_fields).to be_empty
   end
 
@@ -41,7 +82,7 @@ RSpec.describe "Saved practice screening" do
       .merge("source_version" => 1, "peer_revisions" => { peer.id => peer.question_revision })
     replacement = create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question", input: command)
     peer.update!(question_revision: 2)
-    apply([report(peer)], target: replacement)
+    apply([ report(peer) ], target: replacement)
     expect(peer.reload.screened_fields).to be_empty
   end
 
@@ -131,7 +172,7 @@ RSpec.describe "Saved practice screening" do
       task_type: "regenerate_interview_question", confirmed: true)
     expect(result).to be_success
     input = result.value.input
-    expect(input["peer_revisions"]).to eq(peers.to_h { |peer| [peer.id, peer.question_revision] })
+    expect(input["peer_revisions"]).to eq(peers.to_h { |peer| [ peer.id, peer.question_revision ] })
     expect(input.keys).not_to include("other_questions", "other_question_snapshots", "question_text", "answer_text", "screened_fields")
   end
 

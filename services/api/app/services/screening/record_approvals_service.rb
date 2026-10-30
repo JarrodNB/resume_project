@@ -265,7 +265,7 @@ module Screening
       { records: job.gap_responses, snapshots: snapshots }
     end
 
-    # Only the task's question and, for regeneration, the sibling questions it froze.
+    # Only the task’s owned question and selected generation siblings can receive receipts.
     def interview_question_scope(_record_type)
       return unless task_for_user? && @ai_task.subject_type == "InterviewQuestion" &&
         %w[review_interview_answer regenerate_interview_question].include?(@ai_task.task_type)
@@ -276,6 +276,12 @@ module Screening
 
       target = set.questions.find_by(id: @ai_task.subject_id)
       return unless target && target.id == input["question_id"]
+
+      return unless [ nil, 1 ].include?(input["source_version"])
+      if @ai_task.review_interview_answer? && input["source_version"] == 1
+        return { records: set.questions.where(id: target.id),
+          revisions: { target.id => input.slice("question_revision", "answer_revision") }, target_id: target.id }
+      end
 
       if @ai_task.regenerate_interview_question? && input["source_version"] == 1
         peers = input["peer_revisions"]
@@ -307,8 +313,8 @@ module Screening
       sources
     end
 
-    # The question must still be at the frozen revision. An answer is approved only on the
-    # reviewed question itself, during answer review, at the frozen answer revision.
+    # The question must still be at the commanded revision. An answer is approved only on
+    # the reviewed question itself, during answer review, at its exact answer revision.
     def interview_revision_matches?(scope:, record:, snapshot:, receipt:, field:)
       revision = receipt["revision"] || {}
       snapshot ||= scope.fetch(:revisions, {})[record.id]

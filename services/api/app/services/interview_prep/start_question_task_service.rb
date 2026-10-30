@@ -1,5 +1,5 @@
-# Starts replacement with owned references and revision fences. Feedback retains its
-# existing input contract until its separate migration.
+# Starts written practice work with owned references and revision fences.
+# Source text stays on the saved question; feedback saves typed answers before admission.
 # Index:
 #   - call: validates the request and queues an operation without replacing existing content
 module InterviewPrep
@@ -49,17 +49,15 @@ module InterviewPrep
         return failure([ "Feedback has already been requested for this answer version. Save a changed answer first." ])
       end
       task.input = {
-        "set_type" => @question.interview_question_set.set_type,
+        "source_version" => 1, "set_type" => @question.interview_question_set.set_type,
         "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
         "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision
       }
       if @task_type == "regenerate_interview_question"
-        task.input["source_version"] = 1
         task.input["peer_revisions"] = @question.interview_question_set.questions.where.not(id: @question.id)
-          .to_h { |peer| [peer.id, peer.question_revision] }
+          .to_h { |peer| [ peer.id, peer.question_revision ] }
       else
-        task.input.merge!("question_text" => @question.question_text, "answer_text" => @question.answer_text,
-                          "screened_fields" => @question.screened_fields)
+        task.input["normalized_answer_sha256"] = FeedbackOutdatedService.answer_fingerprint(@question.answer_text)
       end
       success(task)
     end

@@ -119,14 +119,22 @@ RSpec.describe AiReaderAccess do
     end
   end
 
-  it "reads only generation source fields from written practice records" do
+  it "reads only required generation and feedback sources from written practice records" do
     expect(select_as_ai_reader("SELECT id, user_id, number, set_type, created_at FROM interview_question_sets")).to eq([])
-    expect(select_as_ai_reader("SELECT id, interview_question_set_id, question_text, question_revision, answer_revision, position, retired_at FROM interview_questions")).to eq([])
+    expect(select_as_ai_reader("SELECT id, interview_question_set_id, question_text, question_revision, answer_revision, position, retired_at, answer_text, screened_fields FROM interview_questions")).to eq([])
     expect(select_as_ai_reader("SELECT id, user_id, question_text, created_at FROM avoided_interview_questions")).to eq([])
-    %w[answer_text feedback screened_fields].each do |column|
+    %w[feedback feedback_answer_revision feedback_question_revision].each do |column|
       expect { select_as_ai_reader("SELECT #{column} FROM interview_questions") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     end
     expect { select_as_ai_reader("UPDATE interview_questions SET question_text = 'changed'") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "keeps provider attempts and accounting outside written practice source access" do
+    %w[interview_provider_attempts interview_execution_attempts chat_provider_attempts
+       chat_execution_attempts ai_usage_attempts ai_usage_reconciliations].each do |table|
+      expect { select_as_ai_reader("SELECT id FROM #{table}") }
+        .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
   end
 
   it "can't write" do

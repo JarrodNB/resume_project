@@ -20,8 +20,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  entry: { marginBottom: 8 },
-  entryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  entryEnd: { marginBottom: 8 },
+  entryHeader: { flexShrink: 0 },
+  entryRow: { flexShrink: 0, flexDirection: 'row', justifyContent: 'space-between' },
   heading: { fontFamily: 'Helvetica-Bold', flexGrow: 1, paddingRight: 12 },
   dates: { fontSize: 9, color: '#333333' },
   meta: { fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#333333', marginBottom: 2 },
@@ -55,36 +56,50 @@ export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
 function PdfBlock({ block }: { block: ResumePdfBlock }) {
   if (block.entries.length === 0) {
     return (
-      <View>
+      <>
         <Text style={styles.sectionTitle} minPresenceAhead={24}>{block.title}</Text>
         {block.text ? <Text>{block.text}</Text> : null}
-      </View>
+      </>
     )
   }
 
   return (
-    <View>
-      <Text style={styles.sectionTitle} minPresenceAhead={24}>{block.title}</Text>
+    <>
       {block.entries.map((entry, index) => (
-        <PdfEntry key={`${entry.heading}-${index}`} entry={entry} />
+        <PdfEntry key={`${entry.heading}-${index}`} entry={entry} sectionTitle={index === 0 ? block.title : undefined} />
       ))}
-    </View>
+    </>
   )
 }
 
-/** One role, project, or school. */
-function PdfEntry({ entry }: { entry: ResumePdfEntry }) {
+/** Keep the section title and entry header together even when a long title wraps.
+ * Only the header is unbreakable; details enter page flow directly so nested
+ * container splitting cannot separate a title or move a whole entry body.
+ */
+function PdfEntry({ entry, sectionTitle }: { entry: ResumePdfEntry; sectionTitle?: string }) {
+  const hasDetails = Boolean(entry.body || entry.bullets.length)
   return (
-    <View style={styles.entry}>
-      <View style={styles.entryRow} wrap={false} minPresenceAhead={20}>
-        <Text style={styles.heading}>{entry.heading}</Text>
-        {entry.dates ? <Text style={styles.dates}>{entry.dates}</Text> : null}
+    <>
+      <View
+        style={hasDetails ? styles.entryHeader : [styles.entryHeader, styles.entryEnd]}
+        wrap={false}
+        minPresenceAhead={hasDetails ? 20 : 0}
+      >
+        {sectionTitle ? <Text style={styles.sectionTitle}>{sectionTitle}</Text> : null}
+        <View style={styles.entryRow} wrap={false}>
+          <Text style={styles.heading}>{entry.heading}</Text>
+          {entry.dates ? <Text style={styles.dates}>{entry.dates}</Text> : null}
+        </View>
+        {entry.meta ? <Text style={styles.meta}>{entry.meta}</Text> : null}
       </View>
-      {entry.meta ? <Text style={styles.meta}>{entry.meta}</Text> : null}
-      {entry.body ? <Text style={styles.body}>{entry.body}</Text> : null}
+      {entry.body ? (
+        <Text style={entry.bullets.length ? styles.body : [styles.body, styles.entryEnd]}>{entry.body}</Text>
+      ) : null}
       {entry.bullets.map((bullet, index) => (
-        <Text key={index} style={styles.bullet}>{`• ${bullet}`}</Text>
+        <Text key={index} style={index === entry.bullets.length - 1 ? [styles.bullet, styles.entryEnd] : styles.bullet}>
+          {`• ${bullet}`}
+        </Text>
       ))}
-    </View>
+    </>
   )
 }

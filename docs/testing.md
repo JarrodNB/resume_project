@@ -53,6 +53,26 @@ use Postgres and roll back their writes. Run the full AI suite without the marke
 to include those tests; database tests may skip if Postgres is unavailable. API specs
 need the Compose database. See each service's `AGENTS.md` for fixtures and local rules.
 
+## Resume PDF layout checks
+
+The export tests decode actual PDFs with PDF.js. Run the content and geometry checks together:
+
+```bash
+docker compose run --rm --no-deps web npm test -- src/features/resume-tailoring/ResumePdfDocument.test.tsx src/features/resume-tailoring/pdfLayoutTestSupport.test.ts
+```
+
+`pdfLayoutTestSupport.ts` groups text runs into lines in top-left page coordinates.
+Fixture-provided section and entry labels detect headings left at a page end;
+large internal gaps and early page endings are review findings. A thin last page
+is also a review finding, only for multipage exports, so a short one-page resume
+is valid. Extraction failures fail the check rather than masquerading as clean output.
+Boundary fixtures cover wrapped entry titles, Unicode and links; the renderer keeps
+section titles and entry headers together while entry details remain breakable.
+Thresholds follow the current Letter renderer's 40-point vertical margins and need
+recalibration if its layout changes. These checks do not predict ATS acceptance.
+The approach was informed by [ai-job-search's layout verifier](https://github.com/ai-job-search-dev/ai-job-search/blob/83c788d779b74522bb346145ef675b984bf2d3f7/tools/verify_layout.py);
+the implementation uses our existing PDF.js runtime rather than its LaTeX/Poppler geometry.
+
 ## GraphQL contracts
 
 After Rails GraphQL changes, export the schema before generating frontend types:

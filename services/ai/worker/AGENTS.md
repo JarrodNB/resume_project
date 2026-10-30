@@ -6,7 +6,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 ## Contents
 
-- `job_preference_handler.py` — one frozen 1–100-listing preference batch, exact provenance reuse, task-wide screening/request/token/envelope caps, up to four JEV runs concurrently, and compact exact evidence; no database writes.
+- `job_preference_handler.py` — one frozen 1–100-listing preference batch, no injection classification, task-wide request/token/envelope caps, up to four JEV runs concurrently, and compact exact evidence; no database writes.
 
 - `result_delivery.py` owns queue publication and safe production failure diagnostics.
   It forwards delivery outcomes to the optional local transcript hook.
@@ -86,7 +86,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - Every execution starts a fresh screening session. Source-selection calls share decisions
   with exact bound prompts. Career-library fields reuse saved checks and report newly checked
   fields on final results through `record_screening`. Jobs, gap responses, written practice,
-  summaries and job preferences share that receipt, with exact typed-value fingerprints
+  and summaries share that receipt, with exact typed-value fingerprints
   and question/answer revisions where needed. They survive later generation failure; other inputs are
   screened again in later tasks. Standalone handlers
   and agent wrappers establish a local session when no worker execution exists.

@@ -1,59 +1,57 @@
-"""Ensure synthetic evaluation cannot award invented evidence or outages a passing score."""
+"""Keep probability evaluation failures visible without claiming calibration."""
 from types import SimpleNamespace
+
+import pytest
 
 from evals.job_preference_evaluators import (
     PreferenceEvalInput,
     PreferenceEvalLabels,
     PreferenceEvalOutput,
     PreferenceOutcome,
-    expand_preference_decision,
 )
 from evals.run_job_preference_evals import (
     BatchSmokeOutcome,
+    _check_report,
     load_job_preference_batch_smoke_dataset,
     load_job_preference_dataset,
 )
 
 
-def test_grounded_match_passes_and_fabricated_quote_fails():
-    decision = {"status": "matching", "support": {"passage_id": "P1", "text": "Fully remote."}, "contradiction": None}
+def test_native_probability_passes_only_its_expected_directional_band():
     ctx = SimpleNamespace(inputs=PreferenceEvalInput(criterion="Fully remote", passages=["Fully remote."]),
-        metadata=PreferenceEvalLabels(status="matching", support="P1"),
-        output=PreferenceEvalOutput(status="completed", decision=decision))
-    assert PreferenceOutcome().evaluate(ctx) == {"decision_match": 1.0, "evidence_valid": 1.0}
-    ctx.output.decision["support"]["text"] = "Invented"
-    assert PreferenceOutcome().evaluate(ctx)["evidence_valid"] == 0.0
+        metadata=PreferenceEvalLabels(minimum=0.75, maximum=1), output=PreferenceEvalOutput(status="completed", probability=0.93))
+    assert PreferenceOutcome().evaluate(ctx) == {"probability_valid": 1.0, "expected_band": 1.0}
+    ctx.output.probability = 0.1
+    assert PreferenceOutcome().evaluate(ctx) == {"probability_valid": 1.0, "expected_band": 0.0}
 
 
-def test_screening_outage_is_not_a_successful_injection_block():
-    ctx = SimpleNamespace(inputs=PreferenceEvalInput(criterion="Remote", passages=["Injected"]),
-        metadata=PreferenceEvalLabels(status="failed", blocked=True),
-        output=PreferenceEvalOutput(status="failed", failure_code="screening_unavailable"))
-    assert PreferenceOutcome().evaluate(ctx)["decision_match"] == 0.0
-    ctx.output.failure_code = "input_rejected"
-    assert PreferenceOutcome().evaluate(ctx)["decision_match"] == 1.0
+def test_outage_or_missing_probability_is_not_a_successful_estimate():
+    ctx = SimpleNamespace(inputs=None, metadata=PreferenceEvalLabels(minimum=0, maximum=1), output=PreferenceEvalOutput(status="failed"))
+    assert PreferenceOutcome().evaluate(ctx) == {"probability_valid": 0.0, "expected_band": 0.0}
 
 
-def test_dataset_contains_only_eight_bounded_synthetic_cases_with_expected_labels_separate():
+def test_dataset_bands_are_separate_from_model_inputs():
     cases = load_job_preference_dataset().cases
     assert len(cases) == 8
-    assert sum(case.metadata.blocked for case in cases) == 1
-    assert {case.metadata.status for case in cases} == {"matching", "conflicting", "unknown", "failed"}
-    assert all("status" not in case.inputs.model_dump() for case in cases)
+    assert all(set(case.inputs.model_dump()) == {"criterion", "passages"} for case in cases)
+    assert all(0 <= case.metadata.minimum <= case.metadata.maximum <= 1 for case in cases)
 
 
-def test_batch_smoke_is_one_bounded_case_and_rejects_wrong_order_and_evidence():
+def test_smoke_verifies_independent_scores_order_and_ten_preference_boundary():
     cases = load_job_preference_batch_smoke_dataset().cases
-    assert len(cases) == 1
-    assert len(cases[0].inputs["criteria"]) == len(cases[0].inputs["listings"]) == 3
-    assert "decisions" not in cases[0].inputs
-    ctx = SimpleNamespace(metadata=cases[0].metadata, output={"decisions": cases[0].metadata["decisions"], "evidence_valid": True, "order": cases[0].metadata["order"]})
-    assert all(score == 1 for score in BatchSmokeOutcome().evaluate(ctx).values())
-    ctx.output.update(evidence_valid=False, order=["conflict", "unknown", "strong"])
-    assert BatchSmokeOutcome().evaluate(ctx) == {"decision_match": 1.0, "evidence_valid": 0.0, "order_match": 0.0}
+    assert len(cases) == 2
+    assert [len(case.inputs["criteria"]) for case in cases] == [3, 10]
+    ctx = SimpleNamespace(metadata=cases[0].metadata, output={"probabilities": [[0.95] * 3, [0.05] * 3, [0.5] * 3], "order": [0, 2, 1]})
+    assert all(value == 1 for value in BatchSmokeOutcome().evaluate(ctx).values())
+    ctx.output["order"] = [1, 2, 0]
+    assert BatchSmokeOutcome().evaluate(ctx)["order_match"] == 0
+    ctx.output["probabilities"][0] = [0.3] * 3
+    assert BatchSmokeOutcome().evaluate(ctx)["independent"] == 0
 
 
-def test_compact_evidence_expansion_preserves_the_actual_result_quote():
-    listing = {"evidence_passages": [{"passage_id": "P1", "text": "Actual frozen quote"}]}
-    decision = {"status": "matching", "support": {"passage_id": "P1"}, "contradiction": None}
-    assert expand_preference_decision(listing, decision)["support"]["text"] == "Actual frozen quote"
+@pytest.mark.parametrize("value", [None, float("nan"), 0.0])
+def test_eval_gate_fails_for_missing_nan_or_nonpassing_score(value):
+    scores = {} if value is None else {"probability_valid": SimpleNamespace(value=value)}
+    report = SimpleNamespace(cases=[SimpleNamespace(evaluator_failures=[], scores=scores)], failures=[])
+    with pytest.raises(RuntimeError):
+        _check_report(report, ("probability_valid",))

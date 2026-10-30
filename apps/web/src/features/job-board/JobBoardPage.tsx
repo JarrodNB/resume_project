@@ -131,6 +131,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
             <option value="preferences" disabled={!preferenceCheck.completed}>Preference fit</option>
           </select>
         </div>
+        <p className="text-sm text-muted-foreground">Fit percentages are independent model estimates from the posting, not verified facts. Preference order uses the must-have average, then the nice-to-have average.</p>
         {preferenceCheck.busy && <p role="status">Checking loaded roles against your preferences…</p>}
         {preferenceCheck.completed && <p role="status">Loaded roles checked against your confirmed preferences.</p>}
         {preferenceCheck.stale && <p role="status">These results or confirmed preferences changed. Check these results again for a current assessment.</p>}

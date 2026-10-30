@@ -27,12 +27,9 @@ function search(ids = ['conflict', 'unknown', 'match', 'tie'], keyword = 'engine
 }
 function result(ids = ['conflict', 'unknown', 'match', 'tie']) {
   return { confirmed_revision: 2, listings: ids.map((id) => ({ id, source_digest: `digest-${id}`, truncated: false,
-    evidence_passages: [{ passage_id: 'P1', text: 'Exact role evidence.' }],
-    criteria: criteria.map((criterion, index) => {
-      const status = index === 1 ? 'matching' : id === 'conflict' ? 'conflicting' : id === 'unknown' ? 'unknown' : 'matching'
-      return { id: criterion.id, status, reason: status === 'matching' ? 'supported' : status === 'conflicting' ? 'contradicted' : 'not_stated',
-        support: status === 'matching' ? { passage_id: 'P1' } : null, contradiction: status === 'conflicting' ? { passage_id: 'P1' } : null }
-    }) })) }
+    criteria: criteria.map((criterion, index) => ({ id: criterion.id,
+      probability: index === 1 ? 0.85 : id === 'conflict' ? 0.05 : id === 'unknown' ? 0.5 : 0.95 })) })) }
+
 }
 function check(ids = ['conflict', 'unknown', 'match', 'tie'], extra = {}) {
   return { request: { query: CHECK_JOB_BOARD_PREFERENCE_RESULTS, variables: { confirmedRevision: 2, listings: ids.map((id) => ({ listingId: id, expectedDigest: `digest-${id}` })) } },
@@ -57,9 +54,10 @@ it('checks loaded results in one task and gives must-haves priority with stable 
   await screen.findByText('Loaded roles checked against your confirmed preferences.')
   expect(titles()).toEqual(['match role', 'tie role', 'unknown role', 'conflict role'])
   expect(screen.getByRole('button', { name: 'Check these results' })).toBeDisabled()
-  expect(screen.queryByText('Supports: Exact role evidence.')).not.toBeInTheDocument()
+  expect(screen.queryByText('95% estimated fit')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Preference details for match role' }))
-  expect(screen.getAllByText('Supports: Exact role evidence.').length).toBeGreaterThan(0)
+  expect(screen.getByText('95% estimated fit')).toBeInTheDocument()
+  expect(screen.getByText('85% estimated fit')).toBeInTheDocument()
   await user.selectOptions(screen.getByRole('combobox', { name: 'Result order' }), 'provider')
   expect(titles()).toEqual(['conflict role', 'unknown role', 'match role', 'tie role'])
   await user.selectOptions(screen.getByRole('combobox', { name: 'Result order' }), 'preferences')
@@ -164,7 +162,7 @@ it('rejects incomplete or duplicate listing outcomes instead of applying partial
   await submit(user)
   await screen.findByRole('heading', { name: 'match role' })
   await user.click(screen.getByRole('button', { name: 'Check these results' }))
-  expect(await screen.findByText('The check returned incomplete evidence. Please try again.')).toBeInTheDocument()
+  expect(await screen.findByText('The check returned invalid probabilities. Please try again.')).toBeInTheDocument()
   expect(titles()[0]).toBe('conflict role')
 })
 
@@ -196,7 +194,7 @@ it('requires confirmed criteria before any batch mutation', async () => {
   expect(titles()[0]).toBe('conflict role')
 })
 
-it('discloses omitted posting text even when every criterion has supporting evidence', async () => {
+it('discloses omitted posting text alongside probability estimates', async () => {
   const user = userEvent.setup()
   const value = result(['match'])
   value.listings[0].truncated = true
@@ -205,7 +203,7 @@ it('discloses omitted posting text even when every criterion has supporting evid
   await screen.findByRole('heading', { name: 'match role' })
   await user.click(screen.getByRole('button', { name: 'Check these results' }))
   expect(await screen.findByText('Checked an excerpt; some posting text was omitted.')).toBeInTheDocument()
-  expect(screen.getByText('2 matching · 0 conflicting · 0 unknown')).toBeInTheDocument()
+  expect(screen.getByText('Estimated preference fit')).toBeInTheDocument()
 })
 
 it('ignores an old subscription identity when the same listing IDs belong to a newer check', async () => {

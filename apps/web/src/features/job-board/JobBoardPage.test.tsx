@@ -9,7 +9,7 @@ import type { MockLink } from '@apollo/client/testing'
 import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, JOB_BOARD_LOCATIONS_QUERY, JOB_BOARD_SEARCH_IDEAS_QUERY } from './jobBoardOperations'
 import { renderPage } from '@/test/renderPage'
 import { setSectionOpen } from '@/lib/openSections'
-import type { BoardListing } from './useJobBoardSearch'
+import type { BoardListing } from './jobBoardVisit'
 import { JobBoardPage } from './JobBoardPage'
 
 afterEach(() => vi.restoreAllMocks())

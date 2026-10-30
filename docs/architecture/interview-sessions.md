@@ -829,15 +829,18 @@ recovery while keeping payloads, allowances and result validation feature-specif
 
 `requestInterviewClarification` authorizes an owned active real-mode session and its exact latest
 saved opening/follow-up message. It creates one `InterviewClarification` per message.
-Only `message.content` enters its SQS payload, alongside the clarification identity;
+Only the clarification/message identities and a question digest enter its saved task command;
 acknowledgements, spoken text, answers, library and model history are excluded.
 Prepared sessions reuse their immutable preparation hourly admission. Clarification
 spend and concurrency use the spoken-interview allowance, independently of general AI.
 
 Before screening or generation, the queue worker calls the authenticated
 `/internal/interviews/clarifications/:ai_task_id/claim` endpoint. Rails rechecks prompt,
-owner, expiry, admission and once-only execution under locks. This adds no AI database
-grants. The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` (the same
+owner, expiry, admission and once-only execution under locks. The response contains only
+session/record identities and the claim timestamp. Python verifies those fences through
+read-only database access before loading the exact canonical question. Narrow column grants
+cover auxiliary identities, deadlines and claims; generated results and private media remain hidden.
+The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` (the same
 private secret as Rails/the interview runtime); configure these in the queue worker's
 environment before enabling clarification. A blank secret fails without provider calls.
 Deploy the migration/API and compatible queue worker together; schema fields require
@@ -911,7 +914,7 @@ save bounds and preparation context limits still apply.
 Optional career references help the candidate recall saved experience while answering.
 They display exact saved wording rather than a generated answer. They are independent
 of interviewer context, speech, answer drafts, question progression and answer allowances.
-The interviewer still receives its existing frozen preparation context.
+The interviewer receives prepared questions and accepted dialogue.
 
 Career references appear automatically for the current opening or follow-up in active
 real-mode interviews. No feature enablement environment setting is required.
@@ -934,7 +937,9 @@ deadline is still live. An earlier prompt's expired attempt does not occupy a sl
 even without worker redelivery. Redelivery checks expiry and prompt availability before
 the once-only claim guard, failing obsolete work while retaining late usage. This adds
 no polling, automatic regeneration or background sweeper. A private authenticated claim rechecks
-availability and returns canonical owner, prompt, reference identity and query text.
+availability and returns session/record identities and the once-only claim timestamp.
+Python validates that claim through read-only owned database access and builds the bounded query
+from canonical messages; task commands retain only identities and source digests.
 Duplicate claims do no paid work. SQS results preserve late or duplicate usage while
 rejecting stale content after follow-up changes, skip, advancement, abandonment or expiry.
 
@@ -1022,7 +1027,8 @@ Rails stores one `InterviewSessionFeedback` per session and owns admission, its 
 claim deadline and validated saved result. `interview_session_feedback` uses the existing SQS
 worker/result path, independent of the active-turn HTTP executor. The queue input contains
 only the feedback record identity. The authenticated internal feedback claim returns retained
-server-owned role/setup context and accepted dialogue once; duplicate claims perform no
+session/feedback identities and the once-only claim timestamp. Python reads canonical accepted
+dialogue and generated fictional-role context through a scoped owned database query; duplicate claims perform no
 provider work. Preparation-backed sessions reuse their root hourly admission and all feedback
 usage belongs to the independent interview allowance.
 

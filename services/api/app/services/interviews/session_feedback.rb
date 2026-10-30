@@ -1,5 +1,5 @@
 # Owns explicit completed-interview coaching requests, once-only claims and result acceptance.
-# Transcript text comes from Rails only after a live claim; queue envelopes contain an identity.
+# A live claim grants identities only; Python reads canonical dialogue through read-only SQL.
 module Interviews
   class SessionFeedback
     # @return [ServiceResult<InterviewSessionFeedback>] existing work or a new bounded attempt
@@ -55,12 +55,7 @@ module Interviews
           next success(allowed: false)
         end
         record.update!(claimed_at: Time.current)
-        questions = answered_questions(interview).map do |question|
-          { question_id: question.id, question: question.content,
-            dialogue: interview.messages.where(question: question, kind: %w[answer follow_up]).order(:position).map { |message| { kind: message.kind, content: message.content } } }
-        end
-        success(allowed: true, questions: questions, role: interview.prepared_role,
-          setup: SetupConfiguration.for(interview))
+        success(allowed: true, interview_id: interview.id, record_id: record.id, claimed_at: record.claimed_at.iso8601(6))
       end
       # A rejected claim produces no final worker result, so publish its saved failure here.
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if ai_task.failed?

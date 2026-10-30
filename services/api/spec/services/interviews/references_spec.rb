@@ -8,14 +8,14 @@ RSpec.describe "Interview question references" do
 
   before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
 
-  it "queues only the exact question and reuses its logical work without changing progress" do
+  it "queues only question identities and digests and reuses its logical work without changing progress" do
     prompt.update!(acknowledgement: "You repaired a scheduler.")
     original = interview.attributes.slice("revision", "current_question_position")
     result = Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id)
     expect(result).to be_success
     task = result.value.ai_task
-    expect(task.input.keys).to match_array(%w[reference_id question_text])
-    expect(task.input["question_text"]).to eq(prompt.content)
+    expect(task.input.keys).to match_array(%w[reference_id message_id question_digest query_digest])
+    expect(task.input["question_digest"]).to eq(Digest::SHA256.hexdigest(prompt.content))
     expect(task).to be_interview_references
     expect(Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id).value.id).to eq(result.value.id)
     expect(queue).to have_received(:send_message).once do |message_body:|
@@ -26,16 +26,16 @@ RSpec.describe "Interview question references" do
     expect(interview.messages.answer.count).to eq(0)
   end
 
-  it "freezes complete accepted context for a follow-up and grants its canonical identity" do
+  it "fences accepted follow-up context by digest and grants its canonical identity" do
     interview.messages.create!(question: prompt.question, kind: "answer", position: 1,
       semantic_key: "reference-answer", content: "I migrated Kubernetes clusters.")
     follow_up = interview.messages.create!(question: prompt.question, kind: "follow_up", position: 2,
       semantic_key: "reference-follow-up", content: "What changed afterward?")
     references = Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: follow_up.id).value
-    expect(references.ai_task.input["query_text"]).to include(prompt.question.content, follow_up.content, "I migrated Kubernetes clusters.")
+    expect(references.ai_task.input["query_digest"]).to eq(Digest::SHA256.hexdigest([ prompt.question.content, "I migrated Kubernetes clusters.", follow_up.content ].join("\n\n")))
     grant = Interviews::CurrentPromptWork::References.new.claim(ai_task: references.ai_task).value
-    expect(grant).to include(allowed: true, user_id: interview.user_id, reference_id: references.id,
-      query_text: references.ai_task.input["query_text"])
+    expect(grant.keys).to match_array(%i[allowed interview_id record_id claimed_at])
+    expect(grant).to include(allowed: true, interview_id: interview.id, record_id: references.id)
     expect(Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id)).not_to be_success
   end
 
@@ -44,7 +44,7 @@ RSpec.describe "Interview question references" do
       semantic_key: "reference-tamper", content: "What changed afterward?")
     references = Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: follow_up.id).value
     task = references.ai_task
-    task.update!(input: task.input.merge("query_text" => "Arbitrary private search"))
+    task.update!(input: task.input.merge("query_digest" => "incorrect"))
     expect(Interviews::CurrentPromptWork::References.new.claim(ai_task: task).value).to eq({ allowed: false })
     expect(task.reload).to be_failed
   end
@@ -54,7 +54,7 @@ RSpec.describe "Interview question references" do
     follow_up = interview.messages.create!(question: prompt.question, kind: "follow_up", position: 1,
       semantic_key: "reference-bound", content: "What changed afterward?", acknowledgement: "PRIVATE ACK")
     references = Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: follow_up.id).value
-    expect(references.ai_task.input["query_text"]).to eq(follow_up.content)
+    expect(references.ai_task.input["query_digest"]).to eq(Digest::SHA256.hexdigest(follow_up.content))
   end
 
   def request_references
@@ -64,7 +64,7 @@ RSpec.describe "Interview question references" do
   it "grants one execution, saves one result, and accounts duplicate reports once" do
     references = request_references
     task = references.ai_task
-    expect(Interviews::CurrentPromptWork::References.new.claim(ai_task: task).value).to include(allowed: true, question_text: prompt.content)
+    expect(Interviews::CurrentPromptWork::References.new.claim(ai_task: task).value).to include(allowed: true, interview_id: interview.id)
     expect(Interviews::CurrentPromptWork::References.new.claim(ai_task: task).value).to eq({ allowed: false })
     message = { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [] },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "input_tokens" => 10, "output_tokens" => 5, "cost_microdollars" => 12 } ] }

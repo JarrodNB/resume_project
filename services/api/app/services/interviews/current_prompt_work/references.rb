@@ -1,6 +1,6 @@
 # Career references search saved evidence with their own in-flight allowance.
 # An empty successful search is reusable. Acceptance verifies exact owned source wording,
-# while claim validation fences changes to the frozen follow-up search context.
+# while claim validation fences changes to the canonical follow-up search context.
 module Interviews
   class CurrentPromptWork
     class References < CurrentPromptWork
@@ -20,17 +20,16 @@ module Interviews
       end
 
       def task_input(interview, record)
-        query_input = record.message.follow_up? ? { query_text: ReferenceQuery.for(interview, record.message) } : {}
-        { reference_id: record.id, question_text: record.message.content }.merge(query_input)
+        { reference_id: record.id, message_id: record.message_id, question_digest: Digest::SHA256.hexdigest(record.message.content),
+          query_digest: Digest::SHA256.hexdigest(ReferenceQuery.for(interview, record.message)) }
       end
 
       def valid_claim_input?(interview, record, task)
-        (task.input["query_text"] || task.input["question_text"]) == ReferenceQuery.for(interview, record.message)
+        !task.input.key?("query_digest") || task.input["query_digest"] == Digest::SHA256.hexdigest(ReferenceQuery.for(interview, record.message))
       end
 
       def claim_payload(interview, record)
-        { allowed: true, question_text: record.message.content,
-          query_text: ReferenceQuery.for(interview, record.message), user_id: interview.user_id, reference_id: record.id }
+        { allowed: true, interview_id: interview.id, record_id: record.id, claimed_at: record.claimed_at.iso8601(6) }
       end
 
       def result_attributes(task, result)

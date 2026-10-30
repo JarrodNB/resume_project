@@ -8,14 +8,14 @@ RSpec.describe "Interview question clarification" do
 
   before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
 
-  it "queues only the exact question and reuses its logical work without changing progress" do
+  it "queues only question identities and a digest and reuses its logical work without changing progress" do
     prompt.update!(acknowledgement: "You repaired a scheduler.")
     original = interview.attributes.slice("revision", "current_question_position")
     result = Interviews::CurrentPromptWork::Clarification.new.request(interview: interview, message_id: prompt.id)
     expect(result).to be_success
     task = result.value.ai_task
-    expect(task.input.keys).to match_array(%w[clarification_id question_text])
-    expect(task.input["question_text"]).to eq(prompt.content)
+    expect(task.input.keys).to match_array(%w[clarification_id message_id question_digest])
+    expect(task.input["question_digest"]).to eq(Digest::SHA256.hexdigest(prompt.content))
     expect(task).to be_interview_clarification
     expect(Interviews::CurrentPromptWork::Clarification.new.request(interview: interview, message_id: prompt.id).value.id).to eq(result.value.id)
     expect(queue).to have_received(:send_message).once do |message_body:|
@@ -33,7 +33,7 @@ RSpec.describe "Interview question clarification" do
   it "grants one execution, saves one result, and accounts duplicate reports once" do
     clarification = request_clarification
     task = clarification.ai_task
-    expect(Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: task).value).to include(allowed: true, question_text: prompt.content)
+    expect(Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: task).value).to include(allowed: true, interview_id: interview.id)
     expect(Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: task).value).to eq({ allowed: false })
     message = { "ai_task_id" => task.id, "status" => "completed", "result" => { "explanation" => "Describe a real situation where you worked with others to solve a problem." },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "input_tokens" => 10, "output_tokens" => 5, "cost_microdollars" => 12 } ] }

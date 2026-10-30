@@ -17,13 +17,13 @@ module Interviews
       end
 
       def task_input(interview, record)
-        { clarification_id: record.id, question_text: record.message.content }
+        { clarification_id: record.id, message_id: record.message_id, question_digest: Digest::SHA256.hexdigest(record.message.content) }
       end
 
       def valid_claim_input?(interview, record, task) = true
 
       def claim_payload(interview, record)
-        { allowed: true, question_text: record.message.content }
+        { allowed: true, interview_id: interview.id, record_id: record.id, claimed_at: record.claimed_at.iso8601(6) }
       end
 
       def result_attributes(task, result)

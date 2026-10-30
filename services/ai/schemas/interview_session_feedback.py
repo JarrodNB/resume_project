@@ -1,6 +1,6 @@
 """Bound saved interview dialogue and the coaching returned for its answered questions.
 
-Rails supplies the claim; these models reject unusable snapshots before paid work.
+The owned reader supplies canonical dialogue; reject unusable inputs before paid work.
 Only accepted answers provide personal evidence, while role text describes a job.
 """
 from typing import Annotated, Literal

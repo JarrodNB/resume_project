@@ -1,5 +1,6 @@
 # Description: Career library entry for a skill, optionally grouped by category.
 class Skill < ApplicationRecord
+  include ScreenedFields
   include LibrarySizeLimit
 
   belongs_to :user

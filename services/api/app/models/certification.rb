@@ -1,6 +1,7 @@
 # Description: A user-owned credential kept independently from formal education.
 # Index: user association; required name; text and library count validations
 class Certification < ApplicationRecord
+  include ScreenedFields
   include LibrarySizeLimit
 
   belongs_to :user

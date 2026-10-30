@@ -1,39 +1,31 @@
 # Remembers reusable coverage of saved career-library fields and forgets it on user edits.
 # Ordinary reports represent successful classifier checks; AI edit acceptance also covers
 # the exact server-owned generated field without classifying it. No screening happens here.
-require "digest"
-require "json"
-
+# Every reported field needs a fingerprint of the value that was checked, so a late result
+# cannot approve text the user edited after the task was queued.
 module CareerLibrary
   class RecordScreeningService < ApplicationService
-    FIELDS = {
-      "User" => %w[summary],
-      "Experience" => %w[company title location description],
-      "ExperienceHighlight" => %w[content],
-      "Project" => %w[name role description],
-      "Education" => %w[institution degree field_of_study description],
-      "Certification" => %w[name issuer credential_id credential_url description],
-      "Skill" => %w[name category],
-      "CareerContext" => %w[requirement response]
-    }.freeze
+    FIELDS = Screening::RecordApprovalsService::LIBRARY_TYPES.to_h do |record_type|
+      entry = Screening::RecordApprovalsService::RECORD_TYPES.fetch(record_type)
+      [ entry[:model], entry[:fields] ]
+    end.freeze
 
     # Call under the record row lock after assigning edits and before saving.
     # Reload before assignment so concurrent approvals of old text are invalidated.
     def self.discard_changed_fields(record:)
-      changed = record.changed & FIELDS.fetch(record.class.name)
-      record.screened_fields -= changed
+      record.discard_changed_screened_fields
     end
 
-    def initialize(user:, reports:, require_fingerprints: false)
-      @require_fingerprints = require_fingerprints
+    def initialize(user:, reports:)
       @user = user
       @reports = reports
     end
 
-    # Adds successful checks once, ignoring unknown kinds, fields, and records.
+    # Adds successful checks once, ignoring unknown kinds, fields, records and fields
+    # whose fingerprint does not match the saved value.
     def call
       Array(@reports).each do |report|
-        next unless report.is_a?(Hash)
+        next unless report.is_a?(Hash) && report["fingerprints"].is_a?(Hash)
 
         model_name = report["record_type"].to_s.camelize
         allowed = FIELDS[model_name]
@@ -47,12 +39,8 @@ module CareerLibrary
 
         record.with_lock do
           fingerprints = report["fingerprints"]
-          checked_fields = if @require_fingerprints || fingerprints.present?
-            fields.select do |field|
-              fingerprints.is_a?(Hash) && fingerprints[field] == Digest::SHA256.hexdigest(JSON.generate(record[field]))
-            end
-          else
-            fields
+          checked_fields = fields.select do |field|
+            fingerprints[field] == Screening::RecordApprovalsService.field_fingerprint(record[field])
           end
           combined = record.screened_fields | checked_fields
           record.update!(screened_fields: combined) if combined != record.screened_fields

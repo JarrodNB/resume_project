@@ -5,7 +5,7 @@ require "json"
 
 module InterviewPrep
   class RecordScreeningService < ApplicationService
-    FIELDS = %w[question_text answer_text].freeze
+    FIELDS = Screening::RecordApprovalsService::RECORD_TYPES.fetch("interview_question")[:fields]
 
     def self.field_fingerprint(value)
       Digest::SHA256.hexdigest(JSON.generate(value))

@@ -89,7 +89,8 @@ RSpec.describe "Missing profile summary generation" do
     role.update!(description: "Unscreened replacement")
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed",
       "result" => { "text" => "Engineer", "source_labels" => [task.input["sources"].first["label"]] },
-      "library_screening" => [{"record_type" => "experience", "record_id" => role.id, "fields" => ["description"]}] })
+      "library_screening" => [{"record_type" => "experience", "record_id" => role.id, "fields" => ["description"],
+        "fingerprints" => {"description" => Digest::SHA256.hexdigest(JSON.generate(role.description))}}] })
     expect(role.reload.screened_fields).not_to include("description")
   end
 

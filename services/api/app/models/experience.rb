@@ -2,6 +2,7 @@
 # Index:
 #   - highlights: ordered bullet points for this role
 class Experience < ApplicationRecord
+  include ScreenedFields
   include MostRecentFirst
   include LibrarySizeLimit
 

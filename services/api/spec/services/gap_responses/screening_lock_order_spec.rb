@@ -44,7 +44,8 @@ RSpec.describe "Gap answer screening lock order" do
             "gap_response_screening" => [ { "response_id" => response.id, "fields" => {
               "body" => GapResponses::RecordScreeningService.field_fingerprint(response.body)
             } } ],
-            "library_screening" => [ { "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ] } ]
+            "library_screening" => [ { "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ],
+              "fingerprints" => { "summary" => Jobs::RecordScreeningService.field_fingerprint(user.summary) } } ]
           })
         else
           GapResponses::SaveGapResponseService.call(job: Job.find(job.id), requirement: context.requirement,
@@ -106,7 +107,8 @@ RSpec.describe "Gap answer screening lock order" do
       AiTasks::ApplyAiResultService.call(message: {
         "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
         "job_screening" => [ report ], "library_screening" => [ {
-          "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ]
+          "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ],
+          "fingerprints" => { "summary" => Jobs::RecordScreeningService.field_fingerprint(user.summary) }
         } ]
       })
     end

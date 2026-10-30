@@ -1,5 +1,6 @@
 # Description: Career library entry for a personal, open source, or work project.
 class Project < ApplicationRecord
+  include ScreenedFields
   include MostRecentFirst
   include LibrarySizeLimit
 

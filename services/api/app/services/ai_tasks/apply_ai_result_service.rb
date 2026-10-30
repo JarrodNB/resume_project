@@ -39,6 +39,7 @@ module AiTasks
         InterviewPrep::RecordScreeningService.call(ai_task: ai_task, reports: @message["interview_question_screening"])
         Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
         GapResponses::RecordScreeningService.call(ai_task: ai_task, reports: @message["gap_response_screening"])
+        record_screening(ai_task)
 
         if ai_task.generate_summary?
           # Summary snapshots keep screening execution-local; never approve changed live facts.
@@ -66,6 +67,30 @@ module AiTasks
     end
 
     private
+
+    # Saves the unified `record_screening` receipts. Library receipts follow the same rules
+    # as the older `library_screening` list: summary generation keeps them execution-local,
+    # and review/edit tasks must also match the frozen library snapshot.
+    def record_screening(ai_task)
+      receipts = @message["record_screening"]
+      return unless receipts.is_a?(Array)
+
+      library, others = receipts.partition do |receipt|
+        receipt.is_a?(Hash) && Screening::RecordApprovalsService::LIBRARY_TYPES.include?(receipt["record_type"])
+      end
+      if ai_task.generate_summary?
+        receipts = others
+      elsif ai_task.review_library_section? || ai_task.improve_library_entry?
+        receipts = others
+        reports = library.filter_map do |receipt|
+          next unless receipt["fingerprints"].is_a?(Hash)
+
+          receipt.slice("record_type", "record_id", "fingerprints").merge("fields" => receipt["fingerprints"].keys)
+        end
+        CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: reports)
+      end
+      Screening::RecordApprovalsService.call(user: ai_task.user, reports: receipts, ai_task: ai_task)
+    end
 
     # All result writes acquire the owner first. This preserves domain lock ordering and
     # serializes the outcome cursor through commit for reconnect recovery.

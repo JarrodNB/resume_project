@@ -29,7 +29,7 @@ module Chat
           conversation.update!(summary_text: @summary_update.fetch("text"), summary_version: conversation.summary_version + 1,
             summary_through_position: @summary_update.fetch("through_position"))
         end
-        CareerLibrary::RecordScreeningService.call(user: conversation.user, reports: @library_screening, require_fingerprints: true)
+        CareerLibrary::RecordScreeningService.call(user: conversation.user, reports: @library_screening)
         receipt = { "message_ids" => [user_message.id, assistant.id] }
         @operation.update!(status: "accepted", result_fingerprint: fingerprint, accepted_result: receipt)
         conversation.update!(title: conversation.title == "New chat" ? @operation.message.squish.truncate(80) : conversation.title, updated_at: Time.current)

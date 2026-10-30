@@ -1,4 +1,4 @@
-# Accept only an exact reordering of the task's frozen listing IDs. A worker cannot
+# Accept only an exact reordering of the task's selected listing IDs. A worker cannot
 # add another listing, drop a candidate, or overwrite an already finished outcome.
 module JobBoard
   class ValidateRerankingResultService < ApplicationService
@@ -7,8 +7,8 @@ module JobBoard
     end
 
     def call
-      expected = @task.input["listings"]
-      expected = expected.map { |entry| entry.is_a?(Hash) ? entry["id"] : nil } if expected.is_a?(Array)
+      expected = @task.input["listing_ids"] || @task.input["listings"]
+      expected = expected.map { |entry| entry.is_a?(Hash) ? entry["id"] : entry } if expected.is_a?(Array)
       actual = @result["ranked_listing_ids"] if @result.is_a?(Hash)
       valid = @result.is_a?(Hash) && @result.keys == [ "ranked_listing_ids" ] &&
         expected.is_a?(Array) && expected.size.between?(1, StartRerankingService::MAX_LISTINGS) &&

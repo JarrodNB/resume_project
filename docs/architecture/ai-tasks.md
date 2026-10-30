@@ -147,13 +147,16 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
 
 Per task type:
 
-- `rerank_job_listings`: input `{keyword, listings: [{id, text}]}` is a Rails-owned snapshot
-  of 1–100 shared catalogue listings, bounded to 200,000 UTF-8 JSON bytes. The worker embeds
-  listing excerpts and uses only this owner's model-matched career-library embeddings for
-  semantic order, fused equally with submitted-keyword BM25 (RRF k=60). The completed
-  result is `{ranked_listing_ids: [...]}`; Rails rejects anything except an exact permutation
-  of the snapshot IDs. Existing task budgets, attempt costs, subscriptions and duplicate
-  completion handling apply. No catalogue-table grant or generative model is introduced.
+- `rerank_job_listings`: durable input `{keyword, listing_ids: [...]}` selects 1–100
+  shared catalogue listings. The worker verifies the queued task's owner and type, then
+  reads only catalogue `id`/`payload` columns and builds current readable excerpts locally:
+  at most 6,000 UTF-8 bytes each and 140,000 total, with a 200,000-byte serialized cap.
+  Legacy commands retain their selected IDs; copied text is ignored. Missing listings fail
+  before embedding. The worker uses only this owner's model-matched career-library vectors
+  for semantic order, fused equally with submitted-keyword BM25 (RRF k=60).
+  Results contain only `{ranked_listing_ids: [...]}`; Rails accepts an exact permutation
+  of the selected IDs. Budgets, attempt costs, subscriptions and duplicate completion
+  handling remain unchanged. No generative model is used.
 
 - `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
   Active Storage blob key in the S3 uploads bucket. The completed result is

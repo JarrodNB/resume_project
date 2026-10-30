@@ -7,6 +7,9 @@ this folder only reads what an AI task needs.
 
 ## Contents
 
+- `job_listing_reranking.py` — verifies an owned queued command before reading selected
+  shared public catalogue IDs/payloads. Catalogue rows have no private owner; selection
+  and every career-library read remain owner-scoped.
 - `task_commands.py` — loads only the ID/owner/type-matched queued task input.
   Rails grants only task identity, status and input columns. The separate library exchange
   view exposes generated outputs/history only for the two library workflows.
@@ -29,7 +32,7 @@ this folder only reads what an AI task needs.
 
 ## Local Rules
 
-- All SQL lives here. Every query filters by the task message's `user_id` (child rows through
+- All SQL lives here. Private queries filter by the task message's `user_id` (child rows through
   their parent's `user_id`).
 - `ai_reader` can only read the tables granted in Rails `lib/ai_reader_access.rb` (of `users`,
   `id`, `summary`, `name`, `contact_email`, and `phone`). Add a grant there before reading a

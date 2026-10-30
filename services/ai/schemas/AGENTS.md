@@ -61,8 +61,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 
 - `interview_feedback.py` — strengths, improvements, scope-aware example descriptions, evidence quotes, and trusted source context; results use `interview_feedback`. Knowledge examples may correct subject facts without personal-fact placeholders; all scopes forbid invented personal experience.
 
-- `job_listing_reranking.py` — bounded Rails-owned snapshots (keyword and 1–100 unique
-  listing excerpts, max6000 bytes each/max200000 serialized UTF8 bytes) and ordered IDs.
+- `job_listing_reranking.py` — ID-only catalogue commands, bounded locally loaded excerpts
+  (max6000 bytes each/max200000 serialized UTF8 bytes) and ordered IDs.
 
 - `interview_session_feedback.py` — saved completed-session claim and bounded summary/question coaching contracts.
 

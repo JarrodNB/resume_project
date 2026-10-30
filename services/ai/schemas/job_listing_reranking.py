@@ -1,4 +1,4 @@
-"""Bound the listing excerpts Rails sends for optional job-board reranking.
+"""Bound selected IDs and locally loaded excerpts for optional job-board reranking.
 
 Only candidate identities and text are accepted; no career facts are supplied by
 the browser. Output contains an ordering, never a fit score or generated claims.
@@ -36,7 +36,7 @@ class RerankListingsInput(BaseModel):
         return value.strip()
 
     @model_validator(mode="after")
-    def bounded_snapshot(self):
+    def bounded_excerpts(self):
         ids = [item.id for item in self.listings]
         if len(ids) != len(set(ids)):
             raise ValueError("Listing IDs must be unique")
@@ -46,6 +46,22 @@ class RerankListingsInput(BaseModel):
         ):
             raise ValueError("Reranking snapshot is too large")
         return self
+
+
+class RerankListingsCommand(BaseModel):
+    """Durable selection without copied catalogue fields."""
+    model_config = ConfigDict(extra="forbid")
+    keyword: str = Field(min_length=1, max_length=200)
+    listing_ids: list[UUID] = Field(min_length=1, max_length=100)
+
+    _keyword = field_validator("keyword")(RerankListingsInput.nonblank_keyword.__func__)
+
+    @field_validator("listing_ids")
+    @classmethod
+    def unique_ids(cls, value):
+        if len(value) != len(set(value)):
+            raise ValueError("Listing IDs must be unique")
+        return value
 
 
 class RankedListings(BaseModel):

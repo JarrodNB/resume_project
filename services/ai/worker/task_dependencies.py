@@ -52,6 +52,7 @@ class TaskDependencies:
     read_summary_sources: Callable[[UUID, SummaryCommand], SummaryGenerationInput | None] | None = None
     read_library_review: Callable[[UUID, str], LibraryReviewInput] | None = None
     read_library_edit: Callable[[AiTaskMessage], object] | None = None
+    read_reranking_input: Callable[[AiTaskMessage], object | None] | None = None
     score_job_listings: Callable[[UUID, Sequence[tuple[str, list[float]]], str], list[tuple[str, float]]] | None = None
 
 

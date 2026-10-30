@@ -9,6 +9,13 @@ from memory.rerank_job_listings import hybrid_listing_order
 from schemas.job_listing_reranking import RerankListingsInput
 
 
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    """Provider tests use a fake catalogue; real ownership is verified with SQL."""
+    from dataclasses import replace
+    return replace(task_dependencies, read_reranking_input=lambda task: RerankListingsInput.model_validate(task.input))
+
+
 def test_hybrid_combines_keyword_and_library_order():
     """A strong keyword hit can outrank the nearest semantic result."""
     nearest, keyword, other = [str(uuid4()) for _ in range(3)]
@@ -258,3 +265,23 @@ def test_input_byte_limit_matches_compact_rails_queue_encoding():
     assert len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()) == 199999
     assert len(json.dumps(payload, ensure_ascii=False).encode()) > 200000
     assert len(RerankListingsInput.model_validate(payload).listings) == 100
+
+
+def test_missing_catalogue_fails_before_embedding(monkeypatch, task_dependencies):
+    from dataclasses import replace
+
+    from worker.queue_messages import AiTaskMessage
+    from worker.task_handlers import handle_ai_task
+    monkeypatch.setattr("worker.rerank_job_listings_handler.Embedder", lambda *a, **kw: pytest.fail("embedding missing catalogue"))
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="rerank_job_listings",
+                         input={"keyword": "Ruby", "listing_ids": [str(uuid4())]})
+    result = handle_ai_task(task, replace(task_dependencies, read_reranking_input=lambda _: None))
+    assert result.status == "failed" and result.result is None
+    assert not result.usage
+
+
+@pytest.mark.parametrize("ids", [[], [uuid4()] * 2, [uuid4() for _ in range(101)]])
+def test_command_rejects_invalid_selection(ids):
+    from schemas.job_listing_reranking import RerankListingsCommand
+    with pytest.raises(ValidationError):
+        RerankListingsCommand(keyword="Ruby", listing_ids=ids)

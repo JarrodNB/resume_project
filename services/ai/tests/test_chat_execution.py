@@ -4,12 +4,19 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
+import logfire
 import pytest
 from pydantic_ai.models.function import FunctionModel
 
 from chat.client import ChatClaim
 from chat.execution import ChatExecutionAdapter, ChatRejected
 from chat.models import ChatModel
+from tests import test_tracing
+
+
+@pytest.fixture
+def exporters():
+    yield from test_tracing.exporters.__wrapped__()
 
 
 @pytest.fixture(autouse=True)
@@ -298,8 +305,19 @@ def test_chat_model_configuration_is_explicit_and_bounded(monkeypatch):
         AISettings(chat_model='arbitrary-provider:model')
 
 @pytest.mark.anyio
-async def test_provider_outage_uses_configured_fallback_and_retains_both_receipts():
+async def test_provider_outage_uses_configured_fallback_and_retains_both_receipts(exporters, monkeypatch):
+    from opentelemetry import trace
+    from pydantic_ai import InstrumentationSettings
     from pydantic_ai.exceptions import ModelHTTPError
+
+    from chat.execution import make_chat_agent
+
+    def instrumented_agent(*args, **kwargs):
+        agent = make_chat_agent(*args, **kwargs)
+        agent.instrument = InstrumentationSettings(tracer_provider=trace.get_tracer_provider())
+        return agent
+
+    monkeypatch.setattr('chat.execution.make_chat_agent', instrumented_agent)
     owner, sink = Owner(), Sink()
     async def unavailable(messages, info):
         raise ModelHTTPError(503, 'gpt-6-luna', 'unavailable')
@@ -318,6 +336,19 @@ async def test_provider_outage_uses_configured_fallback_and_retains_both_receipt
     assert owner.accepted[0]['reply'] == 'A useful fallback reply.'
     assert [record[3] for record in owner.starts] == ['gpt-6-luna', 'gpt-5-nano']
     assert owner.receipts[0][2] is True and owner.receipts[1][2] is False
+    logfire.force_flush(timeout_millis=1000)
+    spans = [span for span in exporters[0].get_finished_spans()
+             if "model_attempt.role" in span.attributes]
+    assert [span.attributes["logfire.msg"] for span in spans] == [
+        "Primary model attempt: function:gpt-6-luna",
+        "Fallback model attempt: function:gpt-5-nano",
+    ]
+    assert all("operation.cost" not in span.attributes for span in spans)
+    requests = [span for span in exporters[0].get_finished_spans()
+                if span.attributes.get("gen_ai.operation.name") == "chat"]
+    assert requests[0].attributes.get("chat_operation_id") == claim().operation_id
+    assert [span.name for span in requests] == ["chat model request"]
+    assert requests[0].attributes["gen_ai.request.model"].startswith("fallback:")
 
 
 @pytest.mark.anyio

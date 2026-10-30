@@ -23,7 +23,7 @@ from evals.telemetry import eval_run, record_score
 from privacy.contact_mask import contact_scope
 from privacy.known_contact import KnownContact
 from telemetry.privacy import ContactLogProcessor, ContactSpanProcessor, telemetry_scope
-from telemetry.tracing import record_prompt_version
+from telemetry.tracing import ChatFallbackSpanProcessor, record_prompt_version
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def exporters():
         metrics=False,
         inspect_arguments=False,
         environment="test",
-        additional_span_processors=[ContactSpanProcessor(), BatchSpanProcessor(spans)],
+        additional_span_processors=[ContactSpanProcessor(), ChatFallbackSpanProcessor(), BatchSpanProcessor(spans)],
         advanced=logfire.AdvancedOptions(
             log_record_processors=[
                 ContactLogProcessor(),

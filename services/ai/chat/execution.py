@@ -44,6 +44,7 @@ from screening.conversation import ScreenedConversationTurn, screen_conversation
 from screening.screen_user_text import screen_user_text_async
 from screening.session import screening_session
 from settings import load_settings
+from telemetry.model_attempt import ModelAttempt
 from telemetry.privacy import telemetry_scope
 from telemetry.tracing import flush_tracing, record_prompt_version
 from text_limits import MAX_PROMPT_TEXT
@@ -144,9 +145,10 @@ class ChatExecutionAdapter:
                 flush_tracing()
 
     def _model(self, claim, stage):
-        model = self.models.accounted(self.client, claim, stage, self.model)
+        model = ModelAttempt(self.models.accounted(self.client, claim, stage, self.model), role="primary")
         if self.fallback_model != self.model:
-            model = FallbackModel(model, self.models.accounted(self.client, claim, stage, self.fallback_model))
+            fallback = self.models.accounted(self.client, claim, stage, self.fallback_model)
+            model = FallbackModel(model, ModelAttempt(fallback, role="fallback"))
         return model
 
     async def _summarize(self, claim, privacy, usage):

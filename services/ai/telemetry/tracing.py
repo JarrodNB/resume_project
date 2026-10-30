@@ -24,6 +24,26 @@ _flush = BoundedTelemetryFlush(lambda: logfire.force_flush(timeout_millis=5000))
 _price_updater = None
 
 
+class ChatFallbackSpanProcessor(SpanProcessor):
+    """Give chat's model-selection span a neutral name while retaining its attributes."""
+
+    def on_start(self, span, parent_context=None):
+        pass
+
+    def on_end(self, span):
+        attributes = span.attributes or {}
+        if (attributes.get("chat_operation_id") and
+                attributes.get("gen_ai.operation.name") == "chat" and
+                span.name.startswith("chat fallback:")):
+            span._name = "chat model request"
+
+    def shutdown(self):
+        pass
+
+    def force_flush(self, timeout_millis=30000):
+        return True
+
+
 class OperationCostSpanProcessor(SpanProcessor):
     """Copies the sum of priced model-call spans onto each trace root."""
 
@@ -80,7 +100,7 @@ def configure_tracing(additional_span_processors=(), *, distributed_tracing=None
         console=False,
         metrics=logfire.MetricsOptions(collect_in_spans=True),
         inspect_arguments=False,
-        additional_span_processors=[ContactSpanProcessor(), OperationCostSpanProcessor(),
+        additional_span_processors=[ContactSpanProcessor(), ChatFallbackSpanProcessor(), OperationCostSpanProcessor(),
                                     *additional_span_processors],
         advanced=logfire.AdvancedOptions(log_record_processors=[ContactLogProcessor()]),
         distributed_tracing=distributed_tracing,

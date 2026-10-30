@@ -1,11 +1,10 @@
 """
-Description: Deterministic Pydantic Evals evaluators for job posting extraction (heading split
-plus the requirements sorting agent fallback). Every score is between 0 and 1.
+Description: Deterministic scores for structured jobs built from scraped content.
+Source support, field fidelity and category precision/recall are measured separately.
 Index:
     - RequirementMatch: requirement and nice-to-have precision and recall against the labels
     - VerbatimBullets: every extracted bullet appears word for word in the posting
-    - SortedByExpectedPath: headings vs LLM vs none matches the label (the LLM never runs when
-      headings matched)
+    - SortedByExpectedPath: LLM extraction vs empty lists matches the label
     - PostingFieldsMatch: title, company, and location copied from the page
     - JOB_POSTING_EXTRACTION_EVALUATORS: all evaluator classes, for Dataset.from_file
 """
@@ -56,7 +55,7 @@ class VerbatimBullets(Evaluator[JobInput, ScrapedJobPosting, dict[str, Any]]):
 
 @dataclass
 class SortedByExpectedPath(Evaluator[JobInput, ScrapedJobPosting, dict[str, Any]]):
-    """The heading split handles labelled postings; the LLM only runs for the others."""
+    """Distinguish parsed categories from an ad without extracted expectations."""
 
     def evaluate(self, ctx: JobPostingContext) -> dict[str, float]:
         """Scores 1 when requirements_sorted_by matches the label."""

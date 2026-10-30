@@ -76,10 +76,14 @@ pytest suite for the worker. Run with `docker compose run --rm ai-worker pytest`
 - `test_posting_from_parsed_job.py` — pasted-ad span checks and the posting builder
 - `test_parse_job_posting_handler.py` — parse_job_posting with the screen and agent mocked
 - `test_job_posting_parse_evaluators.py` — pasted-ad eval labels score 1.0
-- `test_scrape_job_handler.py` — scrape_job end to end against a fake LinkedIn (sorting agent on
-  `TestModel`), unsupported URLs, 404, unreadable page, 429/5xx/999 propagate
-- `test_job_posting_extraction_evaluators.py` — eval labels score 1.0; heading-labelled cases
-  pass without the agent; the verbatim check catches rewording
+- `test_scrape_job_handler.py` — scraped prose/lists through the shared parser and fake site;
+  source rejection, no classifier calls, retry usage, URL authority, and fetch failures
+- `test_scraped_job_parser_boundary.py` — source-only size/history/boundary guard, no action
+  tools, and no screening approvals for unscreened text
+- `test_scraped_job_ad.py` — cleaned model inputs, source support, provenance, unknown fields,
+  hidden markup, unreadable descriptions and saved field limits
+- `test_job_posting_extraction_evaluators.py` — labels score 1.0, including prose spans;
+  the production scraped-ad builder preserves provenance and rejects unsupported text
 - `test_process_task_message.py` — per-message flow: parse, handle, publish result, delete rules,
   including a run cap that fails on the first attempt
 - `test_polling_loop.py` — polling loop: deletes only handled tasks, delays kept ones, survives

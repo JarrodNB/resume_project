@@ -96,11 +96,11 @@ cases:
         Kubernetes experience is preferred.
         You will own the billing API.
       requirements:
-        - 4 years of Go
+        - You must have 4 years of Go.
       responsibilities:
         - You will own the billing API.
       nice_to_haves:
-        - Kubernetes experience
+        - Kubernetes experience is preferred.
       requirements_sorted_by: llm
 
   - name: link_in_the_footer

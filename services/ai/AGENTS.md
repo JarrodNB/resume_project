@@ -90,6 +90,11 @@ test support. See docs/architecture/interview-sessions.md.
   Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
+  Scraped-ad parsing is a scoped exception authorized after a synthetic injection evaluation:
+  `parse_scraped_job_posting_agent.py` uses a source-boundary/size guard instead of injection
+  classification. It accepts one selected ad, no history/action tools/private context, retains
+  source validators and execution limits, and grants no screening approvals to its output.
+  Pasted ads and later uses of saved job content retain their existing screening policy.
   A validated completed gap-analysis result can be trusted as generated output within
   one tailoring execution; saved gap-response requirement/body approvals are reused, with pending fields screened
   together once and fingerprinted reports retained for every saved answer ID.
@@ -172,8 +177,8 @@ skip it. Export indexes are not required.
 - `pii/` — local import contact detection, opaque task-local replacements, and restoration;
   bundled Presidio/spaCy assets, coverage limits, and licenses are documented in its README
 - `scrapers/` — deterministic per-site job posting scrapers (LinkedIn so far), no LLM
-- `job_postings/` — job description to plain text and requirement bullets (headings first,
-  sorting agent as fallback)
+- `job_postings/` — selected scraped HTML to readable ad text, shared source validation,
+  and structured pasted/scraped postings; the shared ad parser handles prose and lists
 - `evals/` — Pydantic Evals datasets, evaluators, and runners
 - `tests/` — pytest suite (`docker compose run --rm ai-worker pytest`)
 - `pyproject.toml` / `uv.lock` — dependencies, managed with `uv`

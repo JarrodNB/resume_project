@@ -1,7 +1,8 @@
 """Turn job HTML into readable paragraphs and bullet lines for saved descriptions.
 
 Keep spaces between blocks inside a bullet and between table cells without
-changing inline punctuation.
+changing inline punctuation. Remove scripts, styles and explicitly hidden content
+before the selected description reaches a parser or saved plain-text field.
 """
 
 import re
@@ -18,6 +19,8 @@ SPACES = re.compile(r"[^\S\n]+")
 def html_to_description_text(description_html: str) -> str:
     """Keeps the text and its structure; drops all markup."""
     soup = BeautifulSoup(description_html, "html.parser")
+    for hidden in soup.select("script, style, template, noscript, [hidden], [aria-hidden='true']"):
+        hidden.decompose()
     for line_break in soup.find_all("br"):
         line_break.replace_with("\n")
     for item_list in soup.find_all(["ul", "ol"]):

@@ -1,6 +1,6 @@
 """
-Description: Pydantic AI agent that copies title, company, and requirement lines out of a
-pasted job advertisement. An output validator retries until those strings appear in the ad.
+Description: Pydantic AI agent that copies fields and qualification/duty spans from a
+pasted or cleaned scraped ad. An output validator retries unsupported source text.
 Index:
     - parse_job_posting_agent: the agent (deps: the ad text; model and effort chosen per run)
     - fence_job_ad: the user prompt, with the ad marked as data
@@ -79,10 +79,23 @@ def parse_job_posting(
     """Parses the ad with the given model and reasoning effort. Raises TimeoutError if the
     whole run takes longer than timeout_seconds. Raises UsageLimitExceeded when the run passes
     its request, tool-call, or token cap. A provider error tries fallback_model."""
-    return asyncio.run(_run_with_deadline(text, model, thinking, timeout_seconds, fallback_model))
+    return run_job_ad_parser(
+        parse_job_posting_agent, text, model, thinking, timeout_seconds, fallback_model,
+    )
+
+
+def run_job_ad_parser(
+    agent: Agent[str, ParsedJobPosting], text: str, model: str, thinking: ThinkingLevel,
+    timeout_seconds: float, fallback_model: str,
+) -> JobPostingParseRun:
+    """Share bounded, traced execution between pasted and scraped source policies."""
+    return asyncio.run(_run_with_deadline(
+        agent, text, model, thinking, timeout_seconds, fallback_model,
+    ))
 
 
 async def _run_with_deadline(
+    agent: Agent[str, ParsedJobPosting],
     text: str,
     model: str,
     thinking: ThinkingLevel,
@@ -92,7 +105,7 @@ async def _run_with_deadline(
     """Runs the agent, cancelling it once timeout_seconds have passed."""
     async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(PARSE_JOB_POSTING_PROMPT_VERSION):
-            result = await parse_job_posting_agent.run(
+            result = await agent.run(
                 bind_screened_prompt([text], lambda sources: fence_job_ad(sources[0])),
                 deps=text,
                 model=generative_model(model, fallback_model),

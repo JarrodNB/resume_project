@@ -1,5 +1,5 @@
-# Description: Hand-labelled eval cases for job posting extraction (heading split + the job
-# requirements sorting agent fallback). All postings are synthetic.
+# Description: Hand-labelled eval cases for job construction from scraped descriptions and the
+# shared source-checked ad parser. All postings are synthetic.
 # `inputs` is what the LinkedIn scraper reads off a guest job page: the top card fields and the
 # raw description markup (<br>-separated lines, <strong>Heading<br><br></strong> headings).
 # Line breaks in description_html only fall between tags, so they add nothing.
@@ -34,7 +34,7 @@ cases:
       nice_to_haves:
         - Experience in fintech or payments
         - Familiarity with Kafka
-      requirements_sorted_by: headings
+      requirements_sorted_by: llm
 
   - name: curly_apostrophes_and_bold_words_in_bullets
     inputs:
@@ -61,7 +61,7 @@ cases:
         - Ship models to production with the platform team
       nice_to_haves:
         - Published research in information retrieval
-      requirements_sorted_by: headings
+      requirements_sorted_by: llm
 
   - name: plain_text_intro_then_minimum_and_preferred
     inputs:
@@ -86,7 +86,7 @@ cases:
       nice_to_haves:
         - Experience with dbt
         - Google Cloud certification
-      requirements_sorted_by: headings
+      requirements_sorted_by: llm
 
   - name: should_have_and_bonus_points
     inputs:
@@ -113,7 +113,7 @@ cases:
         - Champion A/B testing best practices
       nice_to_haves:
         - Production ETL or BigQuery experience
-      requirements_sorted_by: headings
+      requirements_sorted_by: llm
 
   - name: colon_headings_and_nested_list
     inputs:
@@ -138,7 +138,7 @@ cases:
         - Flexbox and grid layouts
       nice_to_haves:
         - Shipped a product used by children
-      requirements_sorted_by: headings
+      requirements_sorted_by: llm
 
   - name: no_headings_flat_bullets
     inputs:
@@ -211,9 +211,12 @@ cases:
       title: Office Manager
       company: Adventure Works
       location: null
-      requirements: []
+      requirements:
+        - Experience in a fast-paced office is important to us.
+      responsibilities:
+        - You will coordinate vendors, plan events, and support a team of forty people.
       nice_to_haves: []
-      requirements_sorted_by: none
+      requirements_sorted_by: llm
   - name: nested_bold_section_headings
     inputs:
       job_id: "1009"
@@ -236,7 +239,75 @@ cases:
         - Build APIs
       nice_to_haves:
         - Go
-      requirements_sorted_by: headings
+      requirements_sorted_by: llm
+  - name: mixed_list_and_prose_qualifications
+    inputs:
+      job_id: "1010"
+      title: Backend Engineer
+      company: Northwind
+      location: Remote
+      description_html: |
+        <h3>Requirements</h3><ul><li>Python experience</li></ul>
+        <p>You must also know SQL.</p>
+        <p>Go is preferred, not required.</p>
+        <h3>Responsibilities</h3><p>Build APIs.</p>
+        <p>Benefits include health insurance.</p>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1010/
+      title: Backend Engineer
+      company: Northwind
+      location: Remote
+      requirements:
+        - Python experience
+        - You must also know SQL.
+      responsibilities:
+        - Build APIs.
+      nice_to_haves:
+        - Go is preferred, not required.
+      requirements_sorted_by: llm
+
+  - name: unnamed_employer_in_scraped_ad
+    inputs:
+      job_id: "1011"
+      title: Support Engineer
+      company: ""
+      location: null
+      description_html: |
+        <p>You must have Linux experience.</p>
+        <p>You will answer support requests.</p>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1011/
+      title: Support Engineer
+      company: null
+      location: null
+      requirements:
+        - You must have Linux experience.
+      responsibilities:
+        - You will answer support requests.
+      nice_to_haves: []
+      requirements_sorted_by: llm
+
+  - name: benefits_do_not_become_requirements
+    inputs:
+      job_id: "1012"
+      title: Office Assistant
+      company: Fabrikam
+      location: null
+      description_html: |
+        <p>Fabrikam is hiring an Office Assistant.</p>
+        <p>We offer paid holidays and health insurance.</p>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1012/
+      title: Office Assistant
+      company: Fabrikam
+      location: null
+      requirements: []
+      responsibilities: []
+      nice_to_haves: []
+      requirements_sorted_by: none
 evaluators:
   - RequirementMatch
   - VerbatimBullets

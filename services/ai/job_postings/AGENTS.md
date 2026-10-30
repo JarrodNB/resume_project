@@ -4,8 +4,8 @@
 
 Site-independent processing of a job posting: plain-text description and requirement /
 nice-to-have bullets from scraped HTML, and the same ScrapedJobPosting built from a pasted ad.
-Deterministic, except for the optional bullet-sorting fallback and the pasted-ad parse, which
-are passed in or live in `agents/`.
+Scraped and pasted ads reuse the same tool-free parser in `agents/`; domain helpers own
+source checks and conversion. Deterministic HTML helpers remain available separately.
 
 ## Contents
 
@@ -14,7 +14,7 @@ are passed in or live in `agents/`.
   (`<h1>`-`<h6>`, an all-bold paragraph, or a short paragraph ending in ":"), classified as
   requirements, responsibilities, nice-to-haves, or other by keyword. Nice-to-have wordings win,
   then responsibilities ("responsibilities", "what you'll do", "the role"), then requirements
-- `find_parsed_job_problems.py` — title, supplied company, and bullets must appear in a pasted ad;
+- `find_parsed_job_problems.py` — title, supplied company, and list spans must appear in the ad;
   an unstated company stays null through conversion and saved-length normalization
 - `posting_from_parsed_job.py` — `ParsedJobPosting` -> `ScrapedJobPosting` (the paste is the
   description; a location or link that is not in the ad is dropped with a warning)
@@ -31,15 +31,16 @@ are passed in or live in `agents/`.
 
 ## Local Rules
 
-- Pasted ads share execution-local screening coverage with their fenced parsing prompt.
-  Scraped sorting screens the exact numbered bullet source in overlapping chunks, then
-  binds that same source at the agent boundary. Only text consumed by generation needs
-  screening: deterministic heading extraction makes no Jev request. Both agent wrappers
-  retain the input guard for direct calls without established source coverage.
-
-- Requirements, responsibilities, and nice-to-haves are always bullets copied verbatim from the posting. For a
-  scraped page the LLM may only choose among them by number. For a pasted ad the parse agent
-  copies spans, and `find_parsed_job_problems` rejects any that are not in the text.
+- Pasted ads keep injection screening and exact prompt coverage. Scraped ads use the
+  source-only parser: cap the selected rendered text before generation, accept no history or
+  tools, and never mark it as screened. Keep unrelated page text, private context and the job
+  URL outside generation. The source guard and source-output checks remain mandatory.
+- `scraped_job_ad.py` renders one selected scraped ad and builds the result through the shared
+  parsed-posting converter. Requirements/duties/nice-to-haves must be source-supported spans
+  from the description, including prose. Model-authored identity and URLs never overwrite
+  acquired metadata. Empty descriptions and unsupported spans fail closed.
+- Copied spans retain optional/required qualifiers; null/empty means absent. Deterministic
+  heading extraction and the older bullet-number sorting helper are not the scrape-task path.
 - When a real posting is split wrongly, add a synthetic case for it to
-  `evals/datasets/job_posting_extraction_cases.yaml` and a unit test, then adjust the heading
-  keywords.
+  `evals/datasets/job_posting_extraction_cases.yaml` and a unit test, then fix the responsible
+  source rendering, parser instructions, or validator without weakening source checks.

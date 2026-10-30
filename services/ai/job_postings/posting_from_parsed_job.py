@@ -1,6 +1,7 @@
 """
-Description: Turns a validated ParsedJobPosting into the ScrapedJobPosting Rails saves.
-The description is the paste itself. Location and URL that are not in the paste are dropped.
+Description: Turns a validated ad parse into the posting Rails saves.
+The description is selected source text. Scraped ads keep acquired metadata; pasted
+ads drop locations and URLs unsupported by their text.
 URLs retain exact source spelling because paths and query values can be case-sensitive.
 Index:
     - NO_REQUIREMENTS_WARNING / DROPPED_LOCATION_WARNING / DROPPED_URL_WARNING: user-facing notes
@@ -11,18 +12,28 @@ from documents.text_matching import appears_in, normalize_text
 from job_postings.extract_job_posting import fit_posting_to_saved_limits
 from schemas.parsed_job_posting import ParsedJobPosting
 from schemas.scraped_job_posting import ScrapedJobPosting
+from scrapers.job_page import JobPage
 
 NO_REQUIREMENTS_WARNING = "No requirements were found in this posting. You can add them on the job page."
 DROPPED_LOCATION_WARNING = "The location wasn't in the ad, so it was left off."
 DROPPED_URL_WARNING = "The link wasn't in the ad, so it was left off."
 
 
-def posting_from_parsed_job(source_text: str, parsed: ParsedJobPosting) -> ScrapedJobPosting:
-    """Builds a pasted_text posting, keeping an unstated company null. Supplied text
-    stays as returned; call this only after find_parsed_job_problems is empty."""
+def posting_from_parsed_job(
+    source_text: str, parsed: ParsedJobPosting, *, scraped_page: JobPage | None = None,
+) -> ScrapedJobPosting:
+    """Build a source-checked posting and apply saved limits once, after metadata selection.
+
+    Call only after source validation. A scraped page supplies authoritative metadata;
+    model-authored identity and links are ignored for that path.
+    """
     warnings: list[str] = []
-    location = _kept_optional(parsed.location, source_text, DROPPED_LOCATION_WARNING, warnings)
-    url = _kept_url(parsed.url, source_text, warnings)
+    if scraped_page is None:
+        location = _kept_optional(parsed.location, source_text, DROPPED_LOCATION_WARNING, warnings)
+        url = _kept_url(parsed.url, source_text, warnings)
+    else:
+        location = scraped_page.location.strip() if scraped_page.location else None
+        url = scraped_page.source_url
     requirements = _unique_items(parsed.requirements)
     responsibilities = _unique_items(parsed.responsibilities)
     nice_to_haves = _unique_items(parsed.nice_to_haves)
@@ -30,10 +41,12 @@ def posting_from_parsed_job(source_text: str, parsed: ParsedJobPosting) -> Scrap
         warnings.append(NO_REQUIREMENTS_WARNING)
     sorted_by = "llm" if requirements or responsibilities or nice_to_haves else "none"
     posting = ScrapedJobPosting(
-        source="pasted_text",
+        source=scraped_page.source if scraped_page else "pasted_text",
         source_url=url or "",
-        title=parsed.title.strip(),
-        company=parsed.company.strip() if parsed.company is not None else None,
+        title=(scraped_page.title if scraped_page else parsed.title).strip(),
+        company=(scraped_page.company.strip() or None) if scraped_page else (
+            parsed.company.strip() if parsed.company is not None else None
+        ),
         location=location,
         description=source_text.strip(),
         requirements=requirements,

@@ -27,7 +27,10 @@ collision-free source delimiters. `safety.py` quotes fallback classifier input. 
 Gap analysis already has a domain-specific builder at
 `gap_analysis/build_gap_analysis_prompt.py` that shares a job-field projection with
 screening and returns text together with the label maps needed for validation. Parsing and job extraction use simple fenced source text;
-their existing agents own those wrappers. JSON used for queue transport,
+their existing agents own those wrappers. The scraped-ad parser is a narrow source-only
+exception: it checks one bounded fenced ad without injection classification and grants no
+screening approval for reuse. Pasted ads and later saved-job consumers remain screened.
+JSON used for queue transport,
 screening reconstruction, reports, and structured model outputs is outside this layer.
 
 Interview career context requirements are separately labeled context for interpreting the response.

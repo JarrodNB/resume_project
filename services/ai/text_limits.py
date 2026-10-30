@@ -28,6 +28,8 @@ MAX_BULLET_TEXT = 1_000
 MAX_JOB_DESCRIPTION = 20_000
 MAX_REQUIREMENT_ITEMS = 80
 
+JOB_AD_TOO_LONG_MESSAGE = "This job posting is too long to parse. Paste a shorter ad, or add the job manually."
+
 RESUME_TOO_LONG_MESSAGE = "This resume is too long to import. Shorten it and upload it again."
 GAP_PROMPT_TOO_LONG_MESSAGE = (
     "Your career library or this job's text is too long to compare. Shorten an entry and try again."

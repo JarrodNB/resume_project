@@ -157,10 +157,12 @@ unavailable or oversized library fails the operation; there is no per-entry retr
 partial answer. Classification fallback for a provider outage retains the shared
 screening deadline and accounting policy.
 
-Successful checks carry record IDs, field names and SHA-256 fingerprints of exact
-canonical JSON string values. Chat returns these in `library_screening` on final
-acceptance. Rails accepts them only under the current operation fence and owner lock,
-then compares each fingerprint with the owned record under its row lock. A stale
+Successful checks carry record types, IDs and SHA-256 fingerprints of exact canonical
+JSON string values per field. Chat returns these in `record_screening` on final
+acceptance (Rails still accepts the older `library_screening` list for one deploy).
+Rails accepts them only under the current operation fence and owner lock, then
+`Screening::RecordApprovalsService` compares each fingerprint with the owned record
+under its row lock; with no task, only career-library records can be approved. A stale
 value earns no approval. Receipts participate in acceptance replay identity. Failed
 or stale operations save no approvals; ordinary edits still clear changed checks.
 

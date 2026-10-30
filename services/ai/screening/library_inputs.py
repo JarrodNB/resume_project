@@ -1,17 +1,29 @@
 """Check a bounded career library as one input and rebuild its approved source text.
 
-The complete input includes descriptive fields and highlights. The
-returned layout contains only application-owned field names, so prompt builders can
-reconstruct a library from checked source values. Saved field approvals are reused;
-unchecked fields are checked together. Failed checks never yield a partial library.
+The complete input includes descriptive fields and highlights. The returned layout
+contains only application-owned field names, so prompt builders can reconstruct a library
+from checked source values. Screening goes through `screening.records`: saved field
+approvals are reused, unchecked fields are checked together, and new checks become
+`record_screening` receipts. Failed checks never yield a partial library.
+
+Usage: the sync variant uses the configured classifier and returns its usage on the
+result (or on the error), so callers add it once. The async variant takes the caller's
+`screen` function, which records its own usage (chat bills it to the chat operation).
 """
 
 import json
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from schemas.gap_analysis_context import MAX_LIBRARY_ITEMS, CareerLibrary
-from screening.library_fields import screen_library_fields, screen_library_fields_async
+from schemas.model_usage import ModelUsage
+from screening.record_adapters import library_records
+from screening.records import (
+    RecordScreeningOutcome,
+    ScreenText,
+    screen_records,
+    screen_records_sync,
+)
 from text_limits import MAX_SCREENED_TEXT
 
 LIBRARY_INPUT_OMITTED_WARNING = "One of your career library entries was left out."
@@ -25,6 +37,7 @@ class ScreenedLibrary:
     sources: tuple[str, ...]
     fields: tuple[str, ...]
     warnings: tuple[str, ...]
+    usage: tuple[ModelUsage, ...] = ()
 
     @property
     def library(self) -> CareerLibrary:
@@ -51,31 +64,40 @@ def rebuild_library(sources: Sequence[str], fields: Sequence[str]) -> CareerLibr
 
 
 def screen_library_inputs(
-    library: CareerLibrary, allow_text: Callable[[str], object], *,
-    include_context_requirements: bool = True,
+    library: CareerLibrary, *, include_context_requirements: bool = True,
 ) -> ScreenedLibrary:
-    """Check all pending fields together and retain exact strings for prompt coverage binding."""
+    """Check all pending fields together with the configured classifier.
+
+    Retains exact strings for prompt coverage binding. Classifier usage is on the result,
+    or on the raised `LibraryScreeningError`.
+    """
     entries = _bounded_entries(library, include_context_requirements)
-    decision = screen_library_fields(library, allow_text,
-        include_context_requirements=include_context_requirements,
-        approved_sources=tuple(text for _, text in entries))
-    return _checked_entries(entries, decision)
+    records = library_records(library, include_context_requirements=include_context_requirements)
+    outcome = screen_records_sync(records, approved_sources=_sources(entries)) if records else None
+    return _checked_entries(entries, outcome, keep_usage=True)
 
 
 async def screen_library_inputs_async(
-    library: CareerLibrary, allow_text: Callable[[str], Awaitable[object]], *,
+    library: CareerLibrary, screen: ScreenText | None = None, *,
     include_context_requirements: bool = True,
 ) -> ScreenedLibrary:
-    """Check the bounded library together; a rejected check fails the entire operation."""
+    """Check the bounded library together; a rejected check fails the entire operation.
+
+    `screen` is passed to `screen_records`, so a caller such as chat can bill screening to
+    its own operation. It records its own usage, so the result carries none.
+    """
     entries = _bounded_entries(library, include_context_requirements)
-    decision = await screen_library_fields_async(library, allow_text,
-        include_context_requirements=include_context_requirements,
-        approved_sources=tuple(text for _, text in entries))
-    return _checked_entries(entries, decision)
+    records = library_records(library, include_context_requirements=include_context_requirements)
+    outcome = await screen_records(records, approved_sources=_sources(entries), screen=screen) if records else None
+    return _checked_entries(entries, outcome, keep_usage=False)
 
 
 class LibraryScreeningError(RuntimeError):
     """A library cannot be shared in full within its safety and size limits."""
+
+    def __init__(self, code: str, usage: Sequence[ModelUsage] = ()):
+        super().__init__(code)
+        self.usage = tuple(usage)
 
 
 def _bounded_entries(library, include_context_requirements):
@@ -86,12 +108,22 @@ def _bounded_entries(library, include_context_requirements):
     return entries
 
 
-def _checked_entries(entries, decision):
-    allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
-    if not allowed:
-        raise LibraryScreeningError("context_limit" if getattr(decision, "too_long", False) else
-            "screening_unavailable" if getattr(decision, "unchecked", False) else "screening_blocked")
-    return ScreenedLibrary(tuple(text for _, text in entries), tuple(field for field, _ in entries), ())
+def _sources(entries):
+    return tuple(text for _, text in entries)
+
+
+def _checked_entries(entries, outcome: RecordScreeningOutcome | None, *, keep_usage):
+    """Raise for a failed check; otherwise return the layout. No records means nothing to check.
+
+    With no user text there is nothing to approve, so the sources stay uncovered and the
+    prompt guard screens whatever reaches the prompt.
+    """
+    usage = tuple(outcome.decision.model_usages) if outcome is not None and keep_usage else ()
+    if outcome is not None and not outcome.allowed:
+        decision = outcome.decision
+        raise LibraryScreeningError("context_limit" if decision.too_long else
+            "screening_unavailable" if decision.unchecked else "screening_blocked", usage)
+    return ScreenedLibrary(_sources(entries), tuple(field for field, _ in entries), (), usage)
 
 
 def _library_entries(library: CareerLibrary, include_context_requirements: bool):

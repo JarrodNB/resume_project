@@ -34,10 +34,15 @@ def test_every_library_value_is_screened_and_preserved():
         result = prepare(context)
         assert prompt_is_covered(result.prompt.text)
         assert not prompt_is_covered(result.prompt.text + " new untrusted text")
-        assert set(session.job_screening[0].fields) == {"title", "company", "requirements", "nice_to_haves"}
-    assert len(requests) == 2
-    assert "On call" in requests[1]
-    assert "screened_fields" not in requests[1]
+        [job_receipt] = [receipt for receipt in session.record_screening if receipt.record_type == "job"]
+        assert set(job_receipt.fingerprints) == {"title", "company", "requirements", "nice_to_haves"}
+        assert {receipt.record_type for receipt in session.record_screening} >= {
+            "job", "experience", "experience_highlight", "skill", "certification", "career_context"}
+    # A fresh job and library share one classifier call.
+    assert len(requests) == 1
+    assert "Platform Engineer" in requests[0]
+    assert "On call" in requests[0]
+    assert "screened_fields" not in requests[0]
     assert result.prompt == expected
     assert list(result.prompt.evidence) == ["E1", "H1", "H2", "P1", "ED1", "C1", "S1", "S2", "F1"]
 
@@ -50,7 +55,7 @@ def test_complete_library_reuses_import_chunk_policy(monkeypatch):
     with screening_session(), user_text_screen_agent.override(model=jev_model(requests)):
         result = prepare(context)
         assert prompt_is_covered(result.prompt.text)
-    chunks = requests[1:]
+    chunks = requests
     screened = chunks[0] + "".join(chunk[300:] for chunk in chunks[1:])
     assert chunks == [screened[start:start + 2000] for start in range(0, len(screened), 1700)
                       if start == 0 or start + 300 < len(screened)]
@@ -76,7 +81,7 @@ def test_later_library_chunk_failure_retains_completed_usage(monkeypatch, failur
             raise RuntimeError("Synthetic provider outage")
         response = benign.function(messages, info)
         if len(requests) == 2 and failure == "deadline":
-            clock[0] = 10.
+            clock[0] = 10_000.
         if len(requests) == 3 and failure == "block":
             response.parts[0].args = {"prompt_injection": True, "harmful_request": False}
         return response
@@ -120,7 +125,7 @@ def test_library_at_exact_source_cap_is_not_truncated(monkeypatch):
     with user_text_screen_agent.override(model=jev_model(requests)):
         result = prepare(context)
     assert result.prompt is not None
-    chunks = requests[1:]
+    chunks = requests
     assert context.career_library.summary in chunks[0] + "".join(chunk[300:] for chunk in chunks[1:])
     assert result.prompt.text.count("x") >= 80_000 - overhead
 
@@ -140,7 +145,7 @@ def test_whole_library_skips_short_note_phrase_filter():
     with user_text_screen_agent.override(model=jev_model(requests)):
         result = prepare(context)
     assert result.prompt is not None
-    assert len(requests) == 2
+    assert len(requests) == 1
 
 
 def test_later_analysis_reuses_saved_checks_but_still_screens_job():
@@ -149,22 +154,22 @@ def test_later_analysis_reuses_saved_checks_but_still_screens_job():
     with screening_session() as session, user_text_screen_agent.override(model=jev_model(requests)):
         first = prepare(context)
         assert first.prompt
-        reports = session.library_screening
+        reports = [report for report in session.record_screening if report.record_type != "job"]
     for report in reports:
         for collection in (context.career_library.experiences, context.career_library.projects,
                            context.career_library.educations, context.career_library.skills):
             for record in collection:
                 if record.id == report.record_id:
-                    record.screened_fields = report.fields
+                    record.screened_fields = list(report.fingerprints)
                 for highlight in getattr(record, "highlights", []):
                     if highlight.id == report.record_id:
-                        highlight.screened_fields = report.fields
+                        highlight.screened_fields = list(report.fingerprints)
     context.career_library.screened_fields = ["summary"]
     requests.clear()
     with screening_session() as session, user_text_screen_agent.override(model=jev_model(requests)):
         second = prepare(context)
         assert prompt_is_covered(second.prompt.text)
-        assert not session.library_screening
+        assert {report.record_type for report in session.record_screening} == {"job"}
     assert second.prompt == first.prompt
     assert len(requests) == 1
 

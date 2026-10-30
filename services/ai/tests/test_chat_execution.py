@@ -660,6 +660,7 @@ async def test_new_library_approvals_are_sent_with_chat_acceptance():
     from pydantic_ai.models.function import DeltaToolCall
 
     from schemas.gap_analysis_context import CareerLibrary
+    from screening.screen_user_text import ScreenOutcome
 
     owner, sink = Owner(), Sink()
     library = CareerLibrary(skills=[{"id": "s1", "name": "Ruby"}])
@@ -673,9 +674,12 @@ async def test_new_library_approvals_are_sent_with_chat_acceptance():
     with tool_server(library) as (connection, _):
         adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=connection)
         adapter._screen = AsyncMock()
-        adapter._screen_decision = AsyncMock(return_value=True)
+        adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(True))
         await asyncio.wait_for(adapter.execute(claim(), sink), 10)
     assert not owner.failed
-    report = owner.accepted[0]["library_screening"][0]
-    assert report == {"record_type": "skill", "record_id": "s1", "fields": ["name"],
+    assert "library_screening" not in owner.accepted[0]
+    # The tool's library check is billed to this chat operation's screen.
+    adapter._screen_decision.assert_awaited_once()
+    report = owner.accepted[0]["record_screening"][0]
+    assert report == {"record_type": "skill", "record_id": "s1", "revision": {},
         "fingerprints": {"name": hashlib.sha256(json.dumps("Ruby").encode()).hexdigest()}}

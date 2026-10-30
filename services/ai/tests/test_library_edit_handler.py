@@ -14,6 +14,12 @@ from worker.task_handlers import handle_ai_task
 pytestmark = pytest.mark.real_guardrail
 
 
+def patch_edit_screen(monkeypatch, screen):
+    """Library edits screen saved records through screening.records and notes directly."""
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
+    monkeypatch.setattr("screening.records.screen_user_text", screen)
+
+
 def edit_input():
     payload = review_input()
     payload.update(target=payload["targets"][1], original_text="Helped with migration", feedback="Make this clearer", history=[], root_id=str(uuid4()), turn=1, skip=False)
@@ -23,7 +29,7 @@ def edit_input():
 def test_generates_one_proposal_without_changing_its_target(task_dependencies, monkeypatch):
     from agents.library_edit_agent import library_edit_agent
     from screening.screen_user_text import ScreenOutcome
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(True))
 
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
@@ -35,6 +41,44 @@ def test_generates_one_proposal_without_changing_its_target(task_dependencies, m
     assert result.message_history
 
 
+def test_unchecked_snapshot_fields_are_screened_together_and_reported(task_dependencies, monkeypatch):
+    """Only the unchecked highlight is screened; its receipt goes to Rails for the snapshot check."""
+    from agents.library_edit_agent import library_edit_agent
+    from screening.records import field_fingerprint
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import screening_session
+
+    screened = []
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    payload = edit_input()
+    payload["library"]["experiences"][0]["highlights"][0]["screened_fields"] = []
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload)
+    with screening_session() as session, library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
+        "text": "Contributed to the service migration.", "color": "yellow", "reason": "Be specific.",
+    })):
+        result = handle_ai_task(task, task_dependencies)
+        receipts = [(r.record_type, r.fingerprints) for r in session.record_screening]
+        assert not session.library_screening
+    assert result.status == "completed"
+    assert screened == ["Make this clearer", "Entry 1\nContent:\nHelped with migration"]
+    assert receipts == [("experience_highlight", {"content": field_fingerprint("Helped with migration")})]
+
+
+def test_blocked_snapshot_entry_is_named_and_stops_the_edit(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: ScreenOutcome("Entry 1" not in text))
+    payload = edit_input()
+    payload["library"]["experiences"][0]["highlights"][0]["screened_fields"] = []
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload)
+    with library_edit_agent.override(model=TestModel()):
+        result = handle_ai_task(task, task_dependencies)
+    assert result.status == "failed"
+    assert result.error_message == (
+        "We couldn't use: Highlight in Engineer at Acme. Review those entries and try again.")
+
+
 def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_dependencies, monkeypatch):
     from agents.library_edit_agent import library_edit_agent
     from screening.screen_user_text import ScreenOutcome
@@ -43,7 +87,7 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     def screen(text, *_args, **_kwargs):
         screened.append(text)
         return ScreenOutcome(True)
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
+    patch_edit_screen(monkeypatch, screen)
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Saved generated history must not be sent to the generic classifier")
     monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
@@ -89,7 +133,7 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
 @pytest.mark.parametrize("unchecked", [False, True])
 def test_blocked_or_unavailable_user_message_stops_before_generation(task_dependencies, monkeypatch, unchecked):
     from screening.screen_user_text import ScreenOutcome
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False, unchecked=unchecked))
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(False, unchecked=unchecked))
     result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input()), task_dependencies)
     assert result.status == "failed"
     assert result.result is None
@@ -100,7 +144,7 @@ def test_skipping_a_saved_question_does_not_screen_generated_question_or_skip_no
     from agents.library_edit_agent import library_edit_agent
     from screening.screen_user_text import ScreenOutcome
     screened = []
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     def question(_messages, _info):
         return ModelResponse(parts=[ToolCallPart("ask_user", {"question": "What changed afterward?"}, tool_call_id="q-skip")])
     first = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
@@ -122,7 +166,7 @@ def test_history_limit_preserves_consumed_model_usage(task_dependencies, monkeyp
     from agents.library_edit_agent import LibraryEditRun
     from schemas.library_edit import LibraryEditDraft
     from screening.screen_user_text import ScreenOutcome
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(True))
     monkeypatch.setattr("worker.library_edit_handler.improve_library_entry", lambda *_args: LibraryEditRun(
         LibraryEditDraft(text="Contributed to migration.", color="yellow", reason="Add detail."),
         [{"content": "x" * 100_001}], RunUsage(input_tokens=20, output_tokens=10), "openai:gpt-6-luna"))
@@ -138,7 +182,7 @@ def test_registered_edit_agent_masks_known_contact_in_source_and_feedback(task_d
     from screening.screen_user_text import ScreenOutcome
     install_contact_hooks()
     screened = []
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     payload = edit_input()
     payload["feedback"] = "Jane Doe wants clearer wording"
     payload["library"]["experiences"][0]["description"] = "Jane Doe built services"
@@ -157,7 +201,7 @@ def test_review_answer_regenerates_without_pausing_or_screening_the_generated_qu
     from screening.screen_user_text import ScreenOutcome
 
     screened = []
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Prepared source, answer, and generated question must already be covered")
     monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
@@ -184,7 +228,7 @@ def test_review_answer_regenerates_without_pausing_or_screening_the_generated_qu
 def test_review_answer_tool_attempt_cannot_pause_the_regeneration(task_dependencies, monkeypatch):
     from agents.library_edit_agent import library_edit_agent
     from screening.screen_user_text import ScreenOutcome
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(True))
     payload = edit_input()
     payload["review_question"] = {"review_task_id": str(uuid4()), "question": "Which part did you handle?"}
     calls = []
@@ -206,7 +250,7 @@ def test_partial_review_batch_preserves_question_indices_and_screens_only_answer
     from screening.screen_user_text import ScreenOutcome
 
     screened = []
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Saved questions and screened answer fields must already have coverage")
     monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
@@ -238,7 +282,7 @@ def test_review_batch_followup_reuses_checked_history_and_screens_only_new_feedb
     from agents.library_edit_agent import library_edit_agent
     from screening.screen_user_text import ScreenOutcome
     screened = []
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    patch_edit_screen(monkeypatch, lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     payload = edit_input()
     payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": [
         {"question_index": 0, "question": "What did you change?", "answer": "I migrated billing endpoints."},
@@ -262,7 +306,7 @@ def test_review_batch_followup_reuses_checked_history_and_screens_only_new_feedb
 
 def test_blocked_batch_answer_stops_before_generation(task_dependencies, monkeypatch):
     from screening.screen_user_text import ScreenOutcome
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False))
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(False))
     payload = edit_input()
     payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": [
         {"question_index": 1, "question": "How did you check it?", "answer": "Blocked user input."},

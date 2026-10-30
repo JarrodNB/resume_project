@@ -20,7 +20,6 @@ from llm.model_prices import build_model_usage, reported_model_name
 from schemas.interview_questions import InterviewSetType
 from screening.interview_question_inputs import prepare_interview_question_context
 from screening.library_inputs import LibraryScreeningError, screen_library_inputs
-from screening.screen_user_text import screen_user_text
 from screening.session import trust_generated_source, within_screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -59,21 +58,15 @@ def handle_interview_questions_task(
         library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
     settings = dependencies.settings
     usage = []
-
-    def screen_note(text: str):
-        """Screens user-authored facts and retains their billed Jev usage."""
-        outcome = screen_user_text(text, model=settings.user_text_screen_model,
-                                   timeout_seconds=settings.llm_run_timeout_seconds)
-        usage.extend(outcome.model_usages)
-        return outcome
-
     # Screen requirement context too; only the saved response receives an evidence ID.
     with logfire.span("interview_questions.screen_career_library"):
         try:
-            selected = screen_library_inputs(library, screen_note)
+            selected = screen_library_inputs(library)
         except LibraryScreeningError as error:
+            usage.extend(error.usage)
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message=f"Career library check failed ({error}). Review your library and try again.")
+    usage.extend(selected.usage)
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.

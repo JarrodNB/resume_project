@@ -68,7 +68,9 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   Rails HTML escaping. Callers retain complete-source limits and bind only these used fields.
 
 - `library_inputs.py` — bounded whole-library checking and reconstruction from
-  checked source values for interviews and the chat library tool (sync and async), reusing saved field checks through `library_fields.py`.
+  checked source values for interviews and the chat library tool, on `screen_records`.
+  The sync variant uses the configured classifier and returns its usage (also on
+  `LibraryScreeningError`); the async variant takes the caller's billed `screen`.
 - `interview_question_inputs.py` — reconstructs the checked library and generated history
   inside exact prompt binding, returning the same complete question context used by evals.
   Source approval and generated-text provenance remain the caller's responsibility.

@@ -19,9 +19,9 @@ from model_inputs.interview import format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
-from screening.interview_question_fields import screen_interview_field
 from screening.library_inputs import LibraryScreeningError, rebuild_library, screen_library_inputs
-from screening.screen_user_text import screen_user_text
+from screening.record_adapters import interview_answer_record
+from screening.records import screen_records_sync
 from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -51,18 +51,13 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         """Preserves billed screening and generation usage on expected failures."""
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=message, usage=usage)
 
-    def screen(text):
-        """Screens user text and records classifier usage."""
-        outcome = screen_user_text(text, model=settings.user_text_screen_model,
-                                   timeout_seconds=settings.llm_run_timeout_seconds)
-        usage.extend(outcome.model_usages)
-        return outcome
-
     if not snapshot.answer_text.strip():
         return fail("Write an answer before asking for feedback.")
     source = snapshot.model_dump(mode="json")
     source["screened_fields"] = snapshot.screened_fields
-    outcome = screen_interview_field(source, "answer_text", snapshot.answer_text, screen)
+    outcome = screen_records_sync([interview_answer_record(source, "answer_text", snapshot.answer_text)],
+                                  approved_sources=[snapshot.answer_text]).decision
+    usage.extend(outcome.model_usages)
     if not outcome.allowed:
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
@@ -73,9 +68,11 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
     try:
-        selected = screen_library_inputs(library, screen)
+        selected = screen_library_inputs(library)
     except LibraryScreeningError as error:
+        usage.extend(error.usage)
         return fail(f"Your answer is saved. Career library check failed ({error}). Review your library and try again.")
+    usage.extend(selected.usage)
     library = selected.library
     warnings = list(selected.warnings)
     text = bind_screened_prompt(

@@ -12,8 +12,9 @@ can't be invented.
   timeout_seconds)` returns a prepared prompt and completed screening usage, or a failure
   retaining that usage. It projects requirements and nice-to-haves, serializes the complete
   library as one source, checks the 80,000-character source and 120,000-character prompt caps
-  before paid calls, then screens unchecked readable job and library fields separately through the import chunker.
-  Saved Job fields reuse checks across tasks and emit fingerprinted reports for newly checked fields.
+  before paid calls, then screens unchecked readable job and library fields together in one
+  `screen_records` call (one classifier call on a fresh library unless the text needs splitting).
+  Saved Job and library fields reuse checks across tasks; new checks become `record_screening` receipts.
   Both are required: rejection or an incomplete screen stops analysis. It reconstructs and
   binds the exact prompt from approved source snapshots; direct unknown prompts remain guarded.
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` labels the

@@ -1,9 +1,11 @@
 /** Present an opportunity and preview its plain-text details without leaving results.
  * Both save controls use the current visit's import lock and owner-scoped feedback.
  */
+import { useRef } from 'react'
+import { skillMentionCount } from '@/features/jobs/skillMentionCounts'
+import type { SkillMatchesQuery, JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { PreferenceAssessment } from './PreferenceAssessment'
 import type { ListingAssessment } from './preferenceAssessments'
-import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { Link } from 'react-router'
 import { ArrowUpRight, Check, MapPin, Plus, Radio } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -15,6 +17,8 @@ import type { BoardListing } from './jobBoardVisit'
 
 interface Props {
   assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }
+  skills: SkillMatchesQuery['skills'] | null
+  skillsMessage?: string
   listing: BoardListing
   busyId: string | null
   /** Set once this listing was saved from the board, so the row can link to the new job. */
@@ -23,7 +27,13 @@ interface Props {
   onCreate: (listingId: string) => void
 }
 
-export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate, assessment }: Props) {
+export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate, assessment, skills, skillsMessage }: Props) {
+  const titleOpener = useRef<HTMLButtonElement | null>(null)
+  const previewOpener = useRef<HTMLButtonElement | null>(null)
+  const hasDescription = Boolean(listing.description?.trim())
+  const unavailable = !hasDescription ? 'Skill mentions unavailable: no description.' : skillsMessage
+  const mentions = hasDescription && skills?.length ? skills.map(skill => ({ ...skill, count: skillMentionCount(listing.description, skill.name) })) : null
+  const matched = mentions?.filter(skill => skill.count > 0).sort((a, b) => b.count - a.count)
   const published = listing.published ? new Date(listing.published) : null
   const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
   const employmentLabel = employmentTypeOptions.find(([value]) => value === listing.employmentType)?.[1]
@@ -52,15 +62,21 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
       <Dialog><article aria-labelledby={`listing-${listing.id}`}>
         <div className="board-listing-header">
           <div className="board-listing-identity">
-            <h2 id={`listing-${listing.id}`} className="board-listing-title"><DialogTrigger asChild><button type="button" className="board-preview-trigger">{listing.title}</button></DialogTrigger></h2>
+            <h2 id={`listing-${listing.id}`} className="board-listing-title"><DialogTrigger asChild><button type="button" className="board-preview-trigger" ref={titleOpener} onClick={event => { previewOpener.current = event.currentTarget }}>{listing.title}</button></DialogTrigger></h2>
             <p className="board-listing-company">{listing.company ?? 'Unknown company'}</p>
             {metadata}
+            {!hasDescription && <p className="board-skill-summary">{unavailable}</p>}
+            {matched && <div className="board-skill-summary">
+              <p>{matched.length ? `${matched.length} of ${skills?.length ?? 0} saved skills mentioned` : 'No saved skills mentioned'}</p>
+              <ul>{matched.slice(0, 3).map(skill => <li key={skill.id}>{skill.name} · {skill.count} {skill.count === 1 ? 'mention' : 'mentions'}</li>)}</ul>
+              {matched.length > 3 && <DialogTrigger asChild><button type="button" className="board-skill-more" onClick={event => { previewOpener.current = event.currentTarget }}>+{matched.length - 3} more</button></DialogTrigger>}
+            </div>}
           </div>
           {action}
         </div>
         {assessment && <PreferenceAssessment listing={listing} {...assessment} />}
       </article>
-      <DialogContent className="board-preview" aria-describedby={`preview-company-${listing.id}`}>
+      <DialogContent className="board-preview" aria-describedby={`preview-company-${listing.id}`} onCloseAutoFocus={event => { event.preventDefault(); (previewOpener.current?.isConnected ? previewOpener.current : titleOpener.current)?.focus() }}>
         <div className="board-preview-heading">
           <DialogTitle className="board-preview-title">{listing.title}</DialogTitle>
           <DialogDescription id={`preview-company-${listing.id}`}>{listing.company ?? 'Unknown company'}{listing.location && ` · ${listing.location}`}</DialogDescription>
@@ -71,6 +87,11 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
         </div>
         <ErrorAlert title="Couldn't create this job" messages={errors} />
         {savedHere && savedHere.warnings.length > 0 && <div role="status" className="board-preview-warnings"><p>Saved with a few changes:</p><ul>{savedHere.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div>}
+        <div className="board-skill-details">
+          <h3>Skill mentions</h3>
+          {unavailable ? <p>{unavailable}</p> : <><p>Exact mentions of your saved skills, ignoring capitalization.</p>
+          <ul aria-label="Saved skill mentions">{mentions?.map(skill => <li key={skill.id}><span>{skill.name}</span><span>{skill.count === 0 ? 'Not mentioned' : `${skill.count} ${skill.count === 1 ? 'mention' : 'mentions'}`}</span></li>)}</ul></>}
+        </div>
         <div className="board-preview-description">
           <h3>Description</h3>
           {listing.description ? <FormattedDescription className="board-description" text={listing.description} /> : <p className="board-description-missing">No description provided.</p>}

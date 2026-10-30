@@ -3,8 +3,7 @@
 This runbook covers the cookie-session, password-policy, verification and recovery
 candidate. It is a release checklist, not evidence that production was configured
 or deployed. The behavior and API contracts live in
-[Browser authentication](../architecture/authentication.md); the inspected code
-and test evidence live in [the audit](../security/authentication-audit.md).
+[Browser authentication](../architecture/authentication.md).
 
 Careergrind currently runs only in local development. Production steps below are
 future setup guidance; local review uses Letter Opener Web and needs no SMTP provider.

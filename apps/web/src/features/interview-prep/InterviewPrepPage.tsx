@@ -31,7 +31,7 @@ export function InterviewPrepPage() {
     {!bank.questions && bank.loading && <p>Loading…</p>}
     {bank.questions?.length === 0 && pending.length === 0 && <div className="empty-records">
       <h2>No questions yet</h2>
-      <p>Pick a question type above and get your first five. Your answers and feedback will collect here.</p>
+      <p>Pick a question type above and get your first five. Questions come from your career library, so the more detail it holds, the more specific they get. Your answers and feedback will collect here.</p>
     </div>}
     {bank.questions && bank.questions.length > 0 && <QuestionBankList questions={bank.questions} />}
     <div className="library-sections">

@@ -52,7 +52,16 @@ function GapAnalysisTaskView({
   gapResponses: SavedGapResponse[]
   renderRunButton: (task: GapAnalysisTask | null) => ReactNode
 }) {
-  if (!task) return renderRunButton(null)
+  if (!task) {
+    return (
+      <div className="grid gap-4">
+        <p className="max-w-[65ch] text-sm text-muted-foreground">
+          You'll see each requirement marked met, partial, or missing, with the library evidence behind it. For gaps, you can add what you've really done, and the answers feed your resume. It takes about a minute.
+        </p>
+        {renderRunButton(null)}
+      </div>
+    )
+  }
 
   if (task.status !== 'COMPLETED' && task.status !== 'FAILED') {
     return (

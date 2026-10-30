@@ -2,7 +2,11 @@
 
 Run with python -m evals.run_summary_generation_evals. The guarded writer and independent
 faithfulness/usefulness judge incur provider charges; results print without saving reports.
+Synthetic evidence is injected per execution; reference-only commands never copy it and no
+database is needed. Dataset screening flags remain unchanged.
 """
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,7 +20,8 @@ from pydantic_evals.evaluators.llm_as_a_judge import judge_output
 from evals.telemetry import evaluate_dataset
 from model_inputs.summary_generation import render_summary_sources
 from prompts.summary_generation_instructions import SUMMARY_GENERATION_PROMPT_VERSION
-from schemas.summary_generation import SummarySource
+from schemas.summary_generation import SummaryGenerationInput, SummarySource
+from screening.records import field_fingerprint
 from settings import load_settings
 from worker.queue_messages import AiTaskMessage
 from worker.summary_generation_handler import handle_summary_generation_task
@@ -63,10 +68,25 @@ def run_summary_generation_evals():
     dataset.add_evaluator(SummaryQuality(settings.eval_judge_model, settings.llm_run_timeout_seconds))
 
     def generate(case):
-        task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_summary", input={
-            "target_kind": "profile", "target_id": str(uuid4()), "source_digest": "a" * 64,
-            "sources": [source.model_dump() for source in case.sources]})
-        result = handle_summary_generation_task(task, SimpleNamespace(settings=settings))
+        owner_id = uuid4()
+        references = [{"label": source.label,
+                       **({"record_id": source.record_id} if source.record_id else {}),
+                       "fingerprint": field_fingerprint(source.text)} for source in case.sources]
+        digest = hashlib.sha256(json.dumps(references, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        task = AiTaskMessage(ai_task_id=uuid4(), user_id=owner_id, task_type="generate_summary", input={
+            "command_version": 1, "target_kind": "profile", "target_id": str(owner_id),
+            "source_digest": digest, "source_references": references})
+
+        def read_sources(user_id, command):
+            # Synthetic evidence lives only in this case execution, never in the command.
+            # Match the owned request exactly, preserving normal dataset screening flags.
+            if user_id != owner_id or command.model_dump(exclude_none=True) != task.input:
+                return None
+            return SummaryGenerationInput(target_kind="profile", target_id=str(owner_id),
+                source_digest=digest, sources=case.sources)
+
+        result = handle_summary_generation_task(task,
+            SimpleNamespace(settings=settings, read_summary_sources=read_sources))
         if result.status != "completed":
             raise RuntimeError(result.error_message or "Summary generation failed")
         return result.result

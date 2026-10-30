@@ -203,4 +203,4 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 - `run_chat_evals.py` / `chat_evaluators.py` — synthetic career chat and rolling-memory cases through the production guarded adapter. Deterministic continuity/outcome/honesty signals; no Rails writes, actual synthetic provider receipts retained; paid runs are explicit.
 
-- `run_summary_generation_evals.py` / `datasets/summary_generation_cases.yaml` — three synthetic missing-summary cases through production screening/generation; citation contract and independent faithfulness/usefulness judge. Prints results; run with `python -m evals.run_summary_generation_evals`. No broad quality claim from this bounded sample.
+- `run_summary_generation_evals.py` / `datasets/summary_generation_cases.yaml` — three synthetic missing-summary cases through the reference-only handler with execution-local synthetic evidence (no database), retaining production screening/generation; citation contract and independent faithfulness/usefulness judge. Prints results; run with `python -m evals.run_summary_generation_evals`. No broad quality claim from this bounded sample.

@@ -99,6 +99,8 @@ class AISettings(BaseSettings):
     db_username: str = "ai_reader"
     db_password: str = ""
     db_connect_timeout_seconds: int = 10
+    # Internal MCP tool server (the ai-mcp service). Its token secret is MCP_TOOLS_SECRET.
+    mcp_tools_url: str = "http://ai-mcp:8000/mcp"
     # Must stay well below the ai_tasks visibility timeout (300s), so a slow run is abandoned
     # before SQS hands the same task to another worker and it runs (and bills) twice.
     llm_run_timeout_seconds: float = 240

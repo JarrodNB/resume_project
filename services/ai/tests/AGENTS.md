@@ -155,7 +155,9 @@ unknown expiration within partially stated periods.
 
 - `test_interview_session_feedback.py` — completed-session claim/dispatch, readable source reuse, exact question IDs, aggregate bounds, privacy and explicit provider-failure recovery.
 
-- `test_chat_execution.py` — guarded tool-free streaming, real blocking policy, contact masking, context limits, shared client contract, cancellation/known-versus-unknown bills, stream outage and ambiguous acceptance readback.
+- `test_mcp_career_library.py` — the real MCP server over local HTTP: token-only user scoping, rejected tokens, hidden database errors; client screening, rendering, caps and per-run caching.
+
+- `test_chat_execution.py` — guarded streaming (including preamble text before a tool call, the tool server over local HTTP, and running without tools when it is down), real blocking policy, contact masking, context limits, shared client contract, cancellation/known-versus-unknown bills, stream outage and ambiguous acceptance readback.
 
 - `test_chat_evaluators.py` — offline synthetic dataset labels, evaluator failures and production rolling-adapter routing; quality runs remain separate from deterministic correctness.
 

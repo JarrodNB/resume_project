@@ -24,6 +24,26 @@ _flush = BoundedTelemetryFlush(lambda: logfire.force_flush(timeout_millis=5000))
 _price_updater = None
 
 
+class ChatFallbackSpanProcessor(SpanProcessor):
+    """Give chat's model-selection span a neutral name while retaining its attributes."""
+
+    def on_start(self, span, parent_context=None):
+        pass
+
+    def on_end(self, span):
+        attributes = span.attributes or {}
+        if (attributes.get("chat_operation_id") and
+                attributes.get("gen_ai.operation.name") == "chat" and
+                span.name.startswith("chat fallback:")):
+            span._name = "chat model request"
+
+    def shutdown(self):
+        pass
+
+    def force_flush(self, timeout_millis=30000):
+        return True
+
+
 class OperationCostSpanProcessor(SpanProcessor):
     """Copies the sum of priced model-call spans onto each trace root."""
 
@@ -63,8 +83,12 @@ class OperationCostSpanProcessor(SpanProcessor):
         return True
 
 
-def configure_tracing(additional_span_processors=()) -> None:
-    """Configures env-based export and optional caller-owned synchronous span collectors."""
+def configure_tracing(additional_span_processors=(), *, distributed_tracing=None) -> None:
+    """Configures env-based export and optional caller-owned synchronous span collectors.
+
+    Pass distributed_tracing=True only in services that should join callers' traces
+    (the MCP tool server); others keep Logfire's default warning about incoming context.
+    """
     global _price_updater
     export_enabled = bool(os.getenv("LOGFIRE_TOKEN", "").strip())
     if export_enabled and _price_updater is None:
@@ -76,9 +100,10 @@ def configure_tracing(additional_span_processors=()) -> None:
         console=False,
         metrics=logfire.MetricsOptions(collect_in_spans=True),
         inspect_arguments=False,
-        additional_span_processors=[ContactSpanProcessor(), OperationCostSpanProcessor(),
+        additional_span_processors=[ContactSpanProcessor(), ChatFallbackSpanProcessor(), OperationCostSpanProcessor(),
                                     *additional_span_processors],
         advanced=logfire.AdvancedOptions(log_record_processors=[ContactLogProcessor()]),
+        distributed_tracing=distributed_tracing,
     )
     instrumentation = InstrumentationSettings(tracer_provider=trace.get_tracer_provider())
     Agent.instrument_all(instrumentation)

@@ -1,6 +1,6 @@
 /** Validate complete batch evidence and derive stable ordering from confirmed priorities. */
 import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
-import type { BoardListing } from './useJobBoardSearch'
+import type { BoardListing } from './jobBoardVisit'
 
 type Profile = JobPreferencesQuery['jobPreferences']
 export type CriterionDecision = { id: string; status: 'matching' | 'conflicting' | 'unknown'; reason: string;

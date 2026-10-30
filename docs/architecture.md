@@ -46,6 +46,11 @@ Decision rationale lives beside the behavior it explains in these guides.
                                     │ services/ai  │──▶ OpenAI
                                     │   (Python    │──▶ Logfire
                                     │   workers)   │
+                                    └──────┬───────┘
+                          MCP over HTTP    │ (chat tools, signed per-operation tokens)
+                                    ┌──────▼───────┐
+                                    │    ai-mcp    │──▶ Postgres (ai_reader, read-only)
+                                    │ (MCP tools)  │
                                     └──────────────┘
  Lambda (scheduled) ──▶ daily goal emails, weekly summaries, periodic job searches
 ```
@@ -62,6 +67,7 @@ Start with the module responsible for the behavior; read detailed docs only as n
 | Shared AI execution support | `settings.py`, `llm/`, `privacy/` and `telemetry/` serve HTTP execution and workers without queue startup dependencies |
 | Model behavior | `agents/` registers prompts, tools, and structured outputs; `prompts/` owns instructions |
 | Read-only retrieval | `database/` owns SQL scoped to the task user; `memory/` owns retrieval and query embeddings |
+| Agent tools (MCP) | `mcp_tools/` runs the standalone `ai-mcp` server and the client that screens and renders its results; see [chat tools](architecture/chat.md#tools-mcp) |
 | Shared AI data shapes | `schemas/` owns structured models and pure validation; Rails and web consumers mirror queue results |
 | Verification | API `spec/`, AI `tests/` and `evals/`, colocated frontend tests; see [testing.md](testing.md) |
 

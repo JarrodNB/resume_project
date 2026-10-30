@@ -11,7 +11,7 @@ import { CHECK_JOB_BOARD_PREFERENCE_RESULTS, JOB_PREFERENCE_CHECK_SUBSCRIPTION }
 import { JobBoardPage } from './JobBoardPage'
 import { JOB_BOARD_SEARCH_QUERY } from './jobBoardOperations'
 import { JOB_PREFERENCES_QUERY } from './jobPreferenceOperations'
-import type { BoardListing } from './useJobBoardSearch'
+import type { BoardListing } from './jobBoardVisit'
 
 type TestListing = BoardListing & { __typename: string; savedJob: { id: string; __typename: string } | null }
 function listing(id: string): TestListing {

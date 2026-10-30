@@ -1,67 +1,12 @@
-/** Keep a few recent searches while this signed-in app session stays open.
- * Nothing is written to browser storage. Replacing the session's Apollo client
- * starts an empty history; refreshing the app does too. Async completions update
- * the visit even while its page is closed, so returning cannot strand a request.
+/** Select a retained visit for this URL within the signed-in Apollo session.
+ * Keeps at most five searches in memory; inactive oversized visits discard themselves.
+ * Replacing the client starts a private empty session. React observes the visit's state.
  */
 import { useSyncExternalStore } from 'react'
 import { useApolloClient } from '@apollo/client/react'
 import { useLocation } from 'react-router'
-import type { SearchSnapshot } from './useJobBoardSearch'
-import type { PreferenceCheckState, PreferenceCheckLock } from './useBoardPreferenceCheck'
-import type { RerankingRequest } from './useJobBoardReranking'
+import { createJobBoardVisit, type JobBoardVisit } from './jobBoardVisit'
 
-interface VisitState {
-  snapshot: SearchSnapshot
-  loading: boolean
-  errors: string[]
-  failedCursor: string | null
-  hideSaved: boolean
-  ordering: 'provider' | 'library' | 'preferences'
-  savedHere: Record<string, { jobId: string; warnings: string[] }>
-  busyId: string | null
-  importErrors: string[]
-  pageChoice: { search: unknown; order: string; page: number }
-  preferenceCheck: PreferenceCheckState
-  rankingRevision: number
-}
-let nextId = 0
-function createVisit(preferences: Pick<VisitState, 'hideSaved'> | undefined, discard: () => void) {
-  let state: VisitState = {
-    snapshot: { submitted: null, pages: [], listings: [] }, loading: false, errors: [], failedCursor: null,
-    hideSaved: false, ordering: 'provider', savedHere: {}, busyId: null, importErrors: [],
-    pageChoice: { search: null, order: 'provider', page: 0 }, rankingRevision: 0, preferenceCheck: { active: false, request: null, pending: null, failure: null }, ...preferences,
-  }
-  let generation = 0
-  let pending = false
-  let initialized = false
-  let preferenceLock: PreferenceCheckLock = null
-  const listeners = new Set<() => void>()
-  function discardOversizedVisit() {
-    if (listeners.size === 0 && state.snapshot.pages.reduce((count, page) => count + page.listings.length, 0) > 200) discard()
-  }
-  return {
-    id: ++nextId, scrollY: 0,
-    get generation() { return generation },
-    get pending() { return pending },
-    get initialized() { return initialized },
-    startSearch() { initialized = true; generation += 1 },
-    setPending(value: boolean) { pending = value },
-    get preferenceLock() { return preferenceLock },
-    setPreferenceLock(value: PreferenceCheckLock) { preferenceLock = value },
-    requests: new Map<object, RerankingRequest>(),
-    getState: () => state,
-    update(change: Partial<VisitState> | ((current: VisitState) => Partial<VisitState>)) {
-      state = { ...state, ...(typeof change === 'function' ? change(state) : change) }
-      listeners.forEach((listener) => listener())
-      discardOversizedVisit()
-    },
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => { listeners.delete(listener); discardOversizedVisit() }
-    },
-  }
-}
-export type JobBoardVisit = ReturnType<typeof createVisit>
 const sessions = new WeakMap<object, { visits: Map<string, JobBoardVisit>; latest?: JobBoardVisit }>()
 
 export function useJobBoardVisit() {
@@ -73,7 +18,7 @@ export function useJobBoardVisit() {
   let visit = visits.get(search)
   if (!visit) {
     const preferences = session.latest?.getState()
-    const created = createVisit(preferences && { hideSaved: preferences.hideSaved }, () => {
+    const created = createJobBoardVisit(client, preferences && { hideSaved: preferences.hideSaved }, () => {
       if (visits.get(search) === created) visits.delete(search)
       if (session.latest === created) session.latest = undefined
     })

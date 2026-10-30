@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 import { FormattedDescription } from '@/components/FormattedDescription'
 import { Button } from '@/components/ui/button'
 import { employmentTypeOptions, remoteOptions } from './searchFilters'
-import type { BoardListing } from './useJobBoardSearch'
+import type { BoardListing } from './jobBoardVisit'
 
 interface Props {
   assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }

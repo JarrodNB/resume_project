@@ -8,13 +8,22 @@ import hashlib
 from datetime import UTC, datetime
 
 import logfire
+from pydantic_ai import Agent
 from pydantic_ai.exceptions import (
     FallbackExceptionGroup,
     ModelAPIError,
     UnexpectedModelBehavior,
     UsageLimitExceeded,
 )
-from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+    UserPromptPart,
+)
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.usage import RunUsage, UsageLimits
 
@@ -23,6 +32,7 @@ from agents.chat_summary_agent import make_chat_summary_agent
 from agents.user_text_fallback_agent import screen_fallback_message_async, user_text_fallback_agent
 from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
 from interviews.client import RailsTransportError
+from mcp_tools.client import ToolServerConnection
 from model_inputs.blocks import source_block
 from model_inputs.chat import render_chat_summary, render_chat_summary_context
 from pii import PiiDetectionError, PiiRestorationError
@@ -34,6 +44,7 @@ from screening.conversation import ScreenedConversationTurn, screen_conversation
 from screening.screen_user_text import screen_user_text_async
 from screening.session import screening_session
 from settings import load_settings
+from telemetry.model_attempt import ModelAttempt
 from telemetry.privacy import telemetry_scope
 from telemetry.tracing import flush_tracing, record_prompt_version
 from text_limits import MAX_PROMPT_TEXT
@@ -46,9 +57,11 @@ class ChatRejected(RuntimeError):
 class ChatExecutionAdapter:
     stream_output = True
 
-    def __init__(self, client, models, *, model=None, fallback_model=None):
+    def __init__(self, client, models, *, model=None, fallback_model=None, tool_server=None):
         self.client, self.models = client, models
         settings = load_settings()
+        # The separate MCP tool server (ai-mcp); a missing token secret fails startup loudly.
+        self.tool_server = tool_server or ToolServerConnection.from_environment(settings)
         self.model = model or settings.chat_model
         self.fallback_model = fallback_model or settings.generative_fallback_model
         if any(value not in {"openai:gpt-6-luna", "openai:gpt-5-nano"}
@@ -62,6 +75,13 @@ class ChatExecutionAdapter:
         return await self.client.heartbeat(claim)
 
     async def _screen(self, claim, text):
+        decision = await self._screen_decision(claim, text)
+        if not decision.allowed:
+            raise ChatRejected("context_limit" if decision.too_long else
+                               "screening_unavailable" if decision.unchecked else "screening_blocked")
+
+    async def _screen_decision(self, claim, text):
+        """Screen text on this claim's accounted models and return the decision."""
         async def primary(chunk, model, timeout):
             with user_text_screen_agent.override(model=self.models.accounted(self.client, claim, "screening", model)):
                 return await screen_user_message_async(chunk, model, timeout)
@@ -70,11 +90,8 @@ class ChatExecutionAdapter:
             with user_text_fallback_agent.override(model=self.models.accounted(self.client, claim, "screening", model)):
                 return await screen_fallback_message_async(chunk, model, timeout)
 
-        decision = await screen_user_text_async(text, "typesafe:jev-1.13.0", 30,
+        return await screen_user_text_async(text, "typesafe:jev-1.13.0", 30,
             classify=primary, classify_fallback=fallback, _fallback_model="openai:gpt-5-nano")
-        if not decision.allowed:
-            raise ChatRejected("context_limit" if decision.too_long else
-                               "screening_unavailable" if decision.unchecked else "screening_blocked")
 
     async def execute(self, claim, output):
         # Bound local detection too; oversized source text never reaches expensive NLP.
@@ -128,9 +145,10 @@ class ChatExecutionAdapter:
                 flush_tracing()
 
     def _model(self, claim, stage):
-        model = self.models.accounted(self.client, claim, stage, self.model)
+        model = ModelAttempt(self.models.accounted(self.client, claim, stage, self.model), role="primary")
         if self.fallback_model != self.model:
-            model = FallbackModel(model, self.models.accounted(self.client, claim, stage, self.fallback_model))
+            fallback = self.models.accounted(self.client, claim, stage, self.fallback_model)
+            model = FallbackModel(model, ModelAttempt(fallback, role="fallback"))
         return model
 
     async def _summarize(self, claim, privacy, usage):
@@ -194,30 +212,55 @@ class ChatExecutionAdapter:
                 await output.emit("completed")
 
     async def _reply(self, claim, output, privacy, turn, history, usage):
-        agent = make_chat_agent(turn.guard)
+        # The token names the claim's owner, never a model-chosen user. Tool text is
+        # screened here on this claim's accounted screen before the model sees it.
+        tools = self.tool_server.toolset(user_id=claim.payload.user_id, operation_id=claim.operation_id,
+            expires_at=claim.execution_deadline, screen=lambda text: self._screen_decision(claim, text))
+        agent = make_chat_agent(turn.guard, toolsets=[tools])
         if output:
             await output.emit("started")
-        published = ""
-        async with agent.run_stream(turn.prompt, message_history=history, model=self._model(claim, "reply"),
+        published, last_publish = "", 0.0
+        # Text from every model response is kept, including a short preamble before a tool
+        # call, so the saved reply always matches what observers already saw streamed.
+        responses = []
+        loop = asyncio.get_running_loop()
+        # Each tool round trip is another accounted model request, on top of retries and fallback.
+        async with agent.iter(turn.prompt, message_history=history, model=self._model(claim, "reply"),
                 model_settings={"thinking": False, "max_tokens": 2400}, usage=usage,
-                usage_limits=UsageLimits(request_limit=8, tool_calls_limit=0, total_tokens_limit=128000)) as run:
-            async for text in run.stream_text(delta=False, debounce_by=0.05):
-                if len(text) > 8000:
-                    raise ChatRejected("execution_failed")
-                # Hold incomplete local privacy placeholders until a whole token arrives.
-                stable = text
-                if stable.rfind("«") > stable.rfind("»"):
-                    stable = stable[:stable.rfind("«")]
-                restored = privacy.restore(stable)
-                if restored.startswith(published) and output:
-                    await self._deltas(output, restored[len(published):])
-                    published = restored
-            reply = privacy.restore(await run.get_output())
+                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=2, total_tokens_limit=128000)) as run:
+            async for node in run:
+                if not Agent.is_model_request_node(node):
+                    continue
+                responses.append("")
+                async with node.stream(run.ctx) as stream:
+                    async for event in stream:
+                        text = _text_delta(event)
+                        if not text:
+                            continue
+                        responses[-1] += text
+                        combined = _combined_reply(responses)
+                        if len(combined) > 8000:
+                            raise ChatRejected("execution_failed")
+                        if output and loop.time() - last_publish >= 0.05:
+                            published = await self._publish(output, privacy, combined, published)
+                            last_publish = loop.time()
+        reply = privacy.restore(_combined_reply(responses))
         if not reply.strip() or len(reply) > 8000:
             raise ChatRejected("execution_failed")
         if reply.startswith(published) and output:
             await self._deltas(output, reply[len(published):])
         return reply
+
+    async def _publish(self, output, privacy, text, published):
+        # Hold incomplete local privacy placeholders until a whole token arrives.
+        stable = text
+        if stable.rfind("«") > stable.rfind("»"):
+            stable = stable[:stable.rfind("«")]
+        restored = privacy.restore(stable)
+        if not restored.startswith(published):
+            return published
+        await self._deltas(output, restored[len(published):])
+        return restored
 
     @staticmethod
     async def _deltas(output, text):
@@ -236,3 +279,17 @@ class ChatExecutionAdapter:
             status = await self.client.status(claim.operation_id)
             if status.get("status") != "accepted":
                 raise
+
+
+def _text_delta(event):
+    """Return new reply text from a streamed model event, ignoring tool calls and thinking."""
+    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+        return event.part.content
+    if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+        return event.delta.content_delta
+    return ""
+
+
+def _combined_reply(responses):
+    """Join text from each model response in the run, skipping responses with none."""
+    return "\n\n".join(text for text in responses if text)

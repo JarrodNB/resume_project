@@ -19,7 +19,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 | `apps/web/`          | React (Vite + TypeScript) app, Apollo GraphQL client           |
 | `apps/landing/`      | Marketing landing page that redirects into the app             |
 | `services/api/`      | Rails API: GraphQL, auth, core domain, service objects         |
-| `services/ai/`       | Python HTTP execution and SQS workers: models, memory, Logfire   |
+| `services/ai/`       | Python HTTP execution, SQS workers and the `ai-mcp` tool server: models, memory, Logfire |
 | `infra/`             | Terraform (AWS), Kubernetes manifests, local ElasticMQ config  |
 | `docs/`              | Architecture, MVP plan, decisions                              |
 | `GLOSSARY.md`        | Shared domain terms                                            |

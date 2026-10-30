@@ -1,5 +1,5 @@
 /** Show accepted preference decisions and exact posting excerpts without row-level requests. */
-import type { BoardListing } from './useJobBoardSearch'
+import type { BoardListing } from './jobBoardVisit'
 import type { CriterionDecision } from './preferenceAssessments'
 import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { CollapseToggle } from '@/components/CollapseToggle'

@@ -17,7 +17,7 @@ def anyio_backend():
 
 def test_chat_evaluation_labels_are_separate_and_bad_outputs_lose_scores():
     dataset = load_chat_dataset()
-    assert len(dataset.cases) == 4
+    assert len(dataset.cases) == 5
     case = dataset.cases[0]
     assert 'required_reply_terms' not in case.inputs.model_dump()
     evaluator = CareerChatOutcome()

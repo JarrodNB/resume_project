@@ -2,7 +2,7 @@
  * Request generations discard responses for text the user has already changed.
  */
 import { useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { LoaderCircle, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -22,9 +22,16 @@ export function JobBoardLocationPicker({ onChange, initialChoice }: { initialCho
   return <div className="board-location-picker">
     <Label htmlFor="board-location">US city or state</Label>
     <div className="board-location-field">
-      <Input ref={input} id="board-location" value={text} maxLength={100} placeholder="Anywhere in the US" aria-describedby="board-location-help" onChange={(event) => change(event.target.value)} />
-      {selected ? <Button type="button" variant="outline" onClick={() => change('')}>Clear location</Button> :
-        <Button type="button" variant="outline" disabled={text.trim().length < 2 || loading} onClick={() => void findLocations(text.trim())}>{loading ? 'Finding…' : 'Find locations'}</Button>}
+      <Input ref={input} id="board-location" value={text} maxLength={100} placeholder="Anywhere in the US" aria-describedby="board-location-help" onChange={(event) => change(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          event.preventDefault()
+          if (!selected && text.trim().length >= 2 && !loading) void findLocations(text.trim())
+        }} />
+      {selected ? <button type="button" className="board-location-action" aria-label="Clear location" title="Clear location" onClick={() => change('')}><X size={16} aria-hidden /></button> :
+        <button type="button" className="board-location-action" aria-label={loading ? 'Finding…' : 'Find locations'} title="Find locations" disabled={text.trim().length < 2 || loading} onClick={() => void findLocations(text.trim())}>
+          {loading ? <LoaderCircle size={16} className="animate-spin" aria-hidden /> : <Search size={16} aria-hidden />}
+        </button>}
     </div>
     <p id="board-location-help" className="board-filter-help">{selected ? `Selected: ${selected.label}` : text.trim() ? 'Find and select a location, or clear this field to search anywhere in the US.' : 'Leave blank to include all US locations.'}</p>
     {loading && <p role="status" className="board-filter-help">Finding US locations…</p>}

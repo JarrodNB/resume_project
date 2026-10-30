@@ -1,14 +1,22 @@
 """Exercise chat through its guarded streaming execution adapter without providers."""
 import asyncio
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
+import logfire
 import pytest
 from pydantic_ai.models.function import FunctionModel
 
 from chat.client import ChatClaim
 from chat.execution import ChatExecutionAdapter, ChatRejected
 from chat.models import ChatModel
+from tests import test_tracing
+
+
+@pytest.fixture
+def exporters():
+    yield from test_tracing.exporters.__wrapped__()
 
 
 @pytest.fixture(autouse=True)
@@ -77,7 +85,6 @@ async def test_reply_streams_then_accepts_once_and_accounts_actual_stream(monkey
 
     async def stream(messages, info):
         observed.extend(messages)
-        assert not info.function_tools
         yield 'Practice one example'
         yield ' from your work.'
 
@@ -298,8 +305,19 @@ def test_chat_model_configuration_is_explicit_and_bounded(monkeypatch):
         AISettings(chat_model='arbitrary-provider:model')
 
 @pytest.mark.anyio
-async def test_provider_outage_uses_configured_fallback_and_retains_both_receipts():
+async def test_provider_outage_uses_configured_fallback_and_retains_both_receipts(exporters, monkeypatch):
+    from opentelemetry import trace
+    from pydantic_ai import InstrumentationSettings
     from pydantic_ai.exceptions import ModelHTTPError
+
+    from chat.execution import make_chat_agent
+
+    def instrumented_agent(*args, **kwargs):
+        agent = make_chat_agent(*args, **kwargs)
+        agent.instrument = InstrumentationSettings(tracer_provider=trace.get_tracer_provider())
+        return agent
+
+    monkeypatch.setattr('chat.execution.make_chat_agent', instrumented_agent)
     owner, sink = Owner(), Sink()
     async def unavailable(messages, info):
         raise ModelHTTPError(503, 'gpt-6-luna', 'unavailable')
@@ -318,6 +336,19 @@ async def test_provider_outage_uses_configured_fallback_and_retains_both_receipt
     assert owner.accepted[0]['reply'] == 'A useful fallback reply.'
     assert [record[3] for record in owner.starts] == ['gpt-6-luna', 'gpt-5-nano']
     assert owner.receipts[0][2] is True and owner.receipts[1][2] is False
+    logfire.force_flush(timeout_millis=1000)
+    spans = [span for span in exporters[0].get_finished_spans()
+             if "model_attempt.role" in span.attributes]
+    assert [span.attributes["logfire.msg"] for span in spans] == [
+        "Primary model attempt: function:gpt-6-luna",
+        "Fallback model attempt: function:gpt-5-nano",
+    ]
+    assert all("operation.cost" not in span.attributes for span in spans)
+    requests = [span for span in exporters[0].get_finished_spans()
+                if span.attributes.get("gen_ai.operation.name") == "chat"]
+    assert requests[0].attributes.get("chat_operation_id") == claim().operation_id
+    assert [span.name for span in requests] == ["chat model request"]
+    assert requests[0].attributes["gen_ai.request.model"].startswith("fallback:")
 
 
 @pytest.mark.anyio
@@ -509,3 +540,113 @@ async def test_rolling_summary_contacts_are_masked_for_both_models_and_restored_
     assert owner.accepted[-1]['summary_update']['text'] == 'User contact: ' + email
     assert len(observed) == 2 and not owner.failed
     adapter._screen.assert_awaited_once()
+
+
+
+@contextmanager
+def tool_server(library):
+    """Run the real MCP tool server over local HTTP with a synthetic library."""
+    from mcp_tools.client import ToolServerConnection
+    from mcp_tools.local_server import serve_in_background
+    from mcp_tools.server import create_mcp_server
+
+    reads, secret = [], 'chat-test-secret-0123456789abcdefghij'
+
+    def read(user_id):
+        reads.append(user_id)
+        return library
+
+    app = create_mcp_server(secret=secret, read_library=read).http_app(path='/mcp', stateless_http=True)
+    with serve_in_background(app) as url:
+        yield ToolServerConnection(url=url, secret=secret), reads
+
+
+def tool_returns(messages):
+    from pydantic_ai.messages import ToolReturnPart
+
+    return [part for message in messages for part in message.parts if isinstance(part, ToolReturnPart)]
+
+
+@pytest.mark.anyio
+async def test_reply_reads_the_owners_library_from_the_tool_server_and_keeps_its_preamble():
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from schemas.gap_analysis_context import CareerLibrary
+
+    owner, sink = Owner(), Sink()
+    library = CareerLibrary.model_validate({"skills": [{"id": "s1", "name": "Ruby", "screened_fields": ["name"]}]})
+
+    async def stream(messages, info):
+        assert [tool.name for tool in info.function_tools] == ['read_career_library']
+        returns = tool_returns(messages)
+        if not returns:
+            # GPT models often write a short preamble before calling a tool.
+            yield 'Let me check your library.'
+            yield {1: DeltaToolCall(name='read_career_library', json_args='{}', tool_call_id='call-1')}
+        else:
+            # Readable, screened text only: no JSON, IDs or saved check status.
+            assert '- Ruby' in returns[0].content and 's1' not in returns[0].content
+            yield 'You list Ruby as a skill.'
+
+    with tool_server(library) as (connection, reads):
+        adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=connection)
+        adapter._screen = AsyncMock()
+        await asyncio.wait_for(adapter.execute(claim(), sink), 10)
+    assert owner.failed == []
+    # The server read only the claim's owner, taken from the signed token.
+    assert reads == ['user-1']
+    reply = owner.accepted[0]['reply']
+    assert reply == 'Let me check your library.\n\nYou list Ruby as a skill.'
+    assert ''.join(value['text'] for kind, value in sink.events if kind == 'delta') == reply
+    # Both model requests in the run are accounted separately.
+    assert len(owner.starts) == 2
+    assert all(entry[1][0]['cost_microdollars'] > 0 for entry in owner.receipts[:2])
+
+
+@pytest.mark.anyio
+async def test_unchecked_library_text_is_screened_on_the_claims_accounted_screen():
+    from types import SimpleNamespace
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from schemas.gap_analysis_context import CareerLibrary
+
+    owner, sink = Owner(), Sink()
+    library = CareerLibrary.model_validate({"skills": [{"id": "s1", "name": "Ruby"}]})
+
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            yield {0: DeltaToolCall(name='read_career_library', json_args='{}', tool_call_id='call-1')}
+        else:
+            assert 'Ruby' not in returns[0].content
+            assert 'did not pass a safety check' in returns[0].content
+            yield 'I could not use your saved skills.'
+
+    current = claim()
+    with tool_server(library) as (connection, _):
+        adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=connection)
+        adapter._screen = AsyncMock()
+        adapter._screen_decision = AsyncMock(return_value=SimpleNamespace(allowed=False, too_long=False, unchecked=False))
+        await asyncio.wait_for(adapter.execute(current, sink), 10)
+    assert owner.accepted[0]['reply'] == 'I could not use your saved skills.'
+    adapter._screen_decision.assert_awaited_once()
+    assert adapter._screen_decision.await_args.args[0] is current
+
+
+@pytest.mark.anyio
+async def test_reply_still_answers_without_tools_when_the_tool_server_is_down():
+    from mcp_tools.client import ToolServerConnection
+
+    owner, sink = Owner(), Sink()
+
+    async def stream(messages, info):
+        assert not info.function_tools
+        yield 'I can still help from what you tell me.'
+
+    down = ToolServerConnection(url='http://127.0.0.1:9/mcp', secret='chat-test-secret-0123456789abcdefghij')
+    adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=down)
+    adapter._screen = AsyncMock()
+    await asyncio.wait_for(adapter.execute(claim(), sink), 10)
+    assert owner.failed == []
+    assert owner.accepted[0]['reply'] == 'I can still help from what you tell me.'

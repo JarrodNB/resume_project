@@ -103,9 +103,17 @@ or reconnects to queued work without re-enqueueing. Preference checks still requ
 same snapshot and confirmed profile revision. A newly submitted search starts in search
 order and requires explicit actions for either kind of ranking.
 
-`useJobBoardSearch` owns submitted search execution and optional ranking coordination
-against that visit. The page submits a form snapshot, then reads submitted context and
-displayed listings together. Each submission or
+`jobBoardVisit` owns submitted search execution, ranking records, save locks and feedback,
+and result-page selection for each visit. Its actions keep request generations, pending
+flags and ranking maps private; callers cannot patch visit state. Its
+`jobBoardPreferenceCheck` owner retains explicit batch requests and evidence behind
+check, receive and read actions, with the same snapshot/revision fences. The React
+`useJobBoardVisit` hook selects and subscribes to retained visits, while
+`useJobBoardReranking` connects the current queued task to live updates;
+`useBoardPreferenceCheck` observes confirmed revisions and connects the preference task;
+both hooks handle disconnected subscriptions. The page owns URL navigation, drafts and
+scroll effects. It submits a form snapshot, then reads submitted context and displayed
+listings together. Each submission or
 accepted provider page creates a new snapshot identity, including refreshes with
 unchanged listing IDs; ranking uses that identity directly. Form drafts and the
 Hide already saved preference do not change ranking candidates or identity.

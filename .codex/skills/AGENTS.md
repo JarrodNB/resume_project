@@ -30,6 +30,8 @@ Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker ex
 - `evaluate-ai-quality/` — Synthetic quality investigations and controlled prompt/model comparisons using existing evals.
 - `diagnose-ai-task/` — Evidence-based diagnosis of queued tasks and interview operations, including delivery and cost uncertainty.
 - `add-ai-workflow/` — New queued AI capabilities through Rails, Python, GraphQL, and React with replay-safe lifecycle checks.
+- `add-mcp-tool/` — Read-only tools on the `ai-mcp` server, from contract through screening, wiring, tests and docs.
+  Also linked from `.claude/skills/` for Claude Code.
 - `verify-spoken-interview/` — Routing spoken interview checks across offline harnesses, real QA, and conservative paid diagnostics.
 - `to-spec/` — Upstream Matt Pocock skill for turning conversations into specifications.
 - `to-tickets/` — Upstream Matt Pocock skill for splitting plans into tickets with dependencies.

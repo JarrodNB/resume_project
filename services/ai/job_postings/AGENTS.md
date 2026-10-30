@@ -37,8 +37,9 @@ source checks and conversion. Deterministic HTML helpers remain available separa
   URL outside generation. The source guard and source-output checks remain mandatory.
 - `scraped_job_ad.py` renders one selected scraped ad and builds the result through the shared
   parsed-posting converter. Requirements/duties/nice-to-haves must be source-supported spans
-  from the description, including prose. Model-authored identity and URLs never overwrite
-  acquired metadata. Empty descriptions and unsupported spans fail closed.
+  from the description, including prose. Structured/adaptor identity remains authoritative;
+  generic visible HTML uses source-supported parsed identity. Task URLs remain authoritative.
+  Non-job decisions, empty descriptions and unsupported spans fail closed.
 - Copied spans retain optional/required qualifiers; null/empty means absent. Deterministic
   heading extraction and the older bullet-number sorting helper are not the scrape-task path.
 - When a real posting is split wrongly, add a synthetic case for it to

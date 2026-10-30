@@ -25,7 +25,8 @@ class Job < ApplicationRecord
   enum :stage, STAGES.index_with(&:itself), validate: true
 
   validates :title, presence: true
-  validates :title, :company, :location, :url, length: { maximum: TextLimits::SHORT }
+  validates :title, :company, :location, length: { maximum: TextLimits::SHORT }
+  validates :url, length: { maximum: TextLimits::JOB_URL }
   validates :description, length: { maximum: TextLimits::JOB_DESCRIPTION }
   validates :notes, length: { maximum: TextLimits::PROSE }
   validate :requirement_lists_within_limits

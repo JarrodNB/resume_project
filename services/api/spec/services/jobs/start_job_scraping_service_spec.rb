@@ -1,4 +1,4 @@
-# Description: Queueing a scrape_job task for a LinkedIn job link.
+# Description: Queueing public job URLs, retaining LinkedIn canonicalization and rejecting unsafe inputs.
 require "rails_helper"
 
 RSpec.describe Jobs::StartJobScrapingService do
@@ -28,14 +28,19 @@ RSpec.describe Jobs::StartJobScrapingService do
   end
 
   [
-    "https://www.indeed.com/viewjob?jk=abc123",
     "https://www.linkedin.com/jobs/",
     "https://www.linkedin.com/jobs/search/?keywords=go",
     "https://www.linkedin.com/feed/?currentJobId=1",
-    "https://linkedin.com.evil.com/jobs/view/1",
     "ftp://www.linkedin.com/jobs/view/1",
     "www.linkedin.com/jobs/view/1",
-    "not a url at all"
+    "not a url at all",
+    "http://127.0.0.1/jobs/1",
+    "http://169.254.169.254/latest/meta-data/",
+    "https://localhost/jobs/1",
+    "https://company.local/jobs/1",
+    "https://user:password@company.com/jobs/1",
+    "https://company.com:8443/jobs/1",
+    "https://company.com/" + "x" * 2048
   ].each do |unsupported_url|
     it "rejects #{unsupported_url.inspect}" do
       result = described_class.call(user: user, url: unsupported_url)
@@ -43,6 +48,27 @@ RSpec.describe Jobs::StartJobScrapingService do
       expect(result.errors).to eq([ described_class::UNSUPPORTED_URL_MESSAGE ])
       expect(queue).not_to have_received(:send_message)
     end
+  end
+
+  [
+    "https://company.com/careers/engineer?jobId=42",
+    "https://www.indeed.com/viewjob?jk=abc123",
+    "https://boards.greenhouse.io/company/jobs/123",
+    "https://company.com/jobs/" + "x" * 250
+  ].each do |url|
+    it "queues a general public posting URL unchanged" do
+      result = described_class.call(user: user, url: url + "#details")
+      expect(result).to be_success
+      expect(result.value.input).to eq("url" => url)
+    end
+  end
+
+  it "reuses the same URL identity for generic duplicates" do
+    url = "https://company.com/jobs/42?department=Engineering"
+    create(:job, user: user, url: url)
+    result = described_class.call(user: user, url: url + "#posting")
+    expect(result.errors).to eq([ "You already saved this job" ])
+    expect(queue).not_to have_received(:send_message)
   end
 
   it "rejects a job the user already saved, whatever form the link takes" do

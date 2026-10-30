@@ -8,7 +8,7 @@ import { renderPage } from '@/test/renderPage'
 import { AddJobFromUrlPage } from './AddJobFromUrlPage'
 import { SCRAPE_JOB_MUTATION } from './jobsOperations'
 
-const URL = 'https://www.linkedin.com/jobs/view/1'
+const URL = 'https://company.com/careers/engineer?jobId=42'
 
 function scrapeJobMock(payload: Record<string, unknown>) {
   return {

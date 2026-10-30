@@ -69,7 +69,7 @@ def handle_parse_job_posting_task(
         return _failed(task, COULD_NOT_READ_MESSAGE, usage=screen_usage)
 
     billed = run.model or model
-    if find_parsed_job_problems(run.parsed, text):
+    if not run.parsed.is_job_posting or find_parsed_job_problems(run.parsed, text):
         return _failed(
             task,
             COULD_NOT_READ_MESSAGE,

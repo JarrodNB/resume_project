@@ -24,13 +24,14 @@ def posting_from_parsed_job(
 ) -> ScrapedJobPosting:
     """Build a source-checked posting and apply saved limits once, after metadata selection.
 
-    Call only after source validation. A scraped page supplies authoritative metadata;
-    model-authored identity and links are ignored for that path.
+    Call only after source validation. Structured metadata stays authoritative;
+    raw HTML uses source-supported parsed identity. Scraped URLs always come from the task.
     """
     warnings: list[str] = []
-    if scraped_page is None:
+    use_parsed_identity = scraped_page is None or not scraped_page.metadata_is_authoritative
+    if use_parsed_identity:
         location = _kept_optional(parsed.location, source_text, DROPPED_LOCATION_WARNING, warnings)
-        url = _kept_url(parsed.url, source_text, warnings)
+        url = scraped_page.source_url if scraped_page else _kept_url(parsed.url, source_text, warnings)
     else:
         location = scraped_page.location.strip() if scraped_page.location else None
         url = scraped_page.source_url
@@ -43,8 +44,8 @@ def posting_from_parsed_job(
     posting = ScrapedJobPosting(
         source=scraped_page.source if scraped_page else "pasted_text",
         source_url=url or "",
-        title=(scraped_page.title if scraped_page else parsed.title).strip(),
-        company=(scraped_page.company.strip() or None) if scraped_page else (
+        title=(parsed.title if use_parsed_identity else scraped_page.title).strip(),
+        company=(scraped_page.company.strip() or None) if not use_parsed_identity else (
             parsed.company.strip() if parsed.company is not None else None
         ),
         location=location,

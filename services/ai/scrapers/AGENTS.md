@@ -2,10 +2,10 @@
 
 ## Purpose
 
-Deterministic, site-specific job posting scrapers for the job boards people browse. Each
-supported site turns a posting URL into a `JobPage` (title, company, location, description HTML)
-from the site's own markup or data, never an LLM. Splitting the description into requirements
-and nice-to-haves is site-independent and lives in `job_postings/`.
+Public job-page acquisition: retain the LinkedIn guest adapter and use a generic public
+fetcher for other sites. One embedded JobPosting supplies metadata where available; otherwise
+selected visible main/article content reaches the source-checked parser. No script execution,
+login, crawling or linked-resource fetching. Structured job construction lives in `job_postings/`.
 
 ## Contents
 
@@ -16,8 +16,18 @@ and nice-to-haves is site-independent and lives in `job_postings/`.
 
 ## Local Rules
 
-- One site at a time, one subfolder per site. Register it in `JOB_SITE_SCRAPERS` and teach
-  `Jobs::StartJobScrapingService` in Rails to recognise (and canonicalise) its job links.
+- Site-specific adapters are optional optimizations registered ahead of the generic fallback.
+  General HTTP(S) posting URLs do not require another registered site.
+- `public_job_url.py` validates URL forms and all DNS answers; the fetcher connects to a
+  validated literal public IP for every hop, never a second origin-host DNS lookup. Keep
+  redirects bounded, special/private IPv4/IPv6 blocked, and standard ports only.
+- `public_job_transport.py` delegates through fresh environment-aware clients, preserving
+  proxy/CA policy and original-host TLS verification even through a proxy CONNECT tunnel.
+  The outer client's trust_env=False routes into that delegate, not around the proxy.
+  Never forward application headers, authorization or cookies.
+- `fetch_public_job.py` bounds DNS time, redirect count, bytes and elapsed response budget.
+  `public_job_page.py` rejects multiple job objects/login forms and selects metadata or main
+  content. Raw pages have non-authoritative metadata: the parser must identify one actual job.
 - Prefer a site's public API or embedded structured data; fall back to stable class names.
 - Raise `JobPageUnreadableError` when the page is missing the posting (login wall, new layout)
   rather than returning empty fields.

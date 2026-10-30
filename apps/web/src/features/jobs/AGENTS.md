@@ -12,7 +12,7 @@ be edited, moved between application stages, and archived.
 
 - `JobsPage.tsx` (`/jobs`) — job list with stage badges, "Paste a job ad", "Add job from link",
   and "Add manually"
-- `AddJobFromUrlPage.tsx` (`/jobs/new`) — URL form calling `scrapeJob`
+- `AddJobFromUrlPage.tsx` (`/jobs/new`) — public HTTP(S) job URL form calling `scrapeJob`, with paste fallback for blocked sites
 - `AddJobFromTextPage.tsx` (`/jobs/paste`) — textarea calling `parseJobPosting`
 - `JobImportTaskPage.tsx` — shared live status for a job import
 - `JobScrapeTaskPage.tsx` (`/jobs/new/:aiTaskId`) — scrape status; redirects to the saved job

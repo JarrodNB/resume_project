@@ -47,7 +47,14 @@ class VerbatimBullets(Evaluator[JobInput, ScrapedJobPosting, dict[str, Any]]):
 
     def evaluate(self, ctx: JobPostingContext) -> dict[str, float]:
         """Scores the share of extracted bullets found in the description."""
-        source_text = html_to_description_text(ctx.inputs.get("description_html") or "")
+        if ctx.output is None:
+            return {}
+        html = ctx.inputs.get("description_html") or ""
+        if "page_html" in ctx.inputs:
+            from scrapers.public_job_page import public_job_html_to_page
+
+            html = public_job_html_to_page(ctx.inputs["page_html"], ctx.inputs["url"]).description_html
+        source_text = html_to_description_text(html)
         bullets = ctx.output.requirements + ctx.output.responsibilities + ctx.output.nice_to_haves
         found = sum(appears_in(bullet, source_text) for bullet in bullets)
         return {"verbatim_bullets": fraction(found, len(bullets))}
@@ -86,6 +93,18 @@ JOB_POSTING_EXTRACTION_EVALUATORS = [
     SortedByExpectedPath,
     PostingFieldsMatch,
 ]
+
+
+@dataclass
+class JobPageOutcomeMatch(Evaluator):
+    """Non-job pages must be rejected; legitimate single ads must produce a posting."""
+
+    def evaluate(self, ctx):
+        expects_rejection = (ctx.metadata or {}).get("not_a_job", False)
+        return {"job_page_outcome": float((ctx.output is None) == expects_rejection)}
+
+
+JOB_POSTING_EXTRACTION_EVALUATORS.append(JobPageOutcomeMatch)
 
 
 def _recall(wanted: list[str], found: list[str]) -> float:

@@ -1,7 +1,10 @@
 """Screen a frozen owned snapshot and return a proposal; Rails accepts it separately.
 
-Saved exact screening approvals stay execution-local. Rejected facts fail closed rather
-than allowing uncited material or stale screening receipts into later live career data.
+Library facts are screened together through `screen_records_sync`, skipping fields Rails
+already approved. New checks of library rows are returned as `record_screening` receipts;
+Rails saves them only when they match both this frozen snapshot and the live value.
+Saved-resume copies are screened but never reported. Any rejected fact fails the whole
+request rather than letting uncited or unscreened material into the prompt.
 """
 import json
 
@@ -16,9 +19,10 @@ from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.summary_generation import render_summary_sources
 from privacy.contact_mask import mask_outbound
 from schemas.summary_generation import SummaryGenerationInput
-from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, current_session, within_screening_session
-from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
+from screening.record_adapters import summary_source_records
+from screening.records import record_failure_message, screen_records_sync
+from screening.session import bind_screened_prompt, within_screening_session
+from text_limits import MAX_PROMPT_TEXT
 from worker.queue_messages import AiResultMessage
 
 
@@ -40,21 +44,16 @@ def handle_summary_generation_task(task, dependencies):
     # and expanded privacy placeholders, before incurring any classifier charges.
     if len(_masked_rendering(sources)) > MAX_PROMPT_TEXT:
         return failed("This career evidence is too long to summarize. Shorten it and try again.")
-    try:
-        batches = _screening_batches([source for source in sources if not source.screened])
-    except ValueError:
-        return failed("A career fact is too long to screen after privacy masking. Shorten it and try again.")
-    settings = dependencies.settings
-    for checked_text in batches:
-        outcome = screen_user_text(checked_text, model=settings.user_text_screen_model,
-            timeout_seconds=settings.llm_run_timeout_seconds, check_phrases=False)
-        usage.extend(outcome.model_usages)
-        if outcome.too_long:
+    outcome = screen_records_sync(summary_source_records(sources),
+                                  approved_sources=[source.text for source in sources])
+    usage.extend(outcome.decision.model_usages)
+    if not outcome.allowed:
+        if outcome.decision.too_long:
             return failed("This career evidence is too long to screen. Shorten it and try again.")
-        if not outcome.allowed:
-            return failed("Screening is unavailable. Try again later." if outcome.unchecked else
-                "Some career information could not be used safely. Review it and try again.")
-    current_session().allowed_sources.update(mask_outbound(source.text) for source in sources)
+        if outcome.decision.unchecked:
+            return failed("Screening is unavailable. Try again later.")
+        return failed(record_failure_message(outcome))
+    settings = dependencies.settings
     labels = [source.label for source in sources]
     prompt = bind_screened_prompt([source.text for source in sources], lambda values: render_summary_sources(labels, values))
     try:
@@ -78,28 +77,3 @@ def _masked_rendering(sources):
     return mask_outbound(render_summary_sources([source.label for source in sources],
         [source.text for source in sources]))
 
-
-def _screening_batches(sources):
-    """Keep complete unknown facts together within each classifier input's existing cap.
-
-    Rendering overhead and privacy expansion count toward the cap. Prepare every batch
-    before making any calls so one unrenderable fact cannot cause avoidable partial charges.
-    """
-    batches = []
-    batch = []
-    rendered = ""
-    for source in sources:
-        candidate = _masked_rendering([*batch, source])
-        if len(candidate) > MAX_SCREENED_TEXT:
-            if batch:
-                batches.append(rendered)
-            batch = [source]
-            rendered = _masked_rendering(batch)
-            if len(rendered) > MAX_SCREENED_TEXT:
-                raise ValueError("One rendered career fact exceeds the screening cap")
-        else:
-            batch.append(source)
-            rendered = candidate
-    if batch:
-        batches.append(rendered)
-    return batches

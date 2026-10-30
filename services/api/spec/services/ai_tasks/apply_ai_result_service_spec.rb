@@ -61,7 +61,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(project.reload.screened_fields).to eq([ "name" ])
   end
 
-  it "keeps record_screening library receipts, including the profile summary, out of summary generation" do
+  it "ignores summary-generation library receipts, including the profile summary, that its snapshot did not freeze" do
     user = ai_task.user
     user.update!(summary: "I build tools.")
     skill = create(:skill, user: user)

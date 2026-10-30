@@ -13,9 +13,12 @@ import text_limits
 from agents.interview_session_feedback_agent import generate_interview_session_feedback
 from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.interview_session_feedback import saved_feedback_sources
-from privacy.contact_mask import mask_outbound
 from schemas.interview_session_feedback import FeedbackClaim, FeedbackInput
-from screening.session import bind_screened_prompt, current_session, within_screening_session
+from screening.session import (
+    bind_screened_prompt,
+    trust_rails_screened_source,
+    within_screening_session,
+)
 from worker.queue_messages import AiResultMessage
 
 
@@ -41,8 +44,8 @@ def handle_interview_session_feedback_task(task, dependencies):
     sources = saved_feedback_sources(claim)
     # The authenticated once-only Rails claim is the receipt for this immutable,
     # previously checked dialogue. Do not reclassify accepted answers as new text.
-    session = current_session()
-    session.allowed_sources.update(mask_outbound(source) for source in sources)
+    for source in sources:
+        trust_rails_screened_source(source)
     prompt = bind_screened_prompt(sources, lambda values: "Review this completed interview:\n\n" + "\n\n".join(values))
     if text_limits.prompt_is_too_long(prompt):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message="Saved interview is too long to review")

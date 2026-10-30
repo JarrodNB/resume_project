@@ -42,7 +42,8 @@ module AiTasks
         record_screening(ai_task)
 
         if ai_task.generate_summary?
-          # Summary snapshots keep screening execution-local; never approve changed live facts.
+          # Summary receipts arrive only as record_screening and are checked against the
+          # frozen snapshot there; this older list is never trusted for summaries.
         elsif ai_task.review_library_section? || ai_task.improve_library_entry?
           CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: @message["library_screening"])
         else
@@ -68,9 +69,8 @@ module AiTasks
 
     private
 
-    # Saves the unified `record_screening` receipts. Library receipts follow the same rules
-    # as the older `library_screening` list: summary generation keeps them execution-local,
-    # and review/edit tasks must also match the frozen library snapshot.
+    # Saves the unified `record_screening` receipts. Library receipts from summary generation
+    # and review/edit tasks must also match the task's frozen snapshot.
     def record_screening(ai_task)
       receipts = @message["record_screening"]
       return unless receipts.is_a?(Array)
@@ -80,6 +80,7 @@ module AiTasks
       end
       if ai_task.generate_summary?
         receipts = others
+        SummaryGeneration::RecordScreeningService.call(ai_task: ai_task, receipts: library)
       elsif ai_task.review_library_section? || ai_task.improve_library_entry?
         receipts = others
         reports = library.filter_map do |receipt|

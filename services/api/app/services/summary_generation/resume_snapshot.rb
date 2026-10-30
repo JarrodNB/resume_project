@@ -1,5 +1,8 @@
 # Selects evidence from one saved resume, independent of its library or deleted job.
 # Only exact server-owned generated prose skips screening; copied and edited fields do not.
+# Resume items are copies, not library rows, so their sources carry no record id. Here
+# `screened` means "matches earlier accepted generated output", not "passed a screen":
+# it lets the worker skip that text, and it must never be saved as a screening approval.
 module SummaryGeneration
   class ResumeSnapshot
     FIELDS = {

@@ -1,10 +1,15 @@
 # Freezes owned career facts for one missing-summary request. Inclusion preferences and
 # screening metadata do not change the source digest; changed career facts do.
+# Each library source also names the saved row and field it came from (`record_type`,
+# `record_id`, `field`, using the screening registry's type names), so the worker's
+# screening receipts can be checked against this frozen copy before Rails saves them.
+# Record identity stays out of the digest, which only tracks the facts themselves.
 module SummaryGeneration
   class Snapshot
     MAX_INPUT_BYTES = 180_000
     MAX_SOURCES = 1000
     EMPTY_MESSAGE = "Add career experience, projects, education, certifications, or skills before generating a summary.".freeze
+    IDENTITY_KEYS = %w[screened record_type record_id field].freeze
     FIELDS = {
       experiences: %w[company title location description], projects: %w[name role description],
       educations: %w[institution degree field_of_study description],
@@ -25,14 +30,16 @@ module SummaryGeneration
           fields.each do |field|
             next unless record.has_attribute?(field) && record[field].present?
             sources << { "label" => "#{association.to_s.upcase}_#{index + 1}_#{field.upcase}",
-              "text" => record[field].to_s, "screened" => Array(record.screened_fields).include?(field) }
+              "text" => record[field].to_s, "screened" => Array(record.screened_fields).include?(field),
+              "record_type" => association.to_s.singularize, "record_id" => record.id, "field" => field }
           end
           next unless association == :experiences
           highlights = record.highlights.reorder(:id)
           highlights = highlights.lock if lock_sources
           highlights.each_with_index do |highlight, position|
             sources << { "label" => "EXPERIENCES_#{index + 1}_HIGHLIGHT_#{position + 1}",
-              "text" => highlight.content, "screened" => Array(highlight.screened_fields).include?("content") }
+              "text" => highlight.content, "screened" => Array(highlight.screened_fields).include?("content"),
+              "record_type" => "experience_highlight", "record_id" => highlight.id, "field" => "content" }
           end
         end
       end
@@ -42,7 +49,7 @@ module SummaryGeneration
     def self.build(target_kind:, target_id:, sources:)
       raise ArgumentError, EMPTY_MESSAGE if sources.empty?
       snapshot = { "target_kind" => target_kind, "target_id" => target_id, "sources" => sources,
-        "source_digest" => Digest::SHA256.hexdigest(sources.map { |source| source.except("screened") }.to_json) }
+        "source_digest" => Digest::SHA256.hexdigest(sources.map { |source| source.except(*IDENTITY_KEYS) }.to_json) }
       raise ArgumentError, "This career evidence is too large to summarize. Reduce its text and try again." if sources.length > MAX_SOURCES || snapshot.to_json.bytesize > MAX_INPUT_BYTES
       snapshot
     end

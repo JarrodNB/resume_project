@@ -51,7 +51,7 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   computing labels/context digests in one read transaction. Digests match Rails admission,
   including dates, nulls and HTML escaping. No source data is persisted in review commands.
 
-- `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped snapshots; gap analysis shares the same row reader.
+- `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped reads; gap analysis shares the same row reader.
 
 - `job_listing_similarity.py` — one read-only lateral query averages each listing vector’s
   three nearest library similarities, scoped by task user and configured model. Its
@@ -79,3 +79,4 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `study_guide_sources.py` binds queued task/owner/type/Job identity and expiry before
   reading current job text and valid completed prompts through narrow ordinary views.
   It preserves batch/slot order and rejects excess context without dropping history.
+- `interview_questions.py` reads queued task-owned written-practice sources in one repeatable-read transaction. It checks set/subject ownership, target and peer revisions, then selects active generated slots and account-owned preferences. Narrow grants exclude answers, feedback and embeddings; retained source copies are checks only.

@@ -1,10 +1,9 @@
 # Allocates a practice set and queues generation within the AI allowance lock.
-# Snapshots bounded recent practice for prompt variety, never answers or feedback.
+# Python reads recent practice and preferences directly from owned saved records.
 # Index:
 #   - call: creates a numbered set and its task, then publishes after the transaction commits
 module InterviewPrep
   class StartQuestionSetService < ApplicationService
-    RECENT_QUESTION_LIMIT = 20
 
     # Receives the authenticated owner.
     def initialize(user:, set_type: "general")
@@ -34,18 +33,9 @@ module InterviewPrep
       number = [ previous, @user.interview_question_sets.maximum(:number).to_i ].max + 1
       question_set = @user.interview_question_sets.create!(number: number, set_type: @set_type)
       task.subject = question_set
-      task.input = { "question_set_id" => question_set.id, "set_number" => number, "set_type" => @set_type,
-                     "avoided_questions" => InterviewPreferences::AvoidedQuestions.snapshot(@user),
-                     "recent_questions" => recent_questions }
+      task.input = { "source_version" => 1, "question_set_id" => question_set.id,
+                     "set_number" => number, "set_type" => @set_type }
       success(task)
-    end
-
-    # Rails-generated slots establish provenance; no browser text can supply this history.
-    def recent_questions
-      @user.interview_question_sets.where(set_type: @set_type).joins(:questions)
-        .order("interview_question_sets.created_at DESC", "interview_question_sets.id DESC",
-               "interview_questions.position ASC", "interview_questions.id ASC")
-        .limit(RECENT_QUESTION_LIMIT).pluck("interview_questions.question_text")
     end
   end
 end

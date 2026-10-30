@@ -37,7 +37,7 @@ RSpec.describe "Interview practice services" do
     expect(queue).not_to have_received(:send_message)
   end
 
-  it "snapshots only the 20 most recent owned same-type questions in stable set and slot order" do
+  it "keeps recent owned question history out of the generation command" do
     sets = 5.times.map do |index|
       saved_set = user.interview_question_sets.create!(number: index + 1, created_at: index.days.ago)
       5.times do |slot|
@@ -54,14 +54,24 @@ RSpec.describe "Interview practice services" do
     result = InterviewPrep::StartQuestionSetService.call(user: user)
 
     expect(result).to be_success
-    expect(result.value.input["recent_questions"]).to eq(sets.first(4).flat_map { |set| set.questions.pluck(:question_text) })
+    expect(result.value.input.keys).to match_array(%w[question_set_id set_number set_type source_version])
     expect(result.value.input.to_json).not_to include("Private answer", "Private feedback", "Unrelated", "Someone else")
   end
 
-  it "snapshots an empty recent history for a first set" do
+  it "queues a first set without a recent history copy" do
     result = InterviewPrep::StartQuestionSetService.call(user: user)
     expect(result).to be_success
-    expect(result.value.input["recent_questions"]).to eq([])
+    expect(result.value.input).not_to have_key("recent_questions")
+  end
+
+  it "queues replacement references without saved question, answer, preferences or peer text" do
+    4.times { |index| question_set.questions.create!(position: index + 2, question_text: "Private peer #{index}?") }
+    question.update!(answer_text: "Private answer")
+    result = start_operation("regenerate_interview_question", confirmed: true)
+    expect(result).to be_success
+    expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision peer_revisions])
+    expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [peer.id, peer.question_revision] })
+    expect(result.value.input.to_json).not_to include("Private", question.question_text)
   end
 
   # Starts one authorized operation using the real shared task enqueue service.
@@ -164,13 +174,13 @@ RSpec.describe "Interview practice services" do
     expect(question.ai_tasks).to be_empty
   end
 
-  it "requires confirmation and snapshots other questions without clearing existing content" do
+  it "requires confirmation and retains peer revisions without clearing existing content" do
     question.update!(answer_text: "Existing", feedback: { "strengths" => [ "Specific" ] })
     question_set.questions.create!(position: 2, question_text: "What are your goals?")
     expect(start_operation("regenerate_interview_question")).not_to be_success
     result = start_operation("regenerate_interview_question", confirmed: true)
     expect(result).to be_success
-    expect(result.value.input["other_questions"]).to eq([ "What are your goals?" ])
+    expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [peer.id, peer.question_revision] })
     expect(question.reload.answer_text).to eq("Existing")
     expect(question.feedback).to be_present
   end

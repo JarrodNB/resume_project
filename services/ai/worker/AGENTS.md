@@ -110,9 +110,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 
 - `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Rails-owned generated question text is trusted when reused as exclusions. Saved career context includes screened requirement context to clarify responses. Only responses receive evidence IDs or quote coverage; requirements cannot establish personal qualifications.
-  Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
-  Replacement exclusions come from the Rails-owned question-set snapshot; legacy sibling
-  metadata is retained for compatibility but is not needed to trust generated question text.
+  Commands carry set IDs/type and replacement target/peer revisions. The injected
+  `database/interview_questions.py` reader checks queued task/owner/subject and loads current
+  generated sources. Retained copies are freshness checks only, never prompt sources.
 
 - `interview_feedback_handler.py` — reuses saved question/answer checks or screens pending
   answer checks before model use, trusts the Rails-owned generated question, screens library
@@ -135,10 +135,10 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   questions are not. Saved history restores coverage so later feedback does not rescreen old pairs.
   Source/input/history/turn caps bound every exchange.
 
-- Written question tasks accept `avoided_questions` and replacement questions as Rails-owned generated text. Reuse trusted-generated-source coverage for these exact task snapshot values, including legacy sibling strings without identity metadata; never screen our own generated questions or drop exclusions at the prompt cap.
-  Full-set tasks also accept optional Rails-owned `recent_questions` as prompt-only variety
-  guidance. Trust that generated text, keep it separate from exclusions/evidence, and never
-  add overlap validation or retries.
+- Written question generation/replacement reads owned saved preferences and generated
+  active slots directly. Trust those exact database values without rescreening generated
+  text. Recent same-type questions are bounded soft context, separate from hard exclusions
+  and career evidence; never add overlap retries or drop exclusions at the prompt cap.
 
 - `study_guide_handler.py` — loads current owned job text and successful prior question prompts by durable task identity; returns bounded guide material and a source fingerprint without injection classification, source copies, or career-library reads.
 

@@ -24,6 +24,7 @@ from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
+from database.interview_questions import build_interview_question_reader
 from database.job_listing_similarity import build_job_listing_scorer
 from database.summary_sources import build_summary_source_reader
 from database.tailoring_sources import build_tailoring_sources_reader
@@ -212,6 +213,7 @@ def run_worker() -> None:
         score_job_listings=build_job_listing_scorer(settings),
         read_task_command=build_task_command_reader(settings),
         read_study_guide_sources=build_study_guide_reader(settings),
+        read_interview_question_sources=build_interview_question_reader(settings),
     )
 
     stop_requested = False

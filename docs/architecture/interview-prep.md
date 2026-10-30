@@ -14,7 +14,7 @@ a set does not reuse its number. Sets can be empty while generation is pending o
 Successful generation validates all drafts and creates positions 1–5 atomically. Only question
 text is persisted on the slots; categories and evidence remain in the AI task result.
 
-Full-set generation snapshots up to 20 saved question texts from the user's most recent
+Python reads up to 20 saved question texts from the user's most recent
 sets of the requested type, ordered by set creation time and ID descending, then slot
 position and question ID ascending. This bounded history is prompt-only guidance to
 prefer fresh focuses. Familiar themes may recur as practice, and general sets retain
@@ -23,7 +23,7 @@ The history is separate from hard avoidance preferences and replacement exclusio
 it is neither career evidence nor proof of personal facts. Only Rails-owned generated
 slots supply history, never browser text, answers, or feedback, so the worker reuses
 trusted-generated-source coverage without screening those questions again. Legacy tasks
-without history continue with empty context.
+load the same current owned history; copied command text is ignored.
 
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
@@ -47,7 +47,7 @@ or feedback operation may run per question; replacement blocks answer saving, wh
 feedback permits edits. Replacing an answered question requires `confirmed: true`.
 
 Result services check ownership, subject/set/question identity, latest task identity, and
-snapshot revisions before writing. Replacement requires unchanged question and answer
+command revisions before writing. Replacement requires unchanged target, peer-question and answer
 revisions and checks distinctness against the current set, including the old question. On
 success it first keeps a nonblank answer as a retired copy (below), then increments both
 revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest
@@ -148,15 +148,27 @@ Duplicate wording (case, spacing, punctuation) saves once, including retries at 
 The store allows 50 questions of at most 2,000 characters each and returns explicit errors
 at either limit rather than clipping or dropping choices. `avoided` restores saved UI state.
 
-New written generation and replacement tasks snapshot the owner's complete saved list as
-`input.avoided_questions`; old tasks without that field use an empty list. Existing tasks
-keep their original snapshots. Replacements also retain their old target/sibling exclusions.
-These saved sources are immutable generated question text, so the AI handler uses its
-existing trusted-generated-source coverage rather than classifying them again. It renders
+New written generation and replacement commands contain `source_version: 1`, set identity
+and type, and replacement target/peer revisions. Python validates the stored queued task,
+owner and subject, then reads current active slots, same-type recent history and saved
+avoidance preferences in one repeatable-read transaction. No source text, answers, field
+approvals or sibling copies are persisted in these commands. Narrow column grants keep
+answers, feedback and embeddings unavailable to this reader. Feedback retains its old
+command format until its separate migration.
+
+Retained generation commands also load current owned history/preferences. Retained
+replacement commands must match their target revisions and current target/peer wording;
+stale or deleted sources fail before generation. No retained command text becomes prompt
+input. During the staged rollout, deploy the new Python readers/grants before new producers;
+old workers cannot read reference-only commands. Existing saved command copies are removed
+by the final migration, without replaying work.
+
+Saved question slots and avoidance preferences are generated question text, so the handler
+uses trusted-generated-source coverage rather than classifying them again. It renders
 readable delimited exclusions separately from career evidence, preserves contact masking,
-and fails explicitly if the combined library/preferences exceed the prompt limit. No
-AI-reader table grant is needed: Rails supplies the snapshot. Both the model validator and
-Rails result consumer reject exact excluded wording; avoiding semantic rewordings is a
+and fails explicitly if combined library/preferences exceed the prompt limit. Both the
+model validator and Rails result consumer reject exact excluded wording; Rails rechecks
+current avoidance preferences at application. Avoiding semantic rewordings remains a
 prompt instruction measured by synthetic quality evaluations. Full sets keep their required
 categories while choosing different concrete focuses within them.
 

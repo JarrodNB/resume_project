@@ -116,6 +116,16 @@ RSpec.describe AiReaderAccess do
     end
   end
 
+  it "reads only generation source fields from written practice records" do
+    expect(select_as_ai_reader("SELECT id, user_id, number, set_type, created_at FROM interview_question_sets")).to eq([])
+    expect(select_as_ai_reader("SELECT id, interview_question_set_id, question_text, question_revision, answer_revision, position, retired_at FROM interview_questions")).to eq([])
+    expect(select_as_ai_reader("SELECT id, user_id, question_text, created_at FROM avoided_interview_questions")).to eq([])
+    %w[answer_text feedback screened_fields].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM interview_questions") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+    expect { select_as_ai_reader("UPDATE interview_questions SET question_text = 'changed'") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
   it "can't write" do
     create(:job)
 

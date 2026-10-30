@@ -34,6 +34,40 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    """Existing prompt fixtures stand in for sources returned by the database reader."""
+    return replace(task_dependencies, read_interview_question_sources=lambda task: task.input)
+
+
+def test_reference_command_uses_reader_sources_and_never_copied_fields(task_dependencies, monkeypatch):
+    task = _task()
+    sources = {**task.input, "avoided_questions": ["Owned preference?"]}
+    task.input = {"source_version": 1, "question_set_id": task.input["question_set_id"],
+                  "question_text": "Untrusted transport text?"}
+    dependencies = replace(task_dependencies,
+        read_interview_question_sources=lambda selected: sources,
+        read_career_library=lambda _: CareerLibrary(skills=[LibrarySkill(id=str(uuid4()), name="Python")]))
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect_prompt(context, **options):
+        assert "Owned preference?" in context.text
+        assert "Untrusted transport" not in context.text
+        return generate(context, **options)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_prompt)
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
+        result = handle_ai_task(task, dependencies)
+    assert result.status == "completed"
+    assert "Untrusted transport" not in str(result.result)
+
+
+def test_ineligible_reference_command_never_loads_library(task_dependencies):
+    dependencies = replace(task_dependencies, read_interview_question_sources=lambda _: None,
+        read_career_library=lambda _: pytest.fail("obsolete sources must stop before library/model work"))
+    assert handle_ai_task(_task(), dependencies).status == "failed"
+
+
 @pytest.fixture(autouse=True)
 def allow_source_screening(monkeypatch):
     """Keep handler structure tests offline; provider-boundary tests live in their own suite."""

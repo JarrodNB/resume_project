@@ -277,6 +277,15 @@ module Screening
       target = set.questions.find_by(id: @ai_task.subject_id)
       return unless target && target.id == input["question_id"]
 
+      if @ai_task.regenerate_interview_question? && input["source_version"] == 1
+        peers = input["peer_revisions"]
+        return unless peers.is_a?(Hash) && !peers.key?(target.id) &&
+          peers.all? { |id, revision| id.is_a?(String) && revision.is_a?(Integer) && revision.positive? }
+
+        revisions = peers.transform_values { |revision| { "question_revision" => revision } }
+        revisions[target.id] = input.slice("question_revision", "answer_revision")
+        return { records: set.questions.where(id: revisions.keys), revisions: revisions, target_id: target.id }
+      end
       { records: set.questions, snapshots: interview_sources(set, target, input), target_id: target.id }
     end
 
@@ -302,6 +311,9 @@ module Screening
     # reviewed question itself, during answer review, at the frozen answer revision.
     def interview_revision_matches?(scope:, record:, snapshot:, receipt:, field:)
       revision = receipt["revision"] || {}
+      snapshot ||= scope.fetch(:revisions, {})[record.id]
+      return false unless snapshot
+
       question_revision = snapshot["question_revision"]
       return false unless question_revision.is_a?(Integer) && revision["question_revision"] == question_revision &&
         record.question_revision == question_revision

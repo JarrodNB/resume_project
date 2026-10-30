@@ -23,6 +23,28 @@ RSpec.describe "Saved practice screening" do
       "status" => status, "error_message" => "Generation failed", "record_screening" => reports })
   end
 
+  it "records only selected current revision fields for reference-only replacement receipts" do
+    peer = question_set.questions.create!(position: 2, question_text: "Generated peer?")
+    unselected = question_set.questions.create!(position: 3, question_text: "Unselected peer?")
+    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision")
+      .merge("source_version" => 1, "peer_revisions" => { peer.id => peer.question_revision })
+    replacement = create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question", input: command)
+    apply([report(question), report(peer), report(unselected)], target: replacement)
+    expect(question.reload.screened_fields).to eq(["question_text"])
+    expect(peer.reload.screened_fields).to eq(["question_text"])
+    expect(unselected.reload.screened_fields).to be_empty
+  end
+
+  it "rejects stale selected peer receipts even after text is restored" do
+    peer = question_set.questions.create!(position: 2, question_text: "Generated peer?")
+    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision")
+      .merge("source_version" => 1, "peer_revisions" => { peer.id => peer.question_revision })
+    replacement = create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question", input: command)
+    peer.update!(question_revision: 2)
+    apply([report(peer)], target: replacement)
+    expect(peer.reload.screened_fields).to be_empty
+  end
+
   it "retains actual checks when later generation fails" do
     expect(apply([ report ])).to be_success
     expect(question.reload.attributes["screened_fields"]).to match_array(%w[question_text answer_text])
@@ -100,7 +122,7 @@ RSpec.describe "Saved practice screening" do
     expect(question.reload.attributes).to eq(before)
   end
 
-  it "snapshots every sibling identity while preserving legacy text fields" do
+  it "stores only sibling identities and revisions" do
     peers = (2..5).map { |position| question_set.questions.create!(position: position, question_text: "Peer #{position}?") }
     question.update!(screened_fields: %w[question_text answer_text])
     queue = instance_double(Shoryuken::Queue, send_message: nil)
@@ -109,10 +131,8 @@ RSpec.describe "Saved practice screening" do
       task_type: "regenerate_interview_question", confirmed: true)
     expect(result).to be_success
     input = result.value.input
-    expect(input["screened_fields"]).to match_array(%w[question_text answer_text])
-    expect(input["other_questions"]).to eq(peers.map(&:question_text))
-    expect(input["other_question_snapshots"].map { |peer| peer["question_id"] }).to eq(peers.map(&:id))
-    expect(input["other_question_snapshots"].map { |peer| peer["question_text"] }).to eq(input["other_questions"])
+    expect(input["peer_revisions"]).to eq(peers.to_h { |peer| [peer.id, peer.question_revision] })
+    expect(input.keys).not_to include("other_questions", "other_question_snapshots", "question_text", "answer_text", "screened_fields")
   end
 
   it "records every aligned sibling but never its unused answer" do

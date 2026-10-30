@@ -253,14 +253,14 @@ Per task type:
   resume blocks new generation; after deletion, an explicit start creates a fresh task. See
   [tailoring decisions](career-library.md#decisions) for preparation and failure behavior.
 
-- `generate_interview_questions`: input `{question_set_id, set_number, set_type, avoided_questions, recent_questions}`; the subject is an
+- `generate_interview_questions`: input `{source_version: 1, question_set_id, set_number, set_type}`; the subject is an
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
   `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
-  Rails snapshots at most 20 recent owned same-type question texts, newest set first and
-  then slot order, as `recent_questions`. This optional field defaults to empty for older
-  tasks. The worker renders it as soft variety guidance, separate from hard exclusions
-  (`avoided_questions` and replacement siblings) and career evidence. History overlap adds
-  no validation or retries. Answers and feedback never enter this snapshot.
+  Python validates the queued task/subject/owner and reads at most 20 recent active owned
+  same-type questions, newest set first and then slot order, plus current owned avoidance
+  preferences. Recent questions are soft variety guidance, separate from hard exclusions
+  and career evidence. History overlap adds no validation or retries. Answers and feedback
+  are not read. Retained commands also use database sources, ignoring copied history.
   Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
   `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and
   `initiative_judgment` for general sets,
@@ -278,11 +278,14 @@ Per task type:
   Deploy the compatible Rails consumer before the updated AI worker, since older Rails
   rejects the new categories. For rollback, restore the older worker before removing Rails
   compatibility. Existing saved questions and answers need no migration or rewrite.
-- `regenerate_interview_question`: input `{question_set_id, question_id, question_text,
-  answer_text, question_revision, answer_revision, other_questions, set_type}`; the subject is the
-  selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
-  The worker uses the current library and returns the same question result shape with one
-  draft, excluding both the old question and the other four.
+- `regenerate_interview_question`: input `{source_version: 1, question_set_id, question_id,
+  question_revision, answer_revision, peer_revisions, set_type}`; the subject is the
+  selected `InterviewQuestion`. `peer_revisions` maps the other four active question IDs to
+  their question revisions. Python reads current owned slots, preferences and library,
+  returning the same question result shape with one draft, excluding all five saved
+  questions. Changed target/peer revisions fail before generation and during application.
+  Retained commands validate current target/peer wording/revisions without using their
+  copied sources in prompts. Deploy readers/grants before reference-only producers.
   General replacements use behavioral themes, not another introduction or role motivation,
   even in old saved sets; the worker retries an introduction category. Older in-flight single
   replacements with legacy categories remain accepted. Other saved slots are untouched.

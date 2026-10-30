@@ -77,7 +77,7 @@ Configuration must work in Docker development and production. Preserve owned dat
   the sign-in email and password stay hidden). It runs after `db:prepare`, `db:migrate`, and
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; tailoring has narrow gap-response columns and a completed-analysis-only output view.
-  `ai_tasks` grants only `id`, `user_id`, `task_type`, `status` and `input` for owned queued
+  `ai_tasks` grants only `id`, `user_id`, `task_type`, `status`, `input`, `subject_id` and `subject_type` for owned queued
   command loading. A narrow read-only `ai_library_exchanges` view exposes generated library
   review/edit outputs, history and acceptance state only for those workflow types; task table
   result/history and accounting columns remain hidden.

@@ -50,7 +50,7 @@ module InterviewPrep
 
     private
 
-    # Resolves through the owner, subject, and queue snapshot; a deleted target is obsolete.
+    # Resolves through the owner, subject and command revisions; deleted targets are obsolete.
     def current_subject
       record = @task.subject
       return unless record
@@ -66,8 +66,12 @@ module InterviewPrep
         return unless record.id == @task.input["question_id"] &&
                       record.interview_question_set_id == @task.input["question_set_id"]
         return unless record.question_revision == @task.input["question_revision"] &&
-                      record.answer_revision == @task.input["answer_revision"] &&
-                      record.question_text == @task.input["question_text"]
+                      record.answer_revision == @task.input["answer_revision"]
+        return unless @task.input["source_version"] == 1 || record.question_text == @task.input["question_text"]
+        if @task.input["source_version"] == 1
+          peers = record.interview_question_set.questions.where.not(id: record.id).to_h { |peer| [peer.id, peer.question_revision] }
+          return unless peers == @task.input["peer_revisions"]
+        end
         return unless record.interview_question_set.questions.count == 5
       end
       question_set = record.is_a?(InterviewQuestionSet) ? record : record.interview_question_set
@@ -118,7 +122,9 @@ module InterviewPrep
       return unless drafts.map { |draft| normalize(draft["question_text"]) }.uniq.length == count
       return if count == 5 && drafts.map { |draft| draft["category"] }.uniq.length != 5
 
-      avoided = Array(@task.input["avoided_questions"]).map { |text| normalize(text) }
+      avoided = InterviewPreferences::AvoidedQuestions.snapshot(@task.user)
+      avoided += Array(@task.input["avoided_questions"]) unless @task.input["source_version"] == 1
+      avoided = avoided.map { |text| normalize(text) }
       return if drafts.any? { |draft| avoided.include?(normalize(draft["question_text"])) }
 
       drafts

@@ -47,6 +47,7 @@ class TaskDependencies:
     read_study_guide_sources: Callable[[AiTaskMessage], StudyGuideInput | None] | None = None
     read_task_command: Callable[[AiTaskMessage], AiTaskMessage | None] | None = None
     read_tailoring_sources: Callable[[UUID, UUID, UUID, UUID | None], TailoringSources | None] | None = None
+    read_interview_question_sources: Callable[[AiTaskMessage], dict | None] | None = None
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
     read_summary_sources: Callable[[UUID, SummaryCommand], SummaryGenerationInput | None] | None = None
     read_library_review: Callable[[UUID, str], LibraryReviewInput] | None = None

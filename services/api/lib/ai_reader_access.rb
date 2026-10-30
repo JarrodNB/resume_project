@@ -15,7 +15,13 @@ module AiReaderAccess
   ].freeze
   READABLE_USER_COLUMNS = %w[id summary name contact_email phone location links screened_fields].freeze
 
-  READABLE_TASK_COLUMNS = %w[id user_id task_type status input].freeze
+  READABLE_TASK_COLUMNS = %w[id user_id task_type status input subject_id subject_type].freeze
+
+  READABLE_PRACTICE_COLUMNS = {
+    "interview_question_sets" => %w[id user_id number set_type created_at],
+    "interview_questions" => %w[id interview_question_set_id position question_text question_revision answer_revision retired_at],
+    "avoided_interview_questions" => %w[id user_id question_text created_at]
+  }.freeze
 
   READABLE_RESUME_COLUMNS = %w[id user_id].freeze
   READABLE_SECTION_COLUMNS = %w[id resume_id section_type content position].freeze
@@ -89,6 +95,10 @@ module AiReaderAccess
         FROM ai_tasks WHERE task_type IN ('improve_library_entry', 'review_library_section')
       SQL
       connection.execute("GRANT SELECT ON ai_library_exchanges TO #{role}")
+      READABLE_PRACTICE_COLUMNS.each do |table, columns|
+        selected = columns.map { |column| connection.quote_column_name(column) }.join(", ")
+        connection.execute("GRANT SELECT (#{selected}) ON #{connection.quote_table_name(table)} TO #{role}")
+      end
     end
   end
 end

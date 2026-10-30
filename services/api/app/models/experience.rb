@@ -2,6 +2,8 @@
 # Index:
 #   - highlights: ordered bullet points for this role
 class Experience < ApplicationRecord
+  include ScreenedFields
+  screenable_fields %w[company title location description]
   include MostRecentFirst
   include LibrarySizeLimit
 

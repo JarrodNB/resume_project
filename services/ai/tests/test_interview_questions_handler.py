@@ -37,7 +37,7 @@ from worker.task_handlers import handle_ai_task
 @pytest.fixture(autouse=True)
 def allow_source_screening(monkeypatch):
     """Keep handler structure tests offline; provider-boundary tests live in their own suite."""
-    monkeypatch.setattr("worker.interview_questions_handler.screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=True))
 
 
@@ -82,8 +82,8 @@ def test_recent_history_is_soft_prompt_context_not_evidence_or_exclusions(task_d
     task.input["avoided_questions"] = avoided
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
     checked = []
-    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
-                        lambda text, **kwargs: checked.append(text) or ScreenOutcome(allowed=True))
+    monkeypatch.setattr("screening.records.screen_user_text",
+                        lambda text, *_args, **kwargs: checked.append(text) or ScreenOutcome(allowed=True))
     generate = interview_questions_handler.generate_interview_questions
 
     def inspect_context(prompt, **kwargs):
@@ -289,7 +289,7 @@ def test_oversized_context_fails_before_model(task_dependencies, monkeypatch):
 
 def test_screened_only_context_fails_closed(task_dependencies, monkeypatch):
     """Blocked or unavailable notes cannot leave a generic-question fallback."""
-    monkeypatch.setattr("worker.interview_questions_handler.screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=False))
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(
         career_contexts=[CareerContext(id="career_context", requirement="Leadership", response="Some details")]))
@@ -461,12 +461,12 @@ def test_job_requirement_is_context_only(task_dependencies, monkeypatch, replace
     deps = replace(task_dependencies, read_career_library=lambda user_id: library)
     screened = []
 
-    def screen(text, **kwargs):
+    def screen(text, *_args, **kwargs):
         """Records exactly what the interview handler submits for screening."""
         screened.append(text)
         return ScreenOutcome(allowed=True)
 
-    monkeypatch.setattr("worker.interview_questions_handler.screen_user_text", screen)
+    monkeypatch.setattr("screening.records.screen_user_text", screen)
     generate = interview_questions_handler.generate_interview_questions
 
     def inspect_prompt(prompt, **kwargs):
@@ -485,8 +485,8 @@ def test_job_requirement_is_context_only(task_dependencies, monkeypatch, replace
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(replacement), deps)
     assert result.status == ("failed" if cite_requirement else "completed")
-    assert any(f"requirement:\n{requirement}" in text for text in screened)
-    assert any("response:\nPython" in text for text in screened)
+    assert any(f"Requirement:\n{requirement}" in text for text in screened)
+    assert any("Response:\nPython" in text for text in screened)
     if replacement:
         assert _task(True).input["question_text"] not in screened
     assert library.career_contexts[0].requirement == requirement
@@ -503,11 +503,11 @@ def test_context_context_reuses_saved_checks_without_rescreening_response(task_d
         screened_fields=["response", "requirement"] if checked_context else ["response"])])
     screened = []
 
-    def screen(text, **kwargs):
+    def screen(text, *_args, **kwargs):
         screened.append(text)
         return ScreenOutcome(allowed=True)
 
-    monkeypatch.setattr(interview_questions_handler, "screen_user_text", screen)
+    monkeypatch.setattr("screening.records.screen_user_text", screen)
     generate = interview_questions_handler.generate_interview_questions
 
     def inspect_prompt(prompt, **kwargs):
@@ -521,7 +521,8 @@ def test_context_context_reuses_saved_checks_without_rescreening_response(task_d
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
         result = handle_ai_task(_task(), deps)
         assert result.status == "completed"
-        assert [report.fields for report in session.library_screening] == ([] if checked_context else [["requirement"]])
+        assert [list(report.fingerprints) for report in session.record_screening] == (
+            [] if checked_context else [["requirement"]])
     assert all(response not in text for text in screened)
     assert len(screened) == (0 if checked_context else 1)
     if screened:
@@ -533,7 +534,7 @@ def test_rejected_context_context_cannot_reach_generation(task_dependencies, mon
     """A previously approved response cannot bring blocked or unavailable context into a prompt."""
     library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement="Kubernetes experience",
         response="I used it for two years.", screened_fields=["response"])])
-    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=False, unchecked=unchecked))
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions",
                         lambda *args, **kwargs: pytest.fail("rejected context must not reach generation"))
@@ -573,8 +574,8 @@ def test_replacement_trusts_generated_sibling_questions(task_dependencies, monke
     if malformed:
         peers[2]["question_text"] = "Metadata differs from prompt source"
     calls = []
-    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
-        lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
+    monkeypatch.setattr("screening.records.screen_user_text",
+        lambda text, *_args, **kwargs: calls.append(text) or ScreenOutcome(True))
     library = CareerLibrary(skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     generate = interview_questions_handler.generate_interview_questions
@@ -586,7 +587,7 @@ def test_replacement_trusts_generated_sibling_questions(task_dependencies, monke
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
-        assert session.interview_question_screening == []
+        assert session.record_screening == []
         count = len(calls)
         assert handle_ai_task(request, deps).status == "completed"
         assert len(calls) == count
@@ -596,14 +597,14 @@ def test_replacement_trusts_generated_sibling_questions(task_dependencies, monke
 def test_legacy_replacement_trusts_target_and_unidentified_siblings(task_dependencies, monkeypatch):
     from screening.session import screening_session
     calls = []
-    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
-        lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
+    monkeypatch.setattr("screening.records.screen_user_text",
+        lambda text, *_args, **kwargs: calls.append(text) or ScreenOutcome(True))
     request = _task(True)
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(
         skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])]))
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
-        assert session.interview_question_screening == []
+        assert session.record_screening == []
     assert calls == []
 
 
@@ -615,8 +616,8 @@ def test_generated_saved_preferences_are_trusted_and_added_to_all_generation_pro
     deps = replace(task_dependencies, read_career_library=lambda user_id:
                    CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
     screened = []
-    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
-                        lambda text, **kwargs: (screened.append(text) or ScreenOutcome(True)))
+    monkeypatch.setattr("screening.records.screen_user_text",
+                        lambda text, *_args, **kwargs: (screened.append(text) or ScreenOutcome(True)))
     generate = interview_questions_handler.generate_interview_questions
 
     def inspect(prompt, **kwargs):

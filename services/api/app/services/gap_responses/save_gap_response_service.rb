@@ -59,7 +59,7 @@ module GapResponses
         response.lock! if response.persisted?
         previous_context = response.career_context
         response.body = @body
-        RecordScreeningService.discard_changed_fields(response: response)
+        response.discard_changed_screened_fields
         if @add_to_library
           context, context_changed = upsert_context
           unless context.persisted?
@@ -91,7 +91,7 @@ module GapResponses
       return [ context, false ] if context.persisted? && context.response == @body
 
       context.response = @body
-      CareerLibrary::RecordScreeningService.discard_changed_fields(record: context)
+      context.discard_changed_screened_fields
       context.save
       [ context, context.persisted? ]
     end

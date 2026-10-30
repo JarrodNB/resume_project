@@ -36,17 +36,7 @@ module AiTasks
         # Late usage still changes the task's cost totals, so subscribers need to hear about it.
         next usage_recorded if status == "usage" || ai_task.finished? || ((ai_task.improve_library_entry? || ai_task.elicit_job_preferences?) && !ai_task.queued?)
 
-        InterviewPrep::RecordScreeningService.call(ai_task: ai_task, reports: @message["interview_question_screening"])
-        Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
-        GapResponses::RecordScreeningService.call(ai_task: ai_task, reports: @message["gap_response_screening"])
-
-        if ai_task.generate_summary?
-          # Summary snapshots keep screening execution-local; never approve changed live facts.
-        elsif ai_task.review_library_section? || ai_task.improve_library_entry?
-          CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: @message["library_screening"])
-        else
-          CareerLibrary::RecordScreeningService.call(user: ai_task.user, reports: @message["library_screening"])
-        end
+        record_screening(ai_task)
 
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
@@ -67,6 +57,23 @@ module AiTasks
     end
 
     private
+
+    # Saves the unified `record_screening` receipts. Library receipts from summary generation
+    # and review/edit tasks must also match the task's frozen snapshot.
+    def record_screening(ai_task)
+      receipts = @message["record_screening"]
+      return unless receipts.is_a?(Array)
+
+      library, others = receipts.partition do |receipt|
+        receipt.is_a?(Hash) && Screening::RecordApprovalsService::LIBRARY_TYPES.include?(receipt["record_type"])
+      end
+      if ai_task.generate_summary?
+        receipts = others
+        SummaryGeneration::RecordScreeningService.call(ai_task: ai_task, receipts: library)
+
+      end
+      Screening::RecordApprovalsService.call(user: ai_task.user, reports: receipts, ai_task: ai_task)
+    end
 
     # All result writes acquire the owner first. This preserves domain lock ordering and
     # serializes the outcome cursor through commit for reconnect recovery.

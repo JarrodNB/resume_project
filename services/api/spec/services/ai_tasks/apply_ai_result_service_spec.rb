@@ -1,6 +1,8 @@
 # Description: Applying ai_results messages, including duplicate (redelivered) messages and the
 # Job a completed scrape_job saves.
 require "rails_helper"
+require "digest"
+require "json"
 
 RSpec.describe AiTasks::ApplyAiResultService do
   let(:ai_task) { create(:ai_task) }
@@ -12,21 +14,84 @@ RSpec.describe AiTasks::ApplyAiResultService do
     { "ai_task_id" => ai_task.id, "status" => status }.merge(fields.stringify_keys)
   end
 
+  # An older-format library report with fingerprints of the record's current values.
+  def library_report(record, fields)
+    { "record_type" => record.class.name.underscore, "record_id" => record.id, "fields" => fields,
+      "fingerprints" => fields.to_h { |field| [ field, fingerprint(record.has_attribute?(field) ? record[field] : nil) ] } }
+  end
+
+  def fingerprint(value)
+    Digest::SHA256.hexdigest(JSON.generate(value))
+  end
+
   it "remembers successful library field checks on failed generation, idempotently and only for its owner" do
     own = create(:project, user: ai_task.user)
     other = create(:project)
-    reports = [ own, other ].map { |record| { "record_type" => "project", "record_id" => record.id, "fields" => %w[name unknown] } }
-    message = result_message("failed", error_message: "Generation failed", library_screening: reports)
+    reports = [ own, other ].map { |record| library_report(record, %w[name unknown]) }
+    message = result_message("failed", error_message: "Generation failed", record_screening: reports)
     2.times { described_class.call(message: message) }
 
     expect(own.reload.screened_fields).to eq([ "name" ])
     expect(other.reload.screened_fields).to eq([])
   end
 
+  it "does not approve older-format library reports without a matching fingerprint" do
+    project = create(:project, user: ai_task.user)
+    reports = [ { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] },
+                library_report(project, [ "name" ]).merge("fingerprints" => { "name" => "0" * 64 }) ]
+    described_class.call(message: result_message("failed", error_message: "Generation failed", record_screening: reports))
+    expect(project.reload.screened_fields).to eq([])
+  end
+
+  it "records multiple kinds of unified record_screening receipts" do
+    user = ai_task.user
+    project = create(:project, user: user)
+    skill = create(:skill, user: user)
+    job = create(:job, user: user)
+    task = create(:ai_task, user: user, subject: job, task_type: "analyze_gaps")
+    receipts = [
+      { "record_type" => "skill", "record_id" => skill.id, "fingerprints" => { "name" => fingerprint(skill.name) } },
+      { "record_type" => "job", "record_id" => job.id, "fingerprints" => { "title" => fingerprint(job.title) } }
+    ]
+    message = { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
+                "record_screening" => receipts + [ library_report(project, [ "name" ]) ] }
+    expect(described_class.call(message: message)).to be_success
+    expect(skill.reload.screened_fields).to eq([ "name" ])
+    expect(job.reload.screened_fields).to eq([ "title" ])
+    expect(project.reload.screened_fields).to eq([ "name" ])
+  end
+
+  it "ignores summary-generation library receipts, including the profile summary, that its snapshot did not freeze" do
+    user = ai_task.user
+    user.update!(summary: "I build tools.")
+    skill = create(:skill, user: user)
+    task = create(:ai_task, user: user, task_type: "generate_summary")
+    receipts = [ { "record_type" => "skill", "record_id" => skill.id, "fingerprints" => { "name" => fingerprint(skill.name) } },
+                 { "record_type" => "user", "record_id" => user.id, "fingerprints" => { "summary" => fingerprint(user.summary) } } ]
+    described_class.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
+                                     "record_screening" => receipts })
+    expect(skill.reload.screened_fields).to eq([])
+    expect(user.reload.screened_fields).to eq([])
+  end
+
+  it "checks review-task record_screening receipts against the frozen snapshot, ignoring fields it lacks" do
+    user = ai_task.user
+    role = create(:experience, user: user, description: "Old", location: "Remote")
+    task = create(:ai_task, user: user, task_type: "review_library_section", input: { "library" => {
+      "experiences" => [ role.attributes.slice("id", "company", "title", "description").merge("highlights" => []) ]
+    } })
+    role.update!(description: "New unscreened")
+    receipt = { "record_type" => "experience", "record_id" => role.id, "fingerprints" => {
+      "company" => fingerprint(role.company), "description" => fingerprint(role.description), "location" => fingerprint(role.location)
+    } }
+    described_class.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
+                                     "record_screening" => [ receipt ] })
+    expect(role.reload.screened_fields).to eq([ "company" ])
+  end
+
   it "does not restore an edited field's check when a final result is redelivered" do
     project = create(:project, user: ai_task.user)
-    report = { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] }
-    message = result_message("failed", error_message: "Generation failed", library_screening: [ report ])
+    message = result_message("failed", error_message: "Generation failed", record_screening: [ library_report(project, [ "name" ]) ])
     described_class.call(message: message)
     Projects::UpdateProjectService.call(project: project.reload, attributes: { name: "Edited" })
     described_class.call(message: message)
@@ -39,27 +104,25 @@ RSpec.describe AiTasks::ApplyAiResultService do
     records = [ user, experience, create(:experience_highlight, experience: experience),
                create(:project, user: user), create(:education, user: user),
                create(:certification, user: user), create(:skill, user: user), create(:career_context, user: user) ]
-    reports = records.map do |record|
-      { "record_type" => record.class.name.underscore, "record_id" => record.id,
-        "fields" => CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name) }
-    end
+    reports = records.map { |record| library_report(record, record.class.screened_field_names) }
     other_user = create(:user)
     other_highlight = create(:experience_highlight)
     reports += [
-      { "record_type" => "user", "record_id" => other_user.id, "fields" => [ "summary" ] },
-      { "record_type" => "experience_highlight", "record_id" => other_highlight.id, "fields" => [ "content" ] },
-      { "record_type" => "job", "record_id" => SecureRandom.uuid, "fields" => [ "title" ] }
+      library_report(other_user, [ "summary" ]),
+      library_report(other_highlight, [ "content" ]),
+      { "record_type" => "job", "record_id" => SecureRandom.uuid, "fields" => [ "title" ], "fingerprints" => { "title" => "0" * 64 } }
     ]
-    expect(described_class.call(message: result_message("completed", result: {}, library_screening: reports))).to be_success
-    records.each { |record| expect(record.reload.screened_fields).to eq(CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name)) }
+    expect(described_class.call(message: result_message("completed", result: {}, record_screening: reports))).to be_success
+    records.each { |record| expect(record.reload.screened_fields).to eq(record.class.screened_field_names) }
     expect(other_user.reload.screened_fields).to eq([])
     expect(other_highlight.reload.screened_fields).to eq([])
   end
 
   it "does not apply screening on usage-only messages" do
     project = create(:project, user: ai_task.user)
-    report = { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] }
-    described_class.call(message: result_message("usage", attempt_id: SecureRandom.uuid, library_screening: [ report ]))
+    receipt = { "record_type" => "project", "record_id" => project.id, "fingerprints" => { "name" => fingerprint(project.name) } }
+    described_class.call(message: result_message("usage", attempt_id: SecureRandom.uuid,
+                                                 record_screening: [ receipt ]))
     expect(project.reload.screened_fields).to eq([])
   end
 

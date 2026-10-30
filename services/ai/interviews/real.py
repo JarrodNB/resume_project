@@ -38,6 +38,8 @@ from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.conversation import screen_with_operation_models
 from screening.prompt_guardrail import screening_failure_code
+from screening.record_adapters import interview_source_records
+from screening.records import screen_records
 from screening.session import screening_session
 from telemetry.privacy import telemetry_scope
 from telemetry.tracing import record_prompt_version
@@ -121,12 +123,6 @@ class RealInterviewExecutor(InterviewExecutor):
             raise ValueError("Invalid frozen career sources")  # noqa: TRY004 - malformed claims fail as domain input
         pending = [index for index, source in enumerate(sources)
                    if isinstance(source, dict) and source.get("screened") is not True]
-        texts = []
-        for index in pending:
-            text = sources[index].get("text")
-            if not isinstance(text, str):
-                raise ValueError("Invalid frozen career source")  # noqa: TRY004 - malformed claims fail as domain input
-            texts.append(data_block("unchecked_library_field", text))
         focus = context.get("career_focus") if include_focus else None
         focus_digest = None
         if isinstance(focus, str) and focus:
@@ -135,9 +131,17 @@ class RealInterviewExecutor(InterviewExecutor):
             digest = hashlib.sha256(json.dumps(focus, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
             if context.get("screened_career_focus_sha256") != digest:
                 focus_digest = digest
-                texts.append(data_block("career_focus", focus))
-        if texts:
-            await self._screen(claim, mask_outbound("\n\n".join(texts)))
+
+        async def classify(text):
+            return await screen_with_operation_models(text, 120,
+                lambda model: self.models.accounted(self.client, claim, "screening", model))
+        if sources:
+            outcome = await screen_records(interview_source_records(sources),
+                approved_sources=[source["text"] for source in sources], screen=classify)
+            if not outcome.allowed:
+                raise ScreeningRejected(screening_failure_code(outcome.decision))
+        if focus_digest is not None:
+            await self._screen(claim, mask_outbound(data_block("career_focus", focus)))
         if focus_digest is not None:
             # Focus-only checks also need a durable receipt before preparation.
             await self.client.screen_library(claim, pending, career_focus_sha256=focus_digest)

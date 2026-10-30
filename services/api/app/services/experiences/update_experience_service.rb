@@ -16,7 +16,7 @@ module Experiences
     def call
       @experience.with_lock do
         @experience.assign_attributes(@attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
+        @experience.discard_changed_screened_fields
         replace_highlights if @highlights
         raise ActiveRecord::Rollback unless @experience.save
       end

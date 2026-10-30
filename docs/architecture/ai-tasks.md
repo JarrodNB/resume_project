@@ -28,13 +28,17 @@ or saved-resume summary; Rails freezes owned labeled career fields under its enq
 a substantive source digest. Career-context requirements are context, not qualification
 evidence, so only responses are supplied. Before any provider call, the worker checks the
 fully rendered, privacy-masked generation prompt against the 120,000-character prompt cap.
-Unknown fields are rendered in complete-fact screening batches within the existing
-80,000-character per-call cap, counting labels, delimiters, and privacy expansion. A later
-batch rejection or outage prevents generation and retains usage from all attempted batches.
-Length failures are reported as limits rather than unsafe content. The worker
-reuses exact saved approvals, renders readable source blocks, and returns cited text as a
-proposal. Screening earned by frozen snapshots stays execution-local rather than approving
-possibly changed live fields. Generation does not write profile or resume text.
+Each library source carries its record id; the label names the record type and field. Ids
+stay out of the digest and the 180,000-byte input cap (1000 ids still fit one SQS message). Unknown
+fields go through the shared `screen_records` batching within the existing 80,000-character
+per-call cap, counting privacy expansion. A later batch rejection or outage prevents
+generation and retains usage from all attempted batches. Length failures are reported as
+limits rather than unsafe content. The worker reuses exact saved approvals, renders readable
+source blocks, and returns cited text as a proposal. New library checks come back as
+`record_screening` receipts; Rails saves one only when its fingerprint matches both the
+frozen snapshot value and the live value, so changed live fields are never approved.
+Saved-resume copies have no record id and are never approved. Generation does not write
+profile or resume text.
 Saved-resume evidence comes only from its own non-contact, non-summary career sections,
 independent of the current library and any deleted job. Only exact generated highlights
 and project prose in owned accepted tailoring results skip screening; copied fields and
@@ -74,7 +78,7 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening, gap_response_screening, interview_question_screening}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, record_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`,
   with additive `cache_write_tokens` and optional `provider_response_id` for current workers,
@@ -84,54 +88,36 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   execution and one final accounting report with its result, or usage-only before retrying.
   Rails resolves each marker once; duplicate/out-of-order markers cannot overwrite a final
   report. Usage-only messages never change task status. A missing final report remains unknown.
-  Final completed/failed results may include `library_screening` entries shaped as
-  `{record_type, record_id, fields}` for newly successful career-library field checks.
-  Rails merges allowlisted field names into the owning records, including when generation
-  failed. Duplicate reports are harmless; unknown kinds/fields and other owners are ignored.
-  Usage-only retry reports do not carry saved field checks.
+  Final completed/failed results may include `record_screening`, one receipt per saved
+  record: `{record_type, record_id, fingerprints: {field_name: sha256}, revision?}`
+  (`revision` holds `question_revision`/`answer_revision` for interview questions).
+  `Screening::RecordApprovalsService` handles career library, jobs, gap responses,
+  written interview answers, preference criteria and catalogue listing passages. Every
+  field needs a SHA-256 of its exact typed value encoded with compact UTF-8 JSON
+  (Ruby `JSON.generate`, Python `ensure_ascii=False`, compact separators). Rails checks
+  the current value under a row lock and the frozen task value where applicable.
+  Unknown types, foreign rows, stale or missing fingerprints and malformed receipts are ignored.
+  Summary and library review/edit receipts must match their frozen source snapshots.
+  Successful checks survive later generation failure; usage-only and finished-task
+  redelivery cannot restore an edited field's approval. All result writes lock the owner
+  before the task and domain rows. Text edits reload under their row lock and use the
+  `ScreenedFields` concern to clear only changed field checks atomically with saving.
 
-  Final completed/failed gap-analysis and tailoring results may also contain `job_screening`
-  entries `{job_id, fields: {field_name: sha256}}`. Each fingerprint covers the exact typed
-  field value encoded as UTF-8 JSON without extra whitespace or ASCII escaping (Python
-  `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`, Ruby stdlib `JSON.generate`).
-  Only title, company, requirements and nice-to-haves are used and approved. Lists are
-  ordered whole fields. Gap-analysis and tailoring results both acquire the owner lock
-  before task/job/library locks so concurrent reports cannot invert job/summary lock order.
-  Rails locks the task's owned Job and approves only matching current
-  values; stale, foreign, unrelated and deleted sources cannot earn approval. Reports
-  remain outside model prompts and do not contain raw Job text. Successful checks persist
-  even when later generation fails; usage-only and finished-task redeliveries cannot restore checks.
-  Job edits reload under the row lock, remove only changed field approvals and save atomically.
-  Manual, pasted, scraped and catalogue-imported jobs all start unchecked; first actual
-  model use earns reusable checks. Full-source limits still apply to approved jobs.
+  Jobs use ordered list fingerprints for requirements and nice-to-haves. Gap responses
+  must belong to the task's owned job and appear by id in its input. Legacy snapshots
+  without ids are screened but never persisted. Practice answers also require matching
+  question and answer revisions; generated questions are trusted without re-screening.
 
-  Final tailoring results may contain `gap_response_screening` entries
-  `{response_id, fields: {field_name: sha256}}` for saved requirement/body checks, using
-  the same canonical fingerprint encoding. Rails approves only the owned task-associated
-  job's response IDs present in the queued snapshot, with fingerprints matching both that
-  snapshot and current saved fields under row locks. Answer saves/deletes and final
-  tailoring results acquire the owner lock first, before task/answer/fact locks, matching
-  bulk library clearing and preventing response/fact foreign-key lock cycles.
-  Changed fields lose approval on save;
-  unchanged answers and library-link toggles retain checks. Deleted/recreated answers,
-  stale results and finished-task duplicates cannot restore checks. Successful checks survive
-  later generation failure. Legacy snapshots without IDs are screened but cannot earn or
-  reuse persisted approvals. New answers start unchecked; no new AI-reader grant is needed.
-
-  Final written-practice feedback/replacement results may contain `interview_question_screening`
-  entries `{question_id, question_revision, answer_revision, fields: {field_name: sha256}}`.
-  The fingerprints use the canonical encoding above. Only `question_text`/`answer_text`
-  are eligible; question checks require the same question revision, answer checks both
-  revisions. Rails verifies task kind, owned target/set, exact queued source, current field
-  values and revisions under existing owner-first/result locks. The worker screens saved
-  answers and trusts Rails-owned generated question text when reused in feedback or replacement;
-  replacement does not rescreen the target or sibling questions. It never approves unused answers.
-  Usage-only/finished-task results cannot grant checks. Successful source checks survive
-  later source/generation failure; actual answer edits clear answer approval, successful
-  replacement clears both, and generated questions start unchecked. Historical question-text
-  reports remain accepted for compatibility, but current workers do not screen generated
-  questions or emit new question-text checks. New optional metadata stays outside prompts and
-  preserves the original queue source strings. No AI-reader grants are added.
+  Preference criteria use the owner's `screened_criteria_sha256` array, keyed by exact text.
+  Listing checks use `screened_sha256` on the shared catalogue row. Its fingerprint covers
+  the exact passage-text array, not the full posting's `source_digest`: a short excerpt
+  cannot approve a longer excerpt. Rails reconstructs the task's bounded excerpt and
+  verifies both passages and source digest under the listing lock. No prior-task-input
+  search of current check-task inputs can grant an approval. Successful inputs from
+  retired preference conversations are imported once per exact text into the profile's
+  normal fingerprint store; validated historical generated output retains its provenance.
+  Rails migrations and the new consumer must deploy before
+  workers send these receipts; drain old workers/results before removing old consumers.
 
 Per task type:
 

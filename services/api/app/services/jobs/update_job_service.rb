@@ -14,7 +14,7 @@ module Jobs
       attributes[:company] = attributes[:company].presence if attributes.key?(:company)
       @job.with_lock do
         @job.assign_attributes(attributes)
-        RecordScreeningService.discard_changed_fields(job: @job)
+        @job.discard_changed_screened_fields
         raise ActiveRecord::Rollback unless @job.save
       end
       @job.errors.any? ? failure(@job.errors) : success(@job.reload)

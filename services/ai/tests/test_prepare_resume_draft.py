@@ -9,7 +9,6 @@ import pytest
 from pydantic_ai.usage import RunUsage
 
 from agents.user_text_screen_agent import UserTextScreenRun
-from gap_analysis.build_gap_analysis_prompt import gap_job_input, gap_job_screening_text
 from schemas.user_text_screen import UserTextScreen
 from screening.session import prompt_is_covered, screening_session
 from tests.fakes import build_gap_analysis_context
@@ -18,6 +17,19 @@ from tests.fakes import build_gap_analysis_context
 def allowed_run(text):
     return UserTextScreenRun(UserTextScreen(prompt_injection="attack" in text, harmful_request=False),
         "jev-1.13.0", {"prompt_injection": 1., "harmful_request": 1.}, RunUsage(input_tokens=7))
+
+
+def library_reports(session):
+    return [report for report in session.record_screening
+            if report.record_type not in {"job", "gap_response"}]
+
+
+def gap_reports(session):
+    return [report for report in session.record_screening if report.record_type == "gap_response"]
+
+
+def job_reports(session):
+    return [report for report in session.record_screening if report.record_type == "job"]
 
 
 @pytest.fixture
@@ -126,64 +138,43 @@ def test_user_gap_responses_are_screened_together(preparation):
     asyncio.run(run())
 
 
-def test_required_rejection_before_generation_and_optional_omission(preparation):
-    from tailoring.prepare_resume_draft import prepare_resume_draft
+@pytest.mark.parametrize("source", ["job", "library"])
+def test_rejected_shared_batch_stops_required_work_without_partial_approvals(preparation, source):
+    from tailoring.prepare_resume_draft import ResumePreparationError, prepare_resume_draft
 
-    dependencies, context, _, _, user, job = preparation
-    context.job.title = "attack"
-
-    async def run():
-        with screening_session(), pytest.raises(ValueError, match="job context"):
-            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-        context.job.title = "Engineer"
-        context.career_library.summary = "attack"
+    dependencies, context, _, calls, user, job = preparation
+    if source == "job":
+        context.job.title = "attack"
+    else:
         context.career_library.skills[0].name = "attack"
-        warnings = []
-        with screening_session():
-            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=warnings)
-            assert all("attack" not in prompt.text for prompt in prepared.prompts.values())
-            assert all("SUMMARY" not in prompt.sources.records for prompt in prepared.prompts.values())
-        assert warnings == ["One of your notes was left out."]
+    async def run():
+        with screening_session() as session, pytest.raises(ResumePreparationError):
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+        assert not session.record_screening
+        assert len(calls) == 1
     asyncio.run(run())
 
 
-def test_bounded_overlap_and_awaited_cancellation(preparation, monkeypatch):
+def test_single_batch_cancellation_is_awaited_and_writes_no_receipts(preparation, monkeypatch):
     from tailoring.prepare_resume_draft import prepare_resume_draft
-
     dependencies, _, _, _, user, job = preparation
-
     async def run():
-        active = 0
-        peak = 0
-        started = asyncio.Event()
-        release = asyncio.Event()
-        cancelled = []
-
+        started, stopped = asyncio.Event(), asyncio.Event()
         async def classify(text, model, timeout):
-            nonlocal active, peak
-            if text.startswith("Job title:"):
-                return allowed_run(text)
-            active += 1
-            peak = max(peak, active)
-            if active == 2:
-                started.set()
+            started.set()
             try:
-                await release.wait()
-                return allowed_run(text)
+                await asyncio.Event().wait()
             finally:
-                active -= 1
-                cancelled.append(text)
-
+                stopped.set()
         monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
-        with screening_session():
-            task = asyncio.create_task(prepare_resume_draft(user, job, dependencies, usage=[], warnings=[], concurrency=2))
+        with screening_session() as session:
+            task = asyncio.create_task(prepare_resume_draft(user, job, dependencies, usage=[], warnings=[]))
             await asyncio.wait_for(started.wait(), 2)
-            assert peak == 2
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
-            assert active == 0
-            assert len(cancelled) == 2
+            assert stopped.is_set()
+            assert not session.record_screening
     asyncio.run(run())
 
 
@@ -311,9 +302,9 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
         async def classify(messages, info):
             nonlocal active
             text = messages[-1].parts[-1].content
-            if not text.startswith("Job title:"):
+            if text:
                 active += 1
-                if active == 2:
+                if active == 1:
                     started.set()
                 try:
                     await blocked.wait()
@@ -335,9 +326,9 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
             with pytest.raises(asyncio.CancelledError):
                 await task
             assert active == 0
-            assert len(stopped) == 2
-            assert sum(item.input_tokens for item in usage) == 7
-            assert sum(item.input_tokens for item in accounting.entries) == 7
+            assert len(stopped) == 1
+            assert sum(item.input_tokens for item in usage) == 0
+            assert sum(item.input_tokens for item in accounting.entries) == 0
             assert accounting.incomplete
     asyncio.run(run())
 
@@ -356,10 +347,10 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
     async def run():
         with screening_session() as session:
             first = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            reports = list(session.library_screening)
+            reports = list(library_reports(session))
             assert reports
             assert all(prompt_is_covered(prompt.text) for prompt in first.prompts.values())
-        assert sum("company:\n" in text for text in calls) == len(library.experiences)
+        assert sum("Company:\n" in text for text in calls) == len(library.experiences)
         records = {("user", str(user)): library}
         for collection, kind in (("experiences", "experience"), ("projects", "project"),
                                  ("educations", "education"), ("certifications", "certification"),
@@ -369,25 +360,25 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
             records.update({("experience_highlight", row.id): row for row in experience.highlights})
         for report in reports:
             record = records[report.record_type, str(report.record_id)]
-            record.screened_fields = list(set(record.screened_fields) | set(report.fields))
+            record.screened_fields = list(set(record.screened_fields) | set(report.fingerprints))
         assert "role" not in library.projects[0].screened_fields
         assert "category" not in library.skills[0].screened_fields
         assert "description" in library.educations[0].screened_fields
         calls.clear()
         with screening_session() as session:
             second = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert not session.library_screening
+            assert not library_reports(session)
             assert all(prompt_is_covered(prompt.text) for prompt in second.prompts.values())
             assert all("screened_fields" not in prompt.text for prompt in second.prompts.values())
-        assert calls == [gap_job_screening_text(gap_job_input(context.job))]
+        assert len(calls) == 1 and "Requirements:" in calls[0]
         library.projects[0].screened_fields.remove("description")
         calls.clear()
         with screening_session() as session:
             await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert any(report.record_type == "project" and report.fields == ["description"]
-                       for report in session.library_screening)
-        assert len(calls) == 2
-        assert "description" in calls[-1] and "unused project role" not in calls[-1]
+            assert any(report.record_type == "project" and set(report.fingerprints) == {"description"}
+                       for report in library_reports(session))
+        assert len(calls) == 1
+        assert "Description" in calls[-1] and "unused project role" not in calls[-1]
     asyncio.run(run())
 
 
@@ -405,7 +396,7 @@ def test_approved_oversized_library_still_fails_before_screening(preparation):
         with screening_session() as session:
             with pytest.raises(ResumePreparationError, match="career library is too long"):
                 await prepare_resume_draft(user, job, dependencies, usage=[], warnings=warnings)
-            assert not session.library_screening
+            assert not library_reports(session)
         assert calls == []
         assert warnings == []
     asyncio.run(run())
@@ -468,17 +459,17 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
     async def run():
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            reports = {(report.record_type, str(report.record_id)): set(report.fields)
-                       for report in session.library_screening}
+            reports = {(report.record_type, str(report.record_id)): set(report.fingerprints)
+                       for report in library_reports(session)}
             assert reports == {identity: set(values) for identity, values in expected.items()}
             assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
             assert all("screened_fields" not in prompt.text and "provenance" not in prompt.text
                        for prompt in prepared.prompts.values())
-        pending = "\n\n".join(calls[1:])
-        assert pending.count("Entry ") == len(expected)
+        pending = "\n\n".join(calls)
+        assert pending.count("Entry ") == len(expected) + 1
         for values in expected.values():
             for field, value in values.items():
-                assert pending.count(f"{field}:\n{value}") == 1
+                assert pending.count(f"{field.replace('_', ' ').capitalize()}:\n{value}") == 1
         rendered = sources.text_for(list(sources.records))
         assert all(value in rendered for values in expected.values() for value in values.values())
         assert "Omitted" not in rendered
@@ -498,19 +489,19 @@ def test_highlights_reuse_partial_saved_parent_checks(preparation):
     async def run():
         with screening_session() as session:
             await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            role_reports = [report for report in session.library_screening
+            role_reports = [report for report in library_reports(session)
                             if report.record_type == "experience" and str(report.record_id) == role.id]
             assert len(role_reports) == 1
-            assert set(role_reports[0].fields) == {"company", "description"}
+            assert set(role_reports[0].fingerprints) == {"company", "description"}
             for highlight in role.highlights:
-                reports = [report for report in session.library_screening
+                reports = [report for report in library_reports(session)
                            if report.record_type == "experience_highlight"
                            and str(report.record_id) == highlight.id]
                 assert len(reports) == 1
-                assert reports[0].fields == ["content"]
-        pending = "\n\n".join(calls[1:])
-        assert f"title:\n{role.title}" not in pending
-        assert pending.count(f"company:\n{role.company}") == 1
+                assert set(reports[0].fingerprints) == {"content"}
+        pending = "\n\n".join(calls)
+        assert f"Title:\n{role.title}" not in pending
+        assert pending.count(f"Company:\n{role.company}") == 1
     asyncio.run(run())
 
 
@@ -527,12 +518,12 @@ def test_identical_saved_skills_keep_each_identity_and_reuse_field_checks(prepar
     async def run():
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            reports = [report for report in session.library_screening if report.record_type == "skill"]
-            assert {(str(report.record_id), tuple(report.fields)) for report in reports} == {
+            reports = [report for report in library_reports(session) if report.record_type == "skill"]
+            assert {(str(report.record_id), tuple(report.fingerprints)) for report in reports} == {
                 (skill.id, ("name",)) for skill in skills}
             assert {"S1", "S2"} <= prepared.prompts["skills"].sources.records.keys()
             assert prompt_is_covered(prepared.prompts["skills"].text)
-        assert sum("name:\nShared skill" in text for text in calls) == 1
+        assert sum("Name:\nShared skill" in text for text in calls) == 1
         assert all("Unused category" not in text for text in calls)
 
         for skill in skills:
@@ -540,7 +531,7 @@ def test_identical_saved_skills_keep_each_identity_and_reuse_field_checks(prepar
         calls.clear()
         with screening_session() as session:
             await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert not [report for report in session.library_screening if report.record_type == "skill"]
+            assert not [report for report in library_reports(session) if report.record_type == "skill"]
         assert all("Shared skill" not in text for text in calls)
 
     asyncio.run(run())
@@ -571,8 +562,8 @@ def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation)
     async def run():
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert {(report.record_type, str(report.record_id), tuple(report.fields))
-                    for report in session.library_screening} == {
+            assert {(report.record_type, str(report.record_id), tuple(report.fingerprints))
+                    for report in library_reports(session)} == {
                         ("user", str(user), ("summary",)),
                         ("project", "split-project", ("name", "description")),
                         ("career_context", "career_context", ("requirement", "response")),
@@ -580,9 +571,9 @@ def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation)
             summary = await prepared.summary_prompt([])
             assert {"SUMMARY", "P1", "P2", "S1", "F1"} == summary.sources.records.keys()
             assert prompt_is_covered(summary.text)
-        assert sum(f"summary:\n{shared}" in text for text in calls) == 1
-        assert sum("name:\nShared\n\ndescription:\ndetail" in text for text in calls) == 1
-        assert sum("requirement:\nShared\n\nresponse:\ndetail" in text for text in calls) == 1
+        assert sum(f"Summary:\n{shared}" in text for text in calls) == 1
+        assert sum("Name:\nShared\n\nDescription:\ndetail" in text for text in calls) == 1
+        assert sum("Requirement:\nShared\n\nResponse:\ndetail" in text for text in calls) == 1
         assert all("Unused" not in text for text in calls)
 
     asyncio.run(run())
@@ -604,10 +595,10 @@ def test_summary_records_new_saved_id_even_when_its_text_was_already_screened(pr
             summary = await prepared.summary_prompt([], selected_labels={"S1", "S2"})
             assert set(summary.sources.records) == {"S1", "S2"}
             assert prompt_is_covered(summary.text)
-            assert {(str(report.record_id), tuple(report.fields)) for report in session.library_screening
+            assert {(str(report.record_id), tuple(report.fingerprints)) for report in library_reports(session)
                     if report.record_type == "skill"} == {
                         ("first-skill", ("name",)), ("later-skill", ("name",))}
-            assert len(calls) == first_call_count
+            assert len(calls) == first_call_count + 1
 
     asyncio.run(run())
 
@@ -628,19 +619,18 @@ def test_checked_text_collision_cannot_hide_rejected_saved_fields(preparation, m
 
         async def unavailable_for_skill(text, model, timeout):
             calls.append(text)
-            if "name:\nattack" in text:
+            if "Name:\nattack" in text:
                 raise RuntimeError("Synthetic screening outage")
             return allowed_run(text)
 
         monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", unavailable_for_skill)
 
     async def run():
-        with screening_session() as session:
-            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert not session.library_screening
-            assert "S1" not in prepared.prompts["skills"].sources.records
-            assert "S2" not in prepared.prompts["skills"].sources.records
-        assert sum("name:\nattack" in text for text in calls) == 1
+        from tailoring.prepare_resume_draft import ResumePreparationError
+        with screening_session() as session, pytest.raises(ResumePreparationError):
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+        assert not session.record_screening
+        assert sum("Name:\nattack" in text for text in calls) == 1
 
     asyncio.run(run())
 
@@ -657,21 +647,22 @@ def test_tailoring_reuses_job_checks_from_gap_analysis_and_checks_only_edited_li
     with screening_session() as session, user_text_screen_agent.override(model=jev_model([])):
         assert prepare_gap_analysis(context, today=date(2026, 10, 25),
             screen_model="typesafe:jev-1.13.0", timeout_seconds=5).prompt is not None
-        context.job.screened_fields = list(session.job_screening[0].fields)
+        context.job.screened_fields = list(next(
+            receipt for receipt in session.record_screening if receipt.record_type == "job").fingerprints)
 
     async def run():
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
             assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
-            assert not session.job_screening
+            assert not job_reports(session)
             assert all("Job title:" not in text for text in calls)
         context.job.requirements = ["Changed requirement"]
         context.job.screened_fields.remove("requirements")
         calls.clear()
         with screening_session() as session:
             await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert set(session.job_screening[0].fields) == {"requirements"}
-        assert calls[0] == "Requirements:\nChanged requirement"
+            assert set(job_reports(session)[0].fingerprints) == {"requirements"}
+        assert "Requirements:\nChanged requirement" in calls[0]
 
     asyncio.run(run())
 
@@ -686,7 +677,7 @@ def test_approved_job_still_obeys_complete_source_limit(preparation):
     async def run():
         with screening_session() as session, pytest.raises(ResumePreparationError):
             await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-        assert not session.job_screening
+        assert not job_reports(session)
         assert not calls
 
     asyncio.run(run())
@@ -712,7 +703,7 @@ def test_saved_gap_response_fields_reused_without_screening(preparation):
 
 @pytest.mark.parametrize("approved_first", [False, True])
 def test_grouped_gap_checks_keep_every_identity_and_field_split(preparation, approved_first):
-    from screening.job_fields import field_fingerprint
+    from screening.records import field_fingerprint
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
     dependencies, _, _, calls, user, job = preparation
@@ -730,7 +721,7 @@ def test_grouped_gap_checks_keep_every_identity_and_field_split(preparation, app
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies,
                 usage=[], warnings=[], gap_responses=responses)
-            reports = {report.response_id: report.fields for report in session.gap_response_screening}
+            reports = {report.record_id: report.fingerprints for report in gap_reports(session)}
             assert reports == {ids[0]: {"requirement": field_fingerprint("A: B"), "body": field_fingerprint("C")},
                                ids[1]: {"requirement": field_fingerprint("A"), "body": field_fingerprint("B: C")}}
             assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
@@ -739,7 +730,7 @@ def test_grouped_gap_checks_keep_every_identity_and_field_split(preparation, app
             count = len(calls)
             await prepared.summary_prompt([], selected_labels={"GR1", "GR2", "GR3"})
             assert len(calls) == count
-        assert len([text for text in calls if "Saved gap response" in text]) == 1
+        assert len([text for text in calls if "Body:" in text]) == 1
     asyncio.run(run())
 
 
@@ -757,11 +748,11 @@ def test_gap_partial_approval_and_legacy_summary_subset_reuse(preparation):
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies,
                 usage=[], warnings=[], gap_responses=responses)
-            assert [set(report.fields) for report in session.gap_response_screening] == [{"body"}]
+            assert [set(report.fingerprints) for report in gap_reports(session)] == [{"body"}]
             count = len(calls)
             await prepared.summary_prompt([], selected_labels={"GR2"})
             assert len(calls) == count
-        grouped = [text for text in calls if "Saved gap response" in text]
+        grouped = [text for text in calls if "Body:" in text]
         assert len(grouped) == 1
         assert "Already approved" not in grouped[0]
         assert "Fresh answer" in grouped[0] and "Legacy answer" in grouped[0]
@@ -779,14 +770,19 @@ def test_gap_library_text_collision_preserves_each_provenance(preparation, block
     responses = [{"id": str(uuid4()), "requirement": "Equal requirement",
                   "body": "attack" if blocked else "Equal answer"}]
     async def run():
+        from tailoring.prepare_resume_draft import ResumePreparationError
         with screening_session() as session:
-            prepared = await prepare_resume_draft(user, job, dependencies,
-                usage=[], warnings=[], gap_responses=responses)
-            assert bool(session.gap_response_screening) is not blocked
-            prompt = prepared.prompts["experience"].text
-            assert ("[GR1]" in prompt) is not blocked
-            assert prompt_is_covered(prompt)
-        assert len([text for text in calls if "Saved gap response" in text]) == 1
+            if blocked:
+                with pytest.raises(ResumePreparationError):
+                    await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[], gap_responses=responses)
+                assert not session.record_screening
+            else:
+                prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[], gap_responses=responses)
+                assert gap_reports(session)
+                assert "[GR1]" in prepared.prompts["experience"].text
+                assert prompt_is_covered(prepared.prompts["experience"].text)
+        assert len(calls) == 1
+
     asyncio.run(run())
 
 

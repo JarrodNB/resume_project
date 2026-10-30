@@ -87,22 +87,25 @@ RSpec.describe "Career library narrative AI targets" do
       expect(CareerLibrary::ReviewStateService.call(user: user, section: section).value[:assessments].first["stale"]).to be(true)
     end
 
-    it "keeps #{section} source checks fresh and rejects other owners and changed drafts" do
-      kind, record, field = target(section)
-      expect(edit(section, owner: create(:user))["errors"]).to eq([ "Record not found" ])
-      started = edit(section)
-      expect(started["errors"]).to eq([])
-      task = AiTask.find(started.dig("aiTask", "id"))
-      record.update!(field => "New unchecked user content")
-      AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-        "library_screening" => [{ "record_type" => kind, "record_id" => record.id, "fields" => [field] }] })
-      expect(record.reload.screened_fields).not_to include(field)
-      # A completed proposal based on the old source cannot overwrite the new value.
-      newer = AiTask.find(edit(section).dig("aiTask", "id"))
-      complete(newer)
-      record.update!(field => "Changed again while generating")
-      expect(accept(newer)["errors"]).to include("This entry changed. Start a new edit from its current text.")
-      expect(record.reload[field]).to eq("Changed again while generating")
+    %w[record_screening].each do |list|
+      it "keeps #{section} source checks fresh from #{list} and rejects other owners and changed drafts" do
+        kind, record, field = target(section)
+        expect(edit(section, owner: create(:user))["errors"]).to eq([ "Record not found" ])
+        started = edit(section)
+        expect(started["errors"]).to eq([])
+        task = AiTask.find(started.dig("aiTask", "id"))
+        record.update!(field => "New unchecked user content")
+        AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
+          list => [{ "record_type" => kind, "record_id" => record.id, "fields" => [field],
+            "fingerprints" => { field => Digest::SHA256.hexdigest(JSON.generate(record[field])) } }.then { |report| list == "record_screening" ? report.except("fields") : report }] })
+        expect(record.reload.screened_fields).not_to include(field)
+        # A completed proposal based on the old source cannot overwrite the new value.
+        newer = AiTask.find(edit(section).dig("aiTask", "id"))
+        complete(newer)
+        record.update!(field => "Changed again while generating")
+        expect(accept(newer)["errors"]).to include("This entry changed. Start a new edit from its current text.")
+        expect(record.reload[field]).to eq("Changed again while generating")
+      end
     end
   end
 end

@@ -11,14 +11,14 @@ RSpec.describe "Saved job screening" do
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
   def report(record = job, fields = %w[title company requirements nice_to_haves])
-    { "job_id" => record.id,
-      "fields" => fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
+    { "record_type" => "job", "record_id" => record.id,
+      "fingerprints" => fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
   end
 
   def apply(reports, status: "failed", target: task)
     AiTasks::ApplyAiResultService.call(message: {
       "ai_task_id" => target.id, "status" => status, "error_message" => "Generation failed",
-      "result" => {}, "job_screening" => reports
+      "result" => {}, "record_screening" => reports
     })
   end
 
@@ -33,8 +33,8 @@ RSpec.describe "Saved job screening" do
     foreign = create(:job)
     stale = report
     job.update!(requirements: [ "New unchecked requirement" ])
-    stale["fields"]["notes"] = Digest::SHA256.hexdigest(JSON.generate(job.notes))
-    expect(apply([ report(other_owned), report(foreign), stale, nil, { "job_id" => job.id, "fields" => [] } ])).to be_success
+    stale["fingerprints"]["notes"] = Digest::SHA256.hexdigest(JSON.generate(job.notes))
+    expect(apply([ report(other_owned), report(foreign), stale, nil, { "job_id" => job.id, "fingerprints" => [] } ])).to be_success
     expect(job.reload.screened_fields).to match_array(%w[title company nice_to_haves])
     expect(other_owned.reload.screened_fields).to be_empty
     expect(foreign.reload.screened_fields).to be_empty
@@ -43,7 +43,7 @@ RSpec.describe "Saved job screening" do
   it "does not approve deleted jobs, unrelated tasks or usage-only messages" do
     reports = [ report ]
     expect(apply(reports, target: create(:ai_task, user: user))).to be_success
-    message = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid, "job_screening" => reports }
+    message = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid, "record_screening" => reports }
     expect(AiTasks::ApplyAiResultService.call(message: message)).to be_success
     expect(job.reload.screened_fields).to be_empty
     deleted_task = task
@@ -100,7 +100,7 @@ RSpec.describe "Saved job screening" do
   it "matches Python fingerprints for Unicode, escaping and typed ordered lists" do
     cases = JSON.parse(File.read(Rails.root.join("../ai/tests/fixtures/job_field_fingerprints.json")))
     cases.each do |item|
-      expect(Jobs::RecordScreeningService.field_fingerprint(item["value"])).to eq(item["sha256"])
+      expect(Screening::RecordApprovalsService.field_fingerprint(item["value"])).to eq(item["sha256"])
     end
   end
 end

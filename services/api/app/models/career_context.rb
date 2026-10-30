@@ -3,6 +3,8 @@
 # Index:
 #   - job_gap_responses: responses that point at this context; unlinked, not deleted, with it
 class CareerContext < ApplicationRecord
+  include ScreenedFields
+  screenable_fields %w[requirement response]
   belongs_to :user
   has_many :job_gap_responses, dependent: :nullify
 

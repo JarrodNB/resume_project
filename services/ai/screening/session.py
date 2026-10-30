@@ -25,11 +25,10 @@ class ScreeningSession:
     async_locks: dict[tuple, Any] = field(default_factory=dict)
     allowed_sources: set[str] = field(default_factory=set)
     trusted_generated_sources: set[str] = field(default_factory=set)
+    rails_screened_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
-    library_screening: list[Any] = field(default_factory=list)
-    job_screening: list[Any] = field(default_factory=list)
-    gap_response_screening: list[Any] = field(default_factory=list)
-    interview_question_screening: list[Any] = field(default_factory=list)
+    record_screening: list[Any] = field(default_factory=list)
+    record_checks: set[tuple] = field(default_factory=set)
 
 
 _current: ContextVar[ScreeningSession | None] = ContextVar("screening_session", default=None)
@@ -98,21 +97,39 @@ def trust_generated_source(source: str) -> None:
         session.trusted_generated_sources.add(mask_outbound(source))
 
 
+def trust_rails_screened_source(source: str) -> None:
+    """Cover immutable text Rails accepted after a successful screen, in this execution only.
+
+    Use this only for text that passed screening when Rails accepted it and cannot change
+    afterward, such as completed interview dialogue, delivered through an authenticated,
+    owner-scoped Rails grant. It may include the user's own words, which is why it is
+    separate from `trust_generated_source`. Never use it for editable records, text Rails
+    stored without a successful screen, or anything from a browser or external site.
+    """
+    if source and (session := _current.get()) is not None:
+        session.rails_screened_sources.add(mask_outbound(source))
+
+
 def bind_screened_prompt(sources: Sequence[str], render: Callable[[Sequence[str]], str]) -> str:
-    """Render trusted scaffolding around screened or trusted generated source values.
+    """Render trusted scaffolding around screened or explicitly trusted source values.
 
     The renderer owns escaping and formatting. Every untrusted value it includes must
     appear in sources; do not capture untrusted values in its closure. No approval is
-    minted when a source lacks screening or explicit generated-output provenance.
+    minted when a source lacks screening, generated-output provenance or a Rails
+    screened-text grant in this execution.
     """
     prompt = render(sources)
     session = _current.get()
     if session is not None and sources and all(
-        mask_outbound(source) in session.allowed_sources or
-        mask_outbound(source) in session.trusted_generated_sources for source in sources
+        _source_is_trusted(session, mask_outbound(source)) for source in sources
     ):
         session.prompts.add(mask_outbound(prompt))
     return prompt
+
+
+def _source_is_trusted(session: ScreeningSession, masked_source: str) -> bool:
+    return (masked_source in session.allowed_sources or masked_source in session.trusted_generated_sources
+            or masked_source in session.rails_screened_sources)
 
 
 def prompt_is_covered(prompt: str) -> bool:

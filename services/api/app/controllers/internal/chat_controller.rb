@@ -14,7 +14,7 @@ module Internal
     end
     def accept
       respond ::Chat::AcceptReplyService.call(operation: @operation, **identity, reply: params.require(:reply), screened_message_sha256: params.require(:screened_message_sha256),
-        library_screening: Array(params[:library_screening]).map { |report| report.respond_to?(:to_unsafe_h) ? report.to_unsafe_h : report },
+        record_screening: Array(params[:record_screening]).map { |report| report.respond_to?(:to_unsafe_h) ? report.to_unsafe_h : report },
         summary_update: params[:summary_update].respond_to?(:to_unsafe_h) ? params[:summary_update].to_unsafe_h : params[:summary_update])
     end
     def fail

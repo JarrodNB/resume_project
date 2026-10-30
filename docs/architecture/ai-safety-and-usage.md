@@ -124,13 +124,16 @@ requests get a JSON 429 with `Retry-After`.
   are exempt from recursive input screening. The scoped spoken-interview runtime keeps
   its fixed Jev primary and Nano fallback for its separate provider accounting.
   A short phrase check blocks obvious instruction-override wording without a model call. The
-  screening unit is a cohesive untrusted source item: document, job context, library entry,
-  gap response, submitted answer, selected section snapshot, or reused interview question. Each is
-  checked once per execution, except saved Job, gap-response, written-practice and career-library fields whose successful checks
-  persist in Rails. Features screen only unchecked fields they use; edits clear the changed
-  field names. Existing/imported rows start unchecked. A blocked or unchecked optional entry
-  is left out with a warning; a required input prevents generation. Imported, manually edited, retrieved, and
-  scraped content follow this same rule when used in a generative request.
+  saved-record path is `screen_records`: adapters select only fields a workflow uses,
+  skip persisted approvals or matching in-run fingerprints, and batch pending records
+  into as few labeled blobs as fit. Records stay whole; metadata never enters classifier
+  text, and saved records always use `check_phrases=False`. A rejected blob fails the
+  entire call, with no partial receipts or source approvals. Required batches stop the
+  workflow; optional batches are omitted together. Complete-source caps still apply
+  when every field is already approved. One-off messages and uploads keep using the
+  direct text screen. Generated output is trusted through its validated server provenance;
+  immutable accepted user text has the separate `trust_rails_screened_source` API.
+  Only session and record-screening code mutate source coverage directly.
   Large sources use 4,000-character chunks with 300 characters of overlap by default.
   A live synthetic comparison of 2,000, 4,000, and whole resumes found identical decisions
   across 14 documents; 4,000 required 25 calls versus 48 for 2,000. This supports the lower

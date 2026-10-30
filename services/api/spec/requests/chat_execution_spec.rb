@@ -90,9 +90,24 @@ RSpec.describe "Chat execution callbacks", type: :request do
     report = { record_type: "skill", record_id: skill.id, fields: ["name"],
       fingerprints: { name: Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
     post path("accept"), params: identity.merge(reply: "You list Ruby.",
-      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), library_screening: [report]), as: :json, headers: headers
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [report]), as: :json, headers: headers
     expect(response).to have_http_status(:ok)
     expect(skill.reload.screened_fields).to eq(["name"])
+  end
+
+  it "accepts record_screening receipts through the private HTTP callback" do
+    skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
+    post path("claim"), params: {}, as: :json, headers: headers
+    identity = response.parsed_body.slice("attempt_id", "claim_generation")
+    receipt = { record_type: "skill", record_id: skill.id, revision: {},
+      fingerprints: { name: Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
+    args = identity.merge(reply: "You list Ruby.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [receipt])
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:ok)
+    expect(skill.reload.screened_fields).to eq(["name"])
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:ok)
   end
 
 end

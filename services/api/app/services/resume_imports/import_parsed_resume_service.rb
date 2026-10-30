@@ -85,7 +85,7 @@ module ResumeImports
       blank_fills = values.select { |column, value| @user.public_send(column).blank? && value.present? }
       if blank_fills.any?
         @user.assign_attributes(blank_fills)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @user)
+        @user.discard_changed_screened_fields
         @user.save!
       end
     end

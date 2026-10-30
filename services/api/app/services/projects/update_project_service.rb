@@ -13,7 +13,7 @@ module Projects
     def call
       saved = @project.with_lock do
         @project.assign_attributes(@attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @project)
+        @project.discard_changed_screened_fields
         @project.save
       end
       return failure(@project.errors) unless saved

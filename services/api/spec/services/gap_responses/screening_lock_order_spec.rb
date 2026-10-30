@@ -21,7 +21,7 @@ RSpec.describe "Gap answer screening lock order" do
     end
   end
 
-  %i[save clear_answer apply_result].each do |operation|
+  %i[save clear_answer apply_record_screening].each do |operation|
     it "finishes #{operation} and career-library clearing without a lock cycle" do
       user = create(:user, summary: "Saved summary")
       job = create(:job, user: user)
@@ -38,13 +38,15 @@ RSpec.describe "Gap answer screening lock order" do
       end
       first = concurrently do |connection|
         backend_pids << connection.select_value("SELECT pg_backend_pid()")
-        if operation == :apply_result
+        if operation == :apply_record_screening
           AiTasks::ApplyAiResultService.call(message: {
             "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-            "gap_response_screening" => [ { "response_id" => response.id, "fields" => {
-              "body" => GapResponses::RecordScreeningService.field_fingerprint(response.body)
-            } } ],
-            "library_screening" => [ { "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ] } ]
+            "record_screening" => [
+              { "record_type" => "gap_response", "record_id" => response.id,
+                "fingerprints" => { "body" => Screening::RecordApprovalsService.field_fingerprint(response.body) } },
+              { "record_type" => "user", "record_id" => user.id,
+                "fingerprints" => { "summary" => Screening::RecordApprovalsService.field_fingerprint(user.summary) } }
+            ]
           })
         else
           GapResponses::SaveGapResponseService.call(job: Job.find(job.id), requirement: context.requirement,
@@ -76,7 +78,7 @@ RSpec.describe "Gap answer screening lock order" do
       else
         expect(response.reload.career_context_id).to be_nil
         expect(response.body).to eq(operation == :save ? "After" : "Before")
-        expect(response.screened_fields).to include("body") if operation == :apply_result
+        expect(response.screened_fields).to include("body") if %i[apply_result apply_record_screening].include?(operation)
       end
     ensure
       release << true if release
@@ -99,14 +101,15 @@ RSpec.describe "Gap answer screening lock order" do
         end
       end
     end
-    report = { "job_id" => job.id, "fields" => {
-      "title" => Jobs::RecordScreeningService.field_fingerprint(job.title)
+    report = { "record_type" => "job", "record_id" => job.id, "fingerprints" => {
+      "title" => Screening::RecordApprovalsService.field_fingerprint(job.title)
     } }
     apply_report = lambda do |task|
       AiTasks::ApplyAiResultService.call(message: {
         "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-        "job_screening" => [ report ], "library_screening" => [ {
-          "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ]
+        "record_screening" => [ report, {
+          "record_type" => "user", "record_id" => user.id,
+          "fingerprints" => { "summary" => Screening::RecordApprovalsService.field_fingerprint(user.summary) }
         } ]
       })
     end

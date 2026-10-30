@@ -82,7 +82,7 @@ def test_required_job_rejection_prevents_generation(task_dependencies, monkeypat
         input={"job_id": str(uuid4())})
     result = handle_tailor_resume_task(task, task_dependencies)
     assert result.status == "failed"
-    assert "could not be screened" in result.error_message
+    assert "unavailable" in result.error_message or "couldn't" in result.error_message
 
 
 @pytest.mark.real_guardrail
@@ -92,7 +92,6 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     from dataclasses import replace
     from uuid import uuid4
 
-    from tailoring.labeled_sources import label_sources
     from worker.queue_messages import AiTaskMessage
     from worker.tailor_resume_handler import handle_tailor_resume_task
 
@@ -116,13 +115,12 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume",
         input={"job_id": str(uuid4()), "contact": {"full_name": "Synthetic Candidate"}})
-    sources = label_sources(context, [], [])
     with resume_tailoring_agent.override(model=FunctionModel(answer, model_name="gpt-5-mini")):
         first = handle_tailor_resume_task(task, task_dependencies)
         assert first.status == "completed"
         # Original inputs plus the job; selected labels reuse approved evidence.
-        assert len(calls) == len(sources.records) + 1
+        assert len(calls) == 1
         second = handle_tailor_resume_task(task, task_dependencies)
     assert second.status == "completed"
-    assert len(calls) == 2 * (len(sources.records) + 1)
+    assert len(calls) == 2
     assert len(generation) == 8

@@ -13,6 +13,13 @@ All business logic, as service objects grouped by domain folder.
 
 - `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
 
+- `screening/record_approvals_service.rb` — one recorder for unified `record_screening` receipts
+  (career library, job, gap response, interview question and job preferences). Its `RECORD_TYPES` registry owns each
+  type's screened fields, owner/task scope and extra checks; a field is approved only when its
+  fingerprint matches the locked current value (and the task snapshot where one exists).
+  `record_interview_sources` is the spoken-interview entry point (library records plus the
+  interview's own job, fingerprinted from frozen values). Preference criteria use text
+  fingerprints on their owner profile; shared catalogue listings use exact passage fingerprints.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;
@@ -61,8 +68,8 @@ All business logic, as service objects grouped by domain folder.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `build_pipeline_service.rb` picks each owned job's single Home next step (`jobPipeline`) in
   three queries (jobs, newest owned analyze_gaps/tailor_resume per job via DISTINCT ON, resume job ids);
-  `record_screening_service.rb` persists successful used-field checks only for the task's
-  owned Job and matching fingerprints; edits lock/reload and clear changed field checks atomically;
+  shared screening records successful used-field checks for the task's owned Job;
+  edits lock/reload and clear changed field checks through `ScreenedFields` atomically;
   `start_job_scraping_service.rb` (accepts public HTTP(S) posting links, preserves general
   paths/queries and canonicalizes LinkedIn links to `https://www.linkedin.com/jobs/view/<id>/`,
   rejects a job the user already saved, enqueues

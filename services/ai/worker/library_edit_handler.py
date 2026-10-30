@@ -17,10 +17,12 @@ from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from privacy.contact_mask import mask_outbound
 from schemas.library_edit import LibraryEditInput
-from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
+from screening.record_adapters import library_records
+from screening.records import record_failure_message, screen_records_sync
 from screening.screen_user_text import screen_user_text
 from screening.session import (
+    approve_projected_source,
     bind_screened_prompt,
     current_session,
     trust_generated_source,
@@ -77,7 +79,7 @@ def handle_library_edit_task(task, dependencies):
         outcome = check(snapshot.feedback)
         if not outcome.allowed:
             return failure(outcome)
-        current_session().allowed_sources.add(mask_outbound(snapshot.feedback))
+        approve_projected_source(snapshot.feedback, snapshot.feedback, lambda value: value, outcome)
     feedback = snapshot.feedback or (SKIP_NOTE if snapshot.skip else DEFAULT_FEEDBACK)
     if not snapshot.feedback:
         trust_generated_source(feedback)
@@ -96,9 +98,13 @@ def handle_library_edit_task(task, dependencies):
             prompt = bind_screened_prompt([feedback], lambda values: "User feedback:\n" + source_block("user_feedback", values[0]))
     else:
         source = snapshot.library.model_dump_json(exclude_none=True)
-        outcome = screen_library_fields(snapshot.library, check)
-        if outcome is not True and not outcome.allowed:
-            return failure(outcome)
+        # Rails approves these receipts only when they also match the frozen snapshot.
+        if records := library_records(snapshot.library):
+            outcome = screen_records_sync(records, approved_sources=[source])
+            usage.extend(outcome.decision.model_usages)
+            if not outcome.allowed:
+                return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                                       error_message=record_failure_message(outcome))
         label = snapshot.target.label
         if snapshot.review_question and snapshot.review_question.answers:
             sources = [source, feedback]
@@ -107,7 +113,7 @@ def handle_library_edit_task(task, dependencies):
                 outcome = check(item.answer)
                 if not outcome.allowed:
                     return failure(outcome)
-                current_session().allowed_sources.add(mask_outbound(item.answer))
+                approve_projected_source(item.answer, item.answer, lambda value: value, outcome)
                 trust_generated_source(item.question)
                 sources.extend([item.question, item.answer])
                 indices.append(item.question_index + 1)

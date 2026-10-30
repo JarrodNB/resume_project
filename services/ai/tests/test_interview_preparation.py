@@ -113,11 +113,11 @@ def test_preparation_screens_frozen_sources_and_accepts_complete_accounted_plan(
     client = run(models)
     assert not client.failed
     assert client.accepted == [prepared_output()]
-    assert [item[0] for item in models.requests] == ["jev-1.13.0", "gpt-6-luna"]
+    assert [item[0] for item in models.requests] == ["jev-1.13.0", "jev-1.13.0", "gpt-6-luna"]
     assert "calibrate laboratory equipment" in models.requests[-1][1]
     assert "laboratory" in models.requests[-1][1]
     assert models.requests[-1][2]["max_tokens"] == 4096
-    assert len([item for item in client.calls if item[0] == "start"]) == 2
+    assert len([item for item in client.calls if item[0] == "start"]) == 3
 
 
 def test_blocked_preparation_never_runs_reasoning_or_accepts_partial_questions():
@@ -216,7 +216,7 @@ def test_malformed_explicit_saved_setup_is_rejected_instead_of_becoming_legacy(s
 
 
 def test_matching_saved_focus_check_avoids_classifier_on_preparation_retry():
-    from screening.job_fields import field_fingerprint
+    from screening.records import field_fingerprint
 
     request = preparation_claim()
     context = request.payload.frozen_context
@@ -232,7 +232,7 @@ def test_matching_saved_focus_check_avoids_classifier_on_preparation_retry():
 
 @pytest.mark.parametrize("stored", [None, True, "invalid", "0" * 64])
 def test_focus_only_check_requires_persistence_with_approved_library(stored):
-    from screening.job_fields import field_fingerprint
+    from screening.records import field_fingerprint
     request = preparation_claim()
     context = request.payload.frozen_context
     context["sources"][0]["screened"] = True
@@ -246,7 +246,7 @@ def test_focus_only_check_requires_persistence_with_approved_library(stored):
 
 
 def test_changed_focus_cannot_reuse_earlier_check():
-    from screening.job_fields import field_fingerprint
+    from screening.records import field_fingerprint
     request = preparation_claim()
     context = request.payload.frozen_context
     context["sources"][0]["screened"] = True
@@ -308,7 +308,7 @@ def test_missing_focus_persistence_receipt_cannot_dispatch_preparer(receipt):
 
 @pytest.mark.parametrize("size", [80001, 120001])
 def test_approved_focus_still_obeys_source_and_context_limits(size):
-    from screening.job_fields import field_fingerprint
+    from screening.records import field_fingerprint
     request = preparation_claim()
     request.payload.frozen_context["career_focus"] = "x" * size
     request.payload.frozen_context["screened_career_focus_sha256"] = field_fingerprint("x" * size)
@@ -347,7 +347,7 @@ def test_focus_fingerprints_match_shared_unicode_vectors():
 
 @pytest.mark.parametrize("focus", ["\u00a0", "\u202f", "\u2003"])
 def test_unicode_whitespace_focus_requires_its_exact_receipt(focus):
-    from screening.job_fields import field_fingerprint
+    from screening.records import field_fingerprint
     request = preparation_claim()
     request.payload.frozen_context["sources"][0]["screened"] = True
     request.payload.frozen_context["career_focus"] = focus

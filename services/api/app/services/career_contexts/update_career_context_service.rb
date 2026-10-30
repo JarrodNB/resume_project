@@ -13,7 +13,7 @@ module CareerContexts
     def call
       saved = @career_context.with_lock do
         @career_context.assign_attributes(@attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @career_context)
+        @career_context.discard_changed_screened_fields
         @career_context.save
       end
       return failure(@career_context.errors) unless saved

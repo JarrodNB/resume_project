@@ -45,7 +45,7 @@ def output():
 @pytest.fixture
 def dependencies(task_dependencies, monkeypatch):
     """Allows screening without network calls and uses an empty library."""
-    monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
     return replace(task_dependencies, read_career_library=lambda user: CareerLibrary())
 
@@ -226,7 +226,7 @@ def test_invalid_evidence_is_discarded(dependencies, quote):
 @pytest.mark.parametrize("unchecked", [False, True])
 def test_answer_screen_failure_stops_before_library_read(dependencies, monkeypatch, unchecked):
     """Blocked and unavailable screens preserve usage and never generate."""
-    monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: ScreenOutcome(allowed=False, unchecked=unchecked,
                                       usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
     def no_read(user):
@@ -323,11 +323,11 @@ def test_knowledge_example_retry_accepts_concise_correction(dependencies):
 def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypatch):
     """Job-derived requirements and rejected notes cannot support example facts."""
     screened = []
-    def screen(text, **kwargs):
+    def screen(text, *_args, **kwargs):
         """Allows the answer while rejecting career notes."""
         screened.append(text)
-        return ScreenOutcome(allowed=text == task().input["answer_text"])
-    monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text", screen)
+        return ScreenOutcome(allowed="Answer text:" in text)
+    monkeypatch.setattr("screening.records.screen_user_text", screen)
     library = CareerLibrary(career_contexts=[CareerContext(id="f", requirement="Managed 20 people", response="Private note")])
     draft = output()
     draft["evidence_quotes"] = ["Managed 20 people"]
@@ -336,8 +336,8 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     assert result.status == "failed"
     assert "Career library check failed" in result.error_message
     assert not result.result
-    assert screened[0] == task().input["answer_text"]
-    assert task().input["question_text"] not in screened
+    assert screened[0] == "Entry 1\nAnswer text:\n" + task().input["answer_text"]
+    assert all(task().input["question_text"] not in text for text in screened)
     assert "Private note" in screened[1] and "Managed 20 people" in screened[1]
     assert library.career_contexts[0].requirement == "Managed 20 people"
 
@@ -355,8 +355,8 @@ def test_context_context_reaches_feedback_but_cannot_support_evidence_quotes(dep
     library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement=requirement, response=response,
                                               screened_fields=["response"])])
     screened = []
-    monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text",
-                        lambda text, **kwargs: screened.append(text) or ScreenOutcome(allowed=True))
+    monkeypatch.setattr("screening.records.screen_user_text",
+                        lambda text, *_args, **kwargs: screened.append(text) or ScreenOutcome(allowed=True))
     request = task()
     request.input.update(set_type=set_type, screened_fields=["answer_text"])
     seen = []
@@ -415,7 +415,7 @@ def test_saved_practice_fields_reuse_checks_without_classifier_work(dependencies
 
     request = task()
     request.input["screened_fields"] = ["question_text", "answer_text"]
-    monkeypatch.setattr(interview_feedback_handler, "screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: pytest.fail("approved practice fields must not be screened again"))
     def generate(context, **kwargs):
         assert prompt_is_covered(context.text)
@@ -429,35 +429,36 @@ def test_saved_practice_fields_reuse_checks_without_classifier_work(dependencies
 @pytest.mark.parametrize("blocked", [False, True])
 def test_practice_reports_keep_success_before_later_source_failure(dependencies, monkeypatch, blocked):
     from screening.session import screening_session
-    from worker import interview_feedback_handler
 
     request = task()
     calls = []
-    def classify(text, **kwargs):
+    def classify(text, *_args, **kwargs):
         calls.append(text)
         return ScreenOutcome(not blocked, unchecked=blocked)
-    monkeypatch.setattr(interview_feedback_handler, "screen_user_text", classify)
+    monkeypatch.setattr("screening.records.screen_user_text", classify)
     with screening_session() as session, interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, dependencies)
         assert result.status == ("failed" if blocked else "completed")
-        assert [set(report.fields) for report in session.interview_question_screening] == (
+        assert [set(report.fingerprints) for report in session.record_screening] == (
             [] if blocked else [{"answer_text"}])
-        assert all(report.question_id == request.input["question_id"] for report in session.interview_question_screening)
-    assert calls == [request.input["answer_text"]]
+        assert all((report.record_type, report.record_id) == ("interview_question", request.input["question_id"])
+                   for report in session.record_screening)
+    assert calls == ["Entry 1\nAnswer text:\n" + request.input["answer_text"]]
 
 
 def test_partial_practice_approval_checks_only_answer(dependencies, monkeypatch):
     from screening.session import screening_session
-    from worker import interview_feedback_handler
     request = task()
     request.input["screened_fields"] = ["question_text"]
     calls = []
-    monkeypatch.setattr(interview_feedback_handler, "screen_user_text",
-        lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
+    monkeypatch.setattr("screening.records.screen_user_text",
+        lambda text, *_args, **kwargs: calls.append(text) or ScreenOutcome(True))
     with screening_session() as session, interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         assert handle_ai_task(request, dependencies).status == "completed"
-        assert [set(report.fields) for report in session.interview_question_screening] == [{"answer_text"}]
-    assert calls == [request.input["answer_text"]]
+        assert [set(report.fingerprints) for report in session.record_screening] == [{"answer_text"}]
+        assert session.record_screening[0].revision == {
+            "question_revision": request.input["question_revision"], "answer_revision": request.input["answer_revision"]}
+    assert calls == ["Entry 1\nAnswer text:\n" + request.input["answer_text"]]
 
 
 def test_approved_practice_fields_keep_aggregate_prompt_cap(dependencies, monkeypatch):
@@ -465,7 +466,7 @@ def test_approved_practice_fields_keep_aggregate_prompt_cap(dependencies, monkey
     request = task()
     request.input["screened_fields"] = ["question_text", "answer_text"]
     monkeypatch.setattr(text_limits, "MAX_PROMPT_TEXT", 10)
-    monkeypatch.setattr(interview_feedback_handler, "screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: pytest.fail("saved fields should reuse checks"))
     monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback",
         lambda *a, **kw: pytest.fail("oversized prompt reached generation"))

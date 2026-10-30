@@ -108,4 +108,31 @@ RSpec.describe "Interview library screening" do
     expect(interview.reload.frozen_context.fetch("sources")[index]["screened"]).to be(true)
     expect(other.reload.screened_fields).to be_empty
   end
+
+  it "approves live records only through the shared recorder with frozen-value fingerprints" do
+    interview, operation, identity = claimed_preparation
+    expect(Screening::RecordApprovalsService).to receive(:record_interview_sources).and_call_original
+    expect(Interviews::RecordLibraryScreeningService.call(operation: operation, **identity, source_indices: [ 0 ])).to be_success
+    expect(user.reload.screened_fields).to eq([ "summary" ])
+    expect(interview.reload.frozen_context.fetch("sources").first["screened"]).to be(true)
+  end
+
+  it "skips edited and deleted records and replays idempotently" do
+    kept = create(:project, user: user, name: "Kept project")
+    edited = create(:project, user: user, name: "Original name")
+    deleted = create(:project, user: user, name: "Deleted project")
+    interview, operation, identity = claimed_preparation
+    sources = interview.frozen_context.fetch("sources")
+    indices = [ kept, edited, deleted ].map do |project|
+      sources.index { |source| source["id"] == project.id && source["field"] == "name" }
+    end
+    edited.update!(name: "Edited live name")
+    deleted.destroy!
+    results = 2.times.map { Interviews::RecordLibraryScreeningService.call(operation: operation, **identity, source_indices: indices) }
+    expect(results).to all(be_success)
+    expect(results.map(&:value).uniq.length).to eq(1)
+    expect(kept.reload.screened_fields).to eq([ "name" ])
+    expect(edited.reload.screened_fields).to eq([])
+    expect(interview.reload.frozen_context.fetch("sources").values_at(*indices).map { |source| source["screened"] }).to eq([ true, true, true ])
+  end
 end

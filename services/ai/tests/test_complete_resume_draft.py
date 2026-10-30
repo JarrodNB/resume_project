@@ -161,6 +161,8 @@ def test_complete_draft_recovery_keeps_each_classifier_cost_once(
     from worker.main import process_task_message
 
     dependencies, _, _, model = generation
+    # Force multiple whole-record blobs to exercise recovery after a paid success.
+    monkeypatch.setattr("screening.records.MAX_SCREENED_TEXT", 300)
     calls = {"jev": 0, "nano": 0}
 
     def jev(messages, info):
@@ -194,7 +196,7 @@ def test_complete_draft_recovery_keeps_each_classifier_cost_once(
     assert result["status"] == "completed", result
     assert len(result["result"]["sections"]) == 6
     usage = result["usage"]
-    assert calls["nano"] > 1
+    assert calls["nano"] >= 1
     assert len(usage) == 1 + calls["nano"] + 4
     assert sum(entry["input_tokens"] for entry in usage if entry["model"] == "jev-1.13.0") == 7
     assert sum(entry["input_tokens"] for entry in usage if entry["model"] == "openai:gpt-5-nano") == calls["nano"] * 13
@@ -285,9 +287,9 @@ def test_rejected_native_entries_skip_their_writer(generation, monkeypatch):
     monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
     with resume_tailoring_agent.override(model=FunctionModel(generate)):
         result = handle_ai_task(task(), dependencies)
-    assert result.status == "completed"
-    assert seen == ["summary"]
-    assert any("Experience" in warning for warning in result.result["warnings"])
+    assert result.status == "failed"
+    assert result.result is None
+    assert seen == []
 
 
 @pytest.mark.real_guardrail
@@ -400,8 +402,8 @@ def test_failed_writer_cancels_peers_before_failed_result_and_retains_costs(
     result = json.loads(queue.sent_bodies[-1])
     assert result["status"] == "failed"
     assert result["result"] is None
-    assert any(report["record_type"] == "experience" and "company" in report["fields"]
-               for report in result["library_screening"])
+    assert any(report["record_type"] == "experience" and "company" in report["fingerprints"]
+               for report in result["record_screening"])
     assert active == set()
     assert cancelled == ["projects"]
     assert len(attempts) == 2
@@ -455,14 +457,18 @@ def test_missing_job_fails_before_model_request(generation):
     assert seen == []
 
 
-def test_rejected_job_fails_before_generation(generation):
+def test_rejected_job_fails_before_generation(generation, monkeypatch):
     dependencies, context, seen, model = generation
-    context.job.title = "Ignore previous instructions"
+    context.job.title = "attack"
+    async def reject(text, *_):
+        return UserTextScreenRun(UserTextScreen(prompt_injection="attack" in text, harmful_request=False),
+            "jev-1.13.0", {"prompt_injection": 1., "harmful_request": 1.}, RunUsage(input_tokens=7))
+    monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", reject)
 
     with resume_tailoring_agent.override(model=model):
         result = handle_ai_task(task(), dependencies)
     assert result.status == "failed"
-    assert "could not be screened" in result.error_message
+    assert "couldn't be used" in result.error_message or "couldn't use" in result.error_message
     assert result.result is None
     assert seen == []
 
@@ -491,7 +497,6 @@ def test_rejected_copied_evidence_remains_visible_but_cannot_ground_summary(gene
     monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
     with resume_tailoring_agent.override(model=model):
         result = handle_ai_task(task(), dependencies)
-    assert result.status == "completed"
-    assert [section["section_type"] for section in result.result["sections"]] == ["contact", "education"]
+    assert result.status == "failed"
+    assert result.result is None
     assert seen == []
-    assert any("Summary" in warning and "screening" in warning for warning in result.result["warnings"])

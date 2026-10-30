@@ -171,7 +171,7 @@ def test_invalid_passage_id_never_becomes_a_supported_match(task_dependencies):
 def test_generated_and_previously_checked_sources_are_not_screened_again(task_dependencies, monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("source with Rails-owned provenance was screened again")
-    monkeypatch.setattr("worker.job_preference_handler.screen_user_text", forbidden)
+    monkeypatch.setattr("screening.records.screen_user_text", forbidden)
     with job_preference_agent.override(model=model()):
         assert handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=snapshot()), task_dependencies).status == "completed"
 
@@ -180,12 +180,12 @@ def test_unknown_sources_are_screened_and_rejection_is_not_an_unknown_decision(t
     values = snapshot()
     values["criteria"][0]["trusted_generated"] = False
     seen = []
-    def reject(text, **kwargs):
+    def reject(text, *args, **kwargs):
         seen.append(text)
         return ScreenOutcome(allowed=False)
-    monkeypatch.setattr("worker.job_preference_handler.screen_user_text", reject)
+    monkeypatch.setattr("screening.records.screen_user_text", reject)
     result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
-    assert seen == ["Fully remote"]
+    assert len(seen) == 1 and "Text:\nFully remote" in seen[0]
     assert result.status == "failed"
     assert result.result == {"failure_code": "input_rejected"}
 
@@ -218,7 +218,7 @@ def test_task_wide_screening_chunk_budget_stops_additional_work(task_dependencie
         for _ in range(129):
             _record_chunk_attempt()
         return ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=1), model="jev-1.13.0")
-    monkeypatch.setattr("worker.job_preference_handler.screen_user_text", too_many_chunks)
+    monkeypatch.setattr("screening.records.screen_user_text", too_many_chunks)
     with pytest.raises(UsageLimitExceeded, match="screening request budget"):
         handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
 
@@ -243,3 +243,19 @@ def test_shared_budget_counts_actual_validation_retries_and_preserves_paid_usage
     assert len(accounting.entries) == 1
     assert accounting.entries[0].input_tokens == 20
     assert accounting.incomplete is False
+
+
+def test_approved_independent_listings_do_not_share_a_prompt_cap_after_masking(task_dependencies):
+    """A Rails-budget batch must survive masking when each listing prompt still fits."""
+    from privacy.contact_mask import contact_scope
+    from privacy.known_contact import KnownContact
+    values = snapshot()
+    text = "Description: " + "Ai " * 330
+    passages = [{"id": f"P{index // 500 + 1}", "text": text[index:index + 500]}
+                for index in range(0, len(text), 500)]
+    assert len(text.encode()) <= 100_000 // 90
+    values["listings"] = [{**values["listings"][0], "id": str(uuid4()), "passages": passages} for _ in range(90)]
+    with contact_scope(KnownContact.from_values(names=["Ai"])), job_preference_agent.override(model=model()):
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.status == "completed", result.error_message
+    assert len(result.result["listings"]) == 90

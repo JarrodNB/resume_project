@@ -18,7 +18,7 @@ module Certifications
     def call
       saved = @certification.with_lock do
         @certification.assign_attributes(@attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @certification)
+        @certification.discard_changed_screened_fields
         @certification.save
       end
       return failure(@certification.errors) unless saved

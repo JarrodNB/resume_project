@@ -35,7 +35,7 @@ module CareerLibrary
         fill_blank_fields
         copied_coverage = @source.persisted? ? @target.changed & @source.screened_fields : []
         add_new_highlights if @target.is_a?(Experience)
-        RecordScreeningService.discard_changed_fields(record: @target)
+        @target.discard_changed_screened_fields
         @target.screened_fields |= copied_coverage
         @target.save!
         @source.destroy! if @source.persisted?

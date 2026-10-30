@@ -321,7 +321,9 @@ def _remember_decision(session, key, text, result):
     if session is not None:
         session.decisions[key] = result
         if result.allowed:
-            session.allowed_sources.add(text)
+            from screening.session import approve_projected_source
+
+            approve_projected_source(text, text, lambda value: value, result)
 
 
 def _start_local_screen(text, model, remaining, check_phrases, max_characters):

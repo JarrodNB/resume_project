@@ -10,6 +10,12 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
+def patch_edit_screen(monkeypatch, screen):
+    """Library edits screen saved records through screening.records and notes directly."""
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
+    monkeypatch.setattr("screening.records.screen_user_text", screen)
+
+
 def narrative_input(section):
     if section == "summary":
         library = {"summary_record_id": "user-1", "summary": "I build useful tools.", "screened_fields": ["summary"]}
@@ -37,8 +43,7 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
     def check(text, *_args, **_kwargs):
         screened.append(text)
         return ScreenOutcome(True)
-    monkeypatch.setattr("worker.library_review_handler.screen_user_text", check)
-    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", check)
+    patch_edit_screen(monkeypatch, check)
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Generated text and covered saved fields must not be classified")
     monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)

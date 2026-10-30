@@ -14,7 +14,7 @@ module Skills
     def call
       saved = @skill.with_lock do
         @skill.assign_attributes(@attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @skill)
+        @skill.discard_changed_screened_fields
         @skill.save
       end
       return failure(@skill.errors) unless saved

@@ -30,10 +30,11 @@ be edited, moved between application stages, and archived.
   (`/jobs/:id/study`), Interview (`/jobs/:id/interview`, `features/interviews/`), and Posting
   (`/jobs/:id/posting`).
 - `useJobWorkspace.ts` — tabs read the loaded job and comparison from the layout's outlet context
-- `JobWorkspaceTabs.tsx` — `JobFitTab` (gap analysis card with gap responses), `JobStudyTab`
+- `JobWorkspaceTabs.tsx` — `JobFitTab` (saved-skill mention counts and gap analysis card with gap responses), `JobStudyTab`
   (`features/study-guides/` `StudyGuidePanel`), and `JobPostingTab` (requirements,
   responsibilities, nice-to-haves, and notes always open; the full description collapses,
   remembered per job)
+- `SkillMatches.tsx`, `useSkillMatches.ts`, `skillMatchesOperations.ts`, `skillMentionCounts.ts` — Fit and the job board share the signed-in user’s saved skill read and literal counter. Fit reads only the signed-in user’s saved skills and counts exact names in the saved description, ignoring case. Complete-name boundaries keep Java separate from JavaScript and C from C++/C#. No AI work is started; absent mentions are not qualification gaps. Counts exclude copied requirement lists and notes.
 - `WriteResumeAction.tsx` — "Open resume" goes to `/jobs/:id/resume`. "Write resume" is disabled
   while a comparison is starting or active. A finished comparison goes straight to
   `/jobs/:id/resume/write`. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first:

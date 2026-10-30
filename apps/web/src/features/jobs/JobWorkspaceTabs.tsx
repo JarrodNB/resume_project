@@ -6,12 +6,18 @@ import { FormattedDescription } from '@/components/FormattedDescription'
 import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { StudyGuidePanel } from '@/features/study-guides/StudyGuidePanel'
 import { CollapsibleJobCard } from './JobDetailCards'
+import { SkillMatches } from './SkillMatches'
 import { useJobWorkspace } from './useJobWorkspace'
 
 /** How the career library matches this job, with gap answers. */
 export function JobFitTab() {
   const { job, comparison } = useJobWorkspace()
-  return <GapAnalysisCard jobId={job.id} comparison={comparison} gapResponses={job.gapResponses} />
+  return (
+    <div className="grid gap-4">
+      <SkillMatches description={job.description} />
+      <GapAnalysisCard jobId={job.id} comparison={comparison} gapResponses={job.gapResponses} />
+    </div>
+  )
 }
 
 /** Study guides built from this job's description. */

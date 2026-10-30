@@ -4,8 +4,9 @@
  * while users open saved jobs or move through search history.
  * The form owns editable filters until submission.
  */
+import { useSkillMatches } from '@/features/jobs/useSkillMatches'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
@@ -47,6 +48,9 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
   const setOrdering = visit.setOrdering
   const preferenceCheck = useBoardPreferenceCheck(visit)
   const reranking = useJobBoardReranking(visit)
+  const skillQuery = useSkillMatches(state.snapshot.listings.length > 0)
+  const skills = !skillQuery.loading && !skillQuery.error ? skillQuery.data?.skills ?? null : null
+  const skillsMessage = skillQuery.loading ? 'Loading saved skills…' : skillQuery.error ? "Couldn't load saved skills." : !skills?.length ? 'Add skills to your career library to see skill mentions.' : undefined
   const submittedSearch = state.snapshot.submitted
   const board = { ...state, pages: state.snapshot.pages, providerListings: state.snapshot.listings, listings: reranking.listings, nextCursor: visit.nextCursor() }
   useEffect(() => {
@@ -161,8 +165,13 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
       <ErrorAlert title="Couldn't create this job" messages={state.importErrors} />
       {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
       {hideSaved && hiddenCount > 0 && visibleCount === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Go to the next page to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
+      {visibleCount > 0 && <div className="board-skills-status">
+        {skillQuery.loading ? <p role="status">{skillsMessage}</p>
+          : skillQuery.error ? <><p role="alert">{skillsMessage}</p><Button type="button" variant="outline" onClick={() => { void skillQuery.refetch().catch(() => {}) }}>Retry saved skills</Button></>
+          : !skills?.length ? <p><Link to="/library">Add skills to your career library</Link> to see skill mentions.</p> : null}
+      </div>}
       {visibleCount > 0 && <ul aria-label="Job listings" className="board-listings">
-        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} assessment={preferenceCheck.assessments?.has(listing.id) && preferenceCheck.profile ? { ...preferenceCheck.assessments.get(listing.id)!, profile: preferenceCheck.profile } : undefined} busyId={state.busyId} errors={state.importErrors} savedHere={savedHere[listing.id]} onCreate={(id) => void visit.save(id)} />)}
+        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} skills={skills} skillsMessage={skillsMessage} assessment={preferenceCheck.assessments?.has(listing.id) && preferenceCheck.profile ? { ...preferenceCheck.assessments.get(listing.id)!, profile: preferenceCheck.profile } : undefined} busyId={state.busyId} errors={state.importErrors} savedHere={savedHere[listing.id]} onCreate={(id) => void visit.save(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {(totalPages > 1 || board.nextCursor) && <JobBoardPager page={page} totalPages={totalPages} hasMore={Boolean(board.nextCursor)} loading={board.loading} onPage={goToPage} />}

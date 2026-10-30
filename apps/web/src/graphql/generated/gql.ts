@@ -114,6 +114,7 @@ type Documents = {
     "\n  mutation ArchiveJob($id: ID!) {\n    archiveJob(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.ArchiveJobDocument,
     "\n  mutation ScrapeJob($url: String!) {\n    scrapeJob(input: { url: $url }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ScrapeJobDocument,
     "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseJobPostingDocument,
+    "\n  query SkillMatches {\n    skills {\n      id\n      name\n      position\n    }\n  }\n": typeof types.SkillMatchesDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseResumeDocument,
     "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": typeof types.ImportParsedResumeDocument,
     "\n  query TailorJob($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      resume {\n        id\n        title\n        includeSummary\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      latestTailoring {\n        id\n        status\n        acceptedAt\n        result\n        input\n        errorMessage\n      }\n    }\n  }\n": typeof types.TailorJobDocument,
@@ -231,6 +232,7 @@ const documents: Documents = {
     "\n  mutation ArchiveJob($id: ID!) {\n    archiveJob(input: { id: $id }) {\n      errors\n    }\n  }\n": types.ArchiveJobDocument,
     "\n  mutation ScrapeJob($url: String!) {\n    scrapeJob(input: { url: $url }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ScrapeJobDocument,
     "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseJobPostingDocument,
+    "\n  query SkillMatches {\n    skills {\n      id\n      name\n      position\n    }\n  }\n": types.SkillMatchesDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseResumeDocument,
     "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": types.ImportParsedResumeDocument,
     "\n  query TailorJob($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      resume {\n        id\n        title\n        includeSummary\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      latestTailoring {\n        id\n        status\n        acceptedAt\n        result\n        input\n        errorMessage\n      }\n    }\n  }\n": types.TailorJobDocument,
@@ -662,6 +664,10 @@ export function graphql(source: "\n  mutation ScrapeJob($url: String!) {\n    sc
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SkillMatches {\n    skills {\n      id\n      name\n      position\n    }\n  }\n"): (typeof documents)["\n  query SkillMatches {\n    skills {\n      id\n      name\n      position\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

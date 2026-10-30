@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
 import { JobsPage } from '@/features/jobs/JobsPage'
+import { SKILL_MATCHES_QUERY } from '@/features/jobs/skillMatchesOperations'
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 import type { MockLink } from '@apollo/client/testing'
 import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, JOB_BOARD_LOCATIONS_QUERY, JOB_BOARD_SEARCH_IDEAS_QUERY } from './jobBoardOperations'
@@ -155,7 +156,8 @@ function searchVariables(keyword = 'engineer', remoteOnly = false, cursor: strin
 }
 function renderBoard(mocks: MockLink.MockedResponse[] = []) {
   setSectionOpen('job-board:filters', true)
-  return renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }] })
+  const skillMocks = mocks.some(mock => mock.request.query === SKILL_MATCHES_QUERY) ? [] : [{ request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: [] } }, maxUsageCount: Infinity }]
+  return renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks: [...mocks, ...skillMocks], extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }] })
 }
 it('collapses filters, remembers the choice, and keeps their values and count', async () => {
   const user = userEvent.setup()
@@ -824,4 +826,78 @@ it.each([null, '', 'javascript:alert(1)', '/relative', 'https://user:secret@exam
   } else expect(preview.queryByRole('link', { name: 'View original posting' })).not.toBeInTheDocument()
   await user.click(preview.getByRole('button', { name: 'Close' }))
   expect(screen.getByRole('button', { name: 'Platform Engineer' })).toHaveFocus()
+})
+
+
+it('shows each listing’s saved-skill mentions from one shared skills read before saving', async () => {
+  const user = userEvent.setup()
+  const readSkills = vi.fn(() => ({ data: { skills: [
+    { __typename: 'Skill', id: 'python', name: 'Python', position: 0 },
+    { __typename: 'Skill', id: 'java', name: 'Java', position: 1 },
+  ] } }))
+  renderBoard([
+    queryMock(searchVariables(), page([
+      { ...listing('one', 'Python developer'), description: 'Python, PYTHON and python. JavaScript.' },
+      { ...listing('two', 'Python role'), description: 'Java and JAVA.' },
+    ])),
+    { request: { query: SKILL_MATCHES_QUERY }, result: readSkills },
+  ])
+  await search(user)
+  await screen.findByText('Python · 3 mentions')
+  const rows = screen.getAllByRole('article')
+  expect(within(rows[0]).getByText('1 of 2 saved skills mentioned')).toBeVisible()
+  expect(within(rows[1]).getByText('Java · 2 mentions')).toBeVisible()
+  expect(within(rows[1]).queryByText(/Python ·/)).not.toBeInTheDocument()
+  expect(readSkills).toHaveBeenCalledTimes(1)
+})
+
+it('keeps one skills loading/error state above usable results and retries the library read', async () => {
+  const user = userEvent.setup()
+  renderBoard([
+    queryMock(searchVariables(), page([{ ...listing('one'), description: 'Python' }, listing('two', 'Other role')])),
+    { request: { query: SKILL_MATCHES_QUERY }, error: new Error('Offline'), delay: 100 },
+    { request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: [{ __typename: 'Skill', id: 'python', name: 'Python', position: 0 }] } } },
+  ])
+  await search(user)
+  expect(await screen.findByText('Loading saved skills…')).toBeVisible()
+  expect(screen.getAllByText('Loading saved skills…')).toHaveLength(1)
+  expect(await screen.findByText("Couldn't load saved skills.")).toBeVisible()
+  expect(screen.queryByText('No saved skills mentioned')).not.toBeInTheDocument()
+  const row = screen.getAllByRole('article')[0]
+  expect(within(row).getByRole('button', { name: 'Save job' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Retry saved skills' }))
+  expect(await screen.findByText('Python · 1 mention')).toBeVisible()
+  expect(screen.getByText('No saved skills mentioned')).toBeVisible()
+})
+
+it('shows one add-library-skills link rather than zero-match claims on every listing', async () => {
+  const user = userEvent.setup()
+  renderBoard([
+    queryMock(searchVariables(), page([listing('one'), listing('two', 'Other role')])),
+    { request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: [] } } },
+  ])
+  await search(user)
+  expect(await screen.findByRole('link', { name: 'Add skills to your career library' })).toHaveAttribute('href', '/library')
+  expect(screen.getAllByRole('link', { name: 'Add skills to your career library' })).toHaveLength(1)
+  expect(screen.queryByText('No saved skills mentioned')).not.toBeInTheDocument()
+})
+
+
+it('refreshes saved skills when returning to retained board results after visiting the library', async () => {
+  const user = userEvent.setup()
+  const readListings = vi.fn(() => ({ data: { jobBoardSearch: page([{ ...listing(), description: 'Python Python Rust.' }]) } }))
+  const { router } = renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, extraRoutes: [{ path: '/library', element: <p>Library editor</p> }], mocks: [
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables() }, result: readListings },
+    { request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: [{ __typename: 'Skill', id: 'skill', name: 'Python', position: 0 }] } } },
+    { request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: [{ __typename: 'Skill', id: 'skill', name: 'Rust', position: 0 }] } } },
+  ] })
+  await search(user)
+  expect(await screen.findByText('Python · 2 mentions')).toBeVisible()
+  await act(() => router.navigate('/library'))
+  expect(screen.getByText('Library editor')).toBeVisible()
+  // The second library response represents the user's saved edit while away.
+  await act(() => router.navigate('/jobs/find?q=engineer'))
+  expect(await screen.findByText('Rust · 1 mention')).toBeVisible()
+  expect(screen.queryByText('Python · 2 mentions')).not.toBeInTheDocument()
+  expect(readListings).toHaveBeenCalledTimes(1)
 })

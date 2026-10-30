@@ -186,3 +186,22 @@
   .preference-text input, .preference-select { font-size: 16px; }
   .preference-actions > button { flex: 1 1 auto; min-height: 44px; }
 }
+
+/* Saved-skill mentions stay readable in result rows; the preview carries the full list. */
+.board-skill-summary { margin-top: 14px; min-width: 0; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.board-skill-summary > p { font-weight: 600; }
+.board-skill-summary ul { display: inline-flex; flex-wrap: wrap; gap: 4px 18px; max-width: 100%; margin-top: 4px; color: var(--muted-foreground); vertical-align: middle; }
+.board-skill-summary li { min-width: 0; overflow-wrap: anywhere; }
+.board-skill-more { min-height: 44px; margin-left: 12px; padding-inline: 4px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.board-skill-more:hover { text-decoration-thickness: 2px; }
+.board-skill-more:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.board-skills-status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 14px; color: var(--muted-foreground); }
+.board-skills-status a { text-decoration: underline; text-underline-offset: 3px; }
+.board-skills-status a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.board-skill-details { min-width: 0; font-size: 14px; line-height: 1.6; }
+.board-skill-details h3 { font-size: 18px; font-weight: 700; }
+.board-skill-details p { margin-top: 4px; color: var(--muted-foreground); }
+.board-skill-details ul { display: grid; gap: 8px; margin-top: 12px; }
+.board-skill-details li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.board-skill-details li > span { min-width: 0; overflow-wrap: anywhere; }
+.board-skill-details li > span:last-child { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }

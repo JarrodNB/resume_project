@@ -14,6 +14,7 @@ import { expect, it, vi } from 'vitest'
 import { ANALYZE_JOB_GAPS_MUTATION } from '@/features/gap-analysis/gapAnalysisOperations'
 import { renderPage } from '@/test/renderPage'
 import { JobFitTab, JobPostingTab } from './JobWorkspaceTabs'
+import { SKILL_MATCHES_QUERY } from './skillMatchesOperations'
 import { JobWorkspaceLayout } from './JobWorkspaceLayout'
 import { ARCHIVE_JOB_MUTATION, JOB_QUERY, MOVE_JOB_TO_STAGE_MUTATION, UPDATE_JOB_MUTATION } from './jobsOperations'
 
@@ -510,4 +511,16 @@ it.each([
   })
   await screen.findByRole('heading', { name: 'Engineer' })
   expect(screen.queryByText('Saved with a few changes')).not.toBeInTheDocument()
+})
+
+
+it('shows literal skill counts in Fit without a completed comparison and ignores extracted lists', async () => {
+  renderWorkspace({ mocks: [
+    jobQuery(job({ description: 'Python, PYTHON and python', requirements: ['Python', 'Python'], responsibilities: ['Python'] })),
+    { request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: [
+      { __typename: 'Skill', id: 's1', name: 'Python', position: 0 },
+    ] } } },
+  ] })
+  expect(await screen.findByText('3 mentions')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Compare with my career library' })).toBeEnabled()
 })

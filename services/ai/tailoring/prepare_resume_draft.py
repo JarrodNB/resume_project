@@ -1,13 +1,13 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job, then the union of section sources. Saved job and library fields reuse
+Screen the job and the union of section sources in one saved-record batch. Saved job and library fields reuse
 their checks without losing record identities when rendered text is shared.
 Temporary inputs stay within one enclosing execution.
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass, field, replace
 from uuid import UUID
 
 import text_limits
@@ -15,10 +15,9 @@ from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from schemas.gap_response import GapResponseSnapshot
 from schemas.model_usage import ModelUsage
-from screening.gap_response_fields import screen_gap_response_fields
 from screening.guardrail_usage import collect_guardrail_usage
-from screening.job_fields import screen_job_fields_async
-from screening.library_fields import screen_library_fields_async
+from screening.record_adapters import gap_response_records, job_records, library_records
+from screening.records import record_failure_message, screen_records
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import (
     current_session,
@@ -55,30 +54,12 @@ def _library_text_length(library: CareerLibrary) -> int:
     return total
 
 
-async def _bounded[T](items: Sequence[T], operation: Callable[[T], Awaitable[None]], limit: int) -> None:
-    """Wait for all children, including their cleanup when any child fails."""
-    semaphore = asyncio.Semaphore(limit)
-
-    async def one(item):
-        async with semaphore:
-            await operation(item)
-
-    tasks = [asyncio.create_task(one(item)) for item in items]
-    try:
-        await asyncio.gather(*tasks)
-    finally:
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-
 @dataclass
 class PreparedResumeDraft:
     """Screened section prompts and the source context needed to copy identity fields.
 
     Use inside the same screening session as preparation and generation. `summary_prompt`
-    screens newly written section snapshots before using them as additional evidence.
+    reuses generated section snapshots without screening AI output again.
     """
 
     context: GapAnalysisContext
@@ -92,60 +73,53 @@ class PreparedResumeDraft:
     _concurrency: int = field(repr=False)
     _session: object = field(default_factory=current_session, repr=False)
 
-    async def _screen(self, texts: Sequence[str], records: Sequence[SourceRecord] = ()) -> None:
-        sources_by_text: dict[str, list[SourceRecord]] = {}
+    async def _screen(self, records: Sequence[SourceRecord], *, include_job: bool = False) -> None:
+        """Check every saved identity together, even when several sources render equally."""
+        saved = []
         for source in records:
-            sources_by_text.setdefault(source.text, []).append(source)
+            if source.provenance:
+                provenance = source.provenance
+                saved.extend(library_records(provenance.library, used_fields=provenance.used_fields))
+            elif source.gap_response is not None:
+                saved.extend(gap_response_records([source.gap_response]))
+            elif source.kind == "selected_section":
+                # These snapshots come from the current draft writers, not browser edits.
+                trust_generated_source(source.text)
+                self._decisions[source.text] = ScreenOutcome(True)
+            else:
+                raise ValueError("Tailoring evidence needs saved-record or generated provenance")
+        if include_job:
+            saved.extend(job_records(self.context.job))
+        # A role also supplies the title/company attached to each highlight. Merge those
+        # overlapping projections before screening, retaining only used fields.
+        merged = {}
+        for record in saved:
+            key = (record.record_type, record.record_id) if record.record_id else (
+                record.record_type, None, tuple((name, str(value)) for name, value in record.fields.items()))
+            previous = merged.get(key)
+            if previous:
+                for name in previous.fields.keys() & record.fields.keys():
+                    if previous.fields[name] != record.fields[name]:
+                        raise ValueError("Conflicting tailoring snapshots for one saved record")
+                record = replace(previous, fields={**previous.fields, **record.fields},
+                                 approved_fields=previous.approved_fields | record.approved_fields)
+            merged[key] = record
+        texts = [source.text for source in records if source.kind != "selected_section"]
+        if include_job:
+            texts.append(job_context_text(self.context))
 
-        async def classify(text, *, max_characters=MAX_SCREENED_TEXT):
-            return await screen_user_text_async(
-                text, self._settings.user_text_screen_model,
-                remaining_timeout(self._settings.llm_run_timeout_seconds),
-                check_phrases=True, classify=screen_user_message_async,
-                max_characters=max_characters,
-            )
+        async def classify(text):
+            return await screen_user_text_async(text, self._settings.user_text_screen_model,
+                remaining_timeout(self._settings.llm_run_timeout_seconds), check_phrases=False,
+                classify=screen_user_message_async)
 
-        async def check(text):
-            saved = [source for source in sources_by_text.get(text, []) if source.provenance]
-            if saved:
-                # Rendered equality does not prove that every saved field was checked.
-                # Visit all provenance even for cached text; field screening reuses
-                # exact payload decisions while recording each covered row's identity.
-                for source in saved:
-                    provenance = source.provenance
-                    # The saved plain text passed the aggregate cap before preparation.
-                    # Field names and JSON escaping may make its screening envelope longer.
-                    async def classify_library(payload):
-                        return await classify(payload, max_characters=max(MAX_SCREENED_TEXT, len(payload)))
-
-                    outcome = await screen_library_fields_async(
-                        provenance.library, classify_library,
-                        used_fields=provenance.used_fields, approved_sources=[text])
-                    if outcome is True:
-                        outcome = ScreenOutcome(True)
-                    if text not in self._decisions or self._decisions[text].allowed:
-                        self._decisions[text] = outcome
-            elif text not in self._decisions:
-                self._decisions[text] = (ScreenOutcome(False, too_long=True)
-                                         if len(text) > MAX_SCREENED_TEXT else await classify(text))
-
-        # Shared screening records both classifiers immediately, including completed
-        # chunks before a later block or cancellation. Cached decisions add no charge.
         with collect_guardrail_usage(self._usage):
-            unique = list(dict.fromkeys(texts))
-            gap_sources = [(source.gap_response, source.text) for source in records
-                           if source.gap_response is not None]
-            gap_outcomes = await screen_gap_response_fields(gap_sources, classify)
-            for text, outcome in gap_outcomes.items():
-                if text not in self._decisions or self._decisions[text].allowed:
-                    self._decisions[text] = outcome
-            # Highlights also contain their role's identity. Finish role checks first
-            # so highlights reuse those fields rather than paying to check them twice.
-            highlights = [text for text in unique
-                          if any(source.kind == "highlight" for source in sources_by_text.get(text, []))]
-            await _bounded([text for text in unique if text not in highlights],
-                           check, self._concurrency)
-            await _bounded(highlights, check, self._concurrency)
+            outcome = await screen_records(list(merged.values()), approved_sources=texts, screen=classify)
+        for text in texts:
+            self._decisions[text] = outcome.decision
+        if include_job and not outcome.allowed:
+            # The required job shares this batch: a failed blob rejects the entire call.
+            raise ResumePreparationError(record_failure_message(outcome))
 
     def _prompt(self, section_type, selected_sections, selected_labels=None):
         return build_section_prompt(
@@ -169,7 +143,7 @@ class PreparedResumeDraft:
         sources = label_sources(self.context, self._gap_responses, selected_sections)
         records = [record for label, record in sources.records.items()
                    if selected_labels is None or label in selected_labels or record.kind == "selected_section"]
-        await self._screen([record.text for record in records], records)
+        await self._screen(records)
         return self._prompt("summary", selected_sections, selected_labels)
 
 
@@ -204,28 +178,13 @@ async def prepare_resume_draft(
             if len(job_text) > MAX_SCREENED_TEXT:
                 raise ResumePreparationError("The job context could not be screened. Please try again.")
 
-            async def classify_job(text):
-                return await screen_user_text_async(text, settings.user_text_screen_model,
-                    remaining_timeout(settings.llm_run_timeout_seconds), check_phrases=True,
-                    classify=screen_user_message_async)
-
-            with collect_guardrail_usage(usage):
-                outcome = await screen_job_fields_async(context.job, classify_job, approved_sources=[job_text])
-            prepared._decisions[job_text] = ScreenOutcome(True) if outcome is True else outcome
-            if not prepared._decisions[job_text].allowed:
-                raise ResumePreparationError("The job context could not be screened. Please try again.")
             sections = ["summary"]
             for section, rows in (("experience", context.career_library.experiences),
                                   ("projects", context.career_library.projects),
                                   ("skills", context.career_library.skills)):
                 if rows:
                     sections.append(section)
-            texts = [job_text]
-            records = []
-            for section in sections:
-                sources = label_sources(context, prepared._gap_responses, [])
-                texts.extend(record.text for record in sources.records.values())
-                records.extend(sources.records.values())
-            await prepared._screen(texts, records)
+            sources = label_sources(context, prepared._gap_responses, [])
+            await prepared._screen(list(sources.records.values()), include_job=True)
             prepared.prompts = {section: prepared._prompt(section, []) for section in sections}
             return prepared

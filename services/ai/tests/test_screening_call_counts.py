@@ -40,7 +40,7 @@ pytestmark = pytest.mark.real_guardrail
 
 # Today's classifier call counts on a fresh library. Each target is what the plan expects
 # after the step named in the comment.
-TAILORING_CALLS_TODAY = 37  # 20 skills + 5 roles + 10 highlights + summary + job; target after step 4: 1 library/job/gap batch
+TAILORING_CALLS_TODAY = 1  # job, used library fields and gap answers share one batch
 GAP_ANALYSIS_CALLS_TODAY = 1  # job and library share one batch after step 5
 SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 6 starts reporting its approvals
 JOB_PREFERENCE_CALLS_TODAY = 6  # target after step 7: 1 criteria+listings batch
@@ -145,12 +145,10 @@ def run_like_the_worker(task, dependencies):
     """
     with screening_session(dependencies.settings.llm_run_timeout_seconds) as session:
         result = handle_ai_task(task, dependencies)
-        # Both transports coexist until tailoring and the other legacy callers move.
-        approvals = list(session.library_screening)
-        approvals.extend(SimpleNamespace(record_type=receipt.record_type, record_id=receipt.record_id,
+        approvals = [SimpleNamespace(record_type=receipt.record_type, record_id=receipt.record_id,
                                          fields=list(receipt.fingerprints))
                          for receipt in session.record_screening
-                         if receipt.record_type not in {"job", "gap_response", "interview_question"})
+                         if receipt.record_type not in {"job", "gap_response", "interview_question"}]
         return result, approvals
 
 
@@ -168,14 +166,14 @@ def run_gap_analysis(dependencies, context):
         return run_like_the_worker(build_analyze_gaps_task(), dependencies)
 
 
-def test_tailoring_screens_a_fresh_library_per_record(task_dependencies, classifier_calls):
+def test_tailoring_screens_a_fresh_library_in_one_batch(task_dependencies, classifier_calls):
     context = fresh_context()
     result, approvals = run_tailoring(task_dependencies, context)
     assert result.status == "completed", result.error_message
     assert approvals  # approvals are reported for Rails to save
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == TAILORING_CALLS_TODAY
-    assert len(library_calls(classifier_calls)) == TAILORING_CALLS_TODAY - 2  # all but the job and summary
+    assert len(library_calls(classifier_calls)) == 1  # library and job share one batch
 
     # Second run with the reported approvals applied: the library is free, the job is not.
     apply_library_approvals(context.career_library, approvals)

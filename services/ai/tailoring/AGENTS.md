@@ -38,8 +38,8 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
   carry typed saved snapshots; reuse requirement/body approvals, group pending fields and
   report every saved ID with exact fingerprints even for equal text. Legacy no-ID snapshots
   stay unchecked without persistence. Keep full-source/group limits for approved inputs;
-  omit the whole pending group if
-  blocked. The completed worker-produced gap analysis is validated, included in full,
+  screen job, library and gap answers together in one `screen_records` call. A blocked
+  batch stops the workflow because the job is required. No partial receipts are recorded. The completed worker-produced gap analysis is validated, included in full,
   and trusted for this execution without another classifier call. The job must pass
   before section prompts use it. Bind the exact rendered prompt to those approvals; direct
   unknown writer prompts retain the capability guard.

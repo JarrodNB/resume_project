@@ -222,13 +222,20 @@ def _present_fields(record):
 def _pending_fields(record):
     values = _present_fields(record)
     checked = set(record.approved_fields)
-    if record.record_id and (session := current_session()) is not None:
+    if (session := current_session()) is not None:
+        checked.update(name for name, value in values.items()
+                       if _field_key(record, name, value) in session.record_checks)
         for receipt in session.record_screening:
             if (receipt.record_type == record.record_type and receipt.record_id == record.record_id
                     and receipt.revision == dict(record.revision)):
                 checked.update(name for name, value in values.items()
                                if receipt.fingerprints.get(name) == field_fingerprint(value))
     return {name: value for name, value in values.items() if name not in checked}
+
+
+def _field_key(record, name, value):
+    return (record.record_type, record.record_id, tuple(sorted(record.revision.items())),
+            name, field_fingerprint(value))
 
 
 def _render_entry(number, fields):
@@ -245,6 +252,7 @@ def _finish(pending, outcomes, approved_sources, *, keep_usage):
         return RecordScreeningOutcome(decision, (), pending_records)
     if (session := current_session()) is not None:
         for record, fields in pending:
+            session.record_checks.update(_field_key(record, name, value) for name, value in fields.items())
             if record.record_id:
                 session.record_screening.append(RecordScreening(
                     record_type=record.record_type, record_id=record.record_id,

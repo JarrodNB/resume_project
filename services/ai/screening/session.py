@@ -32,6 +32,7 @@ class ScreeningSession:
     gap_response_screening: list[Any] = field(default_factory=list)
     interview_question_screening: list[Any] = field(default_factory=list)
     record_screening: list[Any] = field(default_factory=list)
+    record_checks: set[tuple] = field(default_factory=set)
 
 
 _current: ContextVar[ScreeningSession | None] = ContextVar("screening_session", default=None)

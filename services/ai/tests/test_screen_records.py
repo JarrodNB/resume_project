@@ -15,7 +15,7 @@ from privacy.known_contact import KnownContact
 from schemas.model_usage import ModelUsage
 from schemas.user_text_fallback import UserTextFallbackScreen
 from schemas.user_text_screen import UserTextScreen
-from screening import job_fields, records
+from screening import records
 from screening.conversation import screen_with_operation_models
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.records import (
@@ -92,8 +92,8 @@ def test_many_pending_records_share_one_call_and_get_receipts(monkeypatch, async
         assert len(session.record_screening) == 21
         first = session.record_screening[0]
         assert (first.record_type, first.record_id) == ("experience", "role-1")
-        assert first.fingerprints == {"title": job_fields.field_fingerprint("Engineer"),
-                                      "description": job_fields.field_fingerprint("Built things")}
+        assert first.fingerprints == {"title": field_fingerprint("Engineer"),
+                                      "description": field_fingerprint("Built things")}
         assert "exact source" in session.allowed_sources
     screened = classifier.texts[0]
     assert "Acme" not in screened
@@ -247,9 +247,12 @@ def test_legacy_records_without_ids_are_screened_but_not_reported(monkeypatch):
         assert not session.record_screening
 
 
-def test_fingerprint_matches_the_existing_job_contract():
-    for value in ("Engineer", ["Python", "SQL"], "café \"quoted\" <b>"):
-        assert field_fingerprint(value) == job_fields.field_fingerprint(value)
+def test_fingerprint_matches_shared_ruby_json_vectors():
+    import json
+    from pathlib import Path
+    vectors = json.loads((Path(__file__).parent / "fixtures" / "job_field_fingerprints.json").read_text())
+    for vector in vectors:
+        assert field_fingerprint(vector["value"]) == vector["sha256"]
 
 
 def test_unknown_record_types_are_rejected():

@@ -82,7 +82,9 @@ test support. See docs/architecture/interview-sessions.md.
   and trusted builders bind exact assembled prompts to approved sources. Spoken answer
   turns are an explicit user-authorized exception: no injection classifier runs; exact
   input integrity, context limits, contact replacement and accounting remain. A missing
-  `TYPESAFE_API_KEY` prevents Jev calls. Read `screening/AGENTS.md` before changing what
+  `TYPESAFE_API_KEY` prevents Jev calls. Job study-guide generation is a scoped exception:
+  it uses bounded frozen source text without injection classification or source approvals.
+  Read `screening/AGENTS.md` before changing what
   enters any prompt: it owns the rules, persisted approvals and scoped exceptions
   (scraped ads, chat, spoken interviews).
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:

@@ -60,6 +60,8 @@ instructions from `prompts/`.
   Keep existing structured-output validators. Both safety classifiers are exempt to prevent recursion.
   The scraped-ad parser instead uses a source-only guard under its explicit limited exception;
   do not widen that exception to history, tools, pasted ads or downstream job consumers.
+- Study-guide generation uses a bounded-text guard without injection classification,
+  while retaining output validation and usage limits. It grants no source approvals.
 - Every agent also declares `ConversationLogging()` to observe validation feedback and
   exhaustion. Logging owns its state and presentation; agents keep their validation policy.
 - Create agents with `defer_model_check=True` and pass the model per run (from

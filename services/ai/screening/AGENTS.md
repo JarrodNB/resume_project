@@ -98,6 +98,11 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Scoped Exceptions
 
+- Job study-guide generation uses bounded frozen descriptions and prior generated questions
+  without injection classification. Its input guard enforces text bounds only. It reads no
+  career library, exposes no action tools, retains output validation/accounting/contact
+  replacement, and grants no source approvals. Other uses of saved job data still screen.
+
 - Scraped-ad parsing (`agents/parse_scraped_job_posting_agent.py`) uses a source-boundary
   and size guard instead of injection classification, authorized after a synthetic injection
   evaluation. It accepts one selected ad, no history, action tools or private context, keeps

@@ -131,7 +131,10 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
         {preferenceCheck.completed && <p role="status">Loaded roles checked against your confirmed preferences.</p>}
         {preferenceCheck.stale && <p role="status">These results or confirmed preferences changed. Check these results again for a current assessment.</p>}
         {preferenceCheck.limitReached && <p role="status">Preference checks support up to 100 loaded roles. Narrow your search before checking.</p>}
-        {preferenceCheck.disconnected && <p role="status">Preference check updates disconnected. Reconnect or check again to recover the result.</p>}
+        {preferenceCheck.disconnected && <div className="grid gap-3">
+          <p role="status">Preference check updates disconnected. Reconnect to recover the result.</p>
+          <Button type="button" variant="outline" className="justify-self-start" onClick={preferenceCheck.reconnect}>Reconnect preference updates</Button>
+        </div>}
         <ErrorAlert title="Couldn't check preferences" messages={preferenceCheck.error ? [preferenceCheck.error] : []} />
       </div>}
       {submittedSearch && <JobBoardAppliedFilters search={submittedSearch} onSearch={submitSearch} />}

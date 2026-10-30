@@ -112,8 +112,8 @@ check, receive and read actions, with the same snapshot/revision fences. The Rea
 `useJobBoardVisit` hook selects and subscribes to retained visits, while
 `useJobBoardReranking` connects the current queued task to live updates;
 `useBoardPreferenceCheck` observes confirmed revisions and connects the preference task;
-both hooks handle disconnected subscriptions. A disconnected career-ranking subscription
-offers an explicit reconnect to its existing queued task without creating another ranking. The page owns URL navigation, drafts and
+both hooks handle disconnected subscriptions. Disconnected career-ranking and preference-check subscriptions
+offer an explicit reconnect to their existing queued task without creating another paid task. The page owns URL navigation, drafts and
 scroll effects. It submits a form snapshot, then reads submitted context and displayed
 listings together. Each submission or
 accepted provider page creates a new snapshot identity, including refreshes with

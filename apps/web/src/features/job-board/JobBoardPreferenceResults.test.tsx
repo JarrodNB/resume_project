@@ -270,3 +270,30 @@ it.each([['COMPLETED', '/jobs/saved'], ['QUEUED', '/jobs/saved'], ['QUEUED', '/j
   expect(screen.getByRole('button', { name: 'Check these results' })).toBeDisabled()
   expect(checked).toHaveBeenCalledOnce()
 })
+
+it('reconnects a disconnected preference subscription without enabling another paid check', async () => {
+  const user = userEvent.setup()
+  const started = vi.fn(() => ({ data: { checkJobBoardPreferenceResults: { __typename: 'CheckPreferenceResultsPayload', errors: [], aiTask: {
+    __typename: 'AiTask', id: 'batch-1', status: 'QUEUED', result: null, errorMessage: null,
+  } } } }))
+  const resumed = vi.fn(() => ({ data: { aiTaskUpdated: {
+    __typename: 'AiTask', id: 'batch-1', status: 'COMPLETED', result: result(), errorMessage: null,
+  } } }))
+  renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks: [
+    search(), preferences(), check(undefined, { result: started }),
+    { request: { query: JOB_PREFERENCE_CHECK_SUBSCRIPTION, variables: { id: 'batch-1' } }, error: new Error('Connection interrupted') },
+    { request: { query: JOB_PREFERENCE_CHECK_SUBSCRIPTION, variables: { id: 'batch-1' } }, result: resumed },
+  ] })
+  await submit(user)
+  await screen.findByRole('heading', { name: 'conflict role' })
+  await user.click(screen.getByRole('button', { name: 'Check these results' }))
+  await screen.findByText(/Preference check updates disconnected/)
+  expect(screen.getByRole('button', { name: 'Check these results' })).toBeDisabled()
+  expect(titles()).toEqual(['conflict role', 'unknown role', 'match role', 'tie role'])
+  await user.click(screen.getByRole('button', { name: 'Reconnect preference updates' }))
+  await screen.findByText('Loaded roles checked against your confirmed preferences.')
+  expect(titles()).toEqual(['match role', 'tie role', 'unknown role', 'conflict role'])
+  expect(screen.getByRole('button', { name: 'Check these results' })).toBeDisabled()
+  expect(started).toHaveBeenCalledOnce()
+  expect(resumed).toHaveBeenCalledOnce()
+})

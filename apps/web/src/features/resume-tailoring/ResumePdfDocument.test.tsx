@@ -4,6 +4,7 @@ import { expect, it, vi } from 'vitest'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { generateResumePdf } from './resumeDownload'
 import { buildResumePdfModel } from './resumePdfModel'
+import { inspectPdfLayout, readPdfGeometry } from './pdfLayoutTestSupport'
 
 vi.stubGlobal('localStorage', { clear() {} })
 
@@ -82,4 +83,44 @@ it('leaves retained excluded summary text out of the actual PDF', async () => {
     expect(text).not.toContain('Retained private summary.')
     expect(text).not.toContain('SUMMARY')
   } finally { await loading.destroy() }
+})
+
+// Sweep near page boundaries so minPresenceAhead is exercised rather than merely
+// checking a short document that could never strand a heading.
+it('keeps section and wrapped entry headings with their details near page breaks', async () => {
+  for (const count of [30, 32, 34, 36, 38, 40, 42]) {
+    const model = buildResumePdfModel([
+      { sectionType: 'contact', title: 'Contact', content: { full_name: 'Zoë García', links: [{ label: 'Portfolio', url: 'https://example.test/portfolio' }] } },
+      { sectionType: 'experience', title: 'Experience', content: { items: [{ title: 'Engineer', company: 'Acme', highlights: Array.from({ length: count }, (_, index) => `Delivered improvement ${index} for colleagues.`) }] } },
+      { sectionType: 'projects', title: 'Projects', content: { items: [{ name: 'Distributed systems migration and infrastructure modernization for a very long international employer name spanning regional platforms and cross-functional service teams', role: 'Technical lead', description: 'Coordinated the migration with colleagues and documented the rollout.', highlights: ['Kept the deployment process understandable.'] }] } },
+      { sectionType: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby' }, { name: 'Python' }] } },
+    ])
+    const blob = await generateResumePdf(model)
+    const pages = await readPdfGeometry(blob)
+    expect(pages.flatMap((page) => page.lines).some((line) => line.text.includes(model.blocks[1].entries[0].heading))).toBe(false)
+    const findings = inspectPdfLayout(pages, [
+      ...model.blocks.map((block) => ({ text: block.title.toUpperCase(), kind: 'section' as const })),
+      ...model.blocks.flatMap((block) => block.entries.filter((entry) => entry.meta || entry.body || entry.bullets.length)
+        .map((entry) => ({ text: entry.heading, kind: 'entry' as const }))),
+    ])
+    expect(findings.filter((finding) => finding.severity === 'error' || finding.kind === 'internal-gap' || finding.kind === 'early-ending'), `bullet count ${count}`).toEqual([])
+    const exportedText = pages.flatMap((page) => page.lines).map((line) => line.text).join(' ')
+    expect(exportedText).toContain('Zoë García')
+    for (const block of model.blocks) {
+      expect(exportedText).toContain(block.title.toUpperCase())
+      for (const entry of block.entries) {
+        expect(exportedText).toContain(entry.heading)
+        if (entry.meta) expect(exportedText).toContain(entry.meta)
+        if (entry.body) expect(exportedText).toContain(entry.body)
+        for (const bullet of entry.bullets) expect(exportedText).toContain(bullet)
+      }
+    }
+  }
+})
+
+it('accepts a sparse skills-only export without a thin-page warning', async () => {
+  const model = buildResumePdfModel([{ sectionType: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby' }] } }])
+  const pages = await readPdfGeometry(await generateResumePdf(model))
+  expect(pages).toHaveLength(1)
+  expect(inspectPdfLayout(pages, [{ text: 'SKILLS', kind: 'section' }])).toEqual([])
 })

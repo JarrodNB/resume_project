@@ -144,6 +144,7 @@ module Screening
       receipt["fingerprints"].filter_map do |field, fingerprint|
         next unless entry[:fields].include?(field) && fingerprint.is_a?(String) && fingerprint.match?(FINGERPRINT_FORMAT)
         next unless fingerprint == self.class.field_fingerprint(record[field])
+        next if scope[:fingerprints] && scope[:fingerprints].dig(record.id, field) != fingerprint
         next if snapshot && !(snapshot[field].is_a?(String) && fingerprint == self.class.field_fingerprint(snapshot[field]))
         next if entry[:check] && !send(entry[:check], scope: scope, record: record, snapshot: snapshot, receipt: receipt, field: field)
 
@@ -213,7 +214,10 @@ module Screening
       else @user.public_send(record_type.pluralize)
       end
       scope = { records: records }
-      if task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type)
+      if task_for_user? && @ai_task.review_library_section? && @ai_task.input["command_version"] == 1
+        values = Array(@ai_task.input["field_fingerprints"]).select { |item| item.is_a?(Hash) && item["record_type"] == record_type }
+        scope[:fingerprints] = values.to_h { |item| [ item["record_id"], item["fingerprints"] ] }
+      elsif task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type)
         library = @ai_task.input.fetch("library", {})
         values = case record_type
         when "user" then [ { "id" => library["summary_record_id"], "summary" => library["summary"] } ]

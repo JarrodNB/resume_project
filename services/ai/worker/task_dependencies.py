@@ -17,6 +17,7 @@ import httpx
 
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from schemas.summary_generation import SummaryCommand, SummaryGenerationInput
+from schemas.library_review import LibraryReviewInput
 from worker.product_name import USER_AGENT
 from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings
@@ -44,6 +45,7 @@ class TaskDependencies:
     read_task_command: Callable[[AiTaskMessage], AiTaskMessage | None] | None = None
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
     read_summary_sources: Callable[[UUID, SummaryCommand], SummaryGenerationInput | None] | None = None
+    read_library_review: Callable[[UUID, str], LibraryReviewInput] | None = None
     score_job_listings: Callable[[UUID, Sequence[tuple[str, list[float]]], str], list[tuple[str, float]]] | None = None
 
 

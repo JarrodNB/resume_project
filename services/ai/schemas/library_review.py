@@ -17,8 +17,27 @@ class LibraryReviewTarget(BaseModel):
     source_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class LibraryReviewFieldFingerprints(BaseModel):
+    """Bounded field hashes used by Rails to accept exact source-screening receipts."""
+
+    model_config = {"extra": "forbid"}
+    record_type: Literal["experience", "experience_highlight", "user", "project", "career_context"]
+    record_id: str
+    fingerprints: dict[str, Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]]
+
+
+class LibraryReviewCommand(BaseModel):
+    """Durable identities and digests only; source data is read at execution time."""
+
+    model_config = {"extra": "forbid"}
+    command_version: Literal[1]
+    section: Literal["experience", "summary", "projects", "career_contexts"]
+    targets: list[LibraryReviewTarget] = Field(min_length=1, max_length=250)
+    field_fingerprints: list[LibraryReviewFieldFingerprints] = Field(default_factory=list, max_length=500)
+
+
 class LibraryReviewInput(BaseModel):
-    """An immutable, Rails-owned snapshot of only the requested library section."""
+    """Execution-local selected source projection, also used by offline evaluation fixtures."""
 
     section: Literal["experience", "summary", "projects", "career_contexts"]
     library: CareerLibrary

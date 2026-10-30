@@ -1,5 +1,6 @@
-# Captures only the selected section for an AI review. Digests tie each grade to its record
-# context, so edits or moving a highlight cannot leave an old grade looking current.
+# Builds a temporary selected-section projection for review admission and currentness.
+# Reviews persist only identities and digests; legacy individual edits still use this helper
+# until their separate migration. Context digests stale grades after edits or moved highlights.
 module CareerLibrary
   class ReviewSnapshot
     SECTIONS = %w[experience summary projects career_contexts].freeze

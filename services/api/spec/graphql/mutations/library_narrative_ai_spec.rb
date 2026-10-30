@@ -51,7 +51,8 @@ RSpec.describe "Career library narrative AI targets" do
       input = payload.dig("aiTask", "input")
       kind, record, field = target(section)
       expect(input["targets"].map { |item| item.values_at("kind", "record_id", "field") }).to eq([[kind, record.id, field]])
-      expect(input["library"].keys).to match_array(section == "summary" ? %w[summary_record_id summary screened_fields] : [section])
+      expect(input).not_to have_key("library")
+      expect(input["command_version"]).to eq(1)
       expect(input.to_json).not_to include("contact_email", "credential_id", "experiences")
     end
 

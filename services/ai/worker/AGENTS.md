@@ -122,7 +122,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 
 - `library_review_handler.py` — screens only unchecked fields of a Rails-owned selected-section
-  snapshot (Summary, Experience, Projects, or Career context), renders plain labeled records, maps assessment labels back to target identities,
+  section (Summary, Experience, Projects, or Career context) read directly through
+  `database/library_review_reader.py`. Reference commands contain IDs and digests only;
+  changed sources fail before model work. It renders plain labeled records, maps assessment labels back to target identities,
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
 - `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals

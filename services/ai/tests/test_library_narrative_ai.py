@@ -6,6 +6,7 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from screening.screen_user_text import ScreenOutcome
+from tests.test_library_review_handler import handle_loaded_review
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -52,7 +53,7 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Clarify the specific contribution."},
     ]})):
-        reviewed = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
+        reviewed = handle_loaded_review(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
             task_type="review_library_section", input=payload), task_dependencies)
     assert reviewed.status == "completed"
     assert reviewed.result["assessments"][0]["record_id"] == payload["target"]["record_id"]
@@ -71,5 +72,5 @@ def test_other_sections_cannot_hitchhike_into_narrative_review(section, task_dep
     payload = narrative_input(section)
     payload["library"]["skills"] = [{"id": "skill-1", "name": "Unrelated text"}]
     with pytest.raises(ValueError, match="selected section"):
-        handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
+        handle_loaded_review(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
             task_type="review_library_section", input=payload), task_dependencies)

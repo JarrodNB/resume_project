@@ -1,4 +1,4 @@
-# Validates grades and optional questions against the exact owned task snapshot. Output may describe
+# Validates grades and optional questions against the exact owned target manifest. Output may describe
 # targets, but it cannot introduce target identities or write career facts.
 module CareerLibrary
   class ApplyReviewService < ApplicationService
@@ -24,7 +24,9 @@ module CareerLibrary
     end
 
     def call
-      targets = Array(@task.input["targets"])
+      targets = @task.input["targets"]
+      return failure([ "The review has no valid target manifest. Please start a new review." ]) unless targets.is_a?(Array) && targets.any? &&
+        targets.length <= ReviewSnapshot::MAX_TARGETS && targets.all? { |target| target.is_a?(Hash) }
       items = @result.is_a?(Hash) ? @result["assessments"] : nil
       return failure([ "The review did not cover the requested entries. Please try again." ]) unless items.is_a?(Array) && items.length == targets.length
 

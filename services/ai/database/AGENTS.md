@@ -46,6 +46,10 @@ Credential dates retain `year`, `month`, or `day` precision. Exact expiration wi
 definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
+- `library_review_reader.py` reads only the requested owned section and its owned highlights,
+  computing labels/context digests in one read transaction. Digests match Rails admission,
+  including dates, nulls and HTML escaping. No source data is persisted in review commands.
+
 - `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped snapshots; gap analysis shares the same row reader.
 
 - `job_listing_similarity.py` — one read-only lateral query averages each listing vector’s

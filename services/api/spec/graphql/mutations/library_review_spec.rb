@@ -24,8 +24,9 @@ RSpec.describe "Career library section review" do
     expect(payload["errors"]).to eq([])
     expect(payload["aiTask"]["status"]).to eq("QUEUED")
     input = payload["aiTask"]["input"]
-    expect(input["library"].keys).to eq(["experiences"])
-    expect(input["library"]["experiences"].map { |record| record["id"] }).to eq([role.id])
+    expect(input).not_to have_key("library")
+    expect(input.to_json).not_to include("Built services", "Helped migrate services")
+    expect(input["command_version"]).to eq(1)
     expect(input["targets"].map { |target| target["record_id"] }).to eq([role.id, highlight.id])
     expect(start_review["aiTask"]["id"]).to eq(payload["aiTask"]["id"])
     expect(queue).to have_received(:send_message).once
@@ -37,7 +38,7 @@ RSpec.describe "Career library review results" do
   let!(:role) { create(:experience, user: user, description: "Built services") }
   let!(:highlight) { create(:experience_highlight, experience: role, content: "Helped migrate services") }
   let(:snapshot) { CareerLibrary::ReviewSnapshot.build(user: user, section: "experience") }
-  let(:task) { create(:ai_task, user: user, task_type: "review_library_section", input: snapshot) }
+  let(:task) { create(:ai_task, user: user, task_type: "review_library_section", input: CareerLibrary::ReviewCommand.from_projection(snapshot)) }
 
   def result_for(task, color = "yellow")
     { "assessments" => task.input["targets"].map { |target| target.except("label").merge("color" => color, "reason" => "Explain your contribution.") } }
@@ -150,9 +151,31 @@ RSpec.describe "Career library review results" do
     end
   end
 
+  it "rejects results without a target manifest" do
+    task.update!(input: { "command_version" => 1, "section" => "experience" })
+    apply(task, { "assessments" => [] })
+    expect(task.reload.status).to eq("failed")
+    expect(task.result).to be_nil
+  end
+
+  it "does not approve foreign or unselected records from a review receipt" do
+    project = create(:project, user: user)
+    foreign = create(:experience_highlight)
+    reports = [ [ "project", project, "description" ], [ "experience_highlight", foreign, "content" ] ].map do |kind, record, field|
+      { "record_type" => kind, "record_id" => record.id,
+        "fingerprints" => { field => Screening::RecordApprovalsService.field_fingerprint(record[field]) } }
+    end
+    AiTasks::ApplyAiResultService.call(message: {
+      "ai_task_id" => task.id, "status" => "completed", "result" => result_for(task), "record_screening" => reports
+    })
+    expect(task.reload.status).to eq("completed")
+    expect(project.reload.screened_fields).to eq([])
+    expect(foreign.reload.screened_fields).to eq([])
+  end
+
   it "keeps the more recently requested grades when an older request finishes late" do
     older = task
-    newer = create(:ai_task, user: user, task_type: "review_library_section", input: snapshot, created_at: 1.minute.from_now)
+    newer = create(:ai_task, user: user, task_type: "review_library_section", input: CareerLibrary::ReviewCommand.from_projection(snapshot), created_at: 1.minute.from_now)
     apply(newer, result_for(newer, "green"))
     apply(older, result_for(older, "red"))
     expect(state["aiTask"]["id"]).to eq(newer.id)

@@ -1,0 +1,48 @@
+{
+  "user_id": "41bdefe2-62b4-470e-9c6d-aaa08db672c8",
+  "targets": {
+    "experience": [
+      {
+        "kind": "experience",
+        "record_id": "a99751c2-3a34-4a8e-81ef-68e14782a255",
+        "field": "description",
+        "source_digest": "19ea2ef1a7f172f4dcb535da1b2f981b36c5e8dc1cb52643825c230300b6958b",
+        "label": "T1"
+      },
+      {
+        "kind": "experience_highlight",
+        "record_id": "63db5c48-2771-4163-8ddf-e683ab89cf5a",
+        "field": "content",
+        "source_digest": "19ea2ef1a7f172f4dcb535da1b2f981b36c5e8dc1cb52643825c230300b6958b",
+        "label": "T2"
+      }
+    ],
+    "summary": [
+      {
+        "kind": "user",
+        "record_id": "41bdefe2-62b4-470e-9c6d-aaa08db672c8",
+        "field": "summary",
+        "source_digest": "43656ed10ff0acc5d1fba785590f35f8445e9876e37c40036708de5cec7252e7",
+        "label": "T1"
+      }
+    ],
+    "projects": [
+      {
+        "kind": "project",
+        "record_id": "f6e9c709-ad68-4582-be87-08d1f4aeed4d",
+        "field": "description",
+        "source_digest": "60ba7bc9e160ad2d53445a0936325096388e16ec7c9ad45509f73d07d2d7ab33",
+        "label": "T1"
+      }
+    ],
+    "career_contexts": [
+      {
+        "kind": "career_context",
+        "record_id": "4ff17910-99e7-44ea-93b2-46e1c5b3d930",
+        "field": "response",
+        "source_digest": "1fa8628ff628e175eff450af80c713d85b16bf9c0286d15b51352ed02264dfc0",
+        "label": "T1"
+      }
+    ]
+  }
+}

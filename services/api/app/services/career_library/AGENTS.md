@@ -51,8 +51,11 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Section review
 
-- `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Career context section
-  with per-record context digests. Only narrative fields become targets.
+- `ReviewSnapshot` builds a temporary projection of the requested Summary, Experience, Projects,
+  or Career context section. `ReviewCommand` keeps only section, target IDs/context digests and
+  per-field fingerprints on review tasks. Python reads the selected owned section directly and
+  rejects changed target digests before generation. Only narrative fields become targets.
+  The projection helper remains temporarily shared with individual editing pending its migration.
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
   returns its last completed individual grades and optional enrichment questions with
   current/stale state. Results stay on `AiTask`.
@@ -65,7 +68,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   questions (at most 500 characters each), normalizing old scalar/questionless results and preserving
   the scalar first question for older clients. `questions_for` is the shared validation/read seam.
   It records screening approvals only
-  while the source field still matches the queued snapshot under its record lock.
+  while the source field matches both the queued field fingerprint and its current value
+  under its record lock. Foreign and unselected record receipts cannot earn coverage.
 
 ## Individual editing
 

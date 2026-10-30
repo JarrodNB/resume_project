@@ -214,24 +214,158 @@ def test_turn_keeps_recent_whole_dialogue_groups_under_exact_budget(admin_connec
     claim, _ = seed(admin_connection)
     session = claim.payload.interview_id
     questions = [
-        _insert(admin_connection, 'interview_session_questions', interview_session_id=session,
-            position=index, content=title)
-        for index, title in enumerate(['Old?', 'Recent?', 'Current?'])
+        _insert(
+            admin_connection,
+            "interview_session_questions",
+            interview_session_id=session,
+            position=index,
+            content=title,
+        )
+        for index, title in enumerate(["Old?", "Recent?", "Current?"])
     ]
-    for index, (question, title, answer) in enumerate([
-        (questions[0], 'Old?', 'x' * 12000),
-        (questions[1], 'Recent?', 'y' * (12000 - len('Recent?'))),
-    ]):
-        _insert(admin_connection, 'interview_session_messages', interview_session_id=session,
-            question_id=question, position=index * 2, kind='opening', content=title, semantic_key=f'opening-{index}')
-        _insert(admin_connection, 'interview_session_messages', interview_session_id=session,
-            question_id=question, position=index * 2 + 1, kind='answer', content=answer, semantic_key=f'answer-{index}')
-    _insert(admin_connection, 'interview_session_messages', interview_session_id=session,
-        question_id=questions[2], position=4, kind='opening', content='Current?', semantic_key='current')
-    admin_connection.execute("UPDATE interview_sessions SET status='active', current_question_position=2 WHERE id=%s", (session,))
-    admin_connection.execute("UPDATE interview_session_operations SET kind='turn', question_id=%s, expected_revision=0, submission_key='bounded', request_fingerprint='fingerprint', transcription_mode='typed', candidate_transcript='Current answer' WHERE id=%s", (questions[2], claim.operation_id))
-    result = read_as_reader(admin_connection, claim.model_copy(update={'kind': 'turn'}))
+    for index, (question, title, answer) in enumerate(
+        [
+            (questions[0], "Old?", "x" * 12000),
+            (questions[1], "Recent?", "y" * (12000 - len("Recent?"))),
+        ]
+    ):
+        _insert(
+            admin_connection,
+            "interview_session_messages",
+            interview_session_id=session,
+            question_id=question,
+            position=index * 2,
+            kind="opening",
+            content=title,
+            semantic_key=f"opening-{index}",
+        )
+        _insert(
+            admin_connection,
+            "interview_session_messages",
+            interview_session_id=session,
+            question_id=question,
+            position=index * 2 + 1,
+            kind="answer",
+            content=answer,
+            semantic_key=f"answer-{index}",
+        )
+    _insert(
+        admin_connection,
+        "interview_session_messages",
+        interview_session_id=session,
+        question_id=questions[2],
+        position=4,
+        kind="opening",
+        content="Current?",
+        semantic_key="current",
+    )
+    admin_connection.execute(
+        "UPDATE interview_sessions SET status='active', current_question_position=2 WHERE id=%s",
+        (session,),
+    )
+    admin_connection.execute(
+        "UPDATE interview_session_operations SET kind='turn', question_id=%s, expected_revision=0, submission_key='bounded', request_fingerprint='fingerprint', transcription_mode='typed', candidate_transcript='Current answer' WHERE id=%s",
+        (questions[2], claim.operation_id),
+    )
+    result = read_as_reader(admin_connection, claim.model_copy(update={"kind": "turn"}))
     dialogue = result.payload.earlier_dialogue
     assert [group.question_position for group in dialogue.groups] == [1]
     assert dialogue.omitted_question_positions == [0]
-    assert sum(len(message.content) for group in dialogue.groups for message in group.messages) == 12000
+    assert (
+        sum(len(message.content) for group in dialogue.groups for message in group.messages)
+        == 12000
+    )
+
+
+@pytest.mark.parametrize("skipped_followup", [False, True])
+def test_reader_restores_public_groups_for_retained_twelve_question_sessions(
+    admin_connection, skipped_followup
+):
+    claim, _ = seed(admin_connection)
+    session = claim.payload.interview_id
+    questions = [
+        _insert(
+            admin_connection,
+            "interview_session_questions",
+            interview_session_id=session,
+            position=index,
+            content=f"Prepared question {index}?",
+            skipped_at=datetime.now(UTC) if skipped_followup and index == 0 else None,
+            model_history=Jsonb([{"private": "not dialogue"}]),
+        )
+        for index in range(12)
+    ]
+    position = 0
+    for index, question in enumerate(questions):
+        _insert(
+            admin_connection,
+            "interview_session_messages",
+            interview_session_id=session,
+            question_id=question,
+            position=position,
+            kind="opening",
+            content=f"Prepared question {index}?",
+            semantic_key=f"opening-{index}",
+        )
+        position += 1
+        if index < 11:
+            _insert(
+                admin_connection,
+                "interview_session_messages",
+                interview_session_id=session,
+                question_id=question,
+                position=position,
+                kind="answer",
+                content=f"Accepted answer {index}.",
+                semantic_key=f"answer-{index}",
+            )
+            position += 1
+        if skipped_followup and index == 0:
+            _insert(
+                admin_connection,
+                "interview_session_messages",
+                interview_session_id=session,
+                question_id=question,
+                position=position,
+                kind="follow_up",
+                content="Skipped unanswered follow-up?",
+                semantic_key="skipped",
+            )
+            position += 1
+    admin_connection.execute(
+        "UPDATE interview_sessions SET status='active', current_question_position=11, setup_config=%s WHERE id=%s",
+        (Jsonb({"question_count": 12}), session),
+    )
+    admin_connection.execute(
+        "UPDATE interview_session_operations SET kind='turn', question_id=%s, expected_revision=0, submission_key='last-of-twelve', request_fingerprint='fingerprint', transcription_mode='typed', candidate_transcript='Last reviewed answer' WHERE id=%s",
+        (questions[-1], claim.operation_id),
+    )
+    claim = claim.model_copy(
+        update={
+            "kind": "turn",
+            "payload": claim.payload.model_copy(
+                update={"setup": claim.payload.setup.model_copy(update={"question_count": 12})}
+            ),
+        }
+    )
+    result = read_as_reader(admin_connection, claim)
+    assert result.payload.question == "Prepared question 11?"
+    assert [group.question_position for group in result.payload.earlier_dialogue.groups] == list(
+        range(11)
+    )
+    assert result.payload.earlier_dialogue.omitted_question_positions == []
+    for index, group in enumerate(result.payload.earlier_dialogue.groups):
+        assert [(m.kind, m.content) for m in group.messages] == [
+            ("opening", f"Prepared question {index}?"),
+            ("answer", f"Accepted answer {index}."),
+        ]
+    assert "Skipped unanswered follow-up?" not in str(result.payload)
+    assert "not dialogue" not in str(result.payload)
+    if skipped_followup:
+        assert (
+            admin_connection.execute(
+                "SELECT content FROM interview_session_messages WHERE semantic_key='skipped' AND interview_session_id=%s",
+                (session,),
+            ).fetchone()["content"]
+            == "Skipped unanswered follow-up?"
+        )

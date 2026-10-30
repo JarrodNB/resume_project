@@ -4,7 +4,7 @@ Preparation reads current source records once. Later operations read only prepar
 questions and accepted dialogue, never the original job or career library.
 """
 
-from psycopg import IsolationLevel
+from psycopg import Error, IsolationLevel
 from psycopg.pq import TransactionStatus
 
 from database.career_library_reader import read_career_library
@@ -253,3 +253,21 @@ def build_interview_input_reader(settings):
             return read_interview_input(connection, claim)
 
     return read
+
+
+def interview_database_ready(settings):
+    """Check connection and essential reader grants without selecting any user's data."""
+    if settings.db_username != "ai_reader":
+        return False
+    empty_id = "00000000-0000-0000-0000-000000000000"
+    params = {"operation_id": empty_id, "interview_id": empty_id, "user_id": empty_id,
+              "attempt_id": empty_id, "generation": 0}
+    try:
+        with open_read_only_connection(settings) as connection:
+            connection.execute("SET LOCAL statement_timeout = '2s'")
+            connection.execute(OPERATION_QUERY + " LIMIT 0", params)
+            connection.execute("SELECT content, acknowledgement, position FROM interview_session_messages LIMIT 0")
+            connection.execute("SELECT content, position, skipped_at FROM interview_session_questions LIMIT 0")
+        return True
+    except Error:
+        return False

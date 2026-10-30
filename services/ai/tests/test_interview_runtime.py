@@ -53,6 +53,7 @@ def test_disabled_runtime_needs_no_service_credential(monkeypatch):
 
 
 def test_enabled_fixture_is_ready_without_discovery_or_periodic_cleanup(monkeypatch):
+    monkeypatch.setattr("database.interview_inputs.interview_database_ready", lambda _: True)
     from fastapi.testclient import TestClient
 
     from interviews.fixture_app import RuntimeSettings, create_app

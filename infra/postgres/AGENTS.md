@@ -9,6 +9,9 @@ Local Postgres setup used by docker compose.
 - `init/01_create_ai_reader_role.sql` — creates `api_development` and the read-only
   `ai_reader` role (login only, no privileges) used by the AI worker
 
+- `ensure_interview_reader.sql` — idempotent role provisioning for retained isolated
+  interview recovery volumes; Rails applies table grants afterward.
+
 ## Local Rules
 
 - Init scripts only run when the `db_data` volume is first created. After changing them,

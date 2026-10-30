@@ -95,6 +95,10 @@ services:
     # Replace probe environment overrides, leaving credentials to env_file.
     # A null token would still mask the env_file value, so omit it entirely.
     environment: !override
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
       INTERVIEW_PROVIDER_MODE: fake
       AI_HTTP_ENABLED: "true"

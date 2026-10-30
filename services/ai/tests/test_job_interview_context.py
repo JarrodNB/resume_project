@@ -44,7 +44,7 @@ class JobModels(Models):
 
         async def respond(messages, info):
             self.requests.append((name, str(messages), info.model_settings))
-            output = prepared_output()
+            output = prepared_output(self.count, self.question_format)
             output["role"] = None
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)],
                 usage=RequestUsage(input_tokens=100, output_tokens=500))

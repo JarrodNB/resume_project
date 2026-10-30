@@ -384,7 +384,9 @@ For `/internal/interviews/operations/:id`:
   The payload contains only version 1, owned interview/user IDs and bounded setup choices.
   All saved source text, questions, dialogue, reviewed transcripts and speech text are read
   from Postgres by Python after validating the same operation fences. No `screen_library`
-  callback exists. Private model history and media keys have no AI reader grants.
+  callback exists. Private model history and media keys have no AI reader grants. Both HTTP runtimes
+  require the restricted database credentials; readiness verifies connectivity and essential
+  grants without selecting owner data. Recovery-stack role provisioning supports retained volumes.
 - `POST /heartbeat` takes `attempt_id`, integer `claim_generation`, and an optional
   checkpoint: `recording_validated`, `transcribed`, `screened`, `interviewer_finished`,
   or `speech_started`. It cannot save arbitrary provisional content or extend the deadline.

@@ -100,6 +100,9 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   Saved library checks can authorize exact sources reconstructed from their approved fields.
   `trust_generated_source` is only for immutable output from an owned completed AI task;
   never use it for user-editable text or external content.
+  `trust_rails_screened_source` is only for immutable text Rails accepted after a successful
+  screen and hands over through an authenticated grant (completed interview dialogue); it
+  keeps its own session set and never covers editable records.
   A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative

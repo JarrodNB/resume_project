@@ -110,8 +110,8 @@ All business logic, as service objects grouped by domain folder.
   task already in progress or an unsaved draft with at least one browser-supported,
   non-omitted section whose content is an object; checks saved resumes and resumable work
   under the enqueue user lock before allowance checks. Accepted tasks without a saved resume
-  allow fresh work; snapshots contact, a finished comparison when one exists, and gap responses
-  into the task input
+  allow fresh work; stores only job ID, optional completed comparison ID and summary setting;
+  Python reads the current owned contact, library and gap responses
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
   (`accepted_at`), under owner-then-task locks, blocking another saved resume for the job;
   uses the supplied edited sections in order and persists summary inclusion independently so hidden summary text can be retained. An explicit empty

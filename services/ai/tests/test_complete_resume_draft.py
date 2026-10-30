@@ -16,6 +16,7 @@ from pydantic_ai.usage import RunUsage
 
 from agents.resume_tailoring_agent import resume_tailoring_agent
 from agents.user_text_screen_agent import UserTextScreenRun
+from database.tailoring_sources import TailoringSources
 from schemas.gap_analysis_context import CareerLibrary, LibraryCertification
 from schemas.user_text_screen import UserTextScreen
 from tests.fakes import build_gap_analysis_context
@@ -68,7 +69,9 @@ def generation(task_dependencies, monkeypatch):
         return answer(info, selected_output(section))
 
     monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
-    dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context)
+    dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context,
+        read_tailoring_sources=lambda *_: TailoringSources(context,
+            {"full_name": "Synthetic Candidate", "email": "candidate@example.com", "links": []}, None, []))
     return dependencies, context, seen, FunctionModel(generate, model_name="gpt-5-mini")
 
 
@@ -448,11 +451,11 @@ def test_task_deadline_awaits_writers_and_preserves_transient_retry(generation, 
 
 def test_missing_job_fails_before_model_request(generation):
     dependencies, _, seen, model = generation
-    dependencies = replace(dependencies, read_gap_analysis_context=lambda *_: None)
+    dependencies = replace(dependencies, read_tailoring_sources=lambda *_: None)
     with resume_tailoring_agent.override(model=model):
         result = handle_ai_task(task(), dependencies)
     assert result.status == "failed"
-    assert result.error_message == "This job no longer exists."
+    assert result.error_message == "This job or selected comparison no longer exists."
     assert result.result is None
     assert seen == []
 

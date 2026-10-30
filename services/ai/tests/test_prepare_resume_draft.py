@@ -792,4 +792,5 @@ def test_summary_inclusion_snapshot_does_not_change_generation_contract():
 
     value = TailorResumeInput.model_validate({"job_id": "11111111-1111-1111-1111-111111111111", "include_summary": False})
     assert str(value.job_id) == "11111111-1111-1111-1111-111111111111"
-    assert value.contact == {}
+    assert value.analysis_task_id is None
+    assert value.include_summary is False

@@ -9,8 +9,8 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
 
 - `section_catalog.py` — section order (contact, then summary, experience, projects,
   education, certifications, skills) and entry label prefixes
-- `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, and gap responses
-- `labeled_sources.py` — short labels for the complete library snapshot, gap responses, and selected draft snapshots.
+- `tailor_resume_input.py` — the reference-only task input: job/comparison IDs and summary option
+- `labeled_sources.py` — short labels for the current owned library, gap responses, and selected draft snapshots.
   Text and saved-field provenance are built together; preparation passes that provenance
   to screening without looking entries up again. Tailoring does not retrieve or rank library rows.
 - `build_section_prompt.py` — the user prompt for one written section
@@ -35,7 +35,7 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
   reviews and edits generated wording before saving.
 - Reuse saved field checks for each labeled library source and the job context; screen
   unchecked used fields once per execution and report successful approvals. Gap responses
-  carry typed saved snapshots; reuse requirement/body approvals, group pending fields and
+  are read with their typed saved checks; reuse requirement/body approvals, group pending fields and
   report every saved ID with exact fingerprints even for equal text. Legacy no-ID snapshots
   stay unchecked without persistence. Keep full-source/group limits for approved inputs;
   screen job, library and gap answers together in one `screen_records` call. A blocked

@@ -1,17 +1,17 @@
-"""Validate snapshots supplied when a complete resume draft is requested."""
+"""Validate only the identities and settings for a complete resume draft.
 
-from typing import Any
+Retained commands may contain obsolete source copies; they are ignored. Execution
+always reads current owned records and never trusts those copied fields.
+"""
+
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
-from schemas.gap_response import GapResponseSnapshot
+from pydantic import BaseModel
 
 
 class TailorResumeInput(BaseModel):
-    """Read-only job, profile, and gap snapshots for one complete generation."""
+    """A saved job, optional completed comparison, and presentation preference."""
 
     job_id: UUID
-    contact: dict[str, Any] = Field(default_factory=dict)
-    gap_analysis: dict[str, Any] | None = None
-    gap_responses: list[GapResponseSnapshot] = Field(default_factory=list)
+    analysis_task_id: UUID | None = None
+    include_summary: bool = True

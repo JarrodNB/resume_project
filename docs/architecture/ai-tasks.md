@@ -441,3 +441,16 @@ cursor, not task contents. Without usable storage or Web Locks, live notices con
 but reload recovery or cross-tab duplicate prevention depends on the facilities still
 available. Online and visibility events retry recovery without polling. Signing out
 or replacing the account stops its feed and discards its mounted notice state.
+
+### Resume tailoring sources
+
+New `tailor_resume` commands contain `job_id`, optional `analysis_task_id`, and
+`include_summary`. Python reads current owned job/library, profile contact and gap responses
+in one consistent transaction. A selected comparison must be completed gap-analysis output
+for the same owner and job; its narrow nonmaterialized view exposes no other task results.
+Gap-response screening receipts keep exact saved identity/value fingerprints. Existing draft,
+save, summary visibility and one-resume locking behavior is unchanged.
+
+Retained queued commands may still contain old contact/comparison/answer copies. The worker
+ignores those fields and reads current owned sources; without a comparison ID it omits the
+optional historical comparison. It never reopens completed/accepted tasks or replays paid work.

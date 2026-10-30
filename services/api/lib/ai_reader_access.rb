@@ -11,7 +11,7 @@ module AiReaderAccess
   READABLE_TABLES = %w[
     jobs experiences experience_highlights projects educations certifications skills career_contexts library_embeddings
   ].freeze
-  READABLE_USER_COLUMNS = %w[id summary name contact_email phone screened_fields].freeze
+  READABLE_USER_COLUMNS = %w[id summary name contact_email phone location links screened_fields].freeze
 
   READABLE_TASK_COLUMNS = %w[id user_id task_type status input].freeze
 
@@ -51,6 +51,21 @@ module AiReaderAccess
       connection.execute("GRANT SELECT (#{user_columns}) ON users TO #{role}")
       task_columns = READABLE_TASK_COLUMNS.map { |column| connection.quote_column_name(column) }.join(", ")
       connection.execute("GRANT SELECT (#{task_columns}) ON ai_tasks TO #{role}")
+      # A nonmaterialized projection keeps other task outputs/history private.
+      connection.execute(<<~SQL)
+        CREATE OR REPLACE VIEW completed_gap_analysis_sources AS
+        SELECT id, user_id, subject_id AS job_id, result->'gap_analysis' AS gap_analysis
+        FROM ai_tasks WHERE task_type = 'analyze_gaps' AND status = 'completed'
+          AND subject_type = 'Job'
+      SQL
+      connection.execute("GRANT SELECT ON completed_gap_analysis_sources TO #{role}")
+      connection.execute(<<~SQL)
+        CREATE OR REPLACE VIEW queued_tailoring_commands AS
+        SELECT id, user_id, subject_id AS job_id FROM ai_tasks
+        WHERE task_type = 'tailor_resume' AND status = 'queued' AND subject_type = 'Job'
+      SQL
+      connection.execute("GRANT SELECT ON queued_tailoring_commands TO #{role}")
+      connection.execute("GRANT SELECT (id, job_id, requirement, body, screened_fields, created_at) ON job_gap_responses TO #{role}")
     end
   end
 end

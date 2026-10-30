@@ -4,6 +4,7 @@ These regressions use the complete-draft provider fixture. Section approvals hav
 replaced by one completed draft, while contact and library identity remain copied.
 """
 
+from dataclasses import replace
 from datetime import date
 from uuid import uuid4
 
@@ -12,7 +13,9 @@ from pydantic_ai.models.function import FunctionModel
 
 import text_limits
 from agents.resume_tailoring_agent import resume_tailoring_agent
+from database.tailoring_sources import TailoringSources
 from schemas.gap_analysis_context import CareerLibrary, LibraryCertification, LibraryExperience
+from schemas.gap_response import GapResponseSnapshot
 from tests import test_complete_resume_draft as complete_draft_tests
 from worker.queue_messages import AiTaskMessage
 from worker.tailor_resume_handler import JOB_NOT_FOUND_MESSAGE
@@ -59,7 +62,7 @@ def test_complete_draft_copies_contact_without_a_contact_model(generation) -> No
     assert result.status == "completed"
     assert "generation" not in result.model_dump()
     assert result.result["sections"][0]["section_type"] == "contact"
-    assert result.result["sections"][0]["content"]["full_name"] == "Ada Lovelace"
+    assert result.result["sections"][0]["content"]["full_name"] == "Synthetic Candidate"
     assert "contact" not in [section for section, _ in seen]
 
 
@@ -193,6 +196,7 @@ def test_large_combined_context_keeps_prompt_limit(generation) -> None:
     dependencies, context, seen, model = generation
     context.job.requirements = ["j" * 70_000]
     analysis = {"summary": "a" * 55_000, "assessments": []}
+    dependencies = replace(dependencies, read_tailoring_sources=lambda *_: TailoringSources(context, {}, analysis, []))
 
     with resume_tailoring_agent.override(model=model):
         result = handle_ai_task(_task(_base_input(gap_analysis=analysis)), dependencies)
@@ -210,7 +214,7 @@ def test_completed_draft_keeps_summary_wording_and_contact(generation) -> None:
         result = handle_ai_task(_task(_base_input()), dependencies)
     sections = {section["section_type"]: section["content"] for section in result.result["sections"]}
     assert sections["summary"]["text"] == "Engineer who built Python APIs."
-    assert sections["contact"]["full_name"] == "Ada Lovelace"
+    assert sections["contact"]["full_name"] == "Synthetic Candidate"
     assert any(usage.model == "openai:gpt-5-mini" for usage in result.usage)
 
 
@@ -274,7 +278,7 @@ def test_certification_copy_preserves_identity_and_precision(precision, expected
     assert "certifications" not in [section for section, _ in seen]
 
 
-def test_queued_gap_snapshot_keeps_identity_and_approvals(generation, monkeypatch):
+def test_saved_gap_response_keeps_identity_and_approvals(generation, monkeypatch):
     from pydantic_ai.usage import RunUsage
 
     from agents.user_text_screen_agent import UserTextScreenRun
@@ -289,10 +293,13 @@ def test_queued_gap_snapshot_keeps_identity_and_approvals(generation, monkeypatc
             "jev-1.13.0", {"prompt_injection": 1., "harmful_request": 1.}, RunUsage())
     monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
     response_id = str(uuid4())
+    context = dependencies.read_gap_analysis_context(USER_ID, JOB_ID)
+    responses = [GapResponseSnapshot(id=response_id, requirement="Unique queued requirement",
+        body="Unique queued answer", screened_fields=["requirement"])]
+    dependencies = replace(dependencies,
+        read_tailoring_sources=lambda *_: TailoringSources(context, {}, None, responses))
     with screening_session() as session, resume_tailoring_agent.override(model=model):
-        result = handle_ai_task(_task(_base_input(gap_responses=[{
-            "id": response_id, "requirement": "Unique queued requirement", "body": "Unique queued answer",
-            "screened_fields": ["requirement"]}])), dependencies)
+        result = handle_ai_task(_task(_base_input()), dependencies)
         assert result.status == "completed"
         assert [(report.record_id, set(report.fingerprints)) for report in session.record_screening if report.record_type == "gap_response"] == [
             (response_id, {"body"})]
@@ -300,3 +307,26 @@ def test_queued_gap_snapshot_keeps_identity_and_approvals(generation, monkeypatc
     assert not any("Unique queued requirement" in text for text in calls)
     assert any("Unique queued answer" in prompt for _, prompt in seen)
     assert all(response_id not in prompt and "screened_fields" not in prompt for _, prompt in seen)
+
+
+def test_retained_command_ignores_all_obsolete_source_copies(generation):
+    """Old queued work uses current owned data without trusting old generated claims."""
+    dependencies, _, seen, model = generation
+    stale = _base_input(contact={"full_name": "OBSOLETE CONTACT"},
+        gap_analysis={"summary": "OBSOLETE COMPARISON", "assessments": []},
+        gap_responses=[{"body": "OBSOLETE ANSWER"}])
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task(stale), dependencies)
+    assert result.status == "completed"
+    assert result.result["sections"][0]["content"]["full_name"] == "Synthetic Candidate"
+    assert all("OBSOLETE" not in prompt for _, prompt in seen)
+
+
+def test_missing_or_foreign_comparison_stops_before_any_generation(generation):
+    dependencies, _, seen, model = generation
+    dependencies = replace(dependencies, read_tailoring_sources=lambda *_: None)
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task({"job_id": str(JOB_ID), "analysis_task_id": str(uuid4())}), dependencies)
+    assert result.status == "failed"
+    assert result.usage == []
+    assert seen == []

@@ -52,12 +52,24 @@ RSpec.describe AiReaderAccess do
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
-  it "cannot read the JWT denylist or job-only gap responses" do
+  it "cannot read the JWT denylist or unrelated gap-response metadata" do
     create(:job_gap_response)
 
     expect { select_as_ai_reader("SELECT id FROM interview_clarifications") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
-    expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("SELECT updated_at FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "exposes only completed job comparisons through the tailoring projection" do
+    job = create(:job)
+    completed = create(:ai_task, user: job.user, subject: job, task_type: "analyze_gaps",
+      status: "completed", result: { "gap_analysis" => { "summary" => "Generated" }, "private" => "Hidden" })
+    create(:ai_task, user: job.user, subject: job, task_type: "analyze_gaps", status: "queued")
+    create(:ai_task, user: job.user, subject: job, task_type: "tailor_resume", status: "completed")
+    rows = select_as_ai_reader("SELECT id, gap_analysis FROM completed_gap_analysis_sources")
+    expect(rows).to eq([{ "id" => completed.id, "gap_analysis" => '{"summary": "Generated"}' }])
+    expect { select_as_ai_reader("SELECT result FROM completed_gap_analysis_sources") }
+      .to raise_error(ActiveRecord::StatementInvalid)
   end
 
   it "cannot read shared job board catalogue or search pages" do

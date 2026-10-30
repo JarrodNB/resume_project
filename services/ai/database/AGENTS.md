@@ -13,7 +13,7 @@ this folder only reads what an AI task needs.
   with `default_transaction_read_only=on` and dict rows
 - `career_library_reader.py` — `read_gap_analysis_context(connection, user_id, job_id)`: the job
   and the user's career library, including certifications and career context entries, in one REPEATABLE READ transaction
-  (None when the job isn't the user's). Job-only gap responses are not read.
+  (None when the job isn't the user's). Job-only gap responses are read separately by tailoring.
   `build_database_context_reader(settings)`: the per-task reader handlers call (one
   connection per task)
 - `library_embedding_search.py` — `search_career_library(connection, user_id, query_embedding,
@@ -57,3 +57,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   production builder bounds connection/statement deadlines; it never reads the catalogue.
 
 - `summary_sources.py` — current owned profile/resume evidence with exact reference hashes; resume prose trust reads only the narrow `ai_accepted_resume_prose` view. No sources are stored in commands.
+- `tailoring_sources.py` reads current owned job/library/contact and job gap responses in one
+  repeatable-read transaction. A queued task/owner/job projection fences the command subject. Optional comparison IDs must match the owner and job in
+  `completed_gap_analysis_sources`, a nonmaterialized completed-analysis-only projection.
+  Gap responses expose only identity, requirement/body, checks and ordering columns.
+  Profile location/links are readable for the copied contact section; authentication fields stay private.

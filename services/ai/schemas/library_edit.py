@@ -43,12 +43,11 @@ class LibraryReviewQuestion(BaseModel):
 
 
 class LibraryEditInput(BaseModel):
-    """Rails supplies owned snapshots/history; the browser supplies only the newest feedback."""
+    """Execution-local owned sources and saved history; commands carry only new feedback."""
 
     section: Literal["experience", "summary", "projects", "career_contexts"]
     library: CareerLibrary
     target: LibraryReviewTarget
-    original_text: str = Field(max_length=4000)
     feedback: str = Field(default="", max_length=4000)
     history: list[dict] = Field(default_factory=list)
     previous_task_id: str | None = None

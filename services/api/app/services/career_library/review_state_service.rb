@@ -21,7 +21,7 @@ module CareerLibrary
           "review_task_id" => completed.id, "stale" => item["source_digest"] != target["source_digest"])
       end
       if completed
-        discarded = @user.ai_tasks.improve_library_entry.where(error_message: EditSnapshot::DISCARD_MESSAGE)
+        discarded = @user.ai_tasks.improve_library_entry.where(error_message: EditCommand::DISCARD_MESSAGE)
           .where("input -> 'review_question' ->> 'review_task_id' = ?", completed.id).pluck(:input)
           .map { |input| ReviewSnapshot.target_key(input.fetch("target")) }
         assessments.each do |item|

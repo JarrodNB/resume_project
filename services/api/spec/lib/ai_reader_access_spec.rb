@@ -135,6 +135,19 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("UPDATE certifications SET name = 'Changed'") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
+  it "exposes only generated library exchange fields through a read-only workflow view" do
+    edit = create(:ai_task, task_type: "improve_library_entry", result: { "text" => "Generated proposal" },
+      message_history: [{ "kind" => "response", "parts" => [] }])
+    create(:ai_task, task_type: "analyze_gaps", result: { "private" => "Other workflow result" })
+    rows = select_as_ai_reader("SELECT id, result, message_history FROM ai_library_exchanges")
+    expect(rows.map { |row| row["id"] }).to eq([edit.id])
+    expect { select_as_ai_reader("SELECT cost_microdollars FROM ai_library_exchanges") }
+      .to raise_error(ActiveRecord::StatementInvalid, /does not exist/)
+    expect { select_as_ai_reader("SELECT encrypted_password FROM ai_library_exchanges") }
+      .to raise_error(ActiveRecord::StatementInvalid, /does not exist/)
+    expect { select_as_ai_reader("UPDATE ai_library_exchanges SET status = 'failed'") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
 end
 
 RSpec.describe "Interview embedding access" do
@@ -149,4 +162,6 @@ RSpec.describe "Interview embedding access" do
       end
     end.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
+
+
 end

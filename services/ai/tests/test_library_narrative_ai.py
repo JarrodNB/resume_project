@@ -1,10 +1,12 @@
 """Review and improve each new narrative target through the real offline task interface."""
 
+from dataclasses import replace
 from uuid import uuid4
 
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from schemas.library_edit import LibraryEditInput
 from screening.screen_user_text import ScreenOutcome
 from tests.test_library_review_handler import handle_loaded_review
 from worker.queue_messages import AiTaskMessage
@@ -62,7 +64,8 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
         "text": "Clearer wording using only the supplied facts.", "color": "yellow", "reason": "Add the outcome if known.",
     })):
         edited = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
-            task_type="improve_library_entry", input=payload), task_dependencies)
+            task_type="improve_library_entry", input=payload),
+            replace(task_dependencies, read_library_edit=lambda task: LibraryEditInput.model_validate(task.input)))
     assert edited.status == "completed"
     assert screened == [payload["feedback"]]
 

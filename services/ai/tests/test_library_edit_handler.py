@@ -14,6 +14,14 @@ from worker.task_handlers import handle_ai_task
 pytestmark = pytest.mark.real_guardrail
 
 
+@pytest.fixture(autouse=True)
+def owned_context_reader(monkeypatch):
+    """Most handler fixtures stand in for execution-local DB projections."""
+    from schemas.library_edit import LibraryEditInput
+    monkeypatch.setattr("worker.library_edit_handler.build_database_edit_reader",
+                        lambda _settings: lambda task: LibraryEditInput.model_validate(task.input))
+
+
 def patch_edit_screen(monkeypatch, screen):
     """Library edits screen saved records through screening.records and notes directly."""
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
@@ -330,3 +338,42 @@ def test_malformed_saved_review_batches_are_rejected(answers):
     payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": answers})
     with pytest.raises(ValidationError):
         LibraryEditInput.model_validate(payload)
+
+
+def test_reference_only_command_uses_owned_database_projection(task_dependencies, monkeypatch):
+    from dataclasses import replace
+
+    from agents.library_edit_agent import library_edit_agent
+    from schemas.library_edit import LibraryEditInput
+    from screening.screen_user_text import ScreenOutcome
+
+    source = edit_input()
+    calls = []
+    def read(task):
+        calls.append(task.ai_task_id)
+        assert not (task.input.keys() & {"library", "history", "original_text"})
+        return LibraryEditInput.model_validate(source)
+    dependencies = replace(task_dependencies, read_library_edit=read)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry",
+                         input={"command_version": 1, "target": source["target"], "root_id": source["root_id"],
+                                "section": "experience", "turn": 1, "feedback": source["feedback"], "skip": False})
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(True))
+    with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
+        "text": "Contributed to the service migration.", "color": "yellow", "reason": "Add outcome.",
+    })):
+        result = handle_ai_task(task, dependencies)
+    assert calls == [task.ai_task_id]
+    assert result.status == "completed"
+
+
+def test_unavailable_owned_source_fails_before_screening_or_generation(task_dependencies, monkeypatch):
+    from dataclasses import replace
+    def unavailable(_task):
+        raise ValueError("Foreign or changed source")
+    def unexpected(*_args, **_kwargs):
+        raise AssertionError("No provider work for unavailable sources")
+    patch_edit_screen(monkeypatch, unexpected)
+    monkeypatch.setattr("worker.library_edit_handler.improve_library_entry", unexpected)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input={"command_version": 1})
+    result = handle_ai_task(task, replace(task_dependencies, read_library_edit=unavailable))
+    assert result.status == "failed" and result.usage == []

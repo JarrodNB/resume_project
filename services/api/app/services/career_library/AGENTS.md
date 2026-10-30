@@ -55,7 +55,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   or Career context section. `ReviewCommand` keeps only section, target IDs/context digests and
   per-field fingerprints on review tasks. Python reads the selected owned section directly and
   rejects changed target digests before generation. Only narrative fields become targets.
-  The projection helper remains temporarily shared with individual editing pending its migration.
+  Individual editing shares this temporary admission projection.
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
   returns its last completed individual grades and optional enrichment questions with
   current/stale state. Results stay on `AiTask`.
@@ -73,8 +73,12 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Individual editing
 
-- `EditSnapshot`, `StartEditService`, and `EditStateService` select one owned field and keep
+- `EditCommand`, `StartEditService`, and `EditStateService` retain only one owned field identity,
+  context digest and field fingerprints, with fresh feedback saved once. They keep
   resumable editing turns on linked `improve_library_entry` tasks; no separate conversation table.
+- Python loads the selected owned record context, exact generated review questions, root answers
+  and prior model history directly. Children retain root/previous IDs, never copied history or answers.
+  The bounded chain verifies owner, target, turns and deferred tool identity before generation.
 - `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
   proposal once, preserving highlight identity, or discards without changing career facts.
   Accepted and discarded review-answer questions retire from saved review state; failed

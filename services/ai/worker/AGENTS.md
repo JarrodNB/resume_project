@@ -126,7 +126,8 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   `database/library_review_reader.py`. Reference commands contain IDs and digests only;
   changed sources fail before model work. It renders plain labeled records, maps assessment labels back to target identities,
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
-- `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
+- `library_edit_handler.py` — loads its owned execution context through `database/library_edit_reader.py`,
+  screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
   are not classified. A Rails-owned `review_question` adds generated guidance to a new
   answer task or a paired-answer batch and disables further deferred questions, including on

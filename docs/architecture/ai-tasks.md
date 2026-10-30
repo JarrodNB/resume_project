@@ -68,8 +68,10 @@ screening provenance. Inclusion preferences do not change source freshness and a
 changed by generation or acceptance. Existing task allowance, post-commit queue publication,
 subscriptions, terminal-result fencing and independently deduplicated late usage apply.
 
-Individual library editing uses `improve_library_entry`. Input captures one owned summary, role description/highlight, project description, or fact-response target,
-its role context and digest, feedback, root/previous task IDs, turn, and private saved history.
+Individual library editing uses `improve_library_entry`. Its command retains one owned summary,
+role description/highlight, project description, or fact-response target identity, context digest,
+field fingerprints, feedback, root/previous task IDs and turn. Python reads source context and
+private saved history directly.
 The browser sends only target/previous IDs and new feedback or a skip; it cannot supply history.
 Results are either one pending question plus history, or `{text, color, reason}` plus history.
 Rails validates bounded output; accepting updates only the exact target when source/context
@@ -118,7 +120,8 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   (Ruby `JSON.generate`, Python `ensure_ascii=False`, compact separators). Rails checks
   the current value under a row lock and the frozen task value where applicable.
   Unknown types, foreign rows, stale or missing fingerprints and malformed receipts are ignored.
-  Summary and library review/edit receipts must match their frozen source snapshots.
+  Library review/edit receipts must match admission field fingerprints and current owned fields.
+  Summary receipts retain their workflow-specific source checks.
   Successful checks survive later generation failure; usage-only and finished-task
   redelivery cannot restore an edited field's approval. All result writes lock the owner
   before the task and domain rows. Text edits reload under their row lock and use the
@@ -374,21 +377,30 @@ edit. Blank fields are omitted; nonblank answers are stored in question order fo
 The scalar `answer:` argument remains supported for older clients and means question index zero;
 it cannot be combined with `answers:`.
 
-A batch input adds `review_question: {review_task_id, answers: [{question_index, question, answer}]}`
-to the existing edit contract. Each answer has its own prose cap; they are not flattened into the
-standalone `feedback` field. Its 4,000-character cap and the 180,000-byte task input cap remain.
-Legacy tasks with `review_question: {review_task_id, question}` and their answer in `feedback`
-still work. Browser input never supplies generated question text or model history. Without saved
-history, the worker screens each answered field and renders labeled question/answer pairs;
-with owned saved history, only new feedback needs screening. Generated questions are trusted
-context, not evidence that a premise happened. Omitted questions never become unknown-outcome
-claims. This mode disables deferred questions on every linked turn; Rails rejects paused results.
+Review answers store `review_question: {review_task_id, answers: [{question_index, answer}]}`
+only on the root edit task. Python resolves generated question text from that owned completed
+review. Single legacy browser answers normalize to the same indexed command. Children carry
+root/previous task IDs, latest feedback/skip and deferred tool identity; they never copy root
+answers, source context or prior model history. Each owned chain has at most eight turns.
+
+Python loads only the selected owned record context and rejects changed context digests before
+provider work. It reads prior successful/paused model history through the read-only
+`ai_library_exchanges` security-barrier view, which exposes only necessary fields for library
+review/edit tasks. General task outputs, authentication and accounting columns remain hidden.
+Saved generated questions/history retain exact trusted provenance; only new unchecked user
+sources need screening. Review-answer mode disables further questions on all linked turns.
 
 Canonical equivalent batches reuse the latest turn for that origin; different answers and unrelated
 active drafts conflict. Failed batches can retry with empty new feedback using their owned saved
 pairs, without claiming that the user skipped a question. Ordinary continuations still need feedback
-or an explicit skip. Later editing feedback preserves the batch and uses existing private history.
-Acceptance/discard retain normal closed-task and late-result protections.
+or an explicit skip. Acceptance retains owner/record/task locks, unchanged context digests, exact
+field receipts, closed-task protections and replay-safe embedding synchronization.
+
+Deploy the library-exchange view/grants before updated workers, then roll all workers before
+new edit producers. Retained legacy commands still resolve current owned source data and saved
+owned history through the reader; copied source/history fields in old inputs are ignored, not
+replayed or trusted as the execution source. Changed/deleted/foreign context fails safely without
+provider work. Existing finished drafts remain acceptable only with their original digest fence.
 
 `libraryReview` assessment `reviewTaskId` identifies the completed source review independently
 of the latest section task. Accepted or discarded review-answer questions are retired; old

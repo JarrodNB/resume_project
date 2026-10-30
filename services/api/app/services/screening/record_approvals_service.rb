@@ -214,7 +214,7 @@ module Screening
       else @user.public_send(record_type.pluralize)
       end
       scope = { records: records }
-      if task_for_user? && @ai_task.review_library_section? && @ai_task.input["command_version"] == 1
+      if task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type) && @ai_task.input["command_version"] == 1
         values = Array(@ai_task.input["field_fingerprints"]).select { |item| item.is_a?(Hash) && item["record_type"] == record_type }
         scope[:fingerprints] = values.to_h { |item| [ item["record_id"], item["fingerprints"] ] }
       elsif task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type)

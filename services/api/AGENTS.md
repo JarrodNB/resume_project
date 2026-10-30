@@ -78,7 +78,9 @@ Configuration must work in Docker development and production. Preserve owned dat
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; tailoring has narrow gap-response columns and a completed-analysis-only output view.
   `ai_tasks` grants only `id`, `user_id`, `task_type`, `status` and `input` for owned queued
-  command loading; result, history and accounting columns remain hidden.
+  command loading. A narrow read-only `ai_library_exchanges` view exposes generated library
+  review/edit outputs, history and acceptance state only for those workflow types; task table
+  result/history and accounting columns remain hidden.
   Summary reads also grant only resumes(id,user_id), resume_sections(id,resume_id,section_type,content,position),
   and the non-materialized ai_accepted_resume_prose(user_id,prose) projection of accepted generated prose.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see

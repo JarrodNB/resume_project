@@ -15,14 +15,17 @@ RSpec.describe "Career library AI editing" do
     GQL
   end
 
-  it "queues an owned individual target with only its role as context" do
+  it "queues an owned individual target without saved source copies" do
     create(:experience, user: user)
     result = start_edit
     expect(result["errors"]).to eq([])
     expect(result["aiTask"]["status"]).to eq("QUEUED")
     input = result["aiTask"]["input"]
     expect(input.dig("target", "record_id")).to eq(highlight.id)
-    expect(input.dig("library", "experiences").map { |item| item["id"] }).to eq([role.id])
+    expect(input["command_version"]).to eq(1)
+    stored = AiTask.find(result["aiTask"]["id"]).input
+    expect(stored.keys & %w[library original_text history targets]).to be_empty
+    expect(stored.to_json).not_to include(highlight.content, role.description)
     expect(queue).to have_received(:send_message).once
   end
 
@@ -84,7 +87,7 @@ RSpec.describe "Career library AI editing" do
     expect(child["errors"]).to eq([])
     expect(child.dig("aiTask", "input", "question_id")).to eq("question-1")
     expect(child.dig("aiTask", "input")).not_to have_key("history")
-    expect(AiTask.find(child.dig("aiTask", "id")).input["history"]).to eq(history)
+    expect(AiTask.find(child.dig("aiTask", "id")).input).not_to have_key("history")
     expect(continue_edit(task).dig("aiTask", "id")).to eq(child.dig("aiTask", "id"))
     expect(continue_edit(task, feedback: "Different feedback")["errors"]).not_to be_empty
     AiTasks::ApplyAiResultService.call(message: message.merge("pending_questions" => [ { "id" => "late", "question" => "An old retry" } ]))
@@ -182,7 +185,7 @@ RSpec.describe "Career library AI editing" do
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => child.id, "status" => "failed", "error_message" => "Screening unavailable" })
     retry_task = AiTask.find(continue_edit(child, feedback: "I migrated billing endpoints").dig("aiTask", "id"))
     expect(retry_task.input["question_id"]).to eq("question-retry")
-    expect(retry_task.input["history"]).to eq(history)
+    expect(retry_task.input).not_to have_key("history")
   end
 
   it "discards without library changes and rejects malformed proposals" do
@@ -208,4 +211,41 @@ RSpec.describe "Career library AI editing" do
     expect(task.message_history).to eq([])
     expect(task.pending_questions).to eq([])
   end
+  it "rejects moved highlights and changed neighboring context before acceptance" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    complete_edit(task)
+    role.update!(description: "Updated role evidence")
+    expect(accept_edit(task)["errors"]).to include("This entry changed. Start a new edit from its current text.")
+    destination = create(:experience, user: user)
+    highlight.update!(experience: destination)
+    expect(accept_edit(task)["errors"]).to include("This entry changed. Start a new edit from its current text.")
+    expect(highlight.reload.content).to eq("Helped migrate services")
+  end
+
+  it "caps the owned exchange at eight turns without enqueueing another child" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    7.times do
+      complete_edit(task)
+      task = AiTask.find(continue_edit(task).dig("aiTask", "id"))
+    end
+    complete_edit(task)
+    expect(continue_edit(task)["errors"]).to include("This edit has reached its turn limit. Start a new edit.")
+    expect(user.ai_tasks.improve_library_entry.count).to eq(8)
+  end
+
+  it "records only selected exact admission fingerprints on completed results" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    foreign = create(:experience_highlight)
+    receipts = [highlight, foreign].map do |record|
+      { "record_type" => "experience_highlight", "record_id" => record.id,
+        "fingerprints" => { "content" => Screening::RecordApprovalsService.field_fingerprint(record.content) } }
+    end
+    Screening::RecordApprovalsService.call(user: user, ai_task: task, reports: receipts)
+    expect(highlight.reload.screened_fields).to include("content")
+    expect(foreign.reload.screened_fields).to be_empty
+    highlight.update!(content: "New manual content", screened_fields: [])
+    Screening::RecordApprovalsService.call(user: user, ai_task: task, reports: receipts)
+    expect(highlight.reload.screened_fields).to be_empty
+  end
+
 end

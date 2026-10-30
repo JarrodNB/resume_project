@@ -77,6 +77,14 @@ module AiReaderAccess
         selected = columns.map { |column| connection.quote_column_name(column) }.join(", ")
         connection.execute("GRANT SELECT (#{selected}) ON #{connection.quote_table_name(table)} TO #{role}")
       end
+      # Only these workflows expose generated outputs/history. Account, provider and
+      # other task results remain outside the worker's role.
+      connection.execute(<<~SQL)
+        CREATE OR REPLACE VIEW ai_library_exchanges WITH (security_barrier = true) AS
+        SELECT id, user_id, task_type, status, input, result, message_history, pending_questions, accepted_at
+        FROM ai_tasks WHERE task_type IN ('improve_library_entry', 'review_library_section')
+      SQL
+      connection.execute("GRANT SELECT ON ai_library_exchanges TO #{role}")
     end
   end
 end

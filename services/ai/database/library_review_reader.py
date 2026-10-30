@@ -37,13 +37,19 @@ def _fields(row, names):
     return {name: row[name] for name in names.split()}
 
 
-def read_library_review(connection, user_id: UUID, section: str) -> LibraryReviewInput:
+def read_library_review(connection, user_id: UUID, section: str, *, record_id=None, experience_id=None) -> LibraryReviewInput:
     """Select only this section, including owner-scoped children, in one transaction."""
     if section not in ("experience", "summary", "projects", "career_contexts"):
         raise ValueError("Choose a supported library section")
     if connection.info.transaction_status == TransactionStatus.IDLE:
         connection.isolation_level = IsolationLevel.REPEATABLE_READ
-    params = {"user_id": user_id}
+    params = {"user_id": user_id, "record_id": record_id, "experience_id": experience_id}
+
+    def selected(query, predicate, value):
+        if value is None:
+            return query
+        head, order = query.split("ORDER BY", 1)
+        return head + " AND " + predicate + " ORDER BY" + order
     targets = []
 
     def target(kind, record, field, digest):
@@ -60,8 +66,8 @@ def read_library_review(connection, user_id: UUID, section: str) -> LibraryRevie
             if row["summary"] and row["summary"].strip():
                 target("user", row, "summary", _digest(_fields(row, "id summary")))
         elif section == "experience":
-            roles = _bounded_rows(cursor, EXPERIENCES_QUERY, params)
-            highlights = _bounded_rows(cursor, HIGHLIGHTS_QUERY, params)
+            roles = _bounded_rows(cursor, selected(EXPERIENCES_QUERY, "id = %(experience_id)s", experience_id), params)
+            highlights = _bounded_rows(cursor, selected(HIGHLIGHTS_QUERY, "experiences.id = %(experience_id)s", experience_id), params)
             library = {"experiences": []}
             for row in roles:
                 role = _fields(row, "id company title location start_date end_date description screened_fields")
@@ -82,7 +88,7 @@ def read_library_review(connection, user_id: UUID, section: str) -> LibraryRevie
                 if section == "projects" else
                 (CAREER_CONTEXTS_QUERY, "id requirement response screened_fields", "career_context", "response")
             )
-            records = [_fields(row, keys) for row in _bounded_rows(cursor, query, params)]
+            records = [_fields(row, keys) for row in _bounded_rows(cursor, selected(query, "id = %(record_id)s", record_id), params)]
             library = {section: records}
             for row in records:
                 if section == "career_contexts" or row[field] and row[field].strip():

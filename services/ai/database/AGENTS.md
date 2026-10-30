@@ -8,7 +8,8 @@ this folder only reads what an AI task needs.
 ## Contents
 
 - `task_commands.py` — loads only the ID/owner/type-matched queued task input.
-  Rails grants only task identity, status and input columns; results/history remain private.
+  Rails grants only task identity, status and input columns. The separate library exchange
+  view exposes generated outputs/history only for the two library workflows.
 - `open_read_only_connection.py` — `open_read_only_connection(settings)`: psycopg connection
   with `default_transaction_read_only=on` and dict rows
 - `career_library_reader.py` — `read_gap_analysis_context(connection, user_id, job_id)`: the job
@@ -67,3 +68,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   once; turns read prepared questions and accepted public dialogue, with profile contact only
   for masking. Speech loads its exact saved message. Private model history and media keys
   remain outside the reader grants. Rails owns every write and media capability.
+- `library_edit_reader.py` loads one owned target/context and its bounded root/previous chain,
+  reads generated review questions from the completed owned review, and validates context digests.
+  `ai_library_exchanges` is a read-only security-barrier view restricted to library review/edit
+  task types and necessary identity/input/output/history fields; accounting and other task results
+  remain hidden. Child commands never copy model history or root user answers.

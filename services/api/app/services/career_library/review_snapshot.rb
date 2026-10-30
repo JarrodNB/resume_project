@@ -1,6 +1,6 @@
 # Builds a temporary selected-section projection for review admission and currentness.
-# Reviews persist only identities and digests; legacy individual edits still use this helper
-# until their separate migration. Context digests stale grades after edits or moved highlights.
+# Reviews and individual edits persist only identities and digests. Context digests
+# stale grades and proposals after edits or moved highlights.
 module CareerLibrary
   class ReviewSnapshot
     SECTIONS = %w[experience summary projects career_contexts].freeze

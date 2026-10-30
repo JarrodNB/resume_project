@@ -1,7 +1,8 @@
-# Selects one owned narrative field and only its record context for improvement.
+# Stores one owned narrative field identity, context digest and field fingerprints.
+# Source projection is temporary; no saved text is copied into the durable command.
 # The digest fences both acceptance and follow-up turns against changed career evidence.
 module CareerLibrary
-  class EditSnapshot
+  class EditCommand
     DISCARD_MESSAGE = "Draft discarded.".freeze
     MAX_TURNS = 8
     MAX_INPUT_BYTES = 180_000
@@ -23,7 +24,7 @@ module CareerLibrary
       target = snapshot["targets"].find { |item| item["kind"] == kind && item["record_id"] == record.id }
       raise ActiveRecord::RecordNotFound unless target
 
-      snapshot.merge("target" => target, "original_text" => record[target["field"]], "targets" => [ target ])
+      ReviewCommand.from_projection(snapshot).except("targets").merge("target" => target)
     end
 
     # Keep record lookup on this small supported-target allowlist, never constantize input.

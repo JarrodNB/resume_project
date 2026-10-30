@@ -13,10 +13,10 @@ from pydantic_ai.messages import (
 )
 
 from agents.library_edit_agent import LibraryEditDeps, improve_library_entry
+from database.library_edit_reader import build_database_edit_reader
 from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from privacy.contact_mask import mask_outbound
-from schemas.library_edit import LibraryEditInput
 from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
 from screening.record_adapters import library_records
 from screening.records import record_failure_message, screen_records_sync
@@ -57,7 +57,12 @@ def cover_saved_history(history):
 
 @within_screening_session
 def handle_library_edit_task(task, dependencies):
-    snapshot = LibraryEditInput.model_validate(task.input)
+    reader = dependencies.read_library_edit or build_database_edit_reader(dependencies.settings)
+    try:
+        snapshot = reader(task)
+    except ValueError:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+                               error_message="This editing source changed or is unavailable. Start a new edit.")
     if len(json.dumps(task.input, ensure_ascii=False).encode()) > 180_000:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=TOO_LONG_MESSAGE)
     usage = []
@@ -98,7 +103,7 @@ def handle_library_edit_task(task, dependencies):
             prompt = bind_screened_prompt([feedback], lambda values: "User feedback:\n" + source_block("user_feedback", values[0]))
     else:
         source = snapshot.library.model_dump_json(exclude_none=True)
-        # Rails approves these receipts only when they also match the frozen snapshot.
+        # Rails approves receipts only when admission fingerprints and current fields match.
         if records := library_records(snapshot.library):
             outcome = screen_records_sync(records, approved_sources=[source])
             usage.extend(outcome.decision.model_usages)

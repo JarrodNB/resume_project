@@ -42,7 +42,10 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   as one labeled blob (split only past the masked screen cap, records kept whole) with no
   phrase check, fails the whole call on any rejected blob, and writes one `RecordScreening`
   receipt per saved record. Only the fields a caller uses are screened. Chat and interviews
-  pass their operation-billed `screen` function. Workflows move onto it one at a time; see the record-screening plan.
+  pass their operation-billed `screen` function.
+- `record_adapters.py` — pure snapshot-to-`ScreenableRecord` functions (library, job,
+  gap responses, interview answers, summary sources). Types, ids and fingerprints match the
+  older modules' receipts. Summary sources have no record ids, so they are never reported. Workflows move onto it one at a time; see the record-screening plan.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 

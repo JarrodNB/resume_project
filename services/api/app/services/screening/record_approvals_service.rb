@@ -28,6 +28,10 @@ module Screening
     # which keeps the lock order the older recorders used.
     RECORD_TYPES = {
       # Practice questions clear approvals through revisions, so the list lives here.
+      "job_preference_criterion" => { model: JobPreferenceProfile, fields: %w[text].freeze,
+        scope: :preference_scope, approve: :approve_preference_criterion },
+      "job_board_listing" => { model: JobBoardListing, fields: %w[passages].freeze,
+        scope: :preference_scope, approve: :approve_preference_listing },
       "interview_question" => { model: InterviewQuestion, fields: %w[question_text answer_text].freeze,
                                 scope: :interview_question_scope, check: :interview_revision_matches? },
       "job" => { model: Job, scope: :job_scope },
@@ -96,6 +100,8 @@ module Screening
     end
 
     def approve_record(entry, scope, record_id, receipts)
+      return send(entry[:approve], record_id, receipts) if entry[:approve]
+
       snapshot = nil
       if scope[:snapshots]
         snapshot = scope[:snapshots][record_id]
@@ -125,6 +131,56 @@ module Screening
       end
     end
 
+    # Preferences are JSON entries inside one owned profile, while catalogue listings
+    # are shared rows. Both still use the common receipt shape and exact-value rule.
+    def preference_scope(_record_type)
+      return unless task_for_user? && %w[check_job_preferences elicit_job_preferences].include?(@ai_task.task_type)
+
+      { profile_id: @ai_task.input["profile_id"] }
+    end
+
+    def approve_preference_criterion(record_id, receipts)
+      snapshot = Array(@ai_task.input["criteria"]).find { |item| item.is_a?(Hash) && item["id"] == record_id }
+      return unless snapshot && snapshot["text"].is_a?(String)
+      profile = @user.job_preference_profile
+      return unless profile && profile.id == @ai_task.input["profile_id"]
+
+      profile.with_lock do
+        current = (profile.draft_criteria + profile.confirmed_criteria).any? do |item|
+          item["id"] == record_id && item["text"] == snapshot["text"]
+        end
+        fingerprint = self.class.field_fingerprint(snapshot["text"])
+        next unless current && receipts.any? { |receipt| receipt["fingerprints"]["text"] == fingerprint }
+
+        combined = profile.screened_criteria_sha256 | [ fingerprint ]
+        profile.update!(screened_criteria_sha256: combined) if combined != profile.screened_criteria_sha256
+      end
+    end
+
+    def approve_preference_listing(record_id, receipts)
+      return unless @ai_task.check_job_preferences?
+      listings = @ai_task.input["listings"]
+      return unless listings.is_a?(Array) && listings.size.between?(1, JobPreferences::StartCheckService::MAX_LISTINGS)
+      snapshot = listings.find { |item| item.is_a?(Hash) && item["id"] == record_id }
+      return unless snapshot && snapshot["passages"].is_a?(Array)
+      record = JobBoardListing.find_by(id: record_id)
+      return unless record
+
+      record.with_lock do
+        # Rebuild the same bounded excerpt, not the whole source digest: a previous
+        # partial check must never approve passages that were not in that check.
+        budget = [ JobPreferences::StartCheckService::TEXT_BUDGET_BYTES / listings.size,
+          JobBoard::PreferenceListingSnapshot::MAX_TEXT_BYTES ].min
+        current = JobBoard::PreferenceListingSnapshot.new(record).snapshot(max_text_bytes: budget)
+        next unless current["source_digest"] == snapshot["source_digest"] && current["passages"] == snapshot["passages"]
+
+        fingerprint = self.class.field_fingerprint(current["passages"].pluck("text"))
+        next unless receipts.any? { |receipt| receipt["fingerprints"]["passages"] == fingerprint }
+
+        record.update!(screened_sha256: fingerprint) unless record.screened_sha256 == fingerprint
+      end
+    end
+
     def task_for_user?
       @ai_task && @ai_task.user_id == @user.id
     end
@@ -136,7 +192,17 @@ module Screening
       when "experience_highlight" then ExperienceHighlight.joins(:experience).where(experiences: { user_id: @user.id })
       else @user.public_send(record_type.pluralize)
       end
-      { records: records }
+      scope = { records: records }
+      if task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type)
+        library = @ai_task.input.fetch("library", {})
+        values = case record_type
+        when "user" then [ { "id" => library["summary_record_id"], "summary" => library["summary"] } ]
+        when "experience_highlight" then Array(library["experiences"]).flat_map { |role| Array(role["highlights"]) }
+        else Array(library[record_type.pluralize])
+        end
+        scope[:snapshots] = values.select { |value| value.is_a?(Hash) }.index_by { |value| value["id"] }
+      end
+      scope
     end
 
     # Only the job a gap analysis or tailoring task is about, or a spoken interview's own job.

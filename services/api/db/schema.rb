@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_29_130001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -638,6 +638,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_130001) do
     t.jsonb "payload", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "screened_sha256"
     t.index ["provider_id"], name: "index_job_board_listings_on_provider_id", unique: true
   end
 
@@ -675,6 +676,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_130001) do
     t.jsonb "confirmed_criteria", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "screened_criteria_sha256", default: [], null: false, array: true
     t.index ["user_id"], name: "index_job_preference_profiles_on_user_id", unique: true
     t.check_constraint "version >= 0 AND confirmed_revision >= 0 AND confirmed_revision <= version", name: "job_preferences_valid_revisions"
   end

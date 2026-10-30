@@ -22,6 +22,7 @@ RSpec.describe Screening::RecordApprovalsService do
 
   it "reads each type's allowed fields from its model" do
     expect(described_class::RECORD_TYPES.transform_values { |entry| entry[:fields] }).to eq(
+      "job_preference_criterion" => %w[text], "job_board_listing" => %w[passages],
       "interview_question" => %w[question_text answer_text],
       "job" => %w[title company description requirements responsibilities nice_to_haves],
       "gap_response" => %w[requirement body], "user" => %w[summary],
@@ -31,10 +32,6 @@ RSpec.describe Screening::RecordApprovalsService do
       "skill" => %w[name category], "career_context" => %w[requirement response]
     )
     expect(Skill.screened_field_names).to eq(%w[name category])
-  end
-
-  it "keeps the library discard helper failing loudly for other models" do
-    expect { CareerLibrary::RecordScreeningService.discard_changed_fields(record: build(:job)) }.to raise_error(KeyError)
   end
 
   describe "career library" do

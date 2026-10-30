@@ -40,13 +40,16 @@ module JobPreferences
     end
 
     def prepare(task)
-      # Successful/paused turns checked every frozen criterion before generation. Their
-      # exact inputs and generated outputs are server-owned reusable provenance.
-      approved = @user.ai_tasks.elicit_job_preferences.where(status: %w[completed needs_user_input]).order(created_at: :desc).limit(12).flat_map do |item|
-        Array(item.input["criteria"]) + Array(item.result&.fetch("criteria", []))
+      generated = @user.ai_tasks.elicit_job_preferences.completed.order(created_at: :desc).limit(12).flat_map do |item|
+        Array(item.result&.fetch("criteria", []))
       end
-      trusted = Array(@profile&.draft_criteria).select { |item| approved.any? { |value| value.is_a?(Hash) && value.values_at("text", "priority") == item.values_at("text", "priority") } }.pluck("text")
-      task.input = { "trusted_criteria" => trusted, "profile_version" => @version, "criteria" => @profile&.draft_criteria || [],
+      trusted = Array(@profile&.draft_criteria).select do |item|
+        generated.any? { |value| value.is_a?(Hash) && value.values_at("text", "priority") == item.values_at("text", "priority") }
+      end.pluck("text")
+      criteria = Array(@profile&.draft_criteria).map do |item|
+        item.merge("screened" => Array(@profile&.screened_criteria_sha256).include?(Screening::RecordApprovalsService.field_fingerprint(item["text"])))
+      end
+      task.input = { "trusted_criteria" => trusted, "profile_version" => @version, "profile_id" => @profile&.id, "criteria" => criteria,
         "message" => @message, "turn" => (@previous&.input&.fetch("turn", 0) || 0) + 1,
         "previous_task_id" => @previous&.id, "history" => @previous&.message_history.presence || @previous&.input&.fetch("history", []) || [],
         "question_id" => if @previous&.needs_user_input?

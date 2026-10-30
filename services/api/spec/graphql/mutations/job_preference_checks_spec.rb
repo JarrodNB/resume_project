@@ -110,6 +110,16 @@ RSpec.describe "Job preference checks" do
         "support" => support && { "passage_id" => support }, "contradiction" => contradiction && { "passage_id" => contradiction } } ] } ] }
   end
 
+  def screening_receipts(task)
+    criterion = task.input["criteria"].first
+    source = task.input["listings"].first
+    fingerprint = ->(value) { Screening::RecordApprovalsService.field_fingerprint(value) }
+    [ { "record_type" => "job_preference_criterion", "record_id" => criterion["id"],
+        "fingerprints" => { "text" => fingerprint.call(criterion["text"]) } },
+      { "record_type" => "job_board_listing", "record_id" => source["id"],
+        "fingerprints" => { "passages" => fingerprint.call(source["passages"].pluck("text")) } } ]
+  end
+
   it "accepts exact evidence once and keeps private results owner scoped" do
     request
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
@@ -165,7 +175,7 @@ RSpec.describe "Job preference checks" do
     request
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
     listing.update!(payload: { title: "Now onsite", description: "Office attendance required." })
-    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task) })
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task), "record_screening" => screening_receipts(task) })
     expect(task.reload).to be_failed
     expect(task.error_message).to include("changed")
   end
@@ -196,7 +206,7 @@ RSpec.describe "Job preference checks" do
     request
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
     expect(task.input["criteria"].first["trusted_generated"]).to be(false)
-    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task) })
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task), "record_screening" => screening_receipts(task) })
     request
     next_task = user.ai_tasks.order(created_at: :desc).first
     expect(next_task.input["criteria"].first["screened"]).to be(true)
@@ -214,7 +224,7 @@ RSpec.describe "Job preference checks" do
   it "reuses exact text screening when only a criterion's priority changes" do
     request
     task = user.ai_tasks.last
-    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task) })
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task), "record_screening" => screening_receipts(task) })
     criterion = user.reload.job_preference_profile.confirmed_criteria.first
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 2, action: :save_draft, criteria: [ criterion.merge("priority" => "nice_to_have") ])
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 3, action: :confirm)

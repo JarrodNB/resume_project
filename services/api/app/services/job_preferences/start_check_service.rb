@@ -37,10 +37,11 @@ module JobPreferences
         source = JobBoard::PreferenceListingSnapshot.new(by_id.fetch(item[:listing_id])).snapshot(max_text_bytes: byte_budget)
         return failure([ "This listing changed. Refresh your search results before checking." ]) unless source["source_digest"] == item[:expected_digest]
         return failure([ "A listing has no usable posting text. Refresh or narrow your search." ]) if source["passages"].empty?
-        source.merge("screened" => checked_listing?(source))
+        source.merge("screened" => by_id.fetch(item[:listing_id]).screened_sha256 ==
+          Screening::RecordApprovalsService.field_fingerprint(source["passages"].pluck("text")))
       end
       criteria = profile.confirmed_criteria.map do |criterion|
-        criterion.merge("trusted_generated" => generated_criterion?(criterion), "screened" => checked_criterion?(criterion))
+        criterion.merge("trusted_generated" => generated_criterion?(criterion), "screened" => profile.screened_criteria_sha256.include?(Screening::RecordApprovalsService.field_fingerprint(criterion["text"])))
       end
       @input = { "profile_id" => profile.id, "confirmed_revision" => profile.confirmed_revision,
         "criteria" => criteria, "listings" => snapshots }
@@ -67,18 +68,6 @@ module JobPreferences
       # Provenance is established from validated, completed Rails-owned output, never client flags.
       @user.ai_tasks.where(task_type: "elicit_job_preferences", status: "completed")
         .where("result @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
-    end
-
-    def checked_criterion?(criterion)
-      prior_check = @user.ai_tasks.where(task_type: "check_job_preferences", status: "completed")
-        .where("input @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
-      prior_check || @user.ai_tasks.where(task_type: "elicit_job_preferences", status: %w[completed needs_user_input])
-        .where("input @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
-    end
-
-    def checked_listing?(source)
-      @user.ai_tasks.where(task_type: "check_job_preferences", status: "completed")
-        .where("input @> ?", { listings: [ source.slice("id", "source_digest", "passages") ] }.to_json).exists?
     end
 
     def resolve_existing

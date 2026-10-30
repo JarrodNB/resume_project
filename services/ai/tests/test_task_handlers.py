@@ -12,7 +12,6 @@ from uuid import uuid4
 
 import pytest
 from pydantic_ai import capture_run_messages
-from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import UserPromptPart
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
@@ -91,7 +90,7 @@ def test_parse_resume_returns_parsed_resume(
     assert user_prompt.content.endswith(" at Acme\n</resume>")
 
 
-def test_parse_resume_rejects_unknown_source_bullet_ids(
+def test_parse_resume_removes_unsupported_highlights_with_warning(
     task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage,
     offline_resume_model_resolution,
 ) -> None:
@@ -104,14 +103,16 @@ def test_parse_resume_rejects_unknown_source_bullet_ids(
             {
                 "company": "Acme",
                 "title": "Engineer",
-                "highlight_ids": ["B1", "B999"],
+                "highlights": ["Shipped the billing service", "Invented a faster billing engine"],
             }
         ]
     }
 
     offline_resume_model_resolution(TestModel(custom_output_args=agent_output))
-    with pytest.raises(UnexpectedModelBehavior):
-        handle_ai_task(build_parse_resume_task(), task_dependencies)
+    result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+    parsed = result.result["parsed_resume"]
+    assert parsed["experiences"][0]["highlights"] == ["Shipped the billing service"]
+    assert any("Removed a highlight" in warning for warning in parsed["parsing_warnings"])
 
 
 def test_parse_resume_reports_token_usage(
@@ -331,3 +332,35 @@ def test_parse_resume_publishes_separate_restorable_suggestions(
     assert result.result["job_title_suggestions"] == expected
     assert "job_title_suggestions" not in result.result["parsed_resume"]
     assert len(result.usage) == 3
+
+
+@pytest.mark.parametrize("marker", ["• ", "\uf0b7 ", "▪ ", ""])
+def test_parse_resume_keeps_unmarked_and_unfamiliar_highlights(
+    marker, task_dependencies, fake_file_storage, offline_resume_model_resolution,
+):
+    """Full-text extraction preserves wrapped facts across roles without marker filtering."""
+    fake_file_storage.files[FILE_KEY] = build_docx_bytes([
+        "EXPERIENCE", "Engineer at Acme", "2022 - Present",
+        marker + "Built a billing service handling", "2M requests each day.",
+        "Support Engineer at Contoso", "2019 - 2022",
+        marker + "Resolved customer incidents.",
+    ])
+    output = {"experiences": [
+        {"company": "Acme", "title": "Engineer", "start_date": "2022", "is_current": True,
+         "highlights": ["Built a billing service handling 2M requests each day."]},
+        {"company": "Contoso", "title": "Support Engineer", "start_date": "2019", "end_date": "2022",
+         "highlights": ["Resolved customer incidents."]},
+    ]}
+    offline_resume_model_resolution(TestModel(custom_output_args=output))
+    with capture_run_messages() as messages:
+        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+    parsed = result.result["parsed_resume"]
+    assert [role["highlights"] for role in parsed["experiences"]] == [
+        ["Built a billing service handling 2M requests each day."],
+        ["Resolved customer incidents."],
+    ]
+    assert parsed["parsing_warnings"] == []
+    prompts = [part.content for message in messages for part in message.parts
+               if isinstance(part, UserPromptPart)]
+    assert len(prompts) == 1
+    assert all(marker + "Built a billing service handling\n2M requests each day." in p for p in prompts)

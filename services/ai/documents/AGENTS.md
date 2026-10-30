@@ -7,8 +7,6 @@ against that text. No LLM calls here.
 
 ## Contents
 
-- `experience_source.py` — request-local experience passage eligibility, source-ID annotation,
-  validated model selections, and reconstruction of exact highlights in source order
 - `extract_document_text.py` — PDF (pypdf) and DOCX (python-docx, including table cells
   and active header/footer stories, with inherited parts read once) to text; raises
   `UnsupportedDocumentError` for unreadable PDF/DOCX containers, other types,

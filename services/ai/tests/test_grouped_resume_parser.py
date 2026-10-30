@@ -1,4 +1,4 @@
-"""Exercise concurrent parsing and exact experience reconstruction through public interfaces."""
+"""Exercise concurrent parsing and direct experience extraction through public interfaces."""
 
 import asyncio
 
@@ -32,13 +32,13 @@ def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
         schema = info.output_tools[0].parameters_json_schema["properties"]
         if "experiences" in schema:
             prompt = messages[-1].parts[-1].content
-            assert "Include every source bullet that belongs to each role." in prompt
-            assert "[B1] • Built a thing" in prompt
+            assert "Return their exact text in highlights" in prompt
+            assert "<resume>\nA complete masked resume\n• Built a thing\n</resume>" in prompt
             assert "Trusted source bullet map" not in prompt
             await asyncio.sleep(0.03)
             args = {
                 "experiences": [
-                    {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]}
+                    {"company": "Acme", "title": "Engineer", "highlights": ["Built a thing"]}
                 ],
                 "parsing_warnings": ["Experience warning", "Shared"],
             }
@@ -177,16 +177,7 @@ def test_source_screened_once_and_group_prompts_reuse_exact_approval(monkeypatch
     assert calls == ["A complete masked resume\n• Built a thing"]
 
 
-def test_source_bullets_keep_wrapped_duplicate_passages_and_masked_tokens():
-
-    source = "Acme\n• Built a PERSON_TOKEN\n  across two lines\n• Built a PERSON_TOKEN\n"
-    assert _reconstructed_source_bullets(source) == {
-        "B1": "Built a PERSON_TOKEN\nacross two lines",
-        "B2": "Built a PERSON_TOKEN",
-    }
-
-
-def test_pdf_extracted_bullets_are_restored_from_source_ids(offline_model_resolution):
+def test_pdf_extracted_text_reaches_direct_extraction(offline_model_resolution):
     from io import BytesIO
 
     from pypdf import PdfWriter
@@ -225,7 +216,7 @@ def test_pdf_extracted_bullets_are_restored_from_source_ids(offline_model_resolu
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
             args = {
                 "experiences": [
-                    {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]}
+                    {"company": "Acme", "title": "Engineer", "highlights": ["Built a reliable API."]}
                 ]
             }
         else:
@@ -238,77 +229,6 @@ def test_pdf_extracted_bullets_are_restored_from_source_ids(offline_model_resolu
     )
 
     assert result.parsed_resume.experiences[0].highlights == ["Built a reliable API."]
-
-
-def test_source_bullets_keep_unindented_wraps_and_stop_before_role_and_section_headers():
-
-    source = (
-        "Senior Engineer — Acme\n2022 – Present\n"
-        "• Improved our\nRetention by 20% across teams.\n"
-        "Engineer — Acme\n2019 – 2022\n"
-        "• Built a reliable deployment platform.\nEDUCATION\n"
-    )
-    assert _reconstructed_source_bullets(source) == {
-        "B1": "Improved our\nRetention by 20% across teams.",
-        "B2": "Built a reliable deployment platform.",
-    }
-
-
-def test_source_bullets_keep_unindented_sentence_continuations():
-
-    source = (
-        "Product Manager — Acme\n2022 – Present\n"
-        "• Launched the new onboarding flow in five regions.\n"
-        "This improved retention and cut support requests.\n"
-    )
-    assert _reconstructed_source_bullets(source) == {
-        "B1": "Launched the new onboarding flow in five regions.\n"
-        "This improved retention and cut support requests."
-    }
-
-
-def test_source_bullets_keep_bullet_text_ending_in_a_date_range():
-
-    source = "Managed the program from 2019–2024\n• Led the rollout across five regions, 2020–2024\n"
-    assert _reconstructed_source_bullets(source) == {"B1": "Led the rollout across five regions, 2020–2024"}
-
-
-def test_source_bullets_exclude_project_and_skill_section_bullets():
-
-    source = (
-        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
-        "PROJECTS\n• Built a personal portfolio.\n"
-        "SKILLS\n• Python\n"
-    )
-    assert _reconstructed_source_bullets(source) == {"B1": "Built a reliable API."}
-
-
-@pytest.mark.parametrize("heading", ["SIDE PROJECTS", "SELECTED PROJECTS", "ACADEMIC PROJECTS"])
-def test_source_bullets_stop_at_project_heading_variants(heading):
-
-    source = (
-        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
-        f"{heading}\n• Built a personal portfolio.\n"
-    )
-    assert _reconstructed_source_bullets(source) == {"B1": "Built a reliable API."}
-
-
-def test_source_bullets_exclude_technical_skills_section_bullets():
-
-    source = (
-        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
-        "TECHNICAL SKILLS\n• Python\n"
-    )
-    assert _reconstructed_source_bullets(source) == {"B1": "Built a reliable API."}
-
-
-def test_source_bullets_exclude_professional_summary_bullets_before_experience():
-
-    source = (
-        "PROFESSIONAL SUMMARY\n• Product leader with ten years of experience.\n"
-        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
-    )
-    assert _reconstructed_source_bullets(source) == {"B1": "Built a reliable API."}
 
 
 def test_parser_ignores_unheaded_preamble_bullets_before_dated_work_history(
@@ -325,7 +245,7 @@ def test_parser_ignores_unheaded_preamble_bullets_before_dated_work_history(
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
             args = {
                 "experiences": [
-                    {"company": "Acme", "title": "Senior Engineer", "highlight_ids": ["B1"]}
+                    {"company": "Acme", "title": "Senior Engineer", "highlights": ["Built a reliable API."]}
                 ]
             }
         else:
@@ -359,117 +279,6 @@ def test_nonexperience_group_instructions_only_name_owned_fields():
     )
     assert "do not leave stated role fields blank" in experience_instruction
     assert "one deliverable for an unnamed client" in experience_instruction
-
-
-def test_source_bullets_stop_before_role_headers_with_inline_dates():
-
-    source = (
-        "WORK EXPERIENCE\n"
-        "• Built a complex payment system used across three regions.\n"
-        "Senior Engineer, Acme — 2022–Present\n"
-        "• Improved reliability by 30%.\n"
-    )
-    assert _reconstructed_source_bullets(source) == {
-        "B1": "Built a complex payment system used across three regions.",
-        "B2": "Improved reliability by 30%.",
-    }
-
-
-def test_source_bullets_stop_before_role_headers_without_dates():
-
-    source = (
-        "WORK EXPERIENCE\n"
-        "• Built a complex platform used across three regions.\n"
-        "Senior Engineer, Acme\n"
-        "• Improved reliability by 30%.\n"
-    )
-    assert _reconstructed_source_bullets(source) == {
-        "B1": "Built a complex platform used across three regions.",
-        "B2": "Improved reliability by 30%.",
-    }
-
-
-def test_source_bullets_stop_before_split_role_headers():
-
-    source = (
-        "WORK EXPERIENCE\n"
-        "• Built a complex platform used across three regions.\n"
-        "Senior Engineer\n"
-        "Acme\n"
-        "2022 - Present\n"
-        "• Improved reliability by 30%.\n"
-    )
-    assert _reconstructed_source_bullets(source) == {
-        "B1": "Built a complex platform used across three regions.",
-        "B2": "Improved reliability by 30%.",
-    }
-
-
-def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(offline_model_resolution):
-    async def answer(messages, info):
-        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
-            args = {"experiences": [
-                {"company": "Acme", "title": "Engineer", "highlight_ids": ["B2", "B1"]},
-                {"company": "Acme", "title": "Lead", "highlight_ids": []},
-            ]}
-        else:
-            args = {}
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
-
-    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
-    result = parse_resume_text(
-        "Acme\nEngineer\n• Built the first thing.\n• Built the second thing.\n\nLead",
-        "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini",
-    )
-    assert [r.highlights for r in result.parsed_resume.experiences] == [
-        ["Built the first thing.", "Built the second thing."],
-        [],
-    ]
-    assert result.parsed_resume.model_dump()["experiences"][0]["highlights"] == [
-        "Built the first thing.",
-        "Built the second thing.",
-    ]
-
-
-@pytest.mark.parametrize("ids", [["B404"], ["B1", "B1"]])
-def test_invalid_or_duplicate_source_ids_fail_without_partial_resume(ids, offline_model_resolution):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
-
-    async def answer(messages, info):
-        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
-            args = {"experiences": [{"company": "Acme", "title": "Engineer", "highlight_ids": ids}]}
-        else:
-            args = {}
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
-
-    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
-    with pytest.raises(UnexpectedModelBehavior):
-        parse_resume_text(
-            "Acme\n• Built a thing", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
-        )
-
-
-def test_invalid_source_id_is_retried_before_rebuilding_highlights(offline_model_resolution):
-    experience_calls = 0
-
-    async def answer(messages, info):
-        nonlocal experience_calls
-        properties = info.output_tools[0].parameters_json_schema["properties"]
-        if "experiences" in properties:
-            experience_calls += 1
-            ids = ["B404"] if experience_calls == 1 else ["B1"]
-            args = {"experiences": [{"company": "Acme", "title": "Engineer", "highlight_ids": ids}]}
-        else:
-            args = {}
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
-
-    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
-    result = parse_resume_text(
-        "Acme\nEngineer\n2022–Present\n• Built a thing",
-        "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini",
-    )
-    assert experience_calls == 2
-    assert result.parsed_resume.experiences[0].highlights == ["Built a thing"]
 
 
 def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch, offline_model_resolution):
@@ -552,106 +361,6 @@ def test_group_failure_cancels_and_awaits_siblings(offline_model_resolution):
     assert len(cancelled) == 2
 
 
-def test_split_roles_restore_wrapped_duplicate_passages_in_source_order(offline_model_resolution):
-    source = (
-        "WORK EXPERIENCE\nSenior Engineer\nAcme\n2022 - Present\n"
-        "• Built a PERSON_TOKEN platform\n  across two regions.\n"
-        "• Reduced support requests by 30%.\n"
-        "Software Engineer\nContoso\n2019 - 2022\n"
-        "• Built a PERSON_TOKEN platform\n  across two regions.\n"
-        "• Improved deployment reliability.\n"
-        "PROJECTS\n• Built a personal site.\n"
-    )
-
-    async def answer(messages, info):
-        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
-            args = {"experiences": [
-                {"company": "Acme", "title": "Senior Engineer", "start_date": "2022",
-                 "is_current": True, "highlight_ids": ["B2", "B1"]},
-                {"company": "Contoso", "title": "Software Engineer", "start_date": "2019",
-                 "end_date": "2022", "highlight_ids": ["B4", "B3"]},
-            ]}
-        else:
-            args = {}
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
-
-    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
-    result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
-    roles = result.parsed_resume.experiences
-    assert [(role.company, role.title, role.start_date, role.end_date) for role in roles] == [
-        ("Acme", "Senior Engineer", "2022", None),
-        ("Contoso", "Software Engineer", "2019", "2022"),
-    ]
-    assert roles[0].is_current
-    assert [role.highlights for role in roles] == [
-        ["Built a PERSON_TOKEN platform\nacross two regions.", "Reduced support requests by 30%."],
-        ["Built a PERSON_TOKEN platform\nacross two regions.", "Improved deployment reliability."],
-    ]
-
-
-@pytest.mark.parametrize("recover", [False, True])
-def test_source_id_reused_across_roles_retries_or_fails(recover, offline_model_resolution):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
-
-    calls = 0
-
-    async def answer(messages, info):
-        nonlocal calls
-        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
-            calls += 1
-            args = {"experiences": [
-                {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]},
-                {"company": "Contoso", "title": "Engineer",
-                 "highlight_ids": ["B2"] if recover and calls > 1 else ["B1"]},
-            ]}
-        else:
-            args = {}
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
-
-    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
-    source = "WORK EXPERIENCE\n• Built one thing.\n• Built another thing."
-    if recover:
-        result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
-        assert calls == 2
-        assert [role.highlights for role in result.parsed_resume.experiences] == [
-            ["Built one thing."], ["Built another thing."],
-        ]
-    else:
-        with pytest.raises(UnexpectedModelBehavior):
-            parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
-        assert calls == 3
-
-
-def _reconstructed_source_bullets(source):
-    """Read all labeled passages back through validated selection and reconstruction."""
-    import re
-
-    from documents.experience_source import ExperienceSource
-
-    experience_source = ExperienceSource(source)
-    ids = re.findall(r"\[(B\d+)\]", experience_source.annotated_text)
-    output = experience_source.output_type.model_validate({
-        "experiences": [{"company": "Example", "title": "Engineer", "highlight_ids": ids}],
-    })
-    highlights = experience_source.reconstruct(output)["experiences"][0]["highlights"]
-    return dict(zip(ids, highlights, strict=True))
-
-
-@pytest.mark.parametrize("selections", [[['B404']], [['B1', 'B1']], [['B1'], ['B1']]])
-def test_experience_source_reconstruction_rejects_unvalidated_invalid_selections(selections):
-    from documents.experience_source import ExperienceSource
-    from schemas.parsed_resume import ExperienceExtraction
-
-    source = ExperienceSource("WORK EXPERIENCE\n• Built a reliable platform.")
-    output = ExperienceExtraction(experiences=[
-        {"company": "Example", "title": "Engineer", "highlight_ids": ids}
-        for ids in selections
-    ])
-
-    with pytest.raises(ValueError, match="Use only known source bullet IDs, once per resume"):
-        source.reconstruct(output)
-
-
 @pytest.mark.parametrize("suggestions", [None, "wrong", [42], ["", "x" * 101]])
 def test_unusable_optional_titles_do_not_fail_extraction(suggestions, offline_model_resolution):
     def answer(messages, info):
@@ -660,6 +369,7 @@ def test_unusable_optional_titles_do_not_fail_extraction(suggestions, offline_mo
         })])
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
     result = parse()
     assert result.parsed_resume.summary == "Original summary"
     assert result.job_title_suggestions == []

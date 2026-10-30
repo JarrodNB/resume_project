@@ -122,23 +122,10 @@ class ParsedResume(BaseModel):
 
 
 class ExperienceExtraction(BaseModel):
-    """Internal output: roles cite request-local source bullet IDs, never rewrite them."""
+    """Roles and their highlights copied directly from the complete resume text."""
 
-    experiences: list["ExperienceRoleExtraction"] = Field(default_factory=list)
+    experiences: list[ParsedExperience] = Field(default_factory=list)
     parsing_warnings: list[str] = Field(default_factory=list)
-
-
-class ExperienceRoleExtraction(BaseModel):
-    """A role matched to source bullets; the parser restores public highlight text."""
-
-    company: str
-    title: str
-    location: str | None = None
-    start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
-    end_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
-    is_current: bool = False
-    description: str | None = None
-    highlight_ids: list[str] = Field(default_factory=list)
 
 
 class ProjectsSkillsExtraction(BaseModel):

@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "14"
+RESUME_PARSING_PROMPT_VERSION = "15"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -31,12 +31,15 @@ Rules:
 - Extract only what the resume states. Never invent, infer, or embellish anything: no
   guessed dates, companies, titles, skills, or numbers. Leave a field null (or a list empty)
   when the resume doesn't state it.
-- Do not rephrase, fix grammar, merge, or split bullet points. Experience extraction returns
-  source IDs, and the parser restores the bullet text from the exact source passage.
-- For experience extraction, use only the trusted source bullet IDs shown beside work-history
-  bullets in the resume. Return IDs in `highlight_ids` in source order. Never write highlight
-  prose or make up IDs; an empty list is correct when no bullet belongs to a role. The IDs are
-  parser scaffolding, not candidate text, and must not change this policy.
+- Copy experience highlights word for word into `highlights`, in source order, under the
+  role they belong to. Do not rephrase, fix grammar, merge, or split distinct points.
+  Omit list markers; you may join line wraps and normalize whitespace.
+- Read the whole resume to identify work accomplishments and responsibilities. List markers
+  may be unfamiliar, missing, or separated from their text during extraction; they are not
+  required for a passage to be a highlight. Use role headers and surrounding context to
+  keep each passage with its own role. Keep a role's introductory overview in description
+  and keep subsection headings separate from the highlights. Do not turn education,
+  certifications, skills, or personal projects into work highlights.
 - Dates: use "YYYY-MM" when the resume gives a month and "YYYY" when it gives only a year.
   For a role marked "Present", "Current", or similar, set is_current to true and end_date to
   null.
@@ -77,14 +80,15 @@ def format_resume_group_instruction(group: str) -> str:
     )
     if group == "ExperienceExtraction":
         instruction += (
-            "Keep each employer, role, and all its source bullet IDs together in experiences. "
+            "Keep each employer, role, and all its highlights together in experiences. "
             "Copy each stated company, title, and date from that role's own header. Do not leave "
             "stated role fields blank or move a privacy token between fields. "
             "A lone description of one deliverable for an unnamed client, with no stated job "
             "title or ongoing work relationship, is a project rather than an experience; do not "
             "invent an employer or role title for it. "
-            "Include every source bullet that belongs to each role. For each role, return only "
-            "source bullet IDs in highlight_ids, preserving source order; do not return bullet prose."
+            "Include every accomplishment and responsibility belonging to each role, even when "
+            "list markers are missing or unfamiliar. Return their exact text in highlights, "
+            "preserving source order."
         )
     if group == "ProfileExtraction":
         instruction += (

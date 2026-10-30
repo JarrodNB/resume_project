@@ -1,7 +1,7 @@
 """Classify listing preferences with JEV and copy evidence only from fixed source IDs.
 
 One run asks both sides of every criterion in one request, never generates evidence prose.
-Caller-owned source screening and the shared guardrail protect the exact readable prompt.
+Inputs are bounded and labeled as data; this workflow does not classify prompt injection.
 """
 import asyncio
 from enum import Enum
@@ -19,15 +19,24 @@ from prompts.job_preference_instructions import (
     JOB_PREFERENCE_INSTRUCTIONS,
     JOB_PREFERENCE_PROMPT_VERSION,
 )
-from screening.prompt_guardrail import screen_prompt
-from screening.session import bind_screened_prompt, remaining_timeout
+from screening.session import remaining_timeout
 from settings import JEV_SCREEN_MODEL
 from telemetry.tracing import record_prompt_version
+from text_limits import MAX_PROMPT_TEXT
 
 JEV_PREFERENCE_MODEL = JEV_SCREEN_MODEL
+
+
+async def check_preference_input(ctx, prompt):
+    """Reject empty or oversized prompts without classifying their contents."""
+    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > MAX_PROMPT_TEXT:
+        raise ValueError("Preference input must be bounded nonblank text")
+    return True
+
+
 job_preference_agent = Agent(name="job_preference_agent", output_type=bool,
     instructions=JOB_PREFERENCE_INSTRUCTIONS, retries=0, defer_model_check=True,
-    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)])
+    capabilities=[ConversationLogging(), InputGuardrail(guard=check_preference_input)])
 
 
 def listing_decision_schema(criteria, listing):
@@ -51,7 +60,7 @@ def render_preference_prompt(criteria, listing):
         preferences = "\n".join(f"C{i + 1}: {source_block('preference', value)}" for i, value in enumerate(values[:count]))
         passages = "\n".join(f"{p.id}: {source_block('posting_passage', text)}" for p, text in zip(listing.passages, values[count:], strict=True))
         return f"Confirmed job preferences:\n{preferences}\n\nListing source passages:\n{passages}"
-    return bind_screened_prompt(sources, render)
+    return render(sources)
 
 
 async def assess_preference_listing(criteria, listing, *, usage=None):

@@ -46,13 +46,14 @@ RSpec.describe "Job preference checks" do
     expect(request_batch([ listing ], revision: 1).dig("data", "checkJobBoardPreferenceResults", "errors")).not_to be_empty
     empty = create(:job_board_listing, payload: {})
     expect(request_batch([ empty ]).dig("data", "checkJobBoardPreferenceResults", "errors")).to include(/no usable posting text/)
-    long = (1..100).map { create(:job_board_listing, payload: { title: "Engineer", description: "x" * 8000 }) }
+    long = (1..100).map { create(:job_board_listing, payload: { title: "Engineer", description: (1..90).map { |n| "Line #{n}" }.join("\n") }) }
     profile = user.job_preference_profile
     JobPreferences::UpdateProfileService.call(user: user, expected_version: profile.version, action: :save_draft,
       criteria: Array.new(10) { |n| { text: "Preference #{n}", priority: "must_have" } })
     JobPreferences::UpdateProfileService.call(user: user, expected_version: profile.version + 1, action: :confirm)
+    stub_const("JobPreferences::StartCheckService::MAX_INPUT_BYTES", 10_000)
     result = request_batch(long, revision: profile.version + 2)
-    expect(result.dig("data", "checkJobBoardPreferenceResults", "errors")).to include(/too much listing evidence/)
+    expect(result.dig("data", "checkJobBoardPreferenceResults", "errors")).to include(/too much listing text/)
     expect(user.ai_tasks.reload).to be_empty
   end
 
@@ -61,8 +62,8 @@ RSpec.describe "Job preference checks" do
     request_batch([ listing, second ])
     task = user.ai_tasks.last
     decisions = task.input["listings"].map do |item|
-      { "id" => item["id"], "source_digest" => item["source_digest"], "truncated" => item["truncated"], "evidence_passages" => [], "criteria" => task.input["criteria"].map do |criterion|
-        { "id" => criterion["id"], "status" => "unknown", "reason" => item["truncated"] ? "incomplete_source" : "not_stated", "support" => nil, "contradiction" => nil }
+      { "id" => item["id"], "source_digest" => item["source_digest"], "truncated" => item["truncated"], "criteria" => task.input["criteria"].map do |criterion|
+        { "id" => criterion["id"], "probability" => 0.5 }
       end }
     end
     complete = { "confirmed_revision" => 2, "listings" => decisions }
@@ -73,7 +74,7 @@ RSpec.describe "Job preference checks" do
     expect(task.ai_task_outcomes.count).to eq(1)
   end
 
-  it "admits a normal first page with all ten criteria using compact exact evidence" do
+  it "admits a normal first page with all ten criteria using compact probabilities" do
     criteria = Array.new(10) { |n| { text: "Condition #{n}", priority: "must_have" } }
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 2, action: :save_draft, criteria: criteria)
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 3, action: :confirm)
@@ -101,13 +102,10 @@ RSpec.describe "Job preference checks" do
     expect(task.input["listings"].first["passages"].map { |p| p["text"] }.join).to include("Fully remote within the US.")
     expect(Job.count).to eq(0)
   end
-  def outcome(task, support: "P2", contradiction: nil)
+  def outcome(task, probability: 0.93)
     item = task.input["listings"].first
-    evidence = ->(id) { id && item["passages"].find { |p| p["id"] == id }.then { |p| { "passage_id" => p["id"], "text" => p["text"] } } }
     { "confirmed_revision" => 2, "listings" => [ { "id" => listing.id, "source_digest" => item["source_digest"], "truncated" => item["truncated"],
-      "evidence_passages" => [ evidence.call(support), evidence.call(contradiction) ].compact.uniq,
-      "criteria" => [ { "id" => task.input["criteria"].first["id"], "status" => "matching", "reason" => "supported",
-        "support" => support && { "passage_id" => support }, "contradiction" => contradiction && { "passage_id" => contradiction } } ] } ] }
+      "criteria" => [ { "id" => task.input["criteria"].first["id"], "probability" => probability } ] } ] }
   end
 
   def screening_receipts(task)
@@ -120,7 +118,7 @@ RSpec.describe "Job preference checks" do
         "fingerprints" => { "passages" => fingerprint.call(source["passages"].pluck("text")) } } ]
   end
 
-  it "accepts exact evidence once and keeps private results owner scoped" do
+  it "accepts probabilities once and keeps private results owner scoped" do
     request
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
     value = outcome(task)
@@ -133,15 +131,35 @@ RSpec.describe "Job preference checks" do
     expect(foreign["errors"].first["message"]).to eq("Record not found")
   end
 
-  it "rejects fabricated evidence instead of storing an ungrounded match" do
-    request
-    task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
-    value = outcome(task)
-    value["listings"].first["evidence_passages"].first["text"] = "Invented promise"
-    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => value })
-    expect(task.reload).to be_failed
-    expect(task.result).to be_nil
+  [ -0.1, 1.1, "0.9", true, nil ].each do |probability|
+    it "rejects invalid probability #{probability.inspect}" do
+      request
+      task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
+      AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task, probability: probability) })
+      expect(task.reload).to be_failed
+      expect(task.result).to be_nil
+    end
   end
+
+  it "rejects nonfinite probabilities and legacy categorical outputs without raising" do
+    request
+    task = user.ai_tasks.last
+    [ Float::NAN, Float::INFINITY ].each do |probability|
+      expect(JobPreferences::ValidateCheckResultService.call(ai_task: task, result: outcome(task, probability: probability))).not_to be_success
+    end
+    legacy = outcome(task)
+    legacy["listings"].first["criteria"].first.merge!("status" => "matching")
+    expect(JobPreferences::ValidateCheckResultService.call(ai_task: task, result: legacy)).not_to be_success
+  end
+
+  it "accepts independent native probability values without categorical evidence" do
+    request
+    task = user.ai_tasks.last
+    [ 0, 0.5, 0.93, 1 ].each do |probability|
+      expect(JobPreferences::ValidateCheckResultService.call(ai_task: task, result: outcome(task, probability: probability))).to be_success
+    end
+  end
+
   it "rejects missing confirmation, stale revisions and changed browser sources before queueing" do
     expect(request(owner: create(:user)).dig("data", "checkJobBoardPreferenceResults", "errors")).not_to be_empty
     expect(request(revision: 1).dig("data", "checkJobBoardPreferenceResults", "errors")).not_to be_empty
@@ -180,7 +198,7 @@ RSpec.describe "Job preference checks" do
     expect(task.error_message).to include("changed")
   end
 
-  it "validates every listing and criterion identity and rejects unsupported statuses" do
+  it "validates every listing and criterion identity and rejects unsupported probabilities" do
     4.times do |index|
       request
       task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
@@ -190,7 +208,7 @@ RSpec.describe "Job preference checks" do
       elsif index == 1
         value["listings"].first["criteria"].first["id"] = SecureRandom.uuid
       elsif index == 2
-        value["listings"].first["criteria"].first["status"] = "conflicting"
+        value["listings"].first["criteria"].first["probability"] = 1.5
       else
         value["listings"].first["truncated"] = !value["listings"].first["truncated"]
       end

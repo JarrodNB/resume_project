@@ -7,7 +7,7 @@ instructions from `prompts/`.
 
 ## Contents
 
-- `job_preference_agent.py` — new JEV preference decisions over fixed passage choices; exact-source evidence, bounded readable inputs without injection classification, one request per listing.
+- `job_preference_agent.py` — dynamic native-JEV probability fields for up to ten preferences; no passage choices, bounded readable inputs without injection classification, one request per listing.
 
 - `resume_parsing_agent.py` — resume text -> `ParsedResume` through three bounded concurrent
   full-source extractions: experience; projects/skills; profile/education/certifications.

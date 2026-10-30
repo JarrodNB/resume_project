@@ -46,21 +46,16 @@ module JobPreferences
       end
       @input = { "profile_id" => profile.id, "confirmed_revision" => profile.confirmed_revision,
         "criteria" => criteria, "listings" => snapshots }
-      return failure([ "This check has too much listing evidence. Narrow your search or check fewer results." ]) if
+      return failure([ "This check has too much listing text. Narrow your search or check fewer results." ]) if
         JSON.generate(@input).bytesize > MAX_INPUT_BYTES || largest_result_bytes > MAX_RESULT_BYTES
       success(@input)
     end
 
-    # Bound decisions and distinct quote dictionaries conservatively before any model work.
+    # Bound the complete identity/probability result before any paid model work.
     def largest_result_bytes
       listings = @input["listings"].map do |source|
-        longest = source["passages"].max_by { |p| JSON.generate(p).bytesize }
-        evidence = longest && { "passage_id" => longest["id"] }
-        item = { "id" => source["id"], "source_digest" => source["source_digest"], "truncated" => source["truncated"], "criteria" => @input["criteria"].map do |criterion|
-          { "id" => criterion["id"], "status" => "unknown", "reason" => "contradictory_evidence", "support" => evidence, "contradiction" => evidence }
-        end }
-        item["evidence_passages"] = source["passages"].map { |p| { "passage_id" => p["id"], "text" => p["text"] } }
-        item
+        { "id" => source["id"], "source_digest" => source["source_digest"], "truncated" => source["truncated"],
+          "criteria" => @input["criteria"].map { |criterion| { "id" => criterion["id"], "probability" => 0.12345678901234567 } } }
       end
       JSON.generate({ "confirmed_revision" => @revision, "listings" => listings }).bytesize
     end

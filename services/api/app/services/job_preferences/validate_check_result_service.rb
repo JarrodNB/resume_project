@@ -1,4 +1,4 @@
-# Accept only complete criterion decisions backed by exact frozen passages for current sources.
+# Accept complete, finite preference probabilities for the exact confirmed sources.
 # Called inside the shared owner/task transaction; duplicate and late usage retain shared policy.
 module JobPreferences
   class ValidateCheckResultService < ApplicationService
@@ -8,7 +8,7 @@ module JobPreferences
 
     def call
       return failure([ "Preferences or listing content changed. Refresh and check again." ]) unless current?
-      valid_result? ? success(@result) : failure([ "The preference check returned invalid evidence. Please try again." ])
+      valid_result? ? success(@result) : failure([ "The preference check returned invalid probabilities. Please try again." ])
     end
 
     private
@@ -30,44 +30,22 @@ module JobPreferences
       actual, expected = @result["listings"], @task.input["listings"]
       return false unless actual.is_a?(Array) && actual.size == expected.size
       actual.zip(expected).all? do |item, source|
-        exact_keys?(item, %w[id source_digest truncated criteria evidence_passages]) && valid_passages?(item, source) && item["id"] == source["id"] && item["source_digest"] == source["source_digest"] && item["truncated"] == source["truncated"] &&
-          valid_criteria?(item["criteria"], source)
+        exact_keys?(item, %w[id source_digest truncated criteria]) && item["id"] == source["id"] &&
+          item["source_digest"] == source["source_digest"] && item["truncated"] == source["truncated"] &&
+          valid_criteria?(item["criteria"])
       end
+    rescue JSON::GeneratorError
+      false
     end
 
-    def valid_passages?(item, source)
-      passages = item["evidence_passages"]
-      return false unless passages.is_a?(Array) && passages.size <= source["passages"].size
-      return false unless passages.all? { |p| exact_keys?(p, %w[passage_id text]) && source["passages"].any? { |s| s["id"] == p["passage_id"] && s["text"] == p["text"] } }
-      return false unless passages.pluck("passage_id").uniq.size == passages.size
-      referenced = item["criteria"].is_a?(Array) && item["criteria"].flat_map { |c| c.is_a?(Hash) ? [ c["support"], c["contradiction"] ] : [] }.compact
-      referenced.is_a?(Array) && referenced.all? { |r| r.is_a?(Hash) && passages.any? { |p| p["passage_id"] == r["passage_id"] } }
-    end
-
-    def valid_criteria?(actual, source)
+    def valid_criteria?(actual)
       expected = @task.input["criteria"]
       return false unless actual.is_a?(Array) && actual.size == expected.size
       actual.zip(expected).all? do |decision, criterion|
-        next false unless exact_keys?(decision, %w[id status reason support contradiction]) && decision["id"] == criterion["id"] &&
-          valid_evidence?(decision["support"], source) && valid_evidence?(decision["contradiction"], source)
-        support, conflict = decision.values_at("support", "contradiction")
-        status, reason = if support && conflict
-          [ "unknown", "contradictory_evidence" ]
-        elsif support
-          [ "matching", "supported" ]
-        elsif conflict
-          [ "conflicting", "contradicted" ]
-        else
-          [ "unknown", source["truncated"] ? "incomplete_source" : "not_stated" ]
-        end
-        decision["status"] == status && decision["reason"] == reason
+        next false unless exact_keys?(decision, %w[id probability]) && decision["id"] == criterion["id"]
+        probability = decision["probability"]
+        probability.is_a?(Numeric) && probability.finite? && probability.between?(0, 1)
       end
-    end
-
-    def valid_evidence?(evidence, source)
-      return true if evidence.nil?
-      return false unless exact_keys?(evidence, %w[passage_id])
-      source["passages"].any? { |p| p["id"] == evidence["passage_id"] }
     end
 
     def exact_keys?(value, keys)

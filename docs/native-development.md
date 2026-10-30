@@ -96,9 +96,12 @@ Once workers run, queued work or user actions can invoke configured providers.
 
 ## Differences from Compose
 
-Optional future streaming features use `AI_STREAMING_ENABLED=true` exported before
-install/start. Native setup then installs Redis under `.native/bin` if needed and
-manages its loopback port 56379. An explicit external `AI_STREAM_REDIS_URL` is preserved
+Chat can stream incremental output in native development with `AI_STREAMING_ENABLED=true`
+exported before install/start. For a forwarded preview, also export `AI_BROWSER_ORIGINS`
+to the exact `NATIVE_WEB_ORIGIN` before starting: the AI service template otherwise
+sets it to localhost, which prevents the preview browser from attaching to the stream.
+Native setup then installs Redis under `.native/bin` if needed and manages its loopback
+port 56379. An explicit external `AI_STREAM_REDIS_URL` is preserved
 and starts no local buffer. The default final-result interview setup needs no Redis;
 see [optional streaming](architecture/ai-streaming.md) for its separate output capability
 on the same executor and protocol/latency checks.

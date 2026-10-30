@@ -298,8 +298,7 @@ library's lookup or cryptography.
 
 Use the [account rollout and human QA runbook](../operations/authentication-rollout.md)
 for coordinated migration/deployment, production delivery setup, rollback and the
-cookie-isolated local review stack. The [focused boundary audit](../security/authentication-audit.md)
-records inspected paths, executed checks and unresolved tooling/environment limits.
+cookie-isolated local review stack.
 
 Rate limits identify actions through Rails route recognition, so optional format
 URLs such as `.json` share their canonical route allowance. Route recognition is

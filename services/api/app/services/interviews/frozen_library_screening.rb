@@ -21,7 +21,7 @@ module Interviews
 
       model = source.is_a?(Hash) && SOURCE_TYPES[source["type"]]
       model && source["text"].is_a?(String) && source["id"].is_a?(String) &&
-        CareerLibrary::RecordScreeningService::FIELDS.fetch(model).include?(source["field"])
+        Screening::RecordApprovalsService::RECORD_TYPES.fetch(model.underscore)[:fields].include?(source["field"])
     end
 
     def self.source_value(source)

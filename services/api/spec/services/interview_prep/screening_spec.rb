@@ -13,14 +13,14 @@ RSpec.describe "Saved practice screening" do
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
   def report(record = question, fields = %w[question_text answer_text])
-    { "question_id" => record.id, "question_revision" => record.question_revision,
-      "answer_revision" => record.answer_revision,
-      "fields" => fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
+    { "record_type" => "interview_question", "record_id" => record.id, "revision" => { "question_revision" => record.question_revision,
+      "answer_revision" => record.answer_revision },
+      "fingerprints" => fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
   end
 
   def apply(reports, target: task, status: "failed")
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => target.id,
-      "status" => status, "error_message" => "Generation failed", "interview_question_screening" => reports })
+      "status" => status, "error_message" => "Generation failed", "record_screening" => reports })
   end
 
   it "retains actual checks when later generation fails" do
@@ -68,9 +68,9 @@ RSpec.describe "Saved practice screening" do
     other = other_set.questions.create!(position: 1, question_text: question.question_text)
     stranger = create(:user).interview_question_sets.create!(number: 1).questions.create!(position: 1, question_text: question.question_text)
     bad = report
-    bad["fields"] = { "feedback" => "a" * 64, "question_text" => nil }
+    bad["fingerprints"] = { "feedback" => "a" * 64, "question_text" => nil }
     expect(apply([ nil, {}, bad, report(other, [ "question_text" ]), report(stranger, [ "question_text" ]),
-      { "question_id" => question.id, "fields" => [] } ])).to be_success
+      { "question_id" => question.id, "fingerprints" => [] } ])).to be_success
     [ question, other, stranger ].each { |record| expect(record.reload.screened_fields).to be_empty }
   end
 
@@ -82,7 +82,7 @@ RSpec.describe "Saved practice screening" do
     expect(apply(reports, target: other_task)).to be_success
     usage_task = create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: snapshot)
     expect(AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => usage_task.id,
-      "status" => "usage", "attempt_id" => SecureRandom.uuid, "interview_question_screening" => reports })).to be_success
+      "status" => "usage", "attempt_id" => SecureRandom.uuid, "record_screening" => reports })).to be_success
     expect(question.reload.screened_fields).to be_empty
   end
 
@@ -153,7 +153,7 @@ RSpec.describe "Saved practice screening" do
   it "starts saved questions unchecked and shares Unicode fingerprint vectors" do
     expect(question.screened_fields).to be_empty
     JSON.parse(File.read(Rails.root.join("../ai/tests/fixtures/job_field_fingerprints.json"))).each do |vector|
-      expect(InterviewPrep::RecordScreeningService.field_fingerprint(vector["value"])).to eq(vector["sha256"])
+      expect(Screening::RecordApprovalsService.field_fingerprint(vector["value"])).to eq(vector["sha256"])
     end
   end
 end

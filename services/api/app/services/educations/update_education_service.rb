@@ -13,7 +13,7 @@ module Educations
     def call
       saved = @education.with_lock do
         @education.assign_attributes(@attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @education)
+        @education.discard_changed_screened_fields
         @education.save
       end
       return failure(@education.errors) unless saved

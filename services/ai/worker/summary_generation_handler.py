@@ -89,4 +89,3 @@ def _masked_rendering(sources):
     """Use the exact renderer and whole-prompt mask that the outbound request uses."""
     return mask_outbound(render_summary_sources([source.label for source in sources],
         [source.text for source in sources]))
-

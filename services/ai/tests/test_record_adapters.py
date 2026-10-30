@@ -1,6 +1,5 @@
 """Snapshot adapters build the same receipts the older per-domain modules reported."""
 
-import asyncio
 from datetime import date
 
 import pytest
@@ -21,9 +20,6 @@ from schemas.gap_analysis_context import (
 from schemas.gap_response import GapResponseSnapshot
 from schemas.summary_generation import SummarySource
 from schemas.user_text_screen import UserTextScreen
-from screening.gap_response_fields import screen_gap_response_fields
-from screening.job_fields import screen_job_fields
-from screening.library_fields import screen_library_fields
 from screening.record_adapters import (
     gap_response_records,
     interview_answer_record,
@@ -31,8 +27,7 @@ from screening.record_adapters import (
     library_records,
     summary_source_records,
 )
-from screening.records import ScreenableRecord, screen_records_sync
-from screening.screen_user_text import ScreenOutcome
+from screening.records import ScreenableRecord, field_fingerprint, screen_records_sync
 from screening.session import screening_session
 
 
@@ -74,12 +69,13 @@ def new_receipts(records):
     {}, {"include_context_requirements": False},
     {"used_fields": {"experience": {"title", "description"}, "skill": {"name"}, "user": {"summary"}}},
 ])
-def test_library_receipts_match_the_old_module(options):
-    with screening_session() as session:
-        assert screen_library_fields(library(), lambda _: True, **options)
-        old = {(r.record_type, r.record_id, tuple(sorted(r.fingerprints.items())))
-               for r in session.library_screening}
-    assert old and new_receipts(library_records(library(), **options)) == old
+def test_library_receipts_cover_only_pending_selected_fields(options):
+    records = library_records(library(), **options)
+    expected = {(record.record_type, record.record_id,
+                 tuple(sorted((name, field_fingerprint(value)) for name, value in record.fields.items()
+                              if name not in record.approved_fields)))
+                for record in records if record.record_id and record.fields.keys() - record.approved_fields}
+    assert new_receipts(records) == expected
 
 
 def test_library_records_shapes_and_titles():
@@ -98,35 +94,31 @@ def test_library_records_shapes_and_titles():
     assert len(context.display_title) <= 60 and context.display_title.endswith("…")
 
 
-def test_job_receipts_match_the_old_module():
+def test_job_receipts_preserve_typed_value_fingerprints():
     job = JobToAnalyze(id="job-1", title="Engineer", company="Acme", requirements=["Python", "SQL"],
                        nice_to_haves=["Cloud"], responsibilities=["Hidden"], screened_fields=["company"])
-    with screening_session() as session:
-        screen_job_fields(job, lambda _: True, approved_sources=[])
-        old = {("job", r.job_id, tuple(sorted(r.fields.items()))) for r in session.job_screening}
     [record] = job_records(job)
     assert record.display_title == "Job: Engineer at Acme"
     assert record.fields["requirements"] == ["Python", "SQL"] and "responsibilities" not in record.fields
-    assert new_receipts([record]) == old
+    assert new_receipts([record]) == {("job", "job-1", tuple(sorted({
+        "title": field_fingerprint("Engineer"), "requirements": field_fingerprint(["Python", "SQL"]),
+        "nice_to_haves": field_fingerprint(["Cloud"])}.items())))}
     extended = job_records(job, fields=("title", "responsibilities"))[0]
     assert set(extended.fields) == {"title", "responsibilities"}
 
 
-def test_gap_response_receipts_match_the_old_module():
+def test_gap_response_receipts_preserve_typed_value_fingerprints():
     snapshots = [GapResponseSnapshot(id="gap-1", requirement="Kubernetes", body="Ran clusters"),
                  GapResponseSnapshot(id="gap-2", requirement="SQL", body="Daily", screened_fields=["body"]),
                  GapResponseSnapshot(requirement="Legacy", body="Old answer", screened_fields=["body"])]
 
-    async def allow(_text):
-        return ScreenOutcome(True)
-
-    with screening_session() as session:
-        asyncio.run(screen_gap_response_fields([(snapshot, snapshot.body) for snapshot in snapshots], allow))
-        old = {("gap_response", r.response_id, tuple(sorted(r.fields.items())))
-               for r in session.gap_response_screening}
     records = gap_response_records(snapshots)
     assert records[2].record_id is None and records[2].approved_fields == frozenset()
-    assert new_receipts(records) == old
+    assert new_receipts(records) == {
+        ("gap_response", "gap-1", tuple(sorted({"requirement": field_fingerprint("Kubernetes"),
+                                               "body": field_fingerprint("Ran clusters")}.items()))),
+        ("gap_response", "gap-2", (("requirement", field_fingerprint("SQL")),)),
+    }
 
 
 def test_interview_answer_record_carries_revisions():
@@ -178,3 +170,23 @@ def test_summary_sources_reject_a_repeated_entry_field(sources):
 def test_resume_section_type_requires_no_id():
     with pytest.raises(ValueError):
         ScreenableRecord(record_type="resume_section", record_id="1", fields={}, display_title="x")
+
+
+def test_interview_sources_group_saved_fields_and_keep_typed_job_lists():
+    from screening.record_adapters import interview_source_records
+    sources = [
+        {"type": "experiences", "id": "role-1", "field": "title", "text": "Engineer", "screened": True},
+        {"type": "experiences", "id": "role-1", "field": "company", "text": "Acme"},
+        {"type": "jobs", "id": "job-1", "field": "requirements", "text": "Python\nSQL", "value": ["Python", "SQL"]},
+        {"type": "profile", "text": "Legacy summary"},
+    ]
+    records = interview_source_records(sources)
+    assert len(records) == 3
+    assert records[0].fields == {"title": "Engineer", "company": "Acme"}
+    assert records[0].approved_fields == {"title"}
+    assert records[1].fields == {"requirements": ["Python", "SQL"]}
+    assert records[2].record_id is None
+    assert {(kind, identity) for kind, identity, _ in new_receipts(records)} == {
+        ("experience", "role-1"), ("job", "job-1")}
+    with pytest.raises(ValueError, match="Repeated"):
+        interview_source_records([sources[0], sources[0]])

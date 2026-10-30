@@ -44,28 +44,12 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   receipt per saved record. Only the fields a caller uses are screened. Chat and interviews
   pass their operation-billed `screen` function.
 - `record_adapters.py` — pure snapshot-to-`ScreenableRecord` functions (library, job,
-  gap responses, interview answers, summary sources). Types, ids and fingerprints match the
-  older modules' receipts. Summary sources have no record ids, so they are never reported. Workflows move onto it one at a time; see the record-screening plan.
+  gap responses, written answers, frozen spoken sources, summary sources and preferences). Types, ids and fingerprints match the
+  Rails receipt registry. Summary library sources carry saved identities; copied resume sections have no ids and are never reported. Preference criteria and exact listing passages use the same path.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 
 ## Local Rules
-
-- `interview_question_fields.py` — written answer checks shared by feedback and regeneration.
-  Exact field decisions may share work, but every saved ID/revision is reported. Regeneration
-  trusts question text supplied in its Rails-owned task snapshot, including legacy siblings
-  without aligned metadata. Generated questions are never screened again. Complete-source
-  caps apply to answer approvals.
-
-- `gap_response_fields.py` — groups pending requirement/body fields from queued answer
-  snapshots, preserving every saved ID through text deduplication. Full group limits apply
-  even to reused approvals; legacy no-ID snapshots cannot reuse persisted checks. Exact
-  field payload decisions are execution-local; only Rails persists fingerprinted reports.
-
-- `job_fields.py` — sync/async saved Job checks shared by gap analysis and tailoring.
-  Only title, company, requirements and nice-to-haves can earn approvals; lists are ordered
-  whole fields. Canonical UTF-8 JSON fingerprints match Ruby stdlib JSON.generate, not
-  Rails HTML escaping. Callers retain complete-source limits and bind only these used fields.
 
 - `library_inputs.py` — bounded whole-library checking and reconstruction from
   checked source values for interviews and the chat library tool, on `screen_records`.
@@ -74,9 +58,6 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 - `interview_question_inputs.py` — reconstructs the checked library and generated history
   inside exact prompt binding, returning the same complete question context used by evals.
   Source approval and generated-text provenance remain the caller's responsibility.
-- `library_fields.py` — reuse database field approvals and report new successful checks over
-  final task results. Callers choose used fields and keep complete-source limits. Metadata
-  stays outside prompt serialization; only Rails persists approvals and clears edited fields.
 - `session.py` owns execution-local decisions and exact
   prompt coverage. The worker opens a fresh `screening_session` for every delivery;
   standalone handlers/wrappers use `within_screening_session` to reuse an enclosing scope.
@@ -85,8 +66,8 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   synthetic comparison found identical decisions with fewer requests for 4,000;
   it does not establish a general detection advantage over whole-document screening.
   `bind_screened_prompt(sources, render)` grants exact rendered-prompt coverage only when
-  every supplied source has an allowed decision or explicit, validated generated-output
-  provenance in this execution. Renderers are trusted application code:
+  every supplied source has an allowed decision, validated generated-output provenance,
+  or an immutable Rails-screened-text grant in this execution. Renderers are trusted application code:
   all untrusted values must come from the supplied source arguments, never closure state.
   Empty sources cannot grant coverage. Unknown history and changed prompts remain guarded.
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.

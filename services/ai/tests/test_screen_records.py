@@ -424,3 +424,16 @@ def test_custom_screen_failure_fails_the_batch():
     with screening_session() as session:
         outcome = asyncio.run(screen_records([skill(1)], approved_sources=["source"], screen=blocked))
         assert not outcome.allowed and not session.allowed_sources and not session.record_screening
+
+
+def test_legacy_snapshot_checks_are_reused_only_for_exact_fields_within_one_run(monkeypatch):
+    legacy = ScreenableRecord(record_type="gap_response", record_id=None, fields={"body": "Answer"}, display_title="Answer")
+    classifier = FakeClassifier()
+    with screening_session() as session:
+        assert run_screen(classifier, monkeypatch, False, [legacy]).allowed
+        assert run_screen(classifier, monkeypatch, False, [legacy]).pending == ()
+        assert len(classifier.texts) == 1
+        assert not session.record_screening
+    with screening_session():
+        assert run_screen(classifier, monkeypatch, False, [legacy]).pending == (legacy,)
+    assert len(classifier.texts) == 2

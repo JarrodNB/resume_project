@@ -22,6 +22,7 @@ from screening.record_adapters import library_records
 from screening.records import record_failure_message, screen_records_sync
 from screening.screen_user_text import screen_user_text
 from screening.session import (
+    approve_projected_source,
     bind_screened_prompt,
     current_session,
     trust_generated_source,
@@ -78,7 +79,7 @@ def handle_library_edit_task(task, dependencies):
         outcome = check(snapshot.feedback)
         if not outcome.allowed:
             return failure(outcome)
-        current_session().allowed_sources.add(mask_outbound(snapshot.feedback))
+        approve_projected_source(snapshot.feedback, snapshot.feedback, lambda value: value, outcome)
     feedback = snapshot.feedback or (SKIP_NOTE if snapshot.skip else DEFAULT_FEEDBACK)
     if not snapshot.feedback:
         trust_generated_source(feedback)
@@ -112,7 +113,7 @@ def handle_library_edit_task(task, dependencies):
                 outcome = check(item.answer)
                 if not outcome.allowed:
                     return failure(outcome)
-                current_session().allowed_sources.add(mask_outbound(item.answer))
+                approve_projected_source(item.answer, item.answer, lambda value: value, outcome)
                 trust_generated_source(item.question)
                 sources.extend([item.question, item.answer])
                 indices.append(item.question_index + 1)

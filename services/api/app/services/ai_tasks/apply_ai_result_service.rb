@@ -36,19 +36,7 @@ module AiTasks
         # Late usage still changes the task's cost totals, so subscribers need to hear about it.
         next usage_recorded if status == "usage" || ai_task.finished? || ((ai_task.improve_library_entry? || ai_task.elicit_job_preferences?) && !ai_task.queued?)
 
-        InterviewPrep::RecordScreeningService.call(ai_task: ai_task, reports: @message["interview_question_screening"])
-        Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
-        GapResponses::RecordScreeningService.call(ai_task: ai_task, reports: @message["gap_response_screening"])
         record_screening(ai_task)
-
-        if ai_task.generate_summary?
-          # Summary receipts arrive only as record_screening and are checked against the
-          # frozen snapshot there; this older list is never trusted for summaries.
-        elsif ai_task.review_library_section? || ai_task.improve_library_entry?
-          CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: @message["library_screening"])
-        else
-          CareerLibrary::RecordScreeningService.call(user: ai_task.user, reports: @message["library_screening"])
-        end
 
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
@@ -81,14 +69,7 @@ module AiTasks
       if ai_task.generate_summary?
         receipts = others
         SummaryGeneration::RecordScreeningService.call(ai_task: ai_task, receipts: library)
-      elsif ai_task.review_library_section? || ai_task.improve_library_entry?
-        receipts = others
-        reports = library.filter_map do |receipt|
-          next unless receipt["fingerprints"].is_a?(Hash)
 
-          receipt.slice("record_type", "record_id", "fingerprints").merge("fields" => receipt["fingerprints"].keys)
-        end
-        CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: reports)
       end
       Screening::RecordApprovalsService.call(user: ai_task.user, reports: receipts, ai_task: ai_task)
     end

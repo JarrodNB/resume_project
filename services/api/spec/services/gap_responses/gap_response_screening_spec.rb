@@ -16,14 +16,14 @@ RSpec.describe "Saved gap response screening" do
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
   def report(record = response, fields = %w[requirement body])
-    { "response_id" => record.id,
-      "fields" => fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
+    { "record_type" => "gap_response", "record_id" => record.id,
+      "fingerprints" => fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
   end
 
   def apply(reports, status: "failed", target: task)
     AiTasks::ApplyAiResultService.call(message: {
       "ai_task_id" => target.id, "status" => status, "error_message" => "Generation failed",
-      "result" => {}, "gap_response_screening" => reports
+      "result" => {}, "record_screening" => reports
     })
   end
 
@@ -48,10 +48,10 @@ RSpec.describe "Saved gap response screening" do
     stale = report
     task # freeze the queued snapshot before the edit
     response.update!(body: "Edited after queueing")
-    stale["fields"]["career_context_id"] = Digest::SHA256.hexdigest(JSON.generate(response.career_context_id))
-    malformed = [ nil, {}, { "response_id" => response.id, "fields" => [] },
-      { "response_id" => response.id, "fields" => { "body" => nil } },
-      { "response_id" => "bad-uuid", "fields" => {} } ]
+    stale["fingerprints"]["career_context_id"] = Digest::SHA256.hexdigest(JSON.generate(response.career_context_id))
+    malformed = [ nil, {}, { "response_id" => response.id, "fingerprints" => [] },
+      { "response_id" => response.id, "fingerprints" => { "body" => nil } },
+      { "response_id" => "bad-uuid", "fingerprints" => {} } ]
     task.input["gap_responses"] << { "id" => "bad-uuid", "requirement" => "Bad", "body" => "Bad" }
     task.save!
     expect(apply([ report(other), report(other_job), report(foreign), stale, *malformed ])).to be_success
@@ -71,7 +71,7 @@ RSpec.describe "Saved gap response screening" do
     expect(apply(reports, status: "usage")).not_to be_success # usage identity is required
     expect(AiTasks::ApplyAiResultService.call(message: {
       "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,
-      "gap_response_screening" => reports
+      "record_screening" => reports
     })).to be_success
     expect(apply(reports, target: create(:ai_task, user: user, subject: job))).to be_success
     task.update!(input: { "gap_responses" => [ response.attributes.slice("requirement", "body") ] })
@@ -131,7 +131,7 @@ RSpec.describe "Saved gap response screening" do
     expect(response.screened_fields).to be_empty
     cases = JSON.parse(File.read(Rails.root.join("../ai/tests/fixtures/job_field_fingerprints.json")))
     cases.each do |item|
-      expect(GapResponses::RecordScreeningService.field_fingerprint(item["value"])).to eq(item["sha256"])
+      expect(Screening::RecordApprovalsService.field_fingerprint(item["value"])).to eq(item["sha256"])
     end
   end
 end

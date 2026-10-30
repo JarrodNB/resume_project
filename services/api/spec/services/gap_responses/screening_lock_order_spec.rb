@@ -21,7 +21,7 @@ RSpec.describe "Gap answer screening lock order" do
     end
   end
 
-  %i[save clear_answer apply_result apply_record_screening].each do |operation|
+  %i[save clear_answer apply_record_screening].each do |operation|
     it "finishes #{operation} and career-library clearing without a lock cycle" do
       user = create(:user, summary: "Saved summary")
       job = create(:job, user: user)
@@ -38,16 +38,7 @@ RSpec.describe "Gap answer screening lock order" do
       end
       first = concurrently do |connection|
         backend_pids << connection.select_value("SELECT pg_backend_pid()")
-        if operation == :apply_result
-          AiTasks::ApplyAiResultService.call(message: {
-            "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-            "gap_response_screening" => [ { "response_id" => response.id, "fields" => {
-              "body" => GapResponses::RecordScreeningService.field_fingerprint(response.body)
-            } } ],
-            "library_screening" => [ { "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ],
-              "fingerprints" => { "summary" => Jobs::RecordScreeningService.field_fingerprint(user.summary) } } ]
-          })
-        elsif operation == :apply_record_screening
+        if operation == :apply_record_screening
           AiTasks::ApplyAiResultService.call(message: {
             "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
             "record_screening" => [
@@ -110,15 +101,15 @@ RSpec.describe "Gap answer screening lock order" do
         end
       end
     end
-    report = { "job_id" => job.id, "fields" => {
-      "title" => Jobs::RecordScreeningService.field_fingerprint(job.title)
+    report = { "record_type" => "job", "record_id" => job.id, "fingerprints" => {
+      "title" => Screening::RecordApprovalsService.field_fingerprint(job.title)
     } }
     apply_report = lambda do |task|
       AiTasks::ApplyAiResultService.call(message: {
         "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-        "job_screening" => [ report ], "library_screening" => [ {
-          "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ],
-          "fingerprints" => { "summary" => Jobs::RecordScreeningService.field_fingerprint(user.summary) }
+        "record_screening" => [ report, {
+          "record_type" => "user", "record_id" => user.id,
+          "fingerprints" => { "summary" => Screening::RecordApprovalsService.field_fingerprint(user.summary) }
         } ]
       })
     end

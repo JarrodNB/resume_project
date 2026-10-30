@@ -587,7 +587,7 @@ def test_replacement_trusts_generated_sibling_questions(task_dependencies, monke
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
-        assert session.interview_question_screening == []
+        assert session.record_screening == []
         count = len(calls)
         assert handle_ai_task(request, deps).status == "completed"
         assert len(calls) == count
@@ -604,7 +604,7 @@ def test_legacy_replacement_trusts_target_and_unidentified_siblings(task_depende
         skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])]))
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
-        assert session.interview_question_screening == []
+        assert session.record_screening == []
     assert calls == []
 
 

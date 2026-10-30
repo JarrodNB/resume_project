@@ -85,10 +85,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   `InputBlocked` publishes a failed task with the safe error message.
 - Every execution starts a fresh screening session. Source-selection calls share decisions
   with exact bound prompts. Career-library fields reuse saved checks and report newly checked
-  field names on final results. Saved Job fields similarly reuse checks and report typed-value
-  fingerprints through `job_screening`. Saved gap-response requirement/body checks report
-  through `gap_response_screening`. Written practice answer checks use `interview_question_screening`
-  with exact fingerprints and question/answer revisions. They survive later generation failure; other inputs are
+  fields on final results through `record_screening`. Jobs, gap responses, written practice,
+  summaries and job preferences share that receipt, with exact typed-value fingerprints
+  and question/answer revisions where needed. They survive later generation failure; other inputs are
   screened again in later tasks. Standalone handlers
   and agent wrappers establish a local session when no worker execution exists.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,

@@ -13,13 +13,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from schemas.model_usage import ModelUsage
-from schemas.screening_receipts import (
-    GapResponseScreening,
-    InterviewQuestionScreening,
-    JobScreening,
-    LibraryScreening,
-    RecordScreening,
-)
+from schemas.screening_receipts import RecordScreening
 from worker.legacy_career_context import normalize_legacy_career_context
 
 TaskType = Literal[
@@ -62,8 +56,4 @@ class AiResultMessage(BaseModel):
     attempt_id: UUID | None = None
     usage_incomplete: bool = False
     attempt_finished: bool = True
-    library_screening: list[LibraryScreening] = Field(default_factory=list)
-    job_screening: list[JobScreening] = Field(default_factory=list)
-    gap_response_screening: list[GapResponseScreening] = Field(default_factory=list)
-    interview_question_screening: list[InterviewQuestionScreening] = Field(default_factory=list)
     record_screening: list[RecordScreening] = Field(default_factory=list)

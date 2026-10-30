@@ -108,8 +108,8 @@ def test_oversized_library_fails_before_writing(generation) -> None:
     assert seen == []
 
 
-def test_library_at_limit_uses_full_text_when_prompt_fits(generation) -> None:
-    """An exact-cap source remains available to the summary writer in full."""
+def test_library_near_limit_uses_full_text_when_prompt_fits(generation) -> None:
+    """A source with room for screening labels remains available to the summary writer in full."""
     dependencies, context, seen, _ = generation
     context.career_library = CareerLibrary(summary="x" * (text_limits.MAX_SCREENED_TEXT - 100))
 

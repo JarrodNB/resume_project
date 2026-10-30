@@ -19,34 +19,6 @@ module CareerLibrary
       values
     end
 
-    # A queued snapshot may outlive edits. Reuse only checks of the exact field
-    # value still saved, holding its row lock until the ordinary recorder finishes.
-    def self.record_screening(ai_task:, reports:)
-      roles = Array(ai_task.input.dig("library", "experiences"))
-      sources = roles.map { |role| [ "experience", role ] } + roles.flat_map { |role| Array(role["highlights"]).map { |item| [ "experience_highlight", item ] } }
-      library = ai_task.input.fetch("library", {})
-      sources += Array(library["projects"]).map { |record| [ "project", record ] }
-      sources += Array(library["career_contexts"]).map { |record| [ "career_context", record ] }
-      if library["summary_record_id"]
-        sources << [ "user", { "id" => library["summary_record_id"], "summary" => library["summary"] } ]
-      end
-      Array(reports).each do |report|
-        next unless report.is_a?(Hash)
-        source = sources.find { |kind, item| kind == report["record_type"] && item["id"] == report["record_id"] }&.last
-        next unless source
-        record = begin
-          EditSnapshot.owned_record(user: ai_task.user, kind: report["record_type"], record_id: source["id"])
-        rescue ActiveRecord::RecordNotFound
-          nil
-        end
-        next unless record
-        record.with_lock do
-          fields = Array(report["fields"]).select { |field| source.key?(field) && record.has_attribute?(field) && record[field] == source[field] }
-          RecordScreeningService.call(user: ai_task.user, reports: [ report.merge("fields" => fields) ])
-        end
-      end
-    end
-
     def initialize(ai_task:, result:)
       @task, @result = ai_task, result
     end

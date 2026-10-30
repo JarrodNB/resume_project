@@ -27,10 +27,6 @@ class ScreeningSession:
     trusted_generated_sources: set[str] = field(default_factory=set)
     rails_screened_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
-    library_screening: list[Any] = field(default_factory=list)
-    job_screening: list[Any] = field(default_factory=list)
-    gap_response_screening: list[Any] = field(default_factory=list)
-    interview_question_screening: list[Any] = field(default_factory=list)
     record_screening: list[Any] = field(default_factory=list)
     record_checks: set[tuple] = field(default_factory=set)
 

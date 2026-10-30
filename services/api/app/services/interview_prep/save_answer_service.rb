@@ -20,7 +20,7 @@ module InterviewPrep
         changed = @question.answer_text != @answer_text
         @question.answer_revision += 1 if changed
         @question.answer_text = @answer_text
-        @question.screened_fields -= [ "answer_text" ] if changed
+        @question.discard_changed_screened_fields
         if @question.save
           @question.embedding&.destroy! if changed
           SyncQuestionEmbeddingJob.perform_later(@question.interview_question_set.user_id, @question.id) if @question.answer_text.present?

@@ -3,14 +3,12 @@
 # The worker may also report career-library fields its read_career_library tool screened.
 # Those `record_screening` receipts are saved through Screening::RecordApprovalsService
 # with the reply, so a stale claim never approves anything. Without a task, only career
-# library records can be approved. `library_screening` is the older receipt list, still
-# accepted until every worker sends `record_screening`.
+# library records can be approved.
 require "digest"
 module Chat
   class AcceptReplyService < ApplicationService
     include ExecutionPolicy
-    def initialize(operation:, attempt_id:, claim_generation:, reply:, screened_message_sha256:, summary_update: nil, library_screening: [], record_screening: [])
-      @library_screening = library_screening
+    def initialize(operation:, attempt_id:, claim_generation:, reply:, screened_message_sha256:, summary_update: nil, record_screening: [])
       @record_screening = record_screening
       @summary_update = summary_update
       @operation, @attempt_id, @generation, @reply, @screened = operation, attempt_id, claim_generation, reply, screened_message_sha256
@@ -19,14 +17,11 @@ module Chat
     def call
       return failure("Invalid reply") unless @reply.is_a?(String) && @reply.strip.present? && @reply.length <= 8000
       return failure("Screened message differs") unless @screened == Digest::SHA256.hexdigest(@operation.message)
-      return failure("Invalid library screening") unless @library_screening.is_a?(Array) && @library_screening.length <= 500 &&
-        @library_screening.all? { |report| report.is_a?(Hash) && report["fields"].is_a?(Array) && report["fields"].length <= 16 && report["fingerprints"].is_a?(Hash) && report["fingerprints"].length <= 16 }
       return failure("Invalid record screening") unless @record_screening.is_a?(Array) && @record_screening.length <= 500 &&
         @record_screening.all? { |report| report.is_a?(Hash) && report["fingerprints"].is_a?(Hash) && report["fingerprints"].length <= 16 && (report["revision"].nil? || report["revision"].is_a?(Hash)) }
       summary_identity = @summary_update.is_a?(Hash) ? @summary_update.sort_by { |key, _| key.to_s }.to_h : @summary_update
-      # The older list keeps its original position so retried old-style callbacks still match.
       record_identity = @record_screening.present? ? [{ "record_screening" => @record_screening }] : []
-      fingerprint = Digest::SHA256.hexdigest(JSON.generate([@attempt_id, @generation, @reply, @screened, summary_identity, *@library_screening.presence, *record_identity]))
+      fingerprint = Digest::SHA256.hexdigest(JSON.generate([@attempt_id, @generation, @reply, @screened, summary_identity, *record_identity]))
       with_operation_lock do |conversation|
         next(@operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts")) if @operation.accepted?
         next failure("Claim is stale or expired") unless current_claim?
@@ -40,7 +35,6 @@ module Chat
           conversation.update!(summary_text: @summary_update.fetch("text"), summary_version: conversation.summary_version + 1,
             summary_through_position: @summary_update.fetch("through_position"))
         end
-        CareerLibrary::RecordScreeningService.call(user: conversation.user, reports: @library_screening)
         Screening::RecordApprovalsService.call(user: conversation.user, reports: @record_screening)
         receipt = { "message_ids" => [user_message.id, assistant.id] }
         @operation.update!(status: "accepted", result_fingerprint: fingerprint, accepted_result: receipt)

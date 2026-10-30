@@ -132,7 +132,7 @@ RSpec.describe "Career library review results" do
     expect(task.result).to be_nil
   end
 
-  %w[library_screening record_screening].each do |list|
+  %w[record_screening].each do |list|
     it "does not approve changed snapshot text from a late #{list} report" do
       old = task
       role.update!(description: "New unchecked user details")

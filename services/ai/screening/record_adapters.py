@@ -171,3 +171,32 @@ def job_preference_records(criteria, listings=()):
         display_title=_short(item.passages[0].text),
         approved_fields=frozenset({"passages"}) if item.screened else frozenset()) for item in listings)
     return records
+
+
+def interview_source_records(sources):
+    """Group Rails' frozen interview fields by saved row, retaining legacy unsaved text."""
+    types = {"profile": "user", "experiences": "experience", "highlights": "experience_highlight",
+             "projects": "project", "educations": "education", "certifications": "certification",
+             "skills": "skill", "career_contexts": "career_context", "jobs": "job"}
+    groups = {}
+    for index, source in enumerate(sources):
+        if not isinstance(source, dict) or not isinstance(source.get("text"), str):
+            raise ValueError("Invalid frozen career source")  # noqa: TRY004 - malformed Rails claims are domain input
+        kind = types.get(source.get("type"))
+        saved = kind is not None and isinstance(source.get("id"), str) and isinstance(source.get("field"), str)
+        record_id = source["id"] if saved else None
+        kind = kind if saved else "resume_section"
+        field = source["field"] if saved else "text"
+        value = source.get("value", source["text"]) if source.get("type") == "jobs" else source["text"]
+        if not isinstance(value, str) and not (isinstance(value, list) and all(isinstance(item, str) for item in value)):
+            raise ValueError("Invalid frozen career field")
+        key = (kind, record_id) if saved else (kind, index)
+        group = groups.setdefault(key, {"kind": kind, "id": record_id, "fields": {}, "approved": set(), "title": _short(source["text"])})
+        if field in group["fields"]:
+            raise ValueError("Repeated frozen career field")
+        group["fields"][field] = value
+        if source.get("screened") is True:
+            group["approved"].add(field)
+    return [ScreenableRecord(record_type=group["kind"], record_id=group["id"], fields=group["fields"],
+                            approved_fields=frozenset(group["approved"]), display_title=group["title"])
+            for group in groups.values()]

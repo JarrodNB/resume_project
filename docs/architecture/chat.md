@@ -35,8 +35,8 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   approvals, screens unchecked fields with the claim's accounted screen, leaves out
   blocked entries with a note, and renders readable labeled text with no JSON or record IDs.
   So the model only sees screened text, and screening is billed to the chat operation.
-  Results are capped at 40,000 characters and keep whole entries. New approvals are not
-  saved back yet, so unchecked fields are screened again on later turns.
+  Results are capped at 40,000 characters and keep whole entries. New fingerprinted
+  approvals save with accepted replies and can be reused on later turns.
 - **Allow-listed tools.** The model only sees server tools listed in `TOOL_RENDERERS`
   (`mcp_tools/client.py`), which maps each tool to its client half. A new server tool stays
   hidden from chat until it is listed there.
@@ -159,7 +159,7 @@ screening deadline and accounting policy.
 
 Successful checks carry record types, IDs and SHA-256 fingerprints of exact canonical
 JSON string values per field. Chat returns these in `record_screening` on final
-acceptance (Rails still accepts the older `library_screening` list for one deploy).
+acceptance.
 Rails accepts them only under the current operation fence and owner lock, then
 `Screening::RecordApprovalsService` compares each fingerprint with the owned record
 under its row lock; with no task, only career-library records can be approved. A stale

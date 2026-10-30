@@ -58,7 +58,6 @@ def test_unchecked_snapshot_fields_are_screened_together_and_reported(task_depen
     })):
         result = handle_ai_task(task, task_dependencies)
         receipts = [(r.record_type, r.fingerprints) for r in session.record_screening]
-        assert not session.library_screening
     assert result.status == "completed"
     assert screened == ["Make this clearer", "Entry 1\nContent:\nHelped with migration"]
     assert receipts == [("experience_highlight", {"content": field_fingerprint("Helped with migration")})]

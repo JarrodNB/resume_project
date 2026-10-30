@@ -18,7 +18,7 @@ module Users
     def call
       @user.with_lock do
         @user.assign_attributes(normalized_attributes)
-        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @user)
+        @user.discard_changed_screened_fields
         @user.save ? success(@user) : failure(@user.errors)
       end
     end

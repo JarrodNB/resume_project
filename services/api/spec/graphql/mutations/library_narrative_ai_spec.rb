@@ -87,7 +87,7 @@ RSpec.describe "Career library narrative AI targets" do
       expect(CareerLibrary::ReviewStateService.call(user: user, section: section).value[:assessments].first["stale"]).to be(true)
     end
 
-    %w[library_screening record_screening].each do |list|
+    %w[record_screening].each do |list|
       it "keeps #{section} source checks fresh from #{list} and rejects other owners and changed drafts" do
         kind, record, field = target(section)
         expect(edit(section, owner: create(:user))["errors"]).to eq([ "Record not found" ])

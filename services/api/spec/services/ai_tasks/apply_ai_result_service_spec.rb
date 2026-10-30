@@ -28,7 +28,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     own = create(:project, user: ai_task.user)
     other = create(:project)
     reports = [ own, other ].map { |record| library_report(record, %w[name unknown]) }
-    message = result_message("failed", error_message: "Generation failed", library_screening: reports)
+    message = result_message("failed", error_message: "Generation failed", record_screening: reports)
     2.times { described_class.call(message: message) }
 
     expect(own.reload.screened_fields).to eq([ "name" ])
@@ -39,11 +39,11 @@ RSpec.describe AiTasks::ApplyAiResultService do
     project = create(:project, user: ai_task.user)
     reports = [ { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] },
                 library_report(project, [ "name" ]).merge("fingerprints" => { "name" => "0" * 64 }) ]
-    described_class.call(message: result_message("failed", error_message: "Generation failed", library_screening: reports))
+    described_class.call(message: result_message("failed", error_message: "Generation failed", record_screening: reports))
     expect(project.reload.screened_fields).to eq([])
   end
 
-  it "records unified record_screening receipts alongside the older lists" do
+  it "records multiple kinds of unified record_screening receipts" do
     user = ai_task.user
     project = create(:project, user: user)
     skill = create(:skill, user: user)
@@ -54,7 +54,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
       { "record_type" => "job", "record_id" => job.id, "fingerprints" => { "title" => fingerprint(job.title) } }
     ]
     message = { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-                "record_screening" => receipts, "library_screening" => [ library_report(project, [ "name" ]) ] }
+                "record_screening" => receipts + [ library_report(project, [ "name" ]) ] }
     expect(described_class.call(message: message)).to be_success
     expect(skill.reload.screened_fields).to eq([ "name" ])
     expect(job.reload.screened_fields).to eq([ "title" ])
@@ -91,7 +91,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
 
   it "does not restore an edited field's check when a final result is redelivered" do
     project = create(:project, user: ai_task.user)
-    message = result_message("failed", error_message: "Generation failed", library_screening: [ library_report(project, [ "name" ]) ])
+    message = result_message("failed", error_message: "Generation failed", record_screening: [ library_report(project, [ "name" ]) ])
     described_class.call(message: message)
     Projects::UpdateProjectService.call(project: project.reload, attributes: { name: "Edited" })
     described_class.call(message: message)
@@ -104,7 +104,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     records = [ user, experience, create(:experience_highlight, experience: experience),
                create(:project, user: user), create(:education, user: user),
                create(:certification, user: user), create(:skill, user: user), create(:career_context, user: user) ]
-    reports = records.map { |record| library_report(record, CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name)) }
+    reports = records.map { |record| library_report(record, record.class.screened_field_names) }
     other_user = create(:user)
     other_highlight = create(:experience_highlight)
     reports += [
@@ -112,8 +112,8 @@ RSpec.describe AiTasks::ApplyAiResultService do
       library_report(other_highlight, [ "content" ]),
       { "record_type" => "job", "record_id" => SecureRandom.uuid, "fields" => [ "title" ], "fingerprints" => { "title" => "0" * 64 } }
     ]
-    expect(described_class.call(message: result_message("completed", result: {}, library_screening: reports))).to be_success
-    records.each { |record| expect(record.reload.screened_fields).to eq(CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name)) }
+    expect(described_class.call(message: result_message("completed", result: {}, record_screening: reports))).to be_success
+    records.each { |record| expect(record.reload.screened_fields).to eq(record.class.screened_field_names) }
     expect(other_user.reload.screened_fields).to eq([])
     expect(other_highlight.reload.screened_fields).to eq([])
   end
@@ -122,7 +122,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     project = create(:project, user: ai_task.user)
     receipt = { "record_type" => "project", "record_id" => project.id, "fingerprints" => { "name" => fingerprint(project.name) } }
     described_class.call(message: result_message("usage", attempt_id: SecureRandom.uuid,
-                                                 library_screening: [ library_report(project, [ "name" ]) ], record_screening: [ receipt ]))
+                                                 record_screening: [ receipt ]))
     expect(project.reload.screened_fields).to eq([])
   end
 

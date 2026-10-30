@@ -106,7 +106,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   responsibilities remain available to other features but do not enter gap screening or
   generation. Both Rails and the AI worker reject jobs with neither qualification list;
   nice-to-have-only jobs are supported.
-  Gap-analysis preparation screens the projected job first, then all unchecked used fields
+  Gap-analysis preparation screens the projected job and all unchecked used fields together
   from the complete career library (including summary, highlights, certifications, and saved
   facts) as one structured source. Checked fields are reused. It uses resume import's
   overlapping chunks without the short-note phrase filter. Any
@@ -177,6 +177,9 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   an unchanged bullet; edited values never inherit that coverage. Rails applies successful check reports
   from completed or failed AI results to owner-scoped records; Python remains read-only.
   Saved Job field checks also persist with current-value fingerprints (see [AI tasks](ai-tasks.md)).
+  Saved-record workflows use `screen_records` and the same `record_screening` receipt.
+  Tailoring batches the job, used library fields and saved gap answers in one call;
+  summary generation also persists approvals for its unchanged saved source records.
   Other input and prompt coverage remain execution-local. Library checks have no expiry or policy
   version, and results carry no edit revision check.
   The result stays on the task as ordered section snapshots and warnings. There is no

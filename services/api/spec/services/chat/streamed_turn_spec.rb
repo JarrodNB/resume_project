@@ -188,13 +188,13 @@ RSpec.describe "Chat streamed turns" do
     reports = [report.call(skill, "Ruby"), report.call(changed, "Python"), report.call(other, "Ruby")]
     changed.update!(name: "Edited")
     args = { operation: operation, **identity(saved), reply: "Saved skills reviewed.",
-      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), library_screening: reports }
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: reports }
     expect(Chat::AcceptReplyService.call(**args)).to be_success
     expect(skill.reload.screened_fields).to eq(["name"])
     expect(changed.reload.screened_fields).to eq([])
     expect(other.reload.screened_fields).to eq([])
     expect(Chat::AcceptReplyService.call(**args)).to be_success
-    expect(Chat::AcceptReplyService.call(**args.merge(library_screening: reports.reverse))).not_to be_success
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: reports.reverse))).not_to be_success
   end
 
   it "persists record_screening approvals through the shared recorder and keeps retries idempotent" do
@@ -215,9 +215,7 @@ RSpec.describe "Chat streamed turns" do
     expect(other.reload.screened_fields).to eq([])
     expect(Chat::AcceptReplyService.call(**args)).to be_success
     expect(Chat::AcceptReplyService.call(**args.merge(record_screening: receipts.reverse))).not_to be_success
-    # The same receipts sent as the older list are a different accepted body.
-    old_style = receipts.map { |item| item.except("revision").merge("fields" => ["name"]) }
-    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: [], library_screening: old_style)).errors).to eq(["Accepted result conflicts"])
+
   end
 
   it "rejects malformed or unbounded record_screening lists without saving anything" do
@@ -244,8 +242,8 @@ RSpec.describe "Chat streamed turns" do
     report = { "record_type" => "skill", "record_id" => skill.id, "fields" => ["name"],
       "fingerprints" => { "name" => Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
     args = { operation: operation, **identity(saved), reply: "Reviewed.",
-      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), library_screening: [report] }
-    expect(Chat::AcceptReplyService.call(**args.merge(library_screening: [report] * 501))).not_to be_success
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [report] }
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: [report] * 501))).not_to be_success
     expect(Chat::AcceptReplyService.call(**args.merge(attempt_id: SecureRandom.uuid))).not_to be_success
     expect(skill.reload.screened_fields).to eq([])
     expect(chat.messages).to be_empty

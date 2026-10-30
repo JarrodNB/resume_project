@@ -27,12 +27,11 @@ module Screening
     # Types are processed in this order (task-bound types first, then the career library),
     # which keeps the lock order the older recorders used.
     RECORD_TYPES = {
-      # Practice questions clear approvals through revisions, so the list lives here.
       "job_preference_criterion" => { model: JobPreferenceProfile, fields: %w[text].freeze,
         scope: :preference_scope, approve: :approve_preference_criterion },
       "job_board_listing" => { model: JobBoardListing, fields: %w[passages].freeze,
         scope: :preference_scope, approve: :approve_preference_listing },
-      "interview_question" => { model: InterviewQuestion, fields: %w[question_text answer_text].freeze,
+      "interview_question" => { model: InterviewQuestion,
                                 scope: :interview_question_scope, check: :interview_revision_matches? },
       "job" => { model: Job, scope: :job_scope },
       "gap_response" => { model: JobGapResponse, scope: :gap_response_scope },

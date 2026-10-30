@@ -16,7 +16,9 @@ All business logic, as service objects grouped by domain folder.
 - `screening/record_approvals_service.rb` — one recorder for unified `record_screening` receipts
   (career library, job, gap response, interview question). Its `RECORD_TYPES` registry owns each
   type's screened fields, owner/task scope and extra checks; a field is approved only when its
-  fingerprint matches the locked current value (and the task snapshot where one exists). The
+  fingerprint matches the locked current value (and the task snapshot where one exists).
+  `record_interview_sources` is the spoken-interview entry point (library records plus the
+  interview's own job, fingerprinted from frozen values). The
   older per-domain recorders remain until the worker stops sending the old lists.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`

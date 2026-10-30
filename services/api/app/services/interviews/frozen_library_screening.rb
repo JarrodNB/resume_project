@@ -8,6 +8,13 @@ module Interviews
       "skills" => "Skill", "career_contexts" => "CareerContext"
     }.freeze
 
+    # Record type names the shared screening recorder uses for each frozen source type.
+    RECORD_TYPES = {
+      "profile" => "user", "experiences" => "experience", "highlights" => "experience_highlight",
+      "projects" => "project", "educations" => "education", "certifications" => "certification",
+      "skills" => "skill", "career_contexts" => "career_context", "jobs" => "job"
+    }.freeze
+
     def self.valid_source?(source)
       return false unless source.is_a?(Hash) && source["id"].is_a?(String) && source["text"].is_a?(String)
       return FrozenJobContext.valid_source?(source) if source["type"] == "jobs"
@@ -21,12 +28,26 @@ module Interviews
       source["type"] == "jobs" ? source["value"] : source["text"]
     end
 
-    def self.owned_record(user, source)
+    # A shared-recorder receipt fingerprinting the frozen value, so only an unchanged live
+    # value can be approved. Call only with a valid source.
+    def self.approval_receipt(source)
+      { "record_type" => RECORD_TYPES.fetch(source["type"]), "record_id" => source["id"],
+        "fingerprints" => { source["field"] => Screening::RecordApprovalsService.field_fingerprint(source_value(source)) } }
+    end
+
+    # Jobs count only when they are this interview's own saved job, matching the shared
+    # recorder's write rule; a detached interview (job deleted) reuses no job approval.
+    def self.owned_record(interview, source)
       return unless valid_source?(source)
 
+      user = interview.user
       scope = case source["type"]
       when "profile" then User.where(id: user.id)
       when "highlights" then ExperienceHighlight.joins(:experience).where(experiences: { user_id: user.id })
+      when "jobs"
+        return unless interview.job_id
+
+        user.jobs.where(id: interview.job_id)
       else user.public_send(source["type"])
       end
       scope.find_by(id: source["id"])
@@ -42,7 +63,7 @@ module Interviews
         next unless source.is_a?(Hash)
         next if source["screened"] == true
 
-        record = owned_record(interview.user, source)
+        record = owned_record(interview, source)
         source["screened"] = !!(record && record[source["field"]] == source_value(source) &&
           record.screened_fields.include?(source["field"]))
       end

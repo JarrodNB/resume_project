@@ -34,15 +34,46 @@ RSpec.describe SummaryGeneration::RecordScreeningService do
       "error_message" => "Generation failed", "record_screening" => receipts })
   end
 
-  it "names each library source's record type, id and field without changing the digest" do
+  it "gives each library source its record id, with type and field named by the label, outside the digest" do
     task = start
     sources = task.input["sources"]
     expect(sources).to include(
-      a_hash_including("label" => "EXPERIENCES_1_DESCRIPTION", "record_type" => "experience", "record_id" => role.id, "field" => "description"),
-      a_hash_including("label" => "EXPERIENCES_1_HIGHLIGHT_1", "record_type" => "experience_highlight", "record_id" => highlight.id, "field" => "content"),
-      a_hash_including("label" => "SKILLS_1_NAME", "record_type" => "skill", "record_id" => skill.id, "field" => "name"))
-    plain = sources.map { |source| source.except("screened", "record_type", "record_id", "field") }
+      a_hash_including("label" => "EXPERIENCES_1_DESCRIPTION", "record_id" => role.id),
+      a_hash_including("label" => "EXPERIENCES_1_HIGHLIGHT_1", "record_id" => highlight.id),
+      a_hash_including("label" => "SKILLS_1_NAME", "record_id" => skill.id))
+    expect(sources.map(&:keys).uniq).to eq([ %w[label text screened record_id] ])
+    plain = sources.map { |source| source.except("screened", "record_id") }
     expect(task.input["source_digest"]).to eq(Digest::SHA256.hexdigest(plain.to_json))
+    expect(SummaryGeneration::Snapshot.record_identity("EDUCATIONS_2_FIELD_OF_STUDY")).to eq(%w[education field_of_study])
+    expect(SummaryGeneration::Snapshot.record_identity("CAREER_CONTEXTS_1_RESPONSE")).to eq(%w[career_context response])
+    expect(SummaryGeneration::Snapshot.record_identity("EXPERIENCES_3_HIGHLIGHT_2")).to eq(%w[experience_highlight content])
+    expect(SummaryGeneration::Snapshot.record_identity("SKILLS_1_UNKNOWN")).to be_nil
+    expect(SummaryGeneration::Snapshot.record_identity("SECTION_1_ITEM_1_NAME")).to be_nil
+  end
+
+  it "measures the size cap without record ids, and the worst case still fits one SQS message" do
+    plain = Array.new(SummaryGeneration::Snapshot::MAX_SOURCES) { |i| { "label" => "SKILLS_#{i + 1}_NAME", "text" => "", "screened" => false } }
+    overhead = { "target_kind" => "profile", "target_id" => user.id, "sources" => plain, "source_digest" => "a" * 64 }.to_json.bytesize
+    text = "x" * ((SummaryGeneration::Snapshot::MAX_INPUT_BYTES - overhead) / plain.length)
+    sources = plain.map { |source| source.merge("text" => text, "record_id" => SecureRandom.uuid) }
+    snapshot = SummaryGeneration::Snapshot.build(target_kind: "profile", target_id: user.id, sources: sources)
+    expect(snapshot.to_json.bytesize).to be > SummaryGeneration::Snapshot::MAX_INPUT_BYTES
+    message = { ai_task_id: SecureRandom.uuid, user_id: user.id, task_type: "generate_summary", input: snapshot }
+    expect(message.to_json.bytesize).to be < 256 * 1024
+    too_big = sources.map { |source| source.merge("text" => text + "xx") }
+    expect { SummaryGeneration::Snapshot.build(target_kind: "profile", target_id: user.id, sources: too_big) }.to raise_error(ArgumentError, /too large/)
+  end
+
+  it "still accepts a large text-light library that fit before record ids were added" do
+    # Up to the model limits, counting the role and skill created above.
+    (TextLimits::MAX_EXPERIENCES - 1).times do |i|
+      entry = create(:experience, user: user, company: "Company #{i}", title: "Engineer #{i}", location: "Remote", description: "d" * 300)
+      12.times { |h| create(:experience_highlight, experience: entry, content: "h#{h} " + "x" * 95) }
+    end
+    (TextLimits::MAX_SKILLS - 1).times { |i| create(:skill, user: user, name: "Skill #{i}", category: "Category") }
+    snapshot = SummaryGeneration::Snapshot.capture(user: user, target_kind: "profile")
+    expect(snapshot["sources"].length).to be > 900
+    expect(snapshot.to_json.bytesize).to be > SummaryGeneration::Snapshot::MAX_INPUT_BYTES
   end
 
   it "approves fields whose fingerprint matches both the frozen snapshot and the live value, idempotently" do

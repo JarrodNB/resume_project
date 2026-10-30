@@ -163,6 +163,18 @@ def test_summary_sources_group_by_entry_without_ids():
     assert new_receipts(records) == set()
 
 
+@pytest.mark.parametrize("sources", [
+    # Same saved row and field under two labels.
+    [SummarySource(label="SKILLS_1_NAME", text="INJECT", record_id="s1"),
+     SummarySource(label="SKILLS_2_NAME", text="SQL", record_id="s1")],
+    # Label fallback: two labels that parse to the same entry and field.
+    [SummarySource(label="EXPERIENCES_1_TEXT", text="INJECT"), SummarySource(label="EXPERIENCES_1", text="SQL")],
+])
+def test_summary_sources_reject_a_repeated_entry_field(sources):
+    with pytest.raises(ValueError):
+        summary_source_records(sources)
+
+
 def test_resume_section_type_requires_no_id():
     with pytest.raises(ValueError):
         ScreenableRecord(record_type="resume_section", record_id="1", fields={}, display_title="x")

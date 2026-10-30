@@ -1,6 +1,6 @@
 # Saves the screening receipts a summary-generation task sends back, but only for career
 # facts that task actually froze. A receipt field counts only when its record type, id and
-# field name appear in the task's snapshot sources and its fingerprint matches the frozen
+# field name (type and field read from the source label) appear in the task's snapshot sources and its fingerprint matches the frozen
 # text. The shared recorder then also requires the live value to match under a row lock,
 # so a fact edited after queueing is never approved. Resume-section copies have no record
 # id in the snapshot and can never be approved here.
@@ -33,10 +33,12 @@ module SummaryGeneration
     def frozen_values
       sources = @ai_task.input.is_a?(Hash) ? @ai_task.input["sources"] : nil
       Array(sources).each_with_object({}) do |source, values|
-        next unless source.is_a?(Hash) && Screening::RecordApprovalsService::LIBRARY_TYPES.include?(source["record_type"]) &&
-          source["record_id"].is_a?(String) && source["field"].is_a?(String) && source["text"].is_a?(String)
+        next unless source.is_a?(Hash) && source["label"].is_a?(String) && source["record_id"].is_a?(String) && source["text"].is_a?(String)
 
-        values[[ source["record_type"], source["record_id"], source["field"] ]] = source["text"]
+        record_type, field = Snapshot.record_identity(source["label"])
+        next unless Screening::RecordApprovalsService::LIBRARY_TYPES.include?(record_type)
+
+        values[[ record_type, source["record_id"], field ]] = source["text"]
       end
     end
   end

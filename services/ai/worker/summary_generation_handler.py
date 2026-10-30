@@ -32,7 +32,8 @@ def handle_summary_generation_task(task, dependencies):
     def failed(message):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=message, usage=usage)
     try:
-        if len(json.dumps(task.input, ensure_ascii=False).encode()) > 180_000:
+        # Compact JSON like Rails, so a snapshot Rails accepted is not rejected here.
+        if len(json.dumps(_without_record_ids(task.input), ensure_ascii=False, separators=(",", ":")).encode()) > 180_000:
             return failed("This career evidence is too large to summarize. Reduce its text and try again.")
         snapshot = SummaryGenerationInput.model_validate(task.input)
     except ValidationError:
@@ -44,8 +45,11 @@ def handle_summary_generation_task(task, dependencies):
     # and expanded privacy placeholders, before incurring any classifier charges.
     if len(_masked_rendering(sources)) > MAX_PROMPT_TEXT:
         return failed("This career evidence is too long to summarize. Shorten it and try again.")
-    outcome = screen_records_sync(summary_source_records(sources),
-                                  approved_sources=[source.text for source in sources])
+    try:
+        records = summary_source_records(sources)
+    except ValueError:
+        return failed("This summary request is invalid. Start a new request.")
+    outcome = screen_records_sync(records, approved_sources=[source.text for source in sources])
     usage.extend(outcome.decision.model_usages)
     if not outcome.allowed:
         if outcome.decision.too_long:
@@ -70,6 +74,15 @@ def handle_summary_generation_task(task, dependencies):
     model = reported_model_name(run.response.model_name or settings.library_edit_model, settings.library_edit_model)
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result=run.output.model_dump(),
         usage=[*usage, build_model_usage(model, run.usage)])
+
+
+def _without_record_ids(task_input):
+    """Measure the size cap as Rails does: record ids are bookkeeping, not career text."""
+    if not isinstance(task_input, dict) or not isinstance(task_input.get("sources"), list):
+        return task_input
+    return {**task_input, "sources": [
+        {key: value for key, value in source.items() if key != "record_id"} if isinstance(source, dict) else source
+        for source in task_input["sources"]]}
 
 
 def _masked_rendering(sources):

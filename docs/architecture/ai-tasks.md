@@ -28,7 +28,8 @@ or saved-resume summary; Rails freezes owned labeled career fields under its enq
 a substantive source digest. Career-context requirements are context, not qualification
 evidence, so only responses are supplied. Before any provider call, the worker checks the
 fully rendered, privacy-masked generation prompt against the 120,000-character prompt cap.
-Each library source names its record type, id and field (kept out of the digest). Unknown
+Each library source carries its record id; the label names the record type and field. Ids
+stay out of the digest and the 180,000-byte input cap (1000 ids still fit one SQS message). Unknown
 fields go through the shared `screen_records` batching within the existing 80,000-character
 per-call cap, counting privacy expansion. A later batch rejection or outage prevents
 generation and retains usage from all attempted batches. Length failures are reported as

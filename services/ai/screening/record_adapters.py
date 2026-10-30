@@ -12,7 +12,7 @@ from collections.abc import Set as AbstractSet
 
 from schemas.gap_analysis_context import CareerLibrary, JobToAnalyze
 from schemas.gap_response import GapResponseSnapshot
-from schemas.summary_generation import SummarySource
+from schemas.summary_generation import SummarySource, library_identity
 from screening.records import ScreenableRecord
 
 JOB_FIELDS = ("title", "company", "requirements", "nice_to_haves")
@@ -101,20 +101,26 @@ def interview_answer_record(snapshot: Mapping | None, field: str, text: str) -> 
 def summary_source_records(sources: Iterable[SummarySource]) -> list[ScreenableRecord]:
     """Group summary-generation sources by the saved row they came from.
 
-    Library sources carry the record type, id and field Rails froze, so they report
-    receipts for Rails to check against the snapshot. Saved-resume sections are copies,
+    Library sources carry the record id Rails froze (their label names the type and
+    field), so they report receipts for Rails to check against the snapshot. Saved-resume sections are copies,
     not library rows: they use the unsaved `resume_section` type, have no id and are never
     reported. Older snapshots without ids are grouped by label position and not reported.
+    Raises ValueError when two sources name the same field of the same entry, because one
+    text would otherwise replace the other and skip screening while still being prompted.
     """
     groups: dict[object, dict] = {}
     for source in sources:
         if not source.text.strip():
             continue
-        if source.record_id is not None:
-            key, record_type, field = (source.record_type, source.record_id), source.record_type, source.field
+        identity = library_identity(source.label) if source.record_id is not None else None
+        if identity is not None:
+            record_type, field = identity
+            key = (record_type, source.record_id)
         else:
             key, record_type, field = _summary_key(source.label)
         group = groups.setdefault(key, {"type": record_type, "id": source.record_id, "fields": {}, "approved": set()})
+        if field in group["fields"]:
+            raise ValueError("Two summary sources name the same field of one entry")
         group["fields"][field] = source.text
         if source.screened:
             group["approved"].add(field)

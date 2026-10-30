@@ -54,8 +54,9 @@ assume annual USD or convert hourly values: users should check currency and pay 
 in the listing. Employment, salary text/currency, remote type, and valid posting dates
 are displayed when supplied; missing values remain unknown.
 
-`jobBoardLocations(query:)` calls the fixed `/geo/suggest` endpoint only when Find
-locations is clicked. This authenticated server boundary accepts a bounded query,
+The browser requests `jobBoardLocations(query:)` when the user clicks Find locations or
+presses Enter in the location field with at least two characters and no selected location.
+The authenticated server boundary calls the fixed `/geo/suggest` endpoint, accepts a bounded query,
 requests city/state suggestions, and returns only validated US labels, kinds, and IDs.
 It uses a five-second deadline and safe retryable errors without returning provider
 payloads or credentials. The selected kind determines the city/state search parameter;

@@ -7,12 +7,13 @@ import type { ApolloClient } from '@apollo/client'
 import type { AiTaskStatusEnum, JobBoardSearchQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
+import { createJobBoardPreferenceCheck } from './jobBoardPreferenceCheck'
 import { boardPageSize, type BoardSearch } from './searchFilters'
 
 type SearchPage = JobBoardSearchQuery['jobBoardSearch']
 export type BoardListing = SearchPage['listings'][number]
 type LoadedPage = Omit<SearchPage, 'retrievedAt'> & { retrievedAt: string; cursor: string | null }
-type SearchSnapshot = { submitted: BoardSearch | null; pages: LoadedPage[]; listings: BoardListing[] }
+export type SearchSnapshot = { submitted: BoardSearch | null; pages: LoadedPage[]; listings: BoardListing[] }
 export interface RerankingTask { id: string; status: AiTaskStatusEnum; result: unknown; errorMessage?: string | null }
 interface RerankingRequest { starting: boolean; task?: RerankingTask; error?: string; order?: string[] }
 interface VisitState {
@@ -21,13 +22,13 @@ interface VisitState {
   errors: string[]
   failedCursor: string | null
   hideSaved: boolean
-  rerankingEnabled: boolean
+  ordering: 'provider' | 'library' | 'preferences'
   savedHere: Record<string, { jobId: string; warnings: string[] }>
   busyId: string | null
   importErrors: string[]
-  pageChoice: { search: BoardSearch | null; page: number }
+  pageChoice: { search: BoardSearch | null; order: string; page: number }
 }
-export type VisitPreferences = Pick<VisitState, 'hideSaved' | 'rerankingEnabled'>
+export type VisitPreferences = Pick<VisitState, 'hideSaved'>
 let nextId = 0
 
 function providerListings(pages: LoadedPage[]): BoardListing[] {
@@ -51,8 +52,8 @@ function resultOrder(result: unknown, ids: string[]): string[] | undefined {
 export function createJobBoardVisit(client: ApolloClient, preferences: VisitPreferences | undefined, discard: () => void) {
   let state: VisitState = {
     snapshot: { submitted: null, pages: [], listings: [] }, loading: false, errors: [], failedCursor: null,
-    hideSaved: false, rerankingEnabled: false, savedHere: {}, busyId: null, importErrors: [],
-    pageChoice: { search: null, page: 0 }, ...preferences,
+    hideSaved: false, ordering: 'provider', savedHere: {}, busyId: null, importErrors: [],
+    pageChoice: { search: null, order: 'provider', page: 0 }, ...preferences,
   }
   let generation = 0
   let pending = false
@@ -60,6 +61,7 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
   let scrollY = 0
   const listeners = new Set<() => void>()
   const rankings = new Map<SearchSnapshot, RerankingRequest>()
+  const preferenceCheck = createJobBoardPreferenceCheck(client, () => state.snapshot, () => update({}))
 
   function discardOversizedVisit() {
     if (listeners.size === 0 && state.snapshot.pages.reduce((count, page) => count + page.listings.length, 0) > 200) discard()
@@ -155,7 +157,8 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
     const snapshot = state.snapshot
     const ids = snapshot.listings.map((listing) => listing.id)
     const keyword = snapshot.submitted?.keyword
-    if (!state.rerankingEnabled || !keyword || !ids.length || ids.length > 100 || rankings.has(snapshot)) return
+    const prior = rankings.get(snapshot)
+    if (!keyword || !ids.length || ids.length > 100 || prior?.starting || prior?.task?.status === 'QUEUED' || prior?.order) return
     const request: RerankingRequest = { starting: true }
     rankings.set(snapshot, request)
     // In-flight callbacks retain their own record even if an old snapshot is evicted.
@@ -175,26 +178,26 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
   function receiveRanking(task: RerankingTask) {
     const snapshot = state.snapshot
     const request = rankings.get(snapshot)
-    if (!state.rerankingEnabled || !request?.task || task.id !== request.task.id) return
+    if (!request?.task || task.id !== request.task.id) return
     acceptRanking(request, task, snapshot)
     update({})
   }
   function getReranking() {
-    const { snapshot, rerankingEnabled: enabled } = state
+    const { snapshot } = state
     const { listings } = snapshot
     const current = rankings.get(snapshot)
     const available = listings.length > 0 && listings.length <= 100
     const task = current?.task
     const order = current?.order
     const error = current?.error ?? null
-    const ranked = Boolean(enabled && available && order && !error)
+    const ranked = Boolean(available && order && !error)
     const byId = new Map(listings.map((listing) => [listing.id, listing]))
     return {
       listings: ranked ? order!.map((id) => byId.get(id)!) : listings,
-      busy: Boolean(enabled && available && !error && !order && (!current || current.starting || task?.status === 'QUEUED')),
-      ranked, error: enabled && available ? error : null,
-      taskId: enabled && available && task?.status === 'QUEUED' ? task.id : '',
-      limitReached: enabled && listings.length > 100,
+      busy: Boolean(available && !error && !order && (current?.starting || task?.status === 'QUEUED')),
+      ranked, error: available ? error : null,
+      taskId: available && task?.status === 'QUEUED' ? task.id : '',
+      limitReached: listings.length > 100,
     }
   }
   function retryReranking() {
@@ -205,7 +208,7 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
   function getResults(listings: BoardListing[]) {
     const visibleListings = listings.filter((listing) => !state.hideSaved || !listing.savedJob)
     const totalPages = Math.max(1, Math.ceil(visibleListings.length / boardPageSize))
-    const wantedPage = state.pageChoice.search === state.snapshot.submitted ? state.pageChoice.page : 0
+    const wantedPage = state.pageChoice.search === state.snapshot.submitted && state.pageChoice.order === state.ordering ? state.pageChoice.page : 0
     const page = Math.min(wantedPage, totalPages - 1)
     return { page, totalPages, visibleCount: visibleListings.length, hiddenCount: listings.length - visibleListings.length,
       pageListings: visibleListings.slice(page * boardPageSize, (page + 1) * boardPageSize) }
@@ -213,7 +216,7 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
   function goToPage(page: number, listings: BoardListing[]) {
     const current = getResults(listings)
     if (page > current.page && current.page >= current.totalPages - 1) loadMore()
-    update({ pageChoice: { search: state.snapshot.submitted, page } })
+    update({ pageChoice: { search: state.snapshot.submitted, order: state.ordering, page } })
   }
   return {
     id: ++nextId,
@@ -227,7 +230,8 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
     },
     search, clear, retry, loadMore, save, nextCursor, getResults, goToPage,
     setHideSaved(hideSaved: boolean) { update({ hideSaved }) },
-    setRerankingEnabled(rerankingEnabled: boolean) { update({ rerankingEnabled }) },
+    setOrdering(ordering: VisitState['ordering']) { update({ ordering }) },
+    checkPreferences: preferenceCheck.check, receivePreferenceCheck: preferenceCheck.receive, getPreferenceCheck: preferenceCheck.getState,
     startReranking, receiveRanking, getReranking, retryReranking,
   }
 }

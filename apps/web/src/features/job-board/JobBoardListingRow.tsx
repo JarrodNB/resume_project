@@ -1,6 +1,9 @@
 /** Present an opportunity and preview its plain-text details without leaving results.
  * Both save controls use the current visit's import lock and owner-scoped feedback.
  */
+import { PreferenceAssessment } from './PreferenceAssessment'
+import type { ListingAssessment } from './preferenceAssessments'
+import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { Link } from 'react-router'
 import { ArrowUpRight, Check, MapPin, Plus, Radio } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -11,6 +14,7 @@ import { employmentTypeOptions, remoteOptions } from './searchFilters'
 import type { BoardListing } from './jobBoardVisit'
 
 interface Props {
+  assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }
   listing: BoardListing
   busyId: string | null
   /** Set once this listing was saved from the board, so the row can link to the new job. */
@@ -19,7 +23,7 @@ interface Props {
   onCreate: (listingId: string) => void
 }
 
-export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate }: Props) {
+export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate, assessment }: Props) {
   const published = listing.published ? new Date(listing.published) : null
   const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
   const employmentLabel = employmentTypeOptions.find(([value]) => value === listing.employmentType)?.[1]
@@ -54,6 +58,7 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
           </div>
           {action}
         </div>
+        {assessment && <PreferenceAssessment listing={listing} {...assessment} />}
       </article>
       <DialogContent className="board-preview" aria-describedby={`preview-company-${listing.id}`}>
         <div className="board-preview-heading">

@@ -18,6 +18,7 @@ class User < ApplicationRecord
   has_many :skills, -> { order(:position) }, dependent: :destroy
   has_many :career_contexts, -> { order(:created_at) }, dependent: :destroy
   has_many :chat_conversations, dependent: :destroy
+  has_one :job_preference_profile, dependent: :destroy
   has_many :jobs, dependent: :destroy
   has_many :resumes, dependent: :destroy
   has_many :avoided_interview_questions, dependent: :destroy

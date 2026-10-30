@@ -22,9 +22,11 @@ from schemas.screening_receipts import (
 from worker.legacy_career_context import normalize_legacy_career_context
 
 TaskType = Literal[
+    "check_job_preferences",
     "generate_summary",
     "rerank_job_listings",
     "improve_library_entry",
+    "elicit_job_preferences",
     "review_library_section", "interview_session_feedback", "interview_clarification", "interview_references", "parse_resume", "scrape_job", "parse_job_posting", "analyze_gaps", "tailor_resume",
     "generate_study_guide", "generate_interview_questions", "regenerate_interview_question", "review_interview_answer",
 ]

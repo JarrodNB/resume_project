@@ -13,6 +13,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse
 from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.models.wrapper import WrapperModel
@@ -68,6 +69,40 @@ def collect_task_usage(usage: TaskUsage | None = None) -> Iterator[TaskUsage]:
         _current.reset(token)
 
 
+@dataclass
+class ModelRequestBudget:
+    """An optional feature-wide cap shared by primary, fallback and validation requests."""
+
+    request_limit: int
+    token_limit: int
+    requests: int = 0
+    tokens: int = 0
+
+    def before_request(self):
+        if self.requests >= self.request_limit or self.tokens >= self.token_limit:
+            raise UsageLimitExceeded("This task exceeded its shared model-call or token budget.")
+        self.requests += 1
+
+    def record_response(self, usage):
+        self.tokens += usage.input_tokens + usage.output_tokens
+        if self.tokens > self.token_limit:
+            raise UsageLimitExceeded("This task exceeded its shared token budget.")
+
+
+_request_budget: ContextVar[ModelRequestBudget | None] = ContextVar("model_request_budget", default=None)
+
+
+@contextmanager
+def model_request_budget(*, request_limit: int, token_limit: int):
+    """Cap actual calls across multiple agent runs without changing existing unscoped runs."""
+    budget = ModelRequestBudget(request_limit=request_limit, token_limit=token_limit)
+    token = _request_budget.set(budget)
+    try:
+        yield budget
+    finally:
+        _request_budget.reset(token)
+
+
 class AccountedModel(WrapperModel):
     """Observes actual provider requests before validation, limits or fallback can discard them."""
 
@@ -77,6 +112,9 @@ class AccountedModel(WrapperModel):
     ) -> ModelResponse:
         """Records each received response or flags a request whose usage never arrived."""
         usage = current_task_usage()
+        budget = _request_budget.get()
+        if budget is not None:
+            budget.before_request()
         # The pinned SDK retains total cache writes but loses their lifetime split.
         # Fix Luna to the priced 30-minute lifetime before issuing any request.
         if reported_model_name(self.wrapped.model_name, self.wrapped.model_id) == "openai:gpt-6-luna":
@@ -92,9 +130,11 @@ class AccountedModel(WrapperModel):
             configured = self.wrapped.model_id
             usage.record(reported_model_name(response.model_name or configured, configured),
                          response.usage, response.provider_response_id)
+        if budget is not None:
+            budget.record_response(response.usage)
         return response
 
 
 def accounted_model(model: Model | str) -> Model | str:
     """Uses the existing model seam only while an execution is collecting costs."""
-    return AccountedModel(model) if current_task_usage() is not None else model
+    return AccountedModel(model) if current_task_usage() is not None or _request_budget.get() is not None else model

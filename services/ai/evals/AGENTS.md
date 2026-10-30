@@ -8,6 +8,8 @@ score attached, so runs can be compared across prompt and model changes.
 
 ## Contents
 
+- `run_job_preference_evals.py` / `datasets/job_preference_cases.yaml` — eight bounded synthetic production-screening/JEV cases; `--batch-smoke` instead runs one fixed three-listing/three-criterion batch with exact evidence/outcome/order scores and actual cost/duration receipts; no subjective judge.
+
 - `run_report.py` — optional report CLI for every suite; one model or aligned two-model comparison.
   Prints results by default; `--save` writes to docs/evals, and `--output-dir` saves elsewhere.
   Save reports only when the user requests them;
@@ -191,3 +193,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `run_chat_evals.py` / `chat_evaluators.py` — synthetic career chat and rolling-memory cases through the production guarded adapter. Deterministic continuity/outcome/honesty signals; no Rails writes, actual synthetic provider receipts retained; paid runs are explicit.
 
 - `run_summary_generation_evals.py` / `datasets/summary_generation_cases.yaml` — three synthetic missing-summary cases through production screening/generation; citation contract and independent faithfulness/usefulness judge. Prints results; run with `python -m evals.run_summary_generation_evals`. No broad quality claim from this bounded sample.
+
+- `run_job_preference_conversation_evals.py` / `datasets/job_preference_conversation_cases.yaml` — three synthetic preference dialogues through production screening/generation and at most one deferred answer per case. Deterministic priority/clarification/unsupported-extra signals, with actual request usage; no Rails writes or broad quality claim. This runner fails if any required deterministic score is missing or not exactly 1.0. Run `python -m evals.run_job_preference_conversation_evals`; offline evaluator tests cover passing and failing labels.

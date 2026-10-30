@@ -62,9 +62,9 @@ it('starts with a keyword invitation without requesting listings', async () => {
   expect(fetched).not.toHaveBeenCalled()
 })
 
-it('starts with optional career-library reranking switched off', () => {
+it('starts with career-library reranking available only after loading results', () => {
   renderBoard()
-  expect(screen.getByRole('checkbox', { name: 'Rerank using my career library' })).not.toBeChecked()
+  expect(screen.getByRole('button', { name: 'Rerank using my career library' })).toBeDisabled()
 })
 
 it('searches a submitted keyword and displays a retrieved listing', async () => {
@@ -145,7 +145,7 @@ it('clears selected levels back to an unrestricted search', async () => {
 })
 
 function listing(id = 'one', title = 'Platform Engineer'): Omit<BoardListing, '__typename' | 'savedJob'> & { __typename: 'JobBoardListing'; savedJob: ({ id: string; __typename: 'Job' }) | null } {
-  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', applicationUrl: null, hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing' as const, preferenceSourceDigest: 'fixture-digest', id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', applicationUrl: null, hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function page(listings = [listing()], overrides: Record<string, unknown> = {}) {
   return { __typename: 'JobBoardSearchPage', listings, nextCursor: null, retrievedAt: '2026-10-19T00:00:00Z', stale: false, errors: [], ...overrides }

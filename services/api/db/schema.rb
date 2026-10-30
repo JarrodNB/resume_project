@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_29_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_29_130001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -667,6 +667,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_120000) do
     t.index ["job_id"], name: "index_job_gap_responses_on_job_id"
   end
 
+  create_table "job_preference_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.integer "version", default: 0, null: false
+    t.integer "confirmed_revision", default: 0, null: false
+    t.jsonb "draft_criteria", default: [], null: false
+    t.jsonb "confirmed_criteria", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_job_preference_profiles_on_user_id", unique: true
+    t.check_constraint "version >= 0 AND confirmed_revision >= 0 AND confirmed_revision <= version", name: "job_preferences_valid_revisions"
+  end
+
   create_table "jobs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "title", null: false
@@ -1010,6 +1022,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_120000) do
   add_foreign_key "interview_transcription_captures", "interview_sessions"
   add_foreign_key "job_gap_responses", "career_contexts", on_delete: :nullify
   add_foreign_key "job_gap_responses", "jobs"
+  add_foreign_key "job_preference_profiles", "users"
   add_foreign_key "jobs", "job_board_listings", on_delete: :nullify
   add_foreign_key "jobs", "users"
   add_foreign_key "library_embeddings", "users", on_delete: :cascade

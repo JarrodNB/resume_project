@@ -21,6 +21,12 @@
 #   - career library: clearCareerLibrary
 module Types
   class MutationType < Types::BaseObject
+    field :check_job_board_preference_results, mutation: Mutations::JobBoard::CheckPreferenceResults
+    field :start_job_preference_conversation, mutation: Mutations::JobPreferences::StartConversation
+
+    field :save_job_preference_draft, mutation: Mutations::JobPreferences::SaveDraft
+    field :confirm_job_preferences, mutation: Mutations::JobPreferences::Confirm
+    field :clear_job_preferences, mutation: Mutations::JobPreferences::Clear
     field :start_summary_generation, mutation: Mutations::SummaryGeneration::StartSummaryGeneration
     field :accept_summary_generation, mutation: Mutations::SummaryGeneration::AcceptSummaryGeneration
     field :discard_summary_generation, mutation: Mutations::SummaryGeneration::DiscardSummaryGeneration

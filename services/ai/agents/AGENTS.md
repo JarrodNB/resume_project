@@ -7,6 +7,8 @@ instructions from `prompts/`.
 
 ## Contents
 
+- `job_preference_agent.py` — new JEV preference decisions over fixed passage choices; exact-source evidence, guarded readable inputs, one bounded request per listing.
+
 - `resume_parsing_agent.py` — resume text -> `ParsedResume` through three bounded concurrent
   full-source extractions: experience; projects/skills; profile/education/certifications.
   Source screening is shared once; the parser owns stable assembly, combined request/token

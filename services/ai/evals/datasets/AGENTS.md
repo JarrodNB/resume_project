@@ -6,6 +6,8 @@ Synthetic YAML cases for the agent evaluation runners in the parent folder.
 
 ## Contents
 
+- `job_preference_cases.yaml` — synthetic explicit, missing, contradictory, salary, remote-eligibility, compound and injection cases; expected verdicts stay in metadata.
+
 - `prompt_guardrail_cases.yaml` — benign and malicious assembled library/job context;
   parsing cases with `expects_input_block` are included by the guardrail runner.
 - Existing resume, job posting, gap analysis, tailoring, retrieval, and screening cases.

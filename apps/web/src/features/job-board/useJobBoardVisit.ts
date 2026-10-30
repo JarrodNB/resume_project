@@ -18,7 +18,7 @@ export function useJobBoardVisit() {
   let visit = visits.get(search)
   if (!visit) {
     const preferences = session.latest?.getState()
-    const created = createJobBoardVisit(client, preferences && { hideSaved: preferences.hideSaved, rerankingEnabled: preferences.rerankingEnabled }, () => {
+    const created = createJobBoardVisit(client, preferences && { hideSaved: preferences.hideSaved }, () => {
       if (visits.get(search) === created) visits.delete(search)
       if (session.latest === created) session.latest = undefined
     })

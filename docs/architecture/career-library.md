@@ -21,7 +21,8 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   `CareerLibrary::SyncLibraryEmbeddingsJob` (after commit). `SyncLibraryEmbeddingsService`
   holds a per-user advisory lock, embeds only entries whose SHA-256(model + contact-masked
   text) changed, and deletes rows whose entry is gone. Stored content remains unmasked.
-  Running it twice is harmless and any run repairs drift.
+  Repeating the sync with unchanged masked inputs is harmless; it does not refresh stored
+  content when the masked input and model remain unchanged.
   `bin/rails career_library:sync_embeddings` backfills all users (e.g. after a model change).
 - **Reading (worker):** `memory/embed_search_query.py` embeds the query through Pydantic AI's
   `Embedder` (traced in Logfire). `database/library_embedding_search.py` loads that user's

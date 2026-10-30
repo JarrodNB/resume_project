@@ -9,6 +9,8 @@
 #   - jobs, resumes, ai_tasks, ai_task_outcomes, interview_question_sets, interview_sessions, chat_conversations
 #   - library_embeddings: vectors of the career library entries (derived data)
 class User < ApplicationRecord
+  include ScreenedFields
+  screenable_fields %w[summary]
   devise :database_authenticatable, :registerable, :validatable, :uncommon_password, :confirmable, :recoverable
 
   has_many :experiences, -> { most_recent_first }, dependent: :destroy

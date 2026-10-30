@@ -5,11 +5,11 @@ require "json"
 
 module Jobs
   class RecordScreeningService < ApplicationService
-    FIELDS = %w[title company description requirements responsibilities nice_to_haves].freeze
+    FIELDS = Screening::RecordApprovalsService::RECORD_TYPES.fetch("job")[:fields]
 
     # Call after assigning edits under the job row lock, before saving.
     def self.discard_changed_fields(job:)
-      job.screened_fields -= job.changed & FIELDS
+      job.discard_changed_screened_fields
     end
 
     # Matches Python JSON encoding without Rails HTML escaping or whitespace.

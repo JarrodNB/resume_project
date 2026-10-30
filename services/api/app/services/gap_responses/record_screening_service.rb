@@ -5,11 +5,11 @@ require "json"
 
 module GapResponses
   class RecordScreeningService < ApplicationService
-    FIELDS = %w[requirement body].freeze
+    FIELDS = Screening::RecordApprovalsService::RECORD_TYPES.fetch("gap_response")[:fields]
 
     # Assign edits under the response row lock, then clear only changed checks before save.
     def self.discard_changed_fields(response:)
-      response.screened_fields -= response.changed & FIELDS
+      response.discard_changed_screened_fields
     end
 
     # Match Python's UTF-8 JSON without Rails HTML escaping.

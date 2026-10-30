@@ -132,19 +132,22 @@ RSpec.describe "Career library review results" do
     expect(task.result).to be_nil
   end
 
-  it "does not approve changed snapshot text from a late screening report" do
-    old = task
-    role.update!(description: "New unchecked user details")
-    AiTasks::ApplyAiResultService.call(message: {
-      "ai_task_id" => old.id, "status" => "completed", "result" => result_for(old),
-      "library_screening" => [
-        { "record_type" => "experience", "record_id" => role.id, "fields" => %w[company description] },
-        { "record_type" => "experience_highlight", "record_id" => highlight.id, "fields" => [ "content" ] }
-      ]
-    })
-    expect(role.reload.screened_fields).to include("company")
-    expect(role.screened_fields).not_to include("description")
-    expect(highlight.reload.screened_fields).to include("content")
+  %w[library_screening record_screening].each do |list|
+    it "does not approve changed snapshot text from a late #{list} report" do
+      old = task
+      role.update!(description: "New unchecked user details")
+      fingerprints = ->(record, fields) { fields.to_h { |field| [ field, Digest::SHA256.hexdigest(JSON.generate(record[field])) ] } }
+      reports = [ [ "experience", role, %w[company description] ], [ "experience_highlight", highlight, [ "content" ] ] ].map do |kind, record, fields|
+        report = { "record_type" => kind, "record_id" => record.id, "fingerprints" => fingerprints.call(record, fields) }
+        list == "library_screening" ? report.merge("fields" => fields) : report
+      end
+      AiTasks::ApplyAiResultService.call(message: {
+        "ai_task_id" => old.id, "status" => "completed", "result" => result_for(old), list => reports
+      })
+      expect(role.reload.screened_fields).to include("company")
+      expect(role.screened_fields).not_to include("description")
+      expect(highlight.reload.screened_fields).to include("content")
+    end
   end
 
   it "keeps the more recently requested grades when an older request finishes late" do

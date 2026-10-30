@@ -13,6 +13,11 @@ All business logic, as service objects grouped by domain folder.
 
 - `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
 
+- `screening/record_approvals_service.rb` — one recorder for unified `record_screening` receipts
+  (career library, job, gap response, interview question). Its `RECORD_TYPES` registry owns each
+  type's screened fields, owner/task scope and extra checks; a field is approved only when its
+  fingerprint matches the locked current value (and the task snapshot where one exists). The
+  older per-domain recorders remain until the worker stops sending the old lists.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;

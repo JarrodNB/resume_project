@@ -8,6 +8,13 @@ module Interviews
       "skills" => "Skill", "career_contexts" => "CareerContext"
     }.freeze
 
+    # Record type names the shared screening recorder uses for each frozen source type.
+    RECORD_TYPES = {
+      "profile" => "user", "experiences" => "experience", "highlights" => "experience_highlight",
+      "projects" => "project", "educations" => "education", "certifications" => "certification",
+      "skills" => "skill", "career_contexts" => "career_context", "jobs" => "job"
+    }.freeze
+
     def self.valid_source?(source)
       return false unless source.is_a?(Hash) && source["id"].is_a?(String) && source["text"].is_a?(String)
       return FrozenJobContext.valid_source?(source) if source["type"] == "jobs"
@@ -19,6 +26,13 @@ module Interviews
 
     def self.source_value(source)
       source["type"] == "jobs" ? source["value"] : source["text"]
+    end
+
+    # A shared-recorder receipt fingerprinting the frozen value, so only an unchanged live
+    # value can be approved. Call only with a valid source.
+    def self.approval_receipt(source)
+      { "record_type" => RECORD_TYPES.fetch(source["type"]), "record_id" => source["id"],
+        "fingerprints" => { source["field"] => Screening::RecordApprovalsService.field_fingerprint(source_value(source)) } }
     end
 
     def self.owned_record(user, source)

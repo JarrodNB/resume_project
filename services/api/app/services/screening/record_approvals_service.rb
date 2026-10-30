@@ -7,6 +7,9 @@
 # and, for types that freeze text in the task input, the frozen value too. Unknown types,
 # other users' records, deleted rows, edited text, wrong revisions and malformed receipts
 # are quietly ignored, because a late or repeated result must never approve new text.
+#
+# Spoken interviews use `record_interview_sources`: the caller fingerprints the frozen values
+# it screened, and only career library records plus the interview's own saved job qualify.
 require "digest"
 require "json"
 
@@ -46,11 +49,22 @@ module Screening
       Digest::SHA256.hexdigest(JSON.generate(value))
     end
 
+    # Approves live records for a spoken interview's screened frozen sources. Call it while
+    # the interview operation lock is held, so that lock is always taken before record locks.
+    # Jobs qualify only when they are the interview's own saved job; no task-bound types do.
+    # @param interview [InterviewSession] whose owner and saved job bound the approvals
+    # @param reports [Array<Hash>] receipts fingerprinting the frozen screened values
+    # @return [ServiceResult] always succeeds; receipts that fail a rule are skipped.
+    def self.record_interview_sources(interview:, reports:)
+      new(user: interview.user, reports: reports, interview: interview).call
+    end
+
     # @param user [User] owner of every record that may be approved
     # @param reports [Array<Hash>] receipts with record_type, record_id, fingerprints and optional revision
     # @param ai_task [AiTask, nil] needed for job, gap_response and interview_question receipts
-    def initialize(user:, reports:, ai_task: nil)
-      @user, @reports, @ai_task = user, reports, ai_task
+    # @param interview [InterviewSession, nil] set only by record_interview_sources
+    def initialize(user:, reports:, ai_task: nil, interview: nil)
+      @user, @reports, @ai_task, @interview = user, reports, ai_task, interview
     end
 
     # @return [ServiceResult] always succeeds; receipts that fail a rule are skipped.
@@ -125,11 +139,19 @@ module Screening
       { records: records }
     end
 
-    # Only the job a gap analysis or tailoring task is about.
+    # Only the job a gap analysis or tailoring task is about, or a spoken interview's own job.
     def job_scope(_record_type)
+      return interview_job_scope if @interview
       return unless task_for_user? && @ai_task.subject_type == "Job" && %w[analyze_gaps tailor_resume].include?(@ai_task.task_type)
 
       { records: @user.jobs.where(id: @ai_task.subject_id) }
+    end
+
+    # A spoken interview may approve only its own owned saved job, never any other job.
+    def interview_job_scope
+      return unless @interview.user_id == @user.id && @interview.job_id
+
+      { records: @user.jobs.where(id: @interview.job_id) }
     end
 
     # Only answers on the tailoring task's job that were frozen into the task input.

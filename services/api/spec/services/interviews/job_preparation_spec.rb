@@ -43,6 +43,20 @@ RSpec.describe "Saved-job spoken preparation" do
     expect(interview.frozen_context.fetch("job").fetch("description")).to eq("Maintain research instruments.")
   end
 
+  it "approves only this interview's own job even for a matching source on another owned job" do
+    other_job = create(:job, user: user, title: "Laboratory technician")
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    foreign_source = { "type" => "jobs", "id" => other_job.id, "field" => "title", "value" => other_job.title,
+                       "text" => other_job.title, "screened" => false }
+    interview.update!(frozen_context: interview.frozen_context.merge("sources" => interview.frozen_context["sources"] + [ foreign_source ]))
+    operation = interview.operations.first
+    identity = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real").value.slice(:attempt_id, :claim_generation)
+    index = interview.reload.frozen_context.fetch("sources").length - 1
+    expect(Interviews::RecordLibraryScreeningService.call(operation: operation, **identity, source_indices: [ index ])).to be_success
+    expect(other_job.reload.screened_fields).to eq([])
+    expect(interview.reload.frozen_context.fetch("sources")[index]["screened"]).to be(true)
+  end
+
   it "invalidates newly approved job fields when an earlier editor saves" do
     earlier_editor = Job.find(job.id)
     interview = Interviews::StartPreparationService.call(user: user, job: job).value

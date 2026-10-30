@@ -1,6 +1,7 @@
 # Remembers successful screening of exact frozen career and job sources before model work.
-# Only a current execution may report source indices. Live fields earn approval only
-# when their owned, locked value still equals the screened snapshot; replay is harmless.
+# Only a current execution may report source indices. Live fields earn approval through the
+# shared recorder: the owned, locked value must match the screened frozen value's fingerprint,
+# and jobs must be this interview's own saved job. Replay is harmless.
 # Preparation may also remember an exact frozen career-focus check, never a session-wide pass.
 require "digest"
 require "json"
@@ -37,18 +38,11 @@ module Interviews
           context["screened_career_focus_sha256"] = @focus_digest
         end
 
-        @indices.uniq.each do |index|
-          source = sources[index]
-          source["screened"] = true
-          record = FrozenLibraryScreening.owned_record(interview.user, source)
-          next unless record
-
-          record.with_lock do
-            next unless record[source["field"]] == FrozenLibraryScreening.source_value(source)
-            fields = record.screened_fields | [ source["field"] ]
-            record.update!(screened_fields: fields) if fields != record.screened_fields
-          end
+        receipts = @indices.uniq.map do |index|
+          sources[index]["screened"] = true
+          FrozenLibraryScreening.approval_receipt(sources[index])
         end
+        Screening::RecordApprovalsService.record_interview_sources(interview: interview, reports: receipts)
         interview.update!(frozen_context: context) if context != interview.frozen_context
         receipt = { screened_source_indices: sources.each_index.select { |index| sources[index]["screened"] == true } }
         receipt[:screened_career_focus_sha256] = @focus_digest unless @focus_digest.nil?

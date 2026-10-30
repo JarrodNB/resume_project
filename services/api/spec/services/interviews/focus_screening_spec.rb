@@ -40,6 +40,11 @@ RSpec.describe "Interview career-focus screening" do
     end
   end
 
+  it "records no live approvals when the focus check is rejected" do
+    expect(Screening::RecordApprovalsService).not_to receive(:record_interview_sources)
+    expect(approve(indices: [ 0 ], fingerprint: "0" * 64)).not_to be_success
+  end
+
   it "rejects invalid library indices without approving an otherwise valid focus" do
     expect(approve(indices: [ 0, 99 ])).not_to be_success
     expect(interview.reload.frozen_context["screened_career_focus_sha256"]).to be_nil

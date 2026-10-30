@@ -220,4 +220,46 @@ RSpec.describe Screening::RecordApprovalsService do
       expect(other.reload.screened_fields).to eq([])
     end
   end
+
+  describe "spoken interview sources" do
+    let(:job) { create(:job, user: user, requirements: [ "Calibration" ]) }
+    let(:interview) { Interviews::StartPreparationService.call(user: user, job: job).value }
+
+    def record_interview(reports, session: interview)
+      described_class.record_interview_sources(interview: session, reports: reports)
+    end
+
+    it "approves library records and the interview's own job by fingerprint, idempotently" do
+      skill = create(:skill, user: user, name: "Ruby")
+      reports = [ receipt("user", user, [ "summary" ]), receipt("skill", skill, [ "name" ]),
+                  receipt("job", job, %w[title requirements]) ]
+      2.times { expect(record_interview(reports)).to be_success }
+      expect(user.reload.screened_fields).to eq([ "summary" ])
+      expect(skill.reload.screened_fields).to eq([ "name" ])
+      expect(job.reload.screened_fields).to match_array(%w[title requirements])
+    end
+
+    it "never approves another job, a job after detachment, or task-bound types" do
+      other_job = create(:job, user: user)
+      response = create(:job_gap_response, job: job)
+      expect(record_interview([ receipt("job", other_job, [ "title" ]), receipt("gap_response", response, [ "body" ]) ])).to be_success
+      expect(other_job.reload.screened_fields).to eq([])
+      expect(response.reload.screened_fields).to eq([])
+      practice = Interviews::StartPreparationService.call(user: user).value
+      expect(record_interview([ receipt("job", job, [ "title" ]) ], session: practice)).to be_success
+      expect(job.reload.screened_fields).to eq([])
+    end
+
+    it "skips edited values, deleted records and other owners' records" do
+      skill = create(:skill, user: user, name: "Ruby")
+      deleted = create(:skill, user: user)
+      foreign = create(:skill, user: create(:user))
+      reports = [ receipt("skill", skill, [ "name" ]), receipt("skill", deleted, [ "name" ]), receipt("skill", foreign, [ "name" ]) ]
+      skill.update!(name: "Python")
+      deleted.destroy!
+      expect(record_interview(reports)).to be_success
+      expect(skill.reload.screened_fields).to eq([])
+      expect(foreign.reload.screened_fields).to eq([])
+    end
+  end
 end

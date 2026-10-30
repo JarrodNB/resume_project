@@ -20,8 +20,8 @@ Rails freezes the job's identity, title, company, description, requirements,
 responsibilities and nice-to-haves in `frozen_context.job`. The same private context's
 `sources` includes separate `jobs` entries with exact typed values, readable text and
 screening flags. These share the existing fenced source-index receipt. Matching saved
-approvals are reused; newly approved frozen values update live job approvals only if
-the owned, locked field still matches. Editing description/responsibilities also clears
+approvals are reused; newly approved frozen values update live job approvals only for
+the interview's own saved job, and only if its locked field still matches. Editing description/responsibilities also clears
 their approvals. Missing job fields stay missing, and required oversize context fails
 without truncation. Notes, gap responses and tailored resumes are excluded.
 
@@ -393,9 +393,11 @@ For `/internal/interviews/operations/:id`:
 - `POST /screen_library` takes current claim identity and `source_indices`, positions in
   that immutable source list. After successful screening, it durably approves those frozen
   values before model generation and returns all `screened_source_indices`. Repeated calls
-  while the claim is current are idempotent. Live library fields earn approval only under
-  record locks when the owner and exact current value still match; edits or deletions cannot
-  accidentally approve new text. Preparation may also submit optional `career_focus_sha256`,
+  while the claim is current are idempotent. Live records are approved through the shared
+  `Screening::RecordApprovalsService.record_interview_sources`, under the interview operation
+  lock and then each record's row lock, with the fingerprint of the frozen value: the owner
+  must match and the current value must have the same fingerprint, so edits or deletions
+  cannot accidentally approve new text. Preparation may also submit optional `career_focus_sha256`,
   the SHA-256 of the exact frozen focus encoded as UTF-8 JSON without ASCII escaping or
   extra whitespace (Python `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`,
   Ruby stdlib `JSON.generate`). Rails validates it against the locked nonempty focus before

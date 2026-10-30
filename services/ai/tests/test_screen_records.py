@@ -1,14 +1,22 @@
 """Saved records share one screening path: few calls, whole-batch failures, exact receipts."""
 
 import asyncio
+from functools import partial
 
 import pytest
-from pydantic_ai.usage import RunUsage
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.usage import RequestUsage, RunUsage
 
+from agents.user_text_fallback_agent import UserTextFallbackRun
 from agents.user_text_screen_agent import UserTextScreenRun
+from privacy.contact_mask import contact_scope
+from privacy.known_contact import KnownContact
 from schemas.model_usage import ModelUsage
+from schemas.user_text_fallback import UserTextFallbackScreen
 from schemas.user_text_screen import UserTextScreen
 from screening import job_fields, records
+from screening.conversation import screen_with_operation_models
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.records import (
     ScreenableRecord,
@@ -17,12 +25,8 @@ from screening.records import (
     screen_records,
     screen_records_sync,
 )
-from screening.session import (
-    bind_screened_prompt,
-    prompt_is_covered,
-    screening_session,
-    trust_rails_screened_source,
-)
+from screening.screen_user_text import ScreenOutcome
+from screening.session import screening_session
 
 
 @pytest.fixture(autouse=True)
@@ -35,14 +39,15 @@ def jev_only(monkeypatch):
 class FakeClassifier:
     """Records every screened chunk and blocks any chunk containing a marker."""
 
-    def __init__(self, *, block_marker=None, fail=False):
+    def __init__(self, *, block_marker=None, fail=False, fail_marker=None):
         self.texts = []
         self.block_marker = block_marker
         self.fail = fail
+        self.fail_marker = fail_marker
 
     def run(self, text):
         self.texts.append(text)
-        if self.fail:
+        if self.fail or (self.fail_marker is not None and self.fail_marker in text):
             raise RuntimeError("provider down")
         blocked = self.block_marker is not None and self.block_marker in text
         return UserTextScreenRun(UserTextScreen(prompt_injection=blocked, harmful_request=False),
@@ -54,9 +59,10 @@ class FakeClassifier:
 
 
 def run_screen(classifier, monkeypatch, asynchronous, items, **kwargs):
-    """Run either driver with the same fake provider."""
+    """Run either driver's default settings path with the same fake provider."""
     if asynchronous:
-        return asyncio.run(screen_records(items, classify=classifier.classify, **kwargs))
+        monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", classifier.classify)
+        return asyncio.run(screen_records(items, **kwargs))
     monkeypatch.setattr("screening.screen_user_text.screen_user_message",
                         lambda text, model, timeout_seconds: classifier.run(text))
     return screen_records_sync(items, **kwargs)
@@ -251,12 +257,163 @@ def test_unknown_record_types_are_rejected():
         ScreenableRecord(record_type="skills", record_id="1", fields={}, display_title="Python")
 
 
-def test_rails_screened_source_covers_exact_prompt_only_in_session():
-    trust_rails_screened_source("accepted answer")
+def test_records_with_more_fields_than_a_receipt_holds_are_rejected():
+    with pytest.raises(ValueError):
+        ScreenableRecord(record_type="job", record_id="job", display_title="Job",
+                         fields={f"field_{number}": "x" for number in range(17)})
+
+
+@both
+def test_sources_without_records_are_refused(monkeypatch, asynchronous):
     with screening_session() as session:
-        trust_rails_screened_source("accepted answer")
-        assert "accepted answer" in session.allowed_sources
-        assert "accepted answer" not in session.trusted_generated_sources
-        prompt = bind_screened_prompt(["accepted answer"], lambda values: f"Answer:\n{values[0]}")
-        assert prompt_is_covered(prompt)
-        assert not prompt_is_covered("Answer:\nsomething else")
+        with pytest.raises(ValueError):
+            run_screen(FakeClassifier(), monkeypatch, asynchronous, [], approved_sources=["source"])
+        assert run_screen(FakeClassifier(fail=True), monkeypatch, asynchronous, []).allowed
+        assert not session.allowed_sources
+
+
+@both
+@pytest.mark.parametrize("failure", ["block", "unavailable"])
+def test_a_failure_in_a_later_blob_undoes_earlier_allowed_blobs(monkeypatch, asynchronous, failure):
+    monkeypatch.setattr(records, "MAX_SCREENED_TEXT", 120)
+    marker = "Skill number 5"
+    classifier = (FakeClassifier(block_marker=marker) if failure == "block"
+                  else FakeClassifier(fail_marker=marker))
+    with screening_session() as session:
+        outcome = run_screen(classifier, monkeypatch, asynchronous, [skill(number) for number in range(6)],
+                             approved_sources=["source"])
+        assert len(classifier.texts) == 2 and marker not in classifier.texts[0]
+        assert not outcome.allowed and outcome.decision.unchecked == (failure == "unavailable")
+        # The screen layer remembers the earlier blob's own text; caller sources stay uncovered.
+        assert not session.record_screening and "source" not in session.allowed_sources
+        assert outcome.approved_sources == ()
+
+
+@both
+def test_size_checks_use_masked_text(monkeypatch, asynchronous):
+    """A short name becomes a longer placeholder; packing must measure the masked blob."""
+    monkeypatch.setattr(records, "MAX_SCREENED_TEXT", 120)
+    named = [ScreenableRecord(record_type="skill", record_id=f"skill-{number}", display_title="Skill",
+                              fields={"name": "Al Al Al Al"}) for number in range(3)]
+    raw_entry = len(records._render_entry(1, {"name": "Al Al Al Al"}))
+    assert 3 * raw_entry + 2 * len(records._ENTRY_SEPARATOR) <= 120  # three would fit unmasked
+    classifier = FakeClassifier()
+    with contact_scope(KnownContact.from_values(names=["Al"])), screening_session():
+        outcome = run_screen(classifier, monkeypatch, asynchronous, named)
+        assert outcome.allowed
+        assert len(classifier.texts) == 2
+        assert all(len(text) <= 120 and "«name»" in text for text in classifier.texts)
+        big = ScreenableRecord(record_type="skill", record_id="big", display_title="Big",
+                               fields={"name": " ".join(["Al"] * 30)})
+        assert len(records._render_entry(1, big.fields)) <= 120
+        assert run_screen(classifier, monkeypatch, asynchronous, [big]).decision.too_long
+    monkeypatch.setattr(records, "MAX_PROMPT_TEXT", 200)
+    with contact_scope(KnownContact.from_values(names=["Al"])), screening_session():
+        approved = ScreenableRecord(record_type="skill", record_id="approved", display_title="Approved",
+                                    fields={"name": " ".join(["Al"] * 60)},
+                                    approved_fields=frozenset({"name"}))
+        assert len(records._render_entry(1, approved.fields)) <= 200
+        assert run_screen(classifier, monkeypatch, asynchronous, [approved]).decision.too_long
+
+
+@both
+def test_fallback_screens_when_the_primary_fails(monkeypatch, asynchronous):
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", "llm")
+    fallback_texts = []
+
+    def fallback(text, model, timeout_seconds):
+        fallback_texts.append(text)
+        return UserTextFallbackRun(UserTextFallbackScreen(prompt_injection=False), "gpt-5-nano",
+                                   RunUsage(input_tokens=5))
+
+    async def fallback_async(text, model, timeout_seconds):
+        return fallback(text, model, timeout_seconds)
+
+    monkeypatch.setattr("screening.screen_user_text.screen_fallback_message", fallback)
+    monkeypatch.setattr("screening.screen_user_text.screen_fallback_message_async", fallback_async)
+    usage: list[ModelUsage] = []
+    with screening_session() as session, collect_guardrail_usage(usage):
+        outcome = run_screen(FakeClassifier(fail=True), monkeypatch, asynchronous, [skill(1)])
+        assert outcome.allowed and len(session.record_screening) == 1
+    assert len(fallback_texts) == 1
+    recorded = usage if asynchronous else outcome.decision.model_usages
+    assert [entry.model.removeprefix("openai:") for entry in recorded] == ["gpt-5-nano"]
+
+
+def test_async_outcomes_carry_no_usage_and_sync_outcomes_do(monkeypatch):
+    usage: list[ModelUsage] = []
+    with screening_session(), collect_guardrail_usage(usage):
+        assert run_screen(FakeClassifier(), monkeypatch, True, [skill(1)]).decision.model_usages == []
+    assert len(usage) == 1
+    with screening_session():
+        assert len(run_screen(FakeClassifier(), monkeypatch, False, [skill(1)]).decision.model_usages) == 1
+
+
+def test_cached_blobs_add_no_usage(monkeypatch):
+    monkeypatch.setattr(records, "MAX_SCREENED_TEXT", 120)
+
+    def legacy(number):
+        return ScreenableRecord(record_type="skill", record_id=None, fields={"name": f"Skill number {number}"},
+                                display_title="Skill")
+
+    classifier = FakeClassifier()
+    with screening_session():
+        first = run_screen(classifier, monkeypatch, False, [legacy(number) for number in range(3)])
+        assert len(classifier.texts) == 1 and len(first.decision.model_usages) == 1
+        again = run_screen(classifier, monkeypatch, False, [legacy(number) for number in range(3)])
+        assert len(classifier.texts) == 1 and again.decision.model_usages == []
+        more = run_screen(classifier, monkeypatch, False, [legacy(number) for number in range(5)])
+        assert more.allowed and len(classifier.texts) == 2
+        assert len(more.decision.model_usages) == 1
+
+
+def test_custom_screen_bills_the_callers_operation(monkeypatch):
+    """Chat and interviews pass an operation-billed screen; the default seam is unused."""
+    async def unused(*_args):
+        pytest.fail("default classifier used")
+
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unused)
+    billed = []
+
+    def jev(messages, info):
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"prompt_injection": False, "harmful_request": False})],
+            usage=RequestUsage(input_tokens=100), model_name="jev-1.13.0",
+            provider_details={"confidence": {"prompt_injection": 1.0, "harmful_request": 1.0}})
+
+    def accounted(name):
+        billed.append(name)
+        return FunctionModel(jev, model_name=name)
+
+    screen = partial(screen_with_operation_models, timeout_seconds=5, accounted=accounted)
+    with screening_session() as session:
+        outcome = asyncio.run(screen_records([skill(1), skill(2)], screen=screen))
+        assert outcome.allowed and len(session.record_screening) == 2
+    assert billed == ["jev-1.13.0"]
+    assert outcome.decision.model_usages == []
+
+
+def test_overlapping_calls_share_the_decision(monkeypatch):
+    """Concurrent calls may both write receipts; Rails applies duplicates idempotently."""
+    classifier = FakeClassifier()
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", classifier.classify)
+    items = [skill(1), skill(2)]
+
+    async def both_calls():
+        return await asyncio.gather(screen_records(items), screen_records(items))
+
+    with screening_session() as session:
+        outcomes = asyncio.run(both_calls())
+        assert all(outcome.allowed for outcome in outcomes)
+        assert len(classifier.texts) == 1
+        ids = [receipt.record_id for receipt in session.record_screening]
+        assert set(ids) == {"skill-1", "skill-2"} and len(ids) in (2, 4)
+
+
+def test_custom_screen_failure_fails_the_batch():
+    async def blocked(_text):
+        return ScreenOutcome(False)
+
+    with screening_session() as session:
+        outcome = asyncio.run(screen_records([skill(1)], approved_sources=["source"], screen=blocked))
+        assert not outcome.allowed and not session.allowed_sources and not session.record_screening

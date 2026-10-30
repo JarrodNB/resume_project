@@ -39,9 +39,10 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   logging module immediately before fallback execution; no input text is included.
 - `records.py` — the shared path for saved database records (`screen_records`, sync
   `screen_records_sync`). Skips approved or already-fingerprinted fields, screens the rest
-  as one labeled blob (split only past the screen cap, records kept whole) with no phrase
-  check, fails the whole call on any rejected blob, and writes one `RecordScreening`
-  receipt per saved record. Workflows move onto it one at a time; see the record-screening plan.
+  as one labeled blob (split only past the masked screen cap, records kept whole) with no
+  phrase check, fails the whole call on any rejected blob, and writes one `RecordScreening`
+  receipt per saved record. Only the fields a caller uses are screened. Chat and interviews
+  pass their operation-billed `screen` function. Workflows move onto it one at a time; see the record-screening plan.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 
@@ -93,8 +94,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 - Never grant coverage by substring matching or a caller-controlled boolean.
   Saved library checks can authorize exact sources reconstructed from their approved fields.
   `trust_generated_source` is only for immutable output from an owned completed AI task;
-  never use it for user-editable text or external content. `trust_rails_screened_source`
-  covers immutable text Rails accepted after a successful screen (accepted dialogue).
+  never use it for user-editable text or external content.
   A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative

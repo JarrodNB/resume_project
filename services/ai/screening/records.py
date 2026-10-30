@@ -10,18 +10,24 @@ On success each record with an id gets one `RecordScreening` receipt, which the 
 returns to Rails, and the caller's exact prompt sources are covered for this execution.
 Record ids, approved field names and revisions never enter the screened text.
 
+Size checks use the masked text, because screening masks contact details before its own
+length check and a placeholder can be longer than the value it replaces.
+
 Usage: the async path records classifier usage through `collect_guardrail_usage`, like
-every `screen_user_text_async` call. Async callers must open that scope and must not also
-add `outcome.decision.model_usages`, or calls would be counted twice. The sync path does
-not record anything itself; sync callers add `outcome.decision.model_usages` once, which
-covers every blob screened in the call. Reused decisions carry no usage.
+every `screen_user_text_async` call (or the caller's operation billing, for a custom
+`screen`), so its decision carries no usage. The sync path records nothing itself, so its
+decision carries the usage of every blob screened in the call and sync callers add
+`outcome.decision.model_usages` once. Reused decisions carry no usage.
+
+Two overlapping calls for the same records may both screen and both write receipts
+before either finishes. That only repeats work: the exact-text decision cache usually
+shares the classifier call, and Rails applies duplicate receipts idempotently.
 """
 
 import hashlib
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
 
 from privacy.contact_mask import mask_outbound
 from schemas.screening_receipts import RecordScreening
@@ -36,8 +42,9 @@ RECORD_TYPES = frozenset({
 })
 _TITLE_LIMIT = 5
 _ENTRY_SEPARATOR = "\n\n---\n\n"
+MAX_RECORD_FIELDS = 16  # matches RecordScreening.fingerprints
 
-Classifier = Callable[[str, str, float], Awaitable[Any]]
+ScreenText = Callable[[str], Awaitable[ScreenOutcome]]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -47,7 +54,8 @@ class ScreenableRecord:
     `fields` holds only the values the caller will render into a prompt. `display_title`
     is the user's own short name for the entry (for example "Senior Engineer at Acme"),
     shown back to them when a check fails. `record_id` is None for legacy snapshots: they
-    are screened but never reported to Rails.
+    are screened but never reported to Rails. Only `fields` is screened; unused columns of
+    the row are not.
     """
 
     record_type: str
@@ -60,6 +68,8 @@ class ScreenableRecord:
     def __post_init__(self):
         if self.record_type not in RECORD_TYPES:
             raise ValueError(f"Unknown screened record type: {self.record_type}")
+        if len(self.fields) > MAX_RECORD_FIELDS:
+            raise ValueError(f"A screened record can have at most {MAX_RECORD_FIELDS} fields")
 
 
 @dataclass(frozen=True)
@@ -83,44 +93,41 @@ def field_fingerprint(value: str | list[str]) -> str:
 
 async def screen_records(
     records: Sequence[ScreenableRecord], *, approved_sources: Sequence[str] = (),
-    classify: Classifier | None = None,
+    screen: ScreenText | None = None,
 ) -> RecordScreeningOutcome:
     """Screen every pending field of these records together and cover the caller's sources.
 
     `approved_sources` must contain only values from the records' fields plus trusted
-    formatting. All records' complete rendered text must fit the prompt cap and each
-    record's pending text must fit one screened string, or the result is `too_long`.
-    `classify` is a provider seam with the same signature as
-    `screen_user_text_async`'s; chat and interviews pass one billed to their operation.
-    It never approves anything by itself.
+    formatting. They are covered when every pending field passes, including when every
+    field was already approved. Passing sources with no records raises ValueError, since
+    nothing would back the approval. All records' complete masked text must fit the prompt
+    cap and each record's pending text must fit one screened string, or the result is
+    `too_long`.
+
+    `screen` runs the shared screening policy on one blob, in the style of the
+    `allow_text` callbacks elsewhere. It defaults to `screen_user_text_async` with the
+    configured model and no phrase check. Chat and spoken interviews pass a partial of
+    `screening.conversation.screen_with_operation_models`, so the primary and fallback
+    classifiers bill their own operation.
     """
-    plan = _plan(records)
+    plan = _plan(records, approved_sources)
     if isinstance(plan, RecordScreeningOutcome):
         return plan
     pending, blobs = plan
-    settings = load_settings()
-    if classify is None:
-        from screening import prompt_guardrail
-
-        # Looked up at call time so offline tests can replace the provider seam.
-        classify = prompt_guardrail.screen_prompt_text
+    screen = screen or _screen_with_settings
     outcomes = []
     for blob in blobs:
-        outcomes.append(await screen_user_text_async(
-            blob, settings.user_text_screen_model,
-            remaining_timeout(settings.llm_run_timeout_seconds),
-            check_phrases=False, classify=classify,
-        ))
+        outcomes.append(await screen(blob))
         if not outcomes[-1].allowed:
             break
-    return _finish(pending, outcomes, approved_sources)
+    return _finish(pending, outcomes, approved_sources, keep_usage=False)
 
 
 def screen_records_sync(
     records: Sequence[ScreenableRecord], *, approved_sources: Sequence[str] = (),
 ) -> RecordScreeningOutcome:
     """Apply the same policy from synchronous handlers with the configured classifier."""
-    plan = _plan(records)
+    plan = _plan(records, approved_sources)
     if isinstance(plan, RecordScreeningOutcome):
         return plan
     pending, blobs = plan
@@ -133,7 +140,19 @@ def screen_records_sync(
         ))
         if not outcomes[-1].allowed:
             break
-    return _finish(pending, outcomes, approved_sources)
+    return _finish(pending, outcomes, approved_sources, keep_usage=True)
+
+
+async def _screen_with_settings(text):
+    """The default: configured classifier and fallback, task deadline, no phrase check."""
+    from screening import prompt_guardrail
+
+    settings = load_settings()
+    # Looked up at call time so offline tests can replace the provider seam.
+    return await screen_user_text_async(
+        text, settings.user_text_screen_model, remaining_timeout(settings.llm_run_timeout_seconds),
+        check_phrases=False, classify=prompt_guardrail.screen_prompt_text,
+    )
 
 
 def record_failure_message(outcome: RecordScreeningOutcome) -> str:
@@ -150,8 +169,10 @@ def record_failure_message(outcome: RecordScreeningOutcome) -> str:
             "Review your recent edits and try again.")
 
 
-def _plan(records):
-    """Find pending fields, check sizes and build blobs; return an outcome when no call runs."""
+def _plan(records, approved_sources):
+    """Find pending fields, check masked sizes and build blobs, or return an early outcome."""
+    if not records and approved_sources:
+        raise ValueError("Approved sources need the records they were built from")
     pending = []
     for record in records:
         fields = _pending_fields(record)
@@ -162,17 +183,17 @@ def _plan(records):
     present = [fields for record in records if (fields := _present_fields(record))]
     full_text = _ENTRY_SEPARATOR.join(
         _render_entry(number, fields) for number, fields in enumerate(present, start=1))
-    if len(full_text) > MAX_PROMPT_TEXT:
+    if len(mask_outbound(full_text)) > MAX_PROMPT_TEXT:
         return _too_long(pending_records)
     if not pending:
         return [], []
     entries = [_render_entry(number, fields) for number, (_, fields) in enumerate(pending, start=1)]
-    if any(len(entry) > MAX_SCREENED_TEXT for entry in entries):
+    if any(len(mask_outbound(entry)) > MAX_SCREENED_TEXT for entry in entries):
         return _too_long(pending_records)
     blobs = [""]
     for entry in entries:
         joined = blobs[-1] + _ENTRY_SEPARATOR + entry if blobs[-1] else entry
-        if len(joined) <= MAX_SCREENED_TEXT:
+        if len(mask_outbound(joined)) <= MAX_SCREENED_TEXT:
             blobs[-1] = joined
         else:
             blobs.append(entry)
@@ -208,9 +229,9 @@ def _render_entry(number, fields):
         for name, value in fields.items())
 
 
-def _finish(pending, outcomes, approved_sources):
+def _finish(pending, outcomes, approved_sources, *, keep_usage):
     pending_records = tuple(record for record, _ in pending)
-    decision = _combine(outcomes)
+    decision = _combine(outcomes, keep_usage)
     if not decision.allowed:
         return RecordScreeningOutcome(decision, (), pending_records)
     if (session := current_session()) is not None:
@@ -224,13 +245,15 @@ def _finish(pending, outcomes, approved_sources):
     return RecordScreeningOutcome(decision, tuple(approved_sources), pending_records)
 
 
-def _combine(outcomes):
-    """One decision for the call, keeping the usage of every blob that was screened."""
+def _combine(outcomes, keep_usage):
+    """One decision for the call; the last blob screened decides it.
+
+    With `keep_usage`, it carries the usage of every blob screened. Otherwise it carries
+    none, because that usage was already recorded while screening.
+    """
     if not outcomes:
         return ScreenOutcome(True)
-    if len(outcomes) == 1:
-        return outcomes[0]
     last = outcomes[-1]
-    usage = tuple(entry for outcome in outcomes for entry in outcome.model_usages)
+    usage = tuple(entry for outcome in outcomes for entry in outcome.model_usages) if keep_usage else ()
     return ScreenOutcome(last.allowed, too_long=last.too_long, unchecked=last.unchecked,
                          completed_usage=usage)

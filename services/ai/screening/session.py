@@ -99,18 +99,6 @@ def trust_generated_source(source: str) -> None:
         session.trusted_generated_sources.add(mask_outbound(source))
 
 
-def trust_rails_screened_source(source: str) -> None:
-    """Cover immutable text that Rails accepted after a successful screen, in this execution.
-
-    Use this only for text that cannot change once Rails accepted it, such as completed
-    interview dialogue or accepted chat history. Unlike `trust_generated_source`, the text
-    may be user-written: its approval comes from that earlier screen, not from AI output.
-    Editable saved fields never use this; they go through `screening.records`.
-    """
-    if source and (session := _current.get()) is not None:
-        session.allowed_sources.add(mask_outbound(source))
-
-
 def bind_screened_prompt(sources: Sequence[str], render: Callable[[Sequence[str]], str]) -> str:
     """Render trusted scaffolding around screened or trusted generated source values.
 

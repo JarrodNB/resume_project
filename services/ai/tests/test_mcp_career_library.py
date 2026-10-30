@@ -9,8 +9,8 @@ import pytest
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
 
-from mcp_tools import client as client_module
-from mcp_tools.client import _ResultHandler
+from mcp_tools import career_library as career_library_tool
+from mcp_tools.client import TOOL_RENDERERS, _ResultHandler
 from mcp_tools.local_server import serve_in_background
 from mcp_tools.server import create_mcp_server
 from mcp_tools.tokens import TOKEN_AUDIENCE, TOKEN_ISSUER, mint_tool_token
@@ -186,7 +186,7 @@ async def test_client_turns_server_failures_into_an_unavailable_message():
 
 @pytest.mark.anyio
 async def test_client_keeps_whole_sections_and_says_what_was_cut(monkeypatch):
-    monkeypatch.setattr(client_module, "MAX_CAREER_LIBRARY_RESULT_CHARACTERS", 200)
+    monkeypatch.setattr(career_library_tool, "MAX_CAREER_LIBRARY_RESULT_CHARACTERS", 200)
     handler, call_tool, _ = handler_for(checked_library(), never_screen)
     text = await handler(None, call_tool, "read_career_library", {})
     assert "Only the first 1 of 3 sections fit" in text
@@ -226,3 +226,11 @@ async def test_parallel_calls_share_the_read_and_paid_screening():
     assert first == second and "Ruby" in first
     assert reads == ["read_career_library"]
     assert len(screens) == 1
+
+
+@pytest.mark.anyio
+async def test_every_server_tool_has_a_client_renderer():
+    # A server tool without a renderer is silently hidden from agents; catch that here.
+    server = create_mcp_server(secret=SECRET, read_library=Reader(CareerLibrary()))
+    names = {tool.name for tool in await server.list_tools()}
+    assert names == set(TOOL_RENDERERS)

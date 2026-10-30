@@ -30,14 +30,16 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   so it records no AI usage. A future tool that changes data must return a proposal that
   Rails accepts, using the existing attempt fence.
 - **Caller-side screening and rendering.** The server returns structured data, including
-  each field's saved check status. The client (`mcp_tools/client.py`) reuses saved
+  each field's saved check status. The tool's client half (in the same file as its server
+  half, `mcp_tools/career_library.py`) reuses saved
   approvals, screens unchecked fields with the claim's accounted screen, leaves out
   blocked entries with a note, and renders readable labeled text with no JSON or record IDs.
   So the model only sees screened text, and screening is billed to the chat operation.
   Results are capped at 40,000 characters and keep whole entries. New approvals are not
   saved back yet, so unchecked fields are screened again on later turns.
-- **Allow-listed tools.** The model only sees server tools that the client knows how to
-  screen and render. A new server tool stays hidden from chat until the client handles it.
+- **Allow-listed tools.** The model only sees server tools listed in `TOOL_RENDERERS`
+  (`mcp_tools/client.py`), which maps each tool to its client half. A new server tool stays
+  hidden from chat until it is listed there.
 - **Failures.** If the server is unreachable or rejects the token, the run continues
   without tools. A database failure returns a generic tool error, and the model is told
   the library is unavailable. An empty library returns a plain sentence.

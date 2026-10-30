@@ -26,7 +26,6 @@ import { JobScrapeTaskPage } from '@/features/jobs/JobScrapeTaskPage'
 import { JobBoardPage } from '@/features/job-board/JobBoardPage'
 import { JobsPage } from '@/features/jobs/JobsPage'
 import { ResumeImportTaskPage } from '@/features/resume-import/ResumeImportTaskPage'
-import { ResumeUploadPage } from '@/features/resume-import/ResumeUploadPage'
 import { ResumePage } from '@/features/resumes/ResumePage'
 import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { InterviewPrepPage } from '@/features/interview-prep/InterviewPrepPage'
@@ -57,7 +56,7 @@ export const appRoutes: RouteObject[] = [
           { index: true, element: <HomePage /> },
           { path: '/chat/:id?', element: <ChatPage /> },
           { path: '/library', element: <CareerLibraryPage /> },
-          { path: '/library/import', element: <ResumeUploadPage /> },
+          { path: '/library/import', element: <RedirectToPath to="/library" /> },
           { path: '/library/import/:aiTaskId', element: <ResumeImportTaskPage /> },
           { path: '/jobs', element: <JobsPage /> },
           { path: '/jobs/find', element: <JobBoardPage /> },

@@ -14,7 +14,7 @@ their category.
 
 ## Contents
 
-- `CareerLibraryPage.tsx` — page, wrapped in one `DragDropProvider`; `ClearLibraryButton.tsx`
+- `CareerLibraryPage.tsx` — page with inline resume upload above the library sections only while the library is empty, wrapped in one `DragDropProvider`; `ClearLibraryButton.tsx`
   and `ClearLibraryDialog.tsx` empty the library after confirmation; `useClearCareerLibrary.ts`
   runs `clearCareerLibrary` and refetches
 - `ProfileSection.tsx` (profile card with Edit and the persisted Include summary default for new resumes), `LibrarySection.tsx` (quiet card with a tone-colored icon, a

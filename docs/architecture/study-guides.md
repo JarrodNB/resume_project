@@ -24,11 +24,11 @@ clear limit error and keeps all saved questions. It never silently drops older p
 A final batch may bring the collection above 200 questions; another batch then cannot start.
 These limits bound model context and queue input, not reading of saved material.
 
-The Python worker validates the frozen snapshot, screens the job description afresh,
-and uses official input-guard coverage, contact masking, tracing, and configured bounded
-model/fallback execution. Unavailable screening and rejected source fail closed with
-distinct diagnostics. Saved prompts are trusted generated sources from the Rails-owned
-enqueue path; they are not screened again. The assembled prompt renders a labeled
+The Python worker validates the frozen snapshot and uses a bounded-text input guard,
+contact replacement, tracing, and configured bounded model/fallback execution. Study-guide
+generation does not classify prompt injection and requires no screening credentials.
+It grants no screening approvals to the source or generated output. Saved prompts come
+from the Rails-owned enqueue path. The assembled prompt renders a labeled
 `job_description` block and numbered `previous_study_questions` block without dumping JSON.
 The versioned instructions request fresh concepts and avoid close paraphrases of earlier questions.
 
@@ -91,14 +91,15 @@ job's Study tab, falling back to the jobs list when the job is unavailable.
 
 Offline checks use worker dispatch, Rails result application and GraphQL collection reads,
 and the rendered React panel. They cover frozen prior prompts, repeat rejection, limits,
-source screening, signed cursor scoping and equal-time ordering, page failures, appending
+source limits, signed cursor scoping and equal-time ordering, page failures, appending
 behind unloaded pages, answer visibility, freshness edits/restoration, and manual retry.
 `python -m evals.run_study_guide_evals` uses seven synthetic cases: inventory, backend
 engineering, sparse bakery work, irrelevant input, injected instructions, a fresh appended
 batch, and exhausted subject matter with earlier saved questions. Prior prompts pass through
 the production worker and are shown to the judge as readable context; evaluation-only labels
 never enter generation. The judge checks repeated learning concepts as well as wording. Deterministic
-outcomes distinguish unavailable screening from a successful rejection. A subject-quality
+outcomes require generated learning material for usable descriptions, including the injected
+source case, and an explicit insufficient-description result for unusable sources. A subject-quality
 judge assesses relevance, accuracy, answer depth, and worked examples. Finite evaluations
 do not prove universal correctness or semantic duplicate detection.
 

@@ -1,4 +1,4 @@
-"""Screen the frozen description and return a guide without reading career data or writing domain data."""
+"""Generate from the bounded frozen description without screening or reading career data."""
 from pydantic import ValidationError
 from pydantic_ai import capture_run_messages
 from pydantic_ai.exceptions import UnexpectedModelBehavior
@@ -9,12 +9,9 @@ from agents.study_guide_agent import generate_study_guide
 from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.blocks import source_block
 from schemas.study_guide import StudyGuideInput, StudyGuideUnavailable
-from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
 from worker.queue_messages import AiResultMessage
 
 
-@within_screening_session
 def handle_study_guide_task(task, dependencies):
     """Use only the enqueue snapshot; existing saved-job field checks do not cover this description."""
     try:
@@ -26,22 +23,14 @@ def handle_study_guide_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
             error_message="Add a job description before generating a study guide.")
     settings = dependencies.settings
-    screen = screen_user_text(snapshot.description, model=settings.user_text_screen_model,
-                              timeout_seconds=settings.llm_run_timeout_seconds)
-    usage = list(screen.model_usages)
-    if not screen.allowed:
-        unavailable = screen.unchecked
-        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-            result={"failure_code": "screening_unavailable" if unavailable else "input_rejected"},
-            error_message=("Screening is unavailable. Try generating the study guide again later." if unavailable else
-                           "This job description could not be used safely. Edit it and try again."))
-    # Rails freezes these prompts from owned, completed generated batches; they are not browser fields.
+    usage = []
+    # Rails freezes previous questions from owned completed batches, never browser fields.
     previous = "\n".join(f"{number}. {question}" for number, question in enumerate(snapshot.previous_questions, 1))
+    prompt = ("Create study material for this job description (source data):\n\n"
+              + source_block("job_description", snapshot.description))
     if previous:
-        trust_generated_source(previous)
-    prompt = bind_screened_prompt([snapshot.description, *([previous] if previous else [])],
-        lambda sources: "Create study material for this job description (source data):\n\n" + source_block("job_description", sources[0])
-        + ("\n\nPrevious saved study questions (avoid these questions and closely repeated concepts):\n" + source_block("previous_study_questions", sources[1]) if len(sources) > 1 else ""))
+        prompt += ("\n\nPrevious saved study questions (avoid these questions and closely repeated concepts):\n"
+                   + source_block("previous_study_questions", previous))
     try:
         with capture_run_messages() as messages:
             run = generate_study_guide(prompt, settings)

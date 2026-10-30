@@ -1,24 +1,26 @@
-"""
-Description: Checks that a parsed job ad copied its title, supplied company, and bullets
-from the paste. An unstated employer may be null.
-Index:
-    - find_parsed_job_problems: messages for the agent to fix, or an empty list
+"""Check that parsed job fields occur in their selected advertisement source.
+
+An unstated employer may be null. Scraped qualifications can use the description
+alone as evidence, excluding metadata and application-owned field labels.
 """
 
 from documents.text_matching import appears_in
 from schemas.parsed_job_posting import ParsedJobPosting
 
 
-def find_parsed_job_problems(parsed: ParsedJobPosting, source_text: str) -> list[str]:
-    """Rejects missing titles and unsupported supplied text; a null company is valid."""
+def find_parsed_job_problems(
+    parsed: ParsedJobPosting, source_text: str, *, list_source_text: str | None = None,
+) -> list[str]:
+    """Reject unsupported text; scraped lists may require description-only evidence."""
     problems: list[str] = []
     if not appears_in(parsed.title, source_text):
         problems.append("title must be copied from the advertisement")
     if parsed.company is not None and not appears_in(parsed.company, source_text):
         problems.append("company must be copied from the advertisement")
-    problems.extend(_list_problems("requirements", parsed.requirements, source_text))
-    problems.extend(_list_problems("responsibilities", parsed.responsibilities, source_text))
-    problems.extend(_list_problems("nice_to_haves", parsed.nice_to_haves, source_text))
+    list_source = source_text if list_source_text is None else list_source_text
+    problems.extend(_list_problems("requirements", parsed.requirements, list_source))
+    problems.extend(_list_problems("responsibilities", parsed.responsibilities, list_source))
+    problems.extend(_list_problems("nice_to_haves", parsed.nice_to_haves, list_source))
     return problems
 
 

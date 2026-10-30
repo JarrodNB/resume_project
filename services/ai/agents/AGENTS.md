@@ -19,16 +19,20 @@ instructions from `prompts/`.
   when it contains a space or a newline;
   `parse_resume_text(text, model, thinking, timeout_seconds)`
   returns a `ResumeParsingRun` (`parsed_resume`, `usage`)
-- `parse_job_posting_agent.py` — pasted job ad -> `ParsedJobPosting` (title, company, optional
+- `parse_job_posting_agent.py` — pasted or cleaned scraped ad -> `ParsedJobPosting` (title, company, optional
   location and url, requirement, responsibility, and nice-to-have lines copied from the ad);
   its output validator retries with
   `find_parsed_job_problems`; `parse_job_posting(text, model, thinking, timeout_seconds)` returns
   a `JobPostingParseRun` (`parsed`, `usage`)
+- `parse_scraped_job_posting_agent.py` — selected scraped ad -> `ParsedJobPosting` using the
+  same instructions, source validator and bounded execution as the pasted parser. Its input
+  capability checks size, exact fenced source and absence of history; it does not classify
+  prompt injection. No tools/private context and no source approval for downstream agents.
 - `job_requirements_sorting_agent.py` — numbered job posting bullets ->
   `SortedRequirementBullets` (bullet numbers only, so wording can't change);
   `sort_job_requirement_bullets(bullets, model, thinking, timeout_seconds)` returns a
-  `BulletSortingRun` (`sorted_bullets`, `usage`). Only runs when a posting's headings don't
-  label its requirements
+  `BulletSortingRun` (`sorted_bullets`, `usage`). Retained for explicit numbered-bullet
+  sorting; scraped job construction uses the shared ad parser
 - `gap_analysis_agent.py` — labeled job requirements + career library -> `GapAnalysis` (a
   verdict per requirement citing library labels); its output validator retries with
   `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`
@@ -54,6 +58,8 @@ instructions from `prompts/`.
   builders bind exact prompts to screened source values; unknown direct input and history
   are screened, while approved sources do not incur a second assembled-prompt pass.
   Keep existing structured-output validators. Both safety classifiers are exempt to prevent recursion.
+  The scraped-ad parser instead uses a source-only guard under its explicit limited exception;
+  do not widen that exception to history, tools, pasted ads or downstream job consumers.
 - Every agent also declares `ConversationLogging()` to observe validation feedback and
   exhaustion. Logging owns its state and presentation; agents keep their validation policy.
 - Create agents with `defer_model_check=True` and pass the model per run (from

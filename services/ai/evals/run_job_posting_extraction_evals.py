@@ -1,41 +1,46 @@
-"""
-Description: Runs the job posting extraction evals (heading split, plus the real requirements
-sorting agent where headings don't match) and reports the average of each score to Logfire.
-Run: docker compose run --rm ai-worker python -m evals.run_job_posting_extraction_evals
-Index:
-    - load_job_posting_extraction_dataset: reads the YAML cases with the custom evaluators
-    - linkedin_case_to_page: the JobPage the LinkedIn scraper would build from a case's inputs
-    - run_job_posting_extraction_evals: evaluates every case, prints the report, scores the trace
+"""Evaluate structured jobs built from selected scraped HTML and the shared ad parser.
+
+Cases exercise the same source rendering and validation as scrape-job tasks.
+Source-boundary guards remain active; labels never enter parser inputs.
+The optional screened comparison is isolated to this eval process.
 """
 
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+from pydantic_ai_harness import InputGuardrail
 from pydantic_evals import Dataset
 from pydantic_evals.reporting import EvaluationReport
 
-from agents.job_requirements_sorting_agent import sort_job_requirement_bullets
+from agents.parse_scraped_job_posting_agent import (
+    parse_scraped_job_posting,
+    parse_scraped_job_posting_agent,
+)
 from evals.job_posting_extraction_evaluators import JOB_POSTING_EXTRACTION_EVALUATORS
 from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset
-from job_postings.extract_job_posting import BulletSortingRun, extract_job_posting
-from prompts.job_requirements_sorting_instructions import JOB_REQUIREMENTS_SORTING_PROMPT_VERSION
+from job_postings.scraped_job_ad import posting_from_scraped_ad, scraped_job_ad_text
+from prompts.parse_job_posting_instructions import PARSE_JOB_POSTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
 from scrapers.job_page import JobPage
 from scrapers.linkedin.linkedin_description_to_html import linkedin_description_to_html
 from scrapers.linkedin.parse_linkedin_job_url import linkedin_job_url
+from screening.prompt_guardrail import screen_prompt
 from settings import load_settings
+from text_limits import MAX_SCREENED_TEXT
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "job_posting_extraction_cases.yaml"
 TRACE_NAME = "evals.job_posting_extraction"
 
 
-def load_job_posting_extraction_dataset() -> Dataset[
+def load_job_posting_extraction_dataset(path: Path = DATASET_PATH) -> Dataset[
     dict[str, Any], ScrapedJobPosting, dict[str, Any]
 ]:
     """Loads the labelled job posting cases."""
     return Dataset[dict[str, Any], ScrapedJobPosting, dict[str, Any]].from_file(
-        DATASET_PATH, custom_evaluator_types=JOB_POSTING_EXTRACTION_EVALUATORS
+        path, custom_evaluator_types=JOB_POSTING_EXTRACTION_EVALUATORS
     )
 
 
@@ -51,41 +56,74 @@ def linkedin_case_to_page(inputs: dict[str, Any]) -> JobPage:
     )
 
 
-def run_job_posting_extraction_evals(model_override: str | None = None) -> EvaluationReport:
-    """Evaluates extraction on every case and records the average scores in Logfire."""
-    settings = override_settings(load_settings(), "job_requirements_sorting_model", model_override)
-    model = settings.job_requirements_sorting_model
-    thinking = settings.job_requirements_sorting_thinking
+@contextmanager
+def with_extraction_screening():
+    """Temporarily add the previous classifier policy for an isolated comparison.
 
-    def sort_bullets(bullets: list[str]) -> BulletSortingRun:
-        """The real sorting agent, as the worker runs it."""
-        return sort_job_requirement_bullets(
-            bullets,
-            model=model,
-            thinking=thinking,
+    Keep logging, source validators, model/deadline limits and actual accounting.
+    Restore the existing guard even after validation or provider failures. This is
+    not used by worker code and must not run alongside ordinary evaluations.
+    """
+    guards = [cap for cap in parse_scraped_job_posting_agent._root_capability.capabilities
+              if isinstance(cap, InputGuardrail)]
+    if len(guards) != 1:
+        raise RuntimeError("Expected exactly one extraction input guard")
+    with patch.object(guards[0], "guard", screen_prompt):
+        yield
+
+
+def run_job_posting_extraction_evals(
+    model_override: str | None = None, *, dataset_path: Path = DATASET_PATH,
+    screening_enabled: bool = False,
+) -> EvaluationReport:
+    """Evaluates extraction on every case and records the average scores in Logfire."""
+    settings = override_settings(load_settings(), "job_posting_parse_model", model_override)
+    model = settings.job_posting_parse_model
+    thinking = settings.job_posting_parse_thinking
+
+    def extract_case(inputs: dict[str, Any]) -> ScrapedJobPosting:
+        """Run the production renderer, parser and source-checked builder."""
+        page = linkedin_case_to_page(inputs)
+        text = scraped_job_ad_text(page)
+        if len(text) > MAX_SCREENED_TEXT:
+            raise ValueError("Extraction input exceeds its size budget")
+        run = parse_scraped_job_posting(
+            text, model=model, thinking=thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
         )
+        return posting_from_scraped_ad(page, run.parsed)
 
-    def extract_case(inputs: dict[str, Any]) -> ScrapedJobPosting:
-        """The task under evaluation."""
-        return extract_job_posting(linkedin_case_to_page(inputs), sort_bullets).posting
-
-    return evaluate_dataset(
-        load_job_posting_extraction_dataset,
-        extract_case,
-        name=TRACE_NAME,
-        metadata={
-            "model": model,
-            "thinking": thinking,
-            "prompt_version": JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
-        },
-        version=JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
-        tags=["eval", "scrape_job", model, f"thinking:{thinking}"],
-        evaluation_name=f"job_posting_extraction:{model}:thinking={thinking}",
-        max_concurrency=5,
-    )
+    with (with_extraction_screening() if screening_enabled else nullcontext()):
+        return evaluate_dataset(
+            lambda: load_job_posting_extraction_dataset(dataset_path),
+            extract_case,
+            name=TRACE_NAME,
+            metadata={
+                "model": model,
+                "thinking": thinking,
+                "prompt_version": PARSE_JOB_POSTING_PROMPT_VERSION,
+                "screening_enabled": screening_enabled,
+                "dataset": dataset_path.name,
+            },
+            version=PARSE_JOB_POSTING_PROMPT_VERSION,
+            tags=["eval", "scrape_job", model, f"thinking:{thinking}"],
+            evaluation_name=f"job_posting_extraction:{model}:thinking={thinking}",
+            max_concurrency=5,
+        )
 
 
 if __name__ == "__main__":
-    run_job_posting_extraction_evals()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", default=None)
+    parser.add_argument("--adversarial", action="store_true")
+    parser.add_argument("--with-screening", action="store_true")
+    args = parser.parse_args()
+    run_job_posting_extraction_evals(
+        model_override=args.model,
+        dataset_path=(DATASET_PATH.with_name("job_posting_injection_cases.yaml")
+                      if args.adversarial else DATASET_PATH),
+        screening_enabled=args.with_screening,
+    )

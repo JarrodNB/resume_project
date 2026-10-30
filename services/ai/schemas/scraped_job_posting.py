@@ -28,6 +28,6 @@ class ScrapedJobPosting(BaseModel):
     nice_to_haves: list[str] = Field(default_factory=list)
     requirements_sorted_by: RequirementsSortedBy = Field(
         description="'headings' when the posting's own headings labelled the bullets, 'llm' when "
-        "the sorting agent chose among the bullets, 'none' when there were no bullets to sort."
+        "AI extracted or classified source spans, 'none' when no expectations were extracted."
     )
     warnings: list[str] = Field(default_factory=list)

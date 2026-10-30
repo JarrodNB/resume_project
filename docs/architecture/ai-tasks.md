@@ -180,7 +180,16 @@ Per task type:
   requirements_sorted_by, warnings). `ApplyAiResultService` saves it as a Job
   (`Jobs::CreateJobFromPostingService`, `url` = the canonical link) inside the same row lock,
   links it as the task's `subject` (GraphQL `AiTask.job`), and fails the task instead if the
-  Job can't be saved. Usage is reported only when the sorting agent ran.
+  Job can't be saved. The worker cleans the selected description HTML into plain text,
+  caps the description and acquired title/company/location, and uses the tool-free scraped-ad
+  parser to copy requirements, duties and optional qualifications from prose or lists.
+  This source-only parser does not classify prompt injection: its guard enforces one exact
+  fenced source, size limits and no history. It has no action tools or private context and
+  grants no screening approvals; later saved-job consumers retain their normal screening.
+  Extracted spans must occur in the description; missing fields stay empty. The scraper's
+  metadata and canonical URL remain authoritative. Empty/oversized descriptions and
+  unsupported parsed text fail instead of producing a job. The result includes a review
+  warning and parsing usage, including validation attempts through worker accounting.
 - `parse_job_posting`: input `{text}` (the pasted advertisement, stripped, at most 20,000
   characters; `Jobs::StartJobPostingParseService` rejects a blank or longer paste). The worker
   screens the text with Jev, then a Pydantic AI agent copies the title, company, optional

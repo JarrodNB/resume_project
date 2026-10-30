@@ -49,16 +49,23 @@ score attached, so runs can be compared across prompt and model changes.
   contact masking before screening/parsing and restores raw structured outputs before
   evaluator scoring, without applying the source-faithfulness guard. Cases run sequentially by
   default so latency comparisons do not compete across resumes; parser groups still overlap
-- `datasets/job_posting_extraction_cases.yaml` — 9 synthetic LinkedIn postings written in
+- `datasets/job_posting_extraction_cases.yaml` — 12 synthetic LinkedIn postings written in
   LinkedIn's description markup (bold and colon headings; curly apostrophes; plain-text
   sub-headings; minimum vs preferred; "what you should have" / "bonus points"; nested lists; no
-  headings; unrecognized headings; prose only; nested bold headings), hand-labelled requirements and nice-to-haves
+  headings; unrecognized headings; prose only; nested bold headings; mixed prose/lists;
+  unnamed employer; benefits-only description), hand-labelled requirements and nice-to-haves
 - The runner's `linkedin_case_to_page` builds each case's JobPage the way the scraper does
 - `job_posting_extraction_evaluators.py` — `RequirementMatch` (precision/recall),
-  `VerbatimBullets`, `SortedByExpectedPath` (the LLM only runs when headings don't match),
+  `VerbatimBullets`, `SortedByExpectedPath` (parsed expectations vs empty lists),
   `PostingFieldsMatch`
-- `run_job_posting_extraction_evals.py` — runner (heading split + real sorting agent):
+- `run_job_posting_extraction_evals.py` — runner (shared ad parser + scraped source/provenance checks):
   `docker compose run --rm ai-worker python -m evals.run_job_posting_extraction_evals`
+- `datasets/job_posting_injection_cases.yaml` — ten synthetic controls/attacks for scraped
+  source-only parsing: role/delimiter spoofing, output prefilling, omission, category poisoning,
+  source-supported canaries and hidden markup. Labels remain outside generation.
+  `python -m evals.run_job_posting_extraction_evals --adversarial --model openai:gpt-6-luna`
+  exercises production; `--with-screening` temporarily restores the old classifier in an
+  isolated eval process for comparison. Source validation, size and execution limits remain.
 - `datasets/job_posting_parse_cases.yaml` — 5 synthetic pasted ads, including an unnamed employer, hand-labelled title,
   company, location, and verbatim requirements
 - `job_posting_parse_evaluators.py` — `PastedFieldMatch`, `PastedRequirementMatch`,

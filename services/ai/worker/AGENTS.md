@@ -47,9 +47,10 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `parse_job_posting_handler.py` — screens a pasted ad, runs the parse agent, and returns a
   `ScrapedJobPosting` (description is the paste; title, supplied company, and bullets must appear
   in it; an unstated company is null)
-- `scrape_job_handler.py` — picks the site's scraper for the URL, extracts the posting (sorting
-  agent only when headings don't label requirements), reports usage only if the agent ran;
-  unsupported URLs and missing postings fail with user-facing messages
+- `scrape_job_handler.py` — picks the site's scraper, caps selected job text and invokes
+  the source-only scraped-ad parser for prose/list expectations without injection classification. Source checks precede conversion; acquired
+  metadata and URL stay authoritative. Reports parsing usage; unsupported, missing,
+  empty, oversized or unfaithful postings fail with user-facing messages
 - `analyze_gaps_handler.py` — reads the job and career library (scoped to the task's user),
   delegates required job and complete-library screening and prompt building to gap-analysis
   preparation, runs the gap analysis agent, attaches

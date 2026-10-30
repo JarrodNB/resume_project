@@ -20,7 +20,7 @@ from settings import SCREEN_LLM_OPTION, load_settings
 SUITES = {
     "resume_parsing": "resume_parsing_model",
     "job_posting_parse": "job_posting_parse_model",
-    "job_posting_extraction": "job_requirements_sorting_model",
+    "job_posting_extraction": "job_posting_parse_model",
     "gap_analysis": "gap_analysis_model",
     "tailoring": "resume_tailoring_model",
     "interview_questions": "interview_questions_model",

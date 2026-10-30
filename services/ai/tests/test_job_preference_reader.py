@@ -123,7 +123,8 @@ def test_generated_criterion_provenance_is_owned_completed_and_exact(admin_conne
 
 
 @pytest.mark.db
-def test_rails_spaced_heading_command_reaches_model_with_exact_current_passages(admin_connection, task_dependencies):
+@pytest.mark.parametrize("case", json.loads((Path(__file__).parent / "fixtures/preference_sources.json").read_text())[6:])
+def test_rails_command_reaches_model_with_exact_current_passages(admin_connection, task_dependencies, case):
     from dataclasses import replace
 
     from agents.job_preference_agent import job_preference_agent
@@ -131,8 +132,6 @@ def test_rails_spaced_heading_command_reaches_model_with_exact_current_passages(
     from worker.job_preference_handler import handle_job_preference_check_task
 
     task, _, listing_id, command = seed(admin_connection)
-    cases = json.loads((Path(__file__).parent / "fixtures/preference_sources.json").read_text())
-    case = next(item for item in cases if item["payload"].get("description", "").startswith("<p>Skills :"))
     admin_connection.execute("UPDATE job_board_listings SET payload=%s WHERE id=%s", [Jsonb(case["payload"]), listing_id])
     reference = {key: case["expected"][key] for key in ("source_digest", "truncated")}
     command["listings"] = [{**reference, "id": str(listing_id), "passages_sha256": case["fingerprint"]}]

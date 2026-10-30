@@ -176,7 +176,9 @@ never supplies trusted posting text. Checks create no private Job.
 
 `check_job_preferences` stores the owner profile/revision, criterion identities, priorities
 and text fingerprints, plus listing identities, source/passage fingerprints and truncation
-flags. It stores no criteria text or listing passages. Python reads the owned queued command,
+flags. It stores no criteria text or listing passages. Python mirrors Rails' established
+HTML4 entity decoding, HTML structure and whitespace before checking exact source digests;
+HTML5-only names stay literal. Python reads the owned queued command,
 current confirmed profile and selected shared catalogue rows in one repeatable read; changed
 revisions or fingerprints fail before model work. Retained legacy copies are comparison
 fences only, never source authority. The transient source

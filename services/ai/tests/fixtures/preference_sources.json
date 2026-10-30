@@ -529,5 +529,505 @@
       ]
     },
     "fingerprint": "88aed2989967700c3af4194d508e3dfd6ebc586822690cbb46ee73b9a3559644"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>A&ZeroWidthSpace;B &NoBreak; &NewLine; &NotEqualTilde; &madeup;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "ddac32b851abce29c792cc8eac39aa7fc60dd6fcd06f5f5fdea57d18d7bf48dc",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A&ZeroWidthSpace;B &NoBreak; &NewLine; &NotEqualTilde; &madeup;"
+        }
+      ]
+    },
+    "fingerprint": "b2d191e0b140a4c34a92202eda481cf87ae4a6749c029f2f9b7e6e7740a122cf"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>&amp;ZeroWidthSpace; &amp;amp; &amp;copy; &#38;ZeroWidthSpace; &#x26;NoBreak;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "b662670eb905ac5a3ace215fcac23ba294cbd628aa6545ff9fefe368c9428604",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: &ZeroWidthSpace; &amp; &copy; &ZeroWidthSpace; &NoBreak;"
+        }
+      ]
+    },
+    "fingerprint": "3ed93a7fc618d7f28d94cb679375f761fa3426ef16f07684eaff134379271182"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>&copy; &nbsp; &lt;tag&gt; &quot; &apos; &eacute; &trade; &ndash;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "31926aec33416b84cf4a23d9a35d1a28e16c3a155d1b175a8b31b5e210638c3d",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: © <tag> \" ' é ™ –"
+        }
+      ]
+    },
+    "fingerprint": "177f57e7fc155a12ec20942b4fcf371301224c8b81c52f9eae6ebbfd0d186139"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>A&copy B&nbsp C&amp D&bogus E&ZeroWidthSpace F&notin G&copycat;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "862a226c9ceeb094d344b127785867aeb36ab2715e2993058425cb25f8dde516",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A&copy B&nbsp C&amp D&bogus E&ZeroWidthSpace F&notin G&copycat;"
+        }
+      ]
+    },
+    "fingerprint": "e025977bff2b57dd0216cabf16f04acb7a6fa968c0b30939dd4622e9607a7fae"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>A&#65; &#x41; &#9; &#10; &#13; &#160; &#x1F600; &#x200b;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "49cf8fcab7f564218df4ff0622b4ff40470cbed28e213b5c717507f25082fa41",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: AA A"
+        },
+        {
+          "id": "P3",
+          "text": "😀 ​"
+        }
+      ]
+    },
+    "fingerprint": "c299c5a617a84a6080844aeaa0ca26e7f2877dbc8a603d845f15840f658fcefb"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>A&#0;B &#128; &#x80; &#xD800; &#1114112; &#x110000; &#xzz; &#x; &#;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "0aa8f6c017cfe76ba55bbe9fa3f429d8a35733bc245aaf7305004e050c38a554",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: AB   zz;"
+        }
+      ]
+    },
+    "fingerprint": "a73e91a16a5b330980e3195f19275d8c7dec43c60294be8bc20e52cfbc953779"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>One<!-- hidden -->Two</p><div>Three<br>Four</div>\\n<p>Five</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "fc8b5be0f777e4cb4ab6090df1d5dbf162df882073a68c7a6122cedb1d8d232e",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: OneTwo"
+        },
+        {
+          "id": "P3",
+          "text": "Three"
+        },
+        {
+          "id": "P4",
+          "text": "Four"
+        },
+        {
+          "id": "P5",
+          "text": "\\n"
+        },
+        {
+          "id": "P6",
+          "text": "Five"
+        }
+      ]
+    },
+    "fingerprint": "11ef0c7010ccfbbd97828cfd148e94069cf0d0eb5bd8882ebbdaa3f0be82b1bd"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<div>One<p>Two</p>Three<ul><li>Four</li><li>Five <em>six</em></li></ul></div>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "9cd4218d00df6aba650ff91da95144d56257f4ab1dbaa774fb514086cdcc556a",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: One"
+        },
+        {
+          "id": "P3",
+          "text": "Two"
+        },
+        {
+          "id": "P4",
+          "text": "Three"
+        },
+        {
+          "id": "P5",
+          "text": "- Four"
+        },
+        {
+          "id": "P6",
+          "text": "- Five six"
+        }
+      ]
+    },
+    "fingerprint": "9669e9078dffbe7cea8e0014c465f50d559bb74cfbed5935fba446426c7732e7"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>First<p>Second<div>Third</div>Fourth"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "0347dfdeeef73bbf677a996756310203e7524f84035b19b8488767f79e1b8dad",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: First"
+        },
+        {
+          "id": "P3",
+          "text": "Second"
+        },
+        {
+          "id": "P4",
+          "text": "Third"
+        },
+        {
+          "id": "P5",
+          "text": "Fourth"
+        }
+      ]
+    },
+    "fingerprint": "cd24984341ba610fe9dac30027fb90e5635ec3e4b70a99b6406d2d500d0c3bc5"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<ul><li>First<li>Second</ul>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "83c8846f4b3ea22a2143384c3fdc1bd5364cf632a8e31c6a1cf08d6be2259bf2",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: - First"
+        },
+        {
+          "id": "P3",
+          "text": "- Second"
+        },
+        {
+          "id": "P4",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "6cb3a5d6499ed608876a94eb5db5c8c4b24157e783b881bf6af06c53339dac14"
+  },
+  {
+    "payload": {
+      "title": "Entity parity",
+      "description": "<p>A&amp;B</p><p>Skills : Python required. SQL required. AWS required.</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "6d8c993a71b0ae7c287a342a3520f9e8cb794300bada9bb459f6d56fbc89488d",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity parity"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A&B"
+        },
+        {
+          "id": "P3",
+          "text": "Skills:"
+        },
+        {
+          "id": "P4",
+          "text": "- Python required."
+        },
+        {
+          "id": "P5",
+          "text": "- SQL required."
+        },
+        {
+          "id": "P6",
+          "text": "- AWS required."
+        }
+      ]
+    },
+    "fingerprint": "3fb6cf196d7dd1231de7da3310b974970940a1d4444e9887b681874893371a80"
+  },
+  {
+    "payload": {
+      "title": "HTML4 names",
+      "description": "<p>&AElig; &Aacute; &Acirc; &Agrave; &Alpha; &Aring; &Atilde; &Auml; &Beta; &Ccedil; &Chi; &Dagger; &Delta; &ETH; &Eacute; &Ecirc; &Egrave; &Epsilon; &Eta; &Euml; &Gamma; &Iacute; &Icirc; &Igrave; &Iota; &Iuml; &Kappa; &Lambda; &Mu; &Ntilde; &Nu; &OElig; &Oacute; &Ocirc; &Ograve; &Omega; &Omicron; &Oslash; &Otilde; &Ouml; &Phi; &Pi; &Prime; &Psi; &Rho; &Scaron; &Sigma; &THORN; &Tau; &Theta; &Uacute; &Ucirc; &Ugrave; &Upsilon; &Uuml; &Xi; &Yacute; &Yuml; &Zeta; &aacute; &acirc; &acute; &aelig; &agrave; &alefsym; &alpha; &amp; &and; &ang; &aring; &asymp; &atilde; &auml; &bdquo; &beta; &brvbar; &bull; &cap; &ccedil; &cedil; &cent; &chi; &circ; &clubs; &cong; &copy; &crarr; &cup; &curren; &dArr; &dagger; &darr; &deg; &delta; &diams; &divide; &eacute; &ecirc; &egrave; &empty; &emsp; &ensp; &epsilon; &equiv; &eta; &eth; &euml; &euro; &exist; &fnof; &forall; &frac12; &frac14; &frac34; &frasl; &gamma; &ge; &gt; &hArr; &harr; &hearts; &hellip; &iacute; &icirc; &iexcl; &igrave; &image; &infin; &int; &iota; &iquest; &isin; &iuml; &kappa; &lArr; &lambda; &lang; &laquo; &larr; &lceil; &ldquo; &le; &lfloor; &lowast; &loz; &lrm; &lsaquo; &lsquo; &lt; &macr; &mdash; &micro; &middot; &minus; &mu; &nabla; &nbsp; &ndash; &ne; &ni; &not; &notin; &nsub; &ntilde; &nu; &oacute; &ocirc; &oelig; &ograve; &oline; &omega; &omicron; &oplus; &or; &ordf; &ordm; &oslash; &otilde; &otimes; &ouml; &para; &part; &permil; &perp; &phi; &pi; &piv; &plusmn; &pound; &prime; &prod; &prop; &psi; &quot; &rArr; &radic; &rang; &raquo; &rarr; &rceil; &rdquo; &real; &reg; &rfloor; &rho; &rlm; &rsaquo; &rsquo; &sbquo; &scaron; &sdot; &sect; &shy; &sigma; &sigmaf; &sim; &spades; &sub; &sube; &sum; &sup; &sup1; &sup2; &sup3; &supe; &szlig; &tau; &there4; &theta; &thetasym; &thinsp; &thorn; &tilde; &times; &trade; &uArr; &uacute; &uarr; &ucirc; &ugrave; &uml; &upsih; &upsilon; &uuml; &weierp; &xi; &yacute; &yen; &yuml; &zeta; &zwj; &zwnj;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "14c8c35caba8436b71920d44fb267027b38865a8f0323d896268ee96d11f0ecf",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: HTML4 names"
+        },
+        {
+          "id": "P2",
+          "text": "Description: Æ Á Â À Α Å Ã Ä Β Ç Χ ‡ Δ Ð É Ê È Ε Η Ë Γ Í Î Ì Ι Ï Κ Λ Μ Ñ Ν Œ Ó Ô Ò Ω Ο Ø Õ Ö Φ Π ″ Ψ Ρ Š Σ Þ Τ Θ Ú Û Ù Υ Ü Ξ Ý Ÿ Ζ á â ´ æ à ℵ α & ∧ ∠ å ≈ ã ä „ β ¦ • ∩ ç ¸ ¢ χ ˆ ♣ ≅ © ↵ ∪ ¤ ⇓ † ↓ ° δ ♦ ÷ é ê è ∅ ε ≡ η ð ë € ∃ ƒ ∀ ½ ¼ ¾ ⁄ γ ≥ > ⇔ ↔ ♥ … í î ¡ ì ℑ ∞ ∫ ι ¿ ∈ ï κ ⇐ λ 〈 « ← ⌈ “ ≤ ⌊ ∗ ◊ ‎ ‹ ‘ < ¯ — µ · − μ ∇ – ≠ ∋ ¬ ∉ ⊄ ñ ν ó ô œ ò ‾ ω ο ⊕ ∨ ª º ø õ ⊗ ö ¶ ∂ ‰ ⊥ φ π ϖ ± £ ′ ∏ ∝ ψ \" ⇒ √ 〉 » → ⌉ ” ℜ ® ⌋ ρ ‏ › ’ ‚ š ⋅ § ­ σ ς ∼ ♠ ⊂ ⊆ ∑ ⊃ ¹ ² ³ ⊇ ß τ ∴ θ ϑ þ ˜ × ™ ⇑ ú ↑ û ù ¨ ϒ υ ü ℘ ξ ý ¥"
+        },
+        {
+          "id": "P3",
+          "text": " ÿ ζ ‍ ‌"
+        }
+      ]
+    },
+    "fingerprint": "c043434c82f8d1dff878ad67e89e22f1b1c76947e8f68448131a0d5bc61fbf02"
+  },
+  {
+    "payload": {
+      "title": "Numeric references",
+      "description": "<p>x&#0;y x&#1;y x&#2;y x&#3;y x&#4;y x&#5;y x&#6;y x&#7;y x&#8;y x&#9;y x&#10;y x&#11;y x&#12;y x&#13;y x&#14;y x&#15;y x&#16;y x&#17;y x&#18;y x&#19;y x&#20;y x&#21;y x&#22;y x&#23;y x&#24;y x&#25;y x&#26;y x&#27;y x&#28;y x&#29;y x&#30;y x&#31;y x&#32;y x&#33;y x&#34;y x&#35;y x&#36;y x&#37;y x&#38;y x&#39;y x&#40;y x&#41;y x&#42;y x&#43;y x&#44;y x&#45;y x&#46;y x&#47;y x&#48;y x&#49;y x&#50;y x&#51;y x&#52;y x&#53;y x&#54;y x&#55;y x&#56;y x&#57;y x&#58;y x&#59;y x&#60;y x&#61;y x&#62;y x&#63;y x&#64;y x&#65;y x&#66;y x&#67;y x&#68;y x&#69;y x&#70;y x&#71;y x&#72;y x&#73;y x&#74;y x&#75;y x&#76;y x&#77;y x&#78;y x&#79;y x&#80;y x&#81;y x&#82;y x&#83;y x&#84;y x&#85;y x&#86;y x&#87;y x&#88;y x&#89;y x&#90;y x&#91;y x&#92;y x&#93;y x&#94;y x&#95;y x&#96;y x&#97;y x&#98;y x&#99;y x&#100;y x&#101;y x&#102;y x&#103;y x&#104;y x&#105;y x&#106;y x&#107;y x&#108;y x&#109;y x&#110;y x&#111;y x&#112;y x&#113;y x&#114;y x&#115;y x&#116;y x&#117;y x&#118;y x&#119;y x&#120;y x&#121;y x&#122;y x&#123;y x&#124;y x&#125;y x&#126;y x&#127;y x&#128;y x&#129;y x&#130;y x&#131;y x&#132;y x&#133;y x&#134;y x&#135;y x&#136;y x&#137;y x&#138;y x&#139;y x&#140;y x&#141;y x&#142;y x&#143;y x&#144;y x&#145;y x&#146;y x&#147;y x&#148;y x&#149;y x&#150;y x&#151;y x&#152;y x&#153;y x&#154;y x&#155;y x&#156;y x&#157;y x&#158;y x&#159;y x&#160;y x&#161;y x&#162;y x&#163;y x&#164;y x&#165;y x&#166;y x&#167;y x&#168;y x&#169;y x&#170;y x&#171;y x&#172;y x&#173;y x&#174;y x&#175;y x&#176;y x&#177;y x&#178;y x&#179;y x&#180;y x&#181;y x&#182;y x&#183;y x&#184;y x&#185;y x&#186;y x&#187;y x&#188;y x&#189;y x&#190;y x&#191;y x&#192;y x&#193;y x&#194;y x&#195;y x&#196;y x&#197;y x&#198;y x&#199;y x&#200;y x&#201;y x&#202;y x&#203;y x&#204;y x&#205;y x&#206;y x&#207;y x&#208;y x&#209;y x&#210;y x&#211;y x&#212;y x&#213;y x&#214;y x&#215;y x&#216;y x&#217;y x&#218;y x&#219;y x&#220;y x&#221;y x&#222;y x&#223;y x&#224;y x&#225;y x&#226;y x&#227;y x&#228;y x&#229;y x&#230;y x&#231;y x&#232;y x&#233;y x&#234;y x&#235;y x&#236;y x&#237;y x&#238;y x&#239;y x&#240;y x&#241;y x&#242;y x&#243;y x&#244;y x&#245;y x&#246;y x&#247;y x&#248;y x&#249;y x&#250;y x&#251;y x&#252;y x&#253;y x&#254;y x&#255;y x&#55295;y x&#55296;y x&#57343;y x&#57344;y x&#65534;y x&#65535;y x&#65536;y x&#1114111;y x&#1114112;y</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "f6760ab0e046842cead249d10469a856fe4fb926ceacba5711b44d0eb14b4f1e",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Numeric references"
+        },
+        {
+          "id": "P2",
+          "text": "Description: xy xy xy xy xy xy xy xy xy x y x"
+        },
+        {
+          "id": "P3",
+          "text": "y xy xy x y xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy x y x!y x\"y x#y x$y x%y x&y x'y x(y x)y x*y x+y x,y x-y x.y x/y x0y x1y x2y x3y x4y x5y x6y x7y x8y x9y x:y x;y x<y x=y x>y x?y x@y xAy xBy xCy xDy xEy xFy xGy xHy xIy xJy xKy xLy xMy xNy xOy xPy xQy xRy xSy xTy xUy xVy xWy xXy xYy xZy x[y x\\y x]y x^y x_y x`y xay xby xcy xdy xey xfy xgy xhy xiy xjy xky xly xmy xny xoy xpy xqy xry xsy xty xuy xvy xwy xxy xyy xzy x{y x|y x}y x~y xy xy xy xy xy xy x y xy xy xy xy xy xy x"
+        },
+        {
+          "id": "P4",
+          "text": "y xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy xy x y x¡y x¢y x£y x¤y x¥y x¦y x§y x¨y x©y xªy x«y x¬y x­y x®y x¯y x°y x±y x²y x³y x´y xµy x¶y x·y x¸y x¹y xºy x»y x¼y x½y x¾y x¿y xÀy xÁy xÂy xÃy xÄy xÅy xÆy xÇy xÈy xÉy xÊy xËy xÌy xÍy xÎy xÏy xÐy xÑy xÒy xÓy xÔy xÕy xÖy x×y xØy xÙy xÚy xÛy xÜy xÝy xÞy xßy xày xáy xây xãy xäy xåy xæy xçy xèy xéy xêy xëy xìy xíy xîy xïy xðy xñy xòy xóy xôy xõy xöy x÷y xøy xùy xúy xûy xüy xýy xþy xÿy x퟿y xy xy xy xy xy x𐀀y x􏿿y xy"
+        }
+      ]
+    },
+    "fingerprint": "059d067d0d33c2b4750d2d4c65be887c35e6d4a446d87dc4e43063b268ffdd59"
+  },
+  {
+    "payload": {
+      "title": "Entity boundaries",
+      "description": "<p>A&#65 B&#x41 C&#00065; D&#X41; E&#-1; F&#x-1; G&#99999999999999999999999999999; H&#xFFFFFFFFFFFFFFFF;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "5681a18f922036262f3d6c9cf4160783f37e5d466dfc7cca9e76430fc10173f6",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Entity boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: AA BA CA DA E-1; F-1; G H"
+        }
+      ]
+    },
+    "fingerprint": "ff5698eb60a5e17ffbb4f82aabc299eb159b3f8d1a36bdd3d47abb0a9372b3d7"
+  },
+  {
+    "payload": {
+      "title": "Document nodes",
+      "description": "<!DOCTYPE html><html><body><p>One<!-- omit -->Two</p><![CDATA[Literal]]><p>Three</p></body></html>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "8b9a7e660409098eb59d34e4844511c5b8fdddffd63be864e3dd0406f036c528",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Document nodes"
+        },
+        {
+          "id": "P2",
+          "text": "Description: OneTwo"
+        },
+        {
+          "id": "P3",
+          "text": "Three"
+        }
+      ]
+    },
+    "fingerprint": "e7c6e9f045558c01e418cfb0f44a3932650bc93d4c17d036f18ffbc8167faaff"
+  },
+  {
+    "payload": {
+      "title": "Newlines",
+      "description": "<p>One\r\nTwo</p>\n<div>Three\rFour</div>\n<p>Five</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "798fa3a6ee271c63a46962bd1ac4476c660884b54c6189c5294ea915a56d2d37",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Newlines"
+        },
+        {
+          "id": "P2",
+          "text": "Description: One"
+        },
+        {
+          "id": "P3",
+          "text": "Two"
+        },
+        {
+          "id": "P4",
+          "text": "Three Four"
+        },
+        {
+          "id": "P5",
+          "text": "Five"
+        }
+      ]
+    },
+    "fingerprint": "11c4cc3a0e2fe07ea41d07e5b916919609bb010113ba03947a67bb3e7de0c10f"
   }
 ]

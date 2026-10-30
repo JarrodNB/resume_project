@@ -6,9 +6,10 @@ fingerprints must match PreferenceListingSnapshot before a queued check can run.
 import hashlib
 import json
 import re
+from html.entities import name2codepoint
 
 import regex
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 from job_postings.split_description_sections import classify_heading
 
@@ -54,11 +55,46 @@ def _format(line):
     return [label + ":", body] if len(body) > 200 else [line]
 
 
+def _decode_html4_entities(text):
+    """Match Nokogiri's established HTML4 entity decoding, without HTML5 aliases.
+
+    Named entities require their semicolon. Numeric references keep their actual
+    Unicode code point; invalid values disappear instead of becoming replacements
+    or Windows-1252 characters. Decode once, so escaped entities stay escaped.
+    """
+    def decode(match):
+        value = match.group(0)
+        if not value.startswith("&#"):
+            name = value[1:-1]
+            number = 39 if name == "apos" else name2codepoint.get(name)
+            return chr(number) if number is not None else value
+        number_text = value[2:].removesuffix(";")
+        hexadecimal = number_text.startswith(("x", "X"))
+        digits = number_text[1:] if hexadecimal else number_text
+        digits = digits.lstrip("0")
+        if len(digits) > (6 if hexadecimal else 7):
+            return ""
+        number = int(digits, 16 if hexadecimal else 10) if digits else 0
+        if number not in (9, 10, 13) and not (0x20 <= number <= 0xD7FF or 0xE000 <= number <= 0xFFFD or 0x10000 <= number <= 0x10FFFF):
+            return ""
+        return chr(number)
+
+    return re.sub(r"&#(?:[xX][0-9a-fA-F]*|[0-9]*);?|&[A-Za-z][A-Za-z0-9]*;", decode, text)
+
+
 def description_text(html):
     # Match the established Rails projection, including its treatment of hidden markup.
-    soup = BeautifulSoup(html, "html.parser")
+    # Newer parsers decode HTML5 aliases that Rails preserves. Shield references
+    # during parsing, then apply the established HTML4 rules to text nodes only.
+    # Rails treats a raw carriage return as whitespace, not a new paragraph line.
+    protected = html.replace("&", "&amp;").replace("\r", "&amp;#13;")
+    soup = BeautifulSoup(protected, "lxml")
     for node in soup.select("script, style"):
         node.decompose()
+    for node in list(soup.find_all(string=True)):
+        # Keep comments, doctypes and other non-text node kinds excluded.
+        if type(node) is NavigableString:
+            node.replace_with(NavigableString(_decode_html4_entities(str(node))))
     for node in soup.find_all("br"):
         node.replace_with("\n")
     for node in soup.find_all(["ul", "ol"]):

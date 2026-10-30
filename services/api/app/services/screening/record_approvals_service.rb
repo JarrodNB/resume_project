@@ -244,12 +244,20 @@ module Screening
       { records: @user.jobs.where(id: @interview.job_id) }
     end
 
-    # Only answers on the tailoring task's job that were frozen into the task input.
+    # Reference-only tailoring reads live answers for its owned subject. Exact fingerprints
+    # are compared under each answer lock, so edits after screening cannot gain approval.
+    # Retained commands with copied answers keep their stricter original membership check.
     def gap_response_scope(_record_type)
       return unless task_for_user? && @ai_task.task_type == "tailor_resume" && @ai_task.subject_type == "Job"
 
       job = @user.jobs.find_by(id: @ai_task.subject_id)
       return unless job
+
+      unless @ai_task.input.key?("gap_responses")
+        return unless @ai_task.input["job_id"] == job.id
+
+        return { records: job.gap_responses }
+      end
 
       snapshots = Array(@ai_task.input["gap_responses"]).each_with_object({}) do |item, by_id|
         by_id[item["id"]] ||= item if item.is_a?(Hash) && item["id"].is_a?(String)

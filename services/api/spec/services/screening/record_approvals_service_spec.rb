@@ -138,6 +138,20 @@ RSpec.describe Screening::RecordApprovalsService do
       expect(unsnapshotted.reload.screened_fields).to eq([])
     end
 
+    it "requires matching reference command owner, type and subject job" do
+      report = receipt("gap_response", response, [ "body" ])
+      other_job = create(:job, user: user)
+      invalid_tasks = [
+        create(:ai_task, user: user, subject: job, task_type: "analyze_gaps", input: { "job_id" => job.id }),
+        create(:ai_task, user: user, subject: other_job, task_type: "tailor_resume", input: { "job_id" => job.id }),
+        create(:ai_task, user: user, subject: job, task_type: "tailor_resume", input: { "job_id" => other_job.id }),
+        create(:ai_task, user: create(:user), subject: job, task_type: "tailor_resume", input: { "job_id" => job.id }),
+        create(:ai_task, user: user, subject: job, task_type: "tailor_resume", input: {})
+      ]
+      invalid_tasks.each { |invalid| expect(record([ report ], ai_task: invalid)).to be_success }
+      expect(response.reload.screened_fields).to eq([])
+    end
+
     it "only accepts tailoring tasks" do
       analysis = create(:ai_task, user: user, subject: job, task_type: "analyze_gaps", input: task.input)
       expect(record([ receipt("gap_response", response, [ "body" ]) ], ai_task: analysis)).to be_success

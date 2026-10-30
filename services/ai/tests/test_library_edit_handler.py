@@ -30,7 +30,7 @@ def patch_edit_screen(monkeypatch, screen):
 
 def edit_input():
     payload = review_input()
-    payload.update(initial_feedback="Make this clearer", target=payload["targets"][1], original_text="Helped with migration", feedback="Make this clearer", history=[], root_id=str(uuid4()), turn=1, skip=False)
+    payload.update(target=payload["targets"][1], feedback="Make this clearer", turns=[], root_id=str(uuid4()), turn=1, skip=False)
     return payload
 
 
@@ -107,18 +107,14 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     assert paused.status == "needs_user_input"
     SOURCE_CONTEXT_MARKER = "[Careergrind: reload this edit's owned source context]"
     serialized = str(paused.message_history)
-    assert SOURCE_CONTEXT_MARKER in serialized
+    assert SOURCE_CONTEXT_MARKER not in serialized
+    assert all(message["kind"] == "response" for message in paused.message_history)
     assert "Helped with migration" not in serialized
     assert "career_records" not in serialized
     assert paused.pending_questions == [{"id": "question-1", "question": "Which part did you handle?"}]
 
-    # Old persisted histories may still contain an initial source prompt. It is
-    # discarded in favor of the reader's current owned/digest-fenced projection.
-    for message in paused.message_history:
-        for part in message.get("parts", []):
-            if part.get("part_kind") == "user-prompt":
-                part["content"] = "FORGED retained source snapshot"
-    followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
+    followup = {**first.input, "turns": [{"feedback": first.input["feedback"], "history": paused.message_history}],
+                "previous_task_id": str(first.ai_task_id), "turn": 2,
                 "question_id": "question-1", "feedback": "I migrated the billing API; I did not lead the team."}
     def proposal(messages, info):
         rendered = str(messages)
@@ -140,7 +136,8 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     assert screened == ["Make this clearer", "I migrated the billing API; I did not lead the team."]
 
     # A normal feedback turn after a completed draft also reuses its saved history.
-    followup.update(history=completed.message_history, previous_task_id=str(uuid4()), turn=3,
+    followup["turns"].append({"feedback": followup["feedback"], "question_id": "question-1", "history": completed.message_history})
+    followup.update(previous_task_id=str(uuid4()), turn=3,
                     question_id=None, feedback="Keep the technical detail")
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
         "text": "Migrated the billing API with the platform team.", "color": "yellow", "reason": "Outcome remains unknown.",
@@ -172,7 +169,7 @@ def test_skipping_a_saved_question_does_not_screen_generated_question_or_skip_no
     first = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
     with library_edit_agent.override(model=FunctionModel(question)):
         paused = handle_ai_task(first, task_dependencies)
-    followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
+    followup = {**first.input, "turns": [{"feedback": first.input["feedback"], "history": paused.message_history}], "previous_task_id": str(first.ai_task_id), "turn": 2,
                 "question_id": "q-skip", "feedback": "", "skip": True}
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
         "text": "Contributed to the service migration.", "color": "yellow", "reason": "Outcome is not known.",
@@ -314,7 +311,7 @@ def test_review_batch_followup_reuses_checked_history_and_screens_only_new_feedb
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={"text": "Migrated billing endpoints for easier reconciliation.", "color": "green", "reason": "Concrete action and result."})):
         first = handle_ai_task(AiTaskMessage(ai_task_id=first_id, user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
     assert first.status == "completed"
-    payload.update(previous_task_id=str(first_id), history=first.message_history, turn=2, feedback="Keep both facts concise.")
+    payload.update(previous_task_id=str(first_id), turns=[{"feedback": "", "history": first.message_history}], turn=2, feedback="Keep both facts concise.")
     def revised(messages, info):
         assert "I migrated billing endpoints." in str(messages)
         assert "Reconciliation became easier." in str(messages)

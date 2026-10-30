@@ -22,7 +22,7 @@ from llm.generative_model import generative_model
 from llm.model_prices import reported_model_name
 from llm.run_limits import agent_usage_limits
 from prompts.library_edit_instructions import LIBRARY_EDIT_INSTRUCTIONS, LIBRARY_EDIT_PROMPT_VERSION
-from schemas.library_edit import LibraryEditDraft
+from schemas.library_edit import LibraryEditDraft, generated_edit_messages
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout
 from telemetry.tracing import record_prompt_version
@@ -67,7 +67,7 @@ class LibraryEditRun(NamedTuple):
 
 
 def improve_library_entry(prompt, history, deferred_results, deps, settings) -> LibraryEditRun:
-    """Run only prepared input under the normal task deadline and usage budgets."""
+    """Run prepared input and return only this turn's generated provider/retry state."""
     async def execute():
         limits = agent_usage_limits(settings)
         limits.tool_calls_limit = settings.library_edit_tool_calls_limit
@@ -79,6 +79,6 @@ def improve_library_entry(prompt, history, deferred_results, deps, settings) -> 
                     model_settings=ModelSettings(thinking=settings.library_edit_thinking, parallel_tool_calls=False),
                     usage_limits=limits,
                 )
-        return LibraryEditRun(result.output, json.loads(result.all_messages_json()), result.usage,
+        return LibraryEditRun(result.output, generated_edit_messages(json.loads(result.new_messages_json())), result.usage,
                               reported_model_name(result.response.model_name or settings.library_edit_model, settings.library_edit_model))
     return asyncio.run(execute())

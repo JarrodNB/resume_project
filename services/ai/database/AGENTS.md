@@ -72,6 +72,7 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   reads generated review questions from the completed owned review, and validates context digests.
   `ai_library_exchanges` is a read-only security-barrier view restricted to library review/edit
   task types and necessary identity/input/output/history fields; accounting and other task results
-  remain hidden. Child commands never copy model history or root user answers. The reader also
-  resolves the initial successful command feedback so source-bearing history prompts can be
-  reconstructed from current owned sources rather than persisted as source snapshots.
+  remain hidden. Child commands never copy model history or root user answers. Each task stores
+  only its new generated fragment; Python reconstructs prompts/answers from the canonical owned
+  commands. Retained legacy histories discard user/source requests and subtract the exact owned
+  generated prefix, failing safely if that prefix is inconsistent.

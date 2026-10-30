@@ -1,5 +1,7 @@
-"""Prepare one editing turn: screen new user text, reuse owned saved history, and never
-classify our generated questions or proposals. Review answers create a proposal directly. Rails keeps that history private and immutable.
+"""Prepare one edit from owned sources, canonical commands and per-turn generated state.
+
+Only new generated fragments return to Rails. Earlier user prompts and deferred answers
+are rebuilt from the bounded owned command chain, never copied into result history.
 """
 
 import json
@@ -35,27 +37,9 @@ SKIP_NOTE = "The user skipped this question. Do not invent the missing fact or a
 DEFAULT_FEEDBACK = "Improve clarity and specificity while preserving the available facts."
 
 
-# This marker replaces only the source-containing first user prompt in durable history.
-# Saved generated/tool parts and later feedback retain their original order and identities.
-SOURCE_CONTEXT_MARKER = "[Careergrind: reload this edit's owned source context]"
-
-
-def replace_initial_source(history, content):
-    """Replace the source-bearing initial user part without rewriting tool/deferred state."""
-    from copy import deepcopy
-
-    messages = deepcopy(history)
-    for message in messages:
-        for part in message.get("parts", []):
-            if part.get("part_kind") == "user-prompt":
-                part["content"] = content
-                return messages
-    return messages
-
-
 def render_initial_edit(source, feedback, label, review):
     """Rebuild the initial readable context only from the current owned DB projection."""
-    rows = [render_review(source), f"Improve only target {label}."]
+    rows = [source, f"Improve only target {label}."]
     if review and review.answers:
         for item in review.answers:
             number = item.question_index + 1
@@ -116,16 +100,35 @@ def handle_library_edit_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                                error_message=screening_failure_message(outcome))
 
-    source = snapshot.library.model_dump_json(exclude_none=True)
-    # Even retained legacy history is rebuilt from owned current sources. The stored
-    # initial user prompt is never the source of truth or a trusted source snapshot.
-    initial_feedback = snapshot.initial_feedback if snapshot.initial_feedback is not None else snapshot.feedback
-    initial_feedback = initial_feedback or (SKIP_NOTE if snapshot.initial_skip else DEFAULT_FEEDBACK)
-    restored = replace_initial_source(snapshot.history, render_initial_edit(
-        source, initial_feedback, snapshot.target.label, snapshot.review_question))
+    # Rendering consumes selected typed fields directly; JSON is used only for wire
+    # fragments and exact tool-return coverage, never as the model's career prompt.
+    source = render_review(snapshot.library)
+    restored = []
+    for turn in snapshot.turns:
+        feedback = turn.feedback or (SKIP_NOTE if turn.skip else DEFAULT_FEEDBACK)
+        if not restored:
+            request = {"kind": "request", "parts": [{"part_kind": "user-prompt", "content":
+                render_initial_edit(source, feedback, snapshot.target.label, snapshot.review_question)}]}
+        elif turn.question_id:
+            request = {"kind": "request", "parts": [{"part_kind": "tool-return", "tool_name": "ask_user",
+                "tool_call_id": turn.question_id, "content": source_block("user_answer", feedback)}]}
+        else:
+            request = {"kind": "request", "parts": [{"part_kind": "user-prompt", "content":
+                "User feedback:\n" + source_block("user_feedback", feedback)}]}
+        fragment = turn.history
+        # An output-tool acknowledgement must precede new feedback in the same
+        # request, exactly as Pydantic AI emitted it during that successful turn.
+        if fragment and fragment[0].get("kind") == "request":
+            restored.append({"kind": "request", "parts": fragment[0]["parts"] + request["parts"]})
+            restored.extend(fragment[1:])
+        else:
+            restored.extend([request, *fragment])
     history = ModelMessagesTypeAdapter.validate_python(restored)
     if history and not snapshot.previous_task_id:
         raise ValueError("Saved editing history requires an owned previous task")
+    prior_generated = [message for turn in snapshot.turns for message in turn.history]
+    if len(json.dumps(prior_generated, ensure_ascii=False).encode()) > 100_000:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=TOO_LONG_MESSAGE)
     if snapshot.feedback:
         outcome = check(snapshot.feedback)
         if not outcome.allowed:
@@ -173,8 +176,8 @@ def handle_library_edit_task(task, dependencies):
                            allow_question=snapshot.review_question is None and not snapshot.skip and snapshot.turn < 8)
     run = improve_library_entry(prompt, history, deferred, deps, dependencies.settings)
     result_usage = [*usage, build_model_usage(run.model, run.usage)]
-    saved_history = replace_initial_source(run.history, SOURCE_CONTEXT_MARKER)
-    if len(json.dumps(saved_history, ensure_ascii=False).encode()) > 100_000:
+    saved_history = run.history
+    if len(json.dumps([*prior_generated, *saved_history], ensure_ascii=False).encode()) > 100_000:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=result_usage,
                                error_message="This editing exchange is too long. Start a new edit.")
     if isinstance(run.output, DeferredToolRequests):

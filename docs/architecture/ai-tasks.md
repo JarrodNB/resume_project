@@ -73,12 +73,14 @@ role description/highlight, project description, or fact-response target identit
 field fingerprints, feedback, root/previous task IDs and turn. Python reads source context and
 private saved history directly.
 The browser sends only target/previous IDs and new feedback or a skip; it cannot supply history.
-Results are either one pending question plus history, or `{text, color, reason}` plus history.
+Results are either one pending question or `{text, color, reason}`, plus only this turn's new
+generated fragment. Source/user requests and previous dialogue never return in callbacks.
 Rails validates bounded output; accepting updates only the exact target when source/context
 still match, marks `accepted_at`, and adds an assessment for the accepted content digest.
 Completed/paused editing tasks cannot be reopened or replaced by late results; follow-ups
 get their own IDs and normal usage accounting. Exchanges allow at most eight turns and
-180,000 input bytes; saved history is capped at 100,000 bytes. Other task contracts are unchanged.
+180,000 input bytes; generated state across the owned chain is capped at 100,000 bytes.
+Other task contracts are unchanged.
 
 ## Queue Messages
 
@@ -387,11 +389,16 @@ Python loads only the selected owned record context and rejects changed context 
 provider work. It reads prior successful/paused model history through the read-only
 `ai_library_exchanges` security-barrier view, which exposes only necessary fields for library
 review/edit tasks. General task outputs, authentication and accounting columns remain hidden.
-Persisted model history replaces its first source-bearing user prompt with a fixed marker.
-At execution, Python reconstructs that prompt from the digest-fenced current selected source
-and its original owned command feedback/answers. Generated parts, later feedback, tool state
-and deferred IDs retain their order. Even legacy initial source prompts are replaced rather
-than trusted or returned again. `library-edit-v9` records this reconstructed input path.
+Each task stores only its own new generated provider messages and necessary application
+retry/output acknowledgements. Result callbacks never contain previous conversation, source
+prompts, user feedback, deferred user answers, or reconstruction markers. Python rebuilds
+provider dialogue in order from the bounded owned parent tasks, canonical command feedback
+and generated fragments. Failed attempts supply no accepted dialogue. Current source fields
+are rendered directly as readable labeled text, after the context digest fence.
+Retained cumulative legacy histories discard all copied user/source requests and subtract the
+exact already-owned generated prefix; inconsistent prefixes fail safely before provider work.
+Rails rejects source/user-request callback fragments instead of persisting copied history.
+`library-edit-v10` records this generated-fragment reconstruction path.
 Saved generated questions/history retain exact trusted provenance; only new unchecked user
 sources need screening. Review-answer mode disables further questions on all linked turns.
 

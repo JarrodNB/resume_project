@@ -24,7 +24,7 @@ class LibraryReviewAnswer(BaseModel):
 
 
 class LibraryReviewQuestion(BaseModel):
-    """Exact generated question and review identity resolved by Rails, never browser text."""
+    """Exact generated question resolved from the owned saved review, never browser text."""
 
     review_task_id: str = Field(min_length=1)
     question: str | None = Field(default=None, min_length=1, max_length=500)
@@ -42,16 +42,42 @@ class LibraryReviewQuestion(BaseModel):
         return self
 
 
+def generated_edit_messages(messages):
+    """Keep provider output and application retry/ack state, never source/user requests.
+
+    Legacy full conversations pass through the same projection during owned DB hydration.
+    Deferred ask_user returns are reconstructed from command feedback instead of copied.
+    """
+    selected = []
+    for message in messages:
+        if message.get("kind") == "response":
+            selected.append(message)
+        elif message.get("kind") == "request":
+            parts = [part for part in message.get("parts", [])
+                     if part.get("part_kind") == "retry-prompt"
+                     or part.get("part_kind") == "tool-return" and part.get("tool_name") != "ask_user"]
+            if parts:
+                selected.append({"kind": "request", "parts": parts})
+    return selected
+
+
+class LibraryEditTurn(BaseModel):
+    """One successful owned ancestor: command feedback plus only that turn's generated state."""
+
+    feedback: str = Field(default="", max_length=4000)
+    skip: bool = False
+    question_id: str | None = None
+    history: list[dict] = Field(default_factory=list)
+
+
 class LibraryEditInput(BaseModel):
-    """Execution-local owned sources and saved history; commands carry only new feedback."""
+    """Execution-local owned sources, canonical commands and per-turn generated fragments."""
 
     section: Literal["experience", "summary", "projects", "career_contexts"]
     library: CareerLibrary
     target: LibraryReviewTarget
     feedback: str = Field(default="", max_length=4000)
-    initial_feedback: str | None = Field(default=None, max_length=4000)
-    initial_skip: bool = False
-    history: list[dict] = Field(default_factory=list)
+    turns: list[LibraryEditTurn] = Field(default_factory=list, max_length=7)
     previous_task_id: str | None = None
     question_id: str | None = None
     review_question: LibraryReviewQuestion | None = None

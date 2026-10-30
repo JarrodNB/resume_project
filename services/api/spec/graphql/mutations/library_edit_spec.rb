@@ -248,4 +248,44 @@ RSpec.describe "Career library AI editing" do
     expect(highlight.reload.screened_fields).to be_empty
   end
 
+  it "rejects a worker callback that copies source or user request history" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed",
+      "message_history" => [{ "kind" => "request", "parts" => [{ "part_kind" => "user-prompt", "content" => "Copied saved source" }] }],
+      "result" => { "text" => "Generated proposal", "color" => "yellow", "reason" => "Add detail" } })
+    expect(task.reload.status).to eq("failed")
+    expect(task.message_history).to eq([])
+  end
+
+  it "accepts only new generated fragments and output acknowledgements on linked turns" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    first = [{ "kind" => "response", "parts" => [{ "part_kind" => "tool-call", "tool_name" => "final_result",
+      "tool_call_id" => "proposal-one", "args" => { "text" => "Generated first proposal" } }] }]
+    proposal = { "text" => "Generated first proposal", "color" => "yellow", "reason" => "Add outcome" }
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed",
+      "message_history" => first, "result" => proposal })
+    child = AiTask.find(continue_edit(task, feedback: "Fresh canonical feedback").dig("aiTask", "id"))
+    fragment = [{ "kind" => "request", "parts" => [{ "part_kind" => "tool-return", "tool_name" => "final_result",
+      "tool_call_id" => "proposal-one", "content" => "Final result processed." }] },
+      { "kind" => "response", "parts" => [{ "part_kind" => "tool-call", "tool_name" => "final_result",
+        "tool_call_id" => "proposal-two", "args" => { "text" => "Generated second proposal" } }] }]
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => child.id, "status" => "completed",
+      "message_history" => fragment, "result" => proposal.merge("text" => "Generated second proposal") })
+    expect(child.reload.status).to eq("completed")
+    expect(child.message_history).to eq(fragment)
+    expect(task.reload.message_history).to eq(first)
+    expect(child.message_history.to_json).not_to include("Generated first proposal", "Fresh canonical feedback", highlight.content)
+    expect(child.input).not_to have_key("history")
+  end
+
+  it "does not persist a deferred user answer copied into a callback" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed",
+      "message_history" => [{ "kind" => "request", "parts" => [{ "part_kind" => "tool-return", "tool_name" => "ask_user",
+        "tool_call_id" => "question-one", "content" => "Copied user answer" }] }],
+      "result" => { "text" => "Generated proposal", "color" => "yellow", "reason" => "Add detail" } })
+    expect(task.reload.status).to eq("failed")
+    expect(task.message_history).to eq([])
+  end
+
 end

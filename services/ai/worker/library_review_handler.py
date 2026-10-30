@@ -13,11 +13,11 @@ from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
 from worker.queue_messages import AiResultMessage
 
 
-def render_review(source: str) -> str:
+def render_review(source) -> str:
     """Render the execution-local selected section as plain text; never put JSON in the prompt."""
     from schemas.gap_analysis_context import CareerLibrary
 
-    library = CareerLibrary.model_validate_json(source)
+    library = CareerLibrary.model_validate_json(source) if isinstance(source, str) else source
     rows = []
     target = 0
     for role in library.experiences:

@@ -1,7 +1,7 @@
-"""Load one owned edit target, saved generated review questions and earlier model history.
+"""Load one owned target, generated review questions and ancestor command/fragments.
 
-Commands contain identities, fingerprints and the newest user feedback only. History
-comes from a narrow workflow view; arbitrary task/accounting data is never granted.
+Commands contain identities, fingerprints and the newest user feedback only. Generated
+fragments come from a narrow workflow view; arbitrary task/accounting data is never granted.
 """
 
 from uuid import UUID
@@ -11,7 +11,7 @@ from psycopg.pq import TransactionStatus
 
 from database.library_review_reader import read_library_review
 from database.open_read_only_connection import open_read_only_connection
-from schemas.library_edit import LibraryEditInput
+from schemas.library_edit import LibraryEditInput, generated_edit_messages
 
 EXCHANGE_QUERY = """
     SELECT id::text, task_type, status, input, result, message_history, pending_questions, accepted_at
@@ -61,7 +61,6 @@ def read_library_edit(connection, task):
             raise ValueError("Editing source changed")
 
         chain = [current]
-        history = []
         while chain[-1]["input"].get("previous_task_id"):
             child = chain[-1]
             parent = exchange(child["input"]["previous_task_id"], "improve_library_entry")
@@ -71,8 +70,6 @@ def read_library_edit(connection, task):
                     or parent["status"] == "queued" or parent["accepted_at"] is not None):
                 raise ValueError("Invalid editing parent")
             chain.append(parent)
-            if not history and parent["status"] in ("completed", "needs_user_input"):
-                history = parent["message_history"] or []
         root = chain[-1]
         if root["id"] != command["root_id"] or root["input"]["turn"] != 1 or len(chain) != command["turn"]:
             raise ValueError("Invalid editing root")
@@ -102,16 +99,34 @@ def read_library_edit(connection, task):
                     raise ValueError("Generated question is unavailable")
                 answers.append({"question_index": index, "question": questions[index], "answer": pair["answer"]})
             review = {"review_task_id": review["review_task_id"], "answers": answers}
-        origin = next((item for item in reversed(chain) if item["status"] in ("completed", "needs_user_input")
-                       and item["message_history"]), current)
-        initial_feedback = origin["input"].get("feedback", "")
-        if review and origin["id"] == root["id"]:
-            initial_feedback = ""
+        turns = []
+        generated = []
+        for ancestor in reversed(chain[1:]):
+            if ancestor["status"] not in ("completed", "needs_user_input"):
+                continue
+            raw = ancestor["message_history"] or []
+            fragment = generated_edit_messages(raw)
+            # Old workers persisted cumulative history. Ignore copied user requests and
+            # subtract only the exact generated prefix already represented by ancestors.
+            legacy = any(part.get("part_kind") == "user-prompt"
+                         for message in raw for part in message.get("parts", []))
+            if legacy:
+                if fragment[:len(generated)] != generated:
+                    raise ValueError("Legacy editing history changed")
+                fragment = fragment[len(generated):]
+            if not fragment:
+                continue
+            generated.extend(fragment)
+            feedback = ancestor["input"].get("feedback", "")
+            if review and not turns and ancestor["id"] == root["id"]:
+                feedback = ""
+            turns.append({"feedback": feedback, "skip": ancestor["input"].get("skip", False),
+                          "question_id": ancestor["input"].get("question_id"), "history": fragment})
         return LibraryEditInput(section=section, library=projection.library, target=selected,
                                 feedback="" if review and len(chain) == 1 else command.get("feedback", ""),
-                                initial_feedback=initial_feedback, initial_skip=origin["input"].get("skip", False), skip=command.get("skip", False),
+                                skip=command.get("skip", False),
                                 turn=command["turn"], previous_task_id=command.get("previous_task_id"),
-                                question_id=question_id, history=history, review_question=review)
+                                question_id=question_id, turns=turns, review_question=review)
 
 
 def build_database_edit_reader(settings):

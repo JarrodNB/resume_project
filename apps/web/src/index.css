@@ -860,3 +860,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .question-generate .view-switch { flex: 1 1 100%; }
   .question-generate .view-switch button { flex: 1; padding: 0 8px; }
 }
+
+/* Session check stays invisible for a moment so fast loads don't flash a spinner. */
+.session-check { opacity: 0; animation: session-check-in 200ms ease-out 300ms forwards; }
+@keyframes session-check-in { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .session-check { animation-duration: 0.01ms; } }

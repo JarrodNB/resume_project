@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { onInvalidCsrf, sessionRequest, signInRequest, signOutRequest, signUpRequest, type AuthCredentials, type BrowserSession } from './authApi'
 import { AuthContext, type AuthContextValue } from './authContext'
 import { PRODUCT_NAME, productStorageKey } from '@/lib/productName'
+import { LoaderCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -72,7 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       <Button type="button" className="min-h-11" onClick={() => { setError(false); setAttempt((value) => value + 1) }}>Try again</Button>
     </div>
   </main>
-  if (!session) return <p role="status">Checking your session…</p>
+  if (!session) return <main className="flex min-h-svh items-center justify-center px-6 py-12">
+    <p role="status" className="session-check flex items-center gap-3 text-sm text-muted-foreground">
+      <LoaderCircle aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
+      Checking your session…
+    </p>
+  </main>
   const value: AuthContextValue = { ...session, signIn, signUp, signOut, expireSession }
   return <AuthContext value={value}>{children}</AuthContext>
 }

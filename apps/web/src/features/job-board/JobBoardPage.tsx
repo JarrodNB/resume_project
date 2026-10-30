@@ -145,7 +145,10 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
       {reranking.busy && <p role="status" className="board-ranking-status"><span className="signal-dot is-ai" aria-hidden />Reranking loaded roles…</p>}
       {reranking.ranked && ordering === 'library' && <p role="status" className="board-ranking-status">Loaded roles ranked using your career library.</p>}
       {reranking.limitReached && <p role="status" className="board-ranking-status">Reranking supports up to 100 loaded roles. Narrow your search to rerank these results. Showing provider order.</p>}
-      {reranking.subscriptionError && <p role="status" className="board-ranking-status">{reranking.subscriptionError}</p>}
+      {reranking.subscriptionError && <div className="grid gap-3">
+        <p role="status" className="board-ranking-status">{reranking.subscriptionError}</p>
+        <Button type="button" variant="outline" className="justify-self-start" onClick={reranking.reconnect}>Reconnect ranking updates</Button>
+      </div>}
       {reranking.error && <div className="grid gap-3">
         <ErrorAlert title="Couldn't rerank jobs" messages={[reranking.error]} />
         {ordering === 'library' && <p className="board-ranking-status">Showing search order.</p>}

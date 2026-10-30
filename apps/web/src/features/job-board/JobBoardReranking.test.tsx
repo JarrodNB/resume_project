@@ -266,3 +266,24 @@ it('requires an explicit rerank after refreshing the same provider IDs', async (
   await screen.findByText('Loaded roles ranked using your career library.')
   expect(refreshedRank).toHaveBeenCalledOnce()
 })
+
+it('reconnects a disconnected subscription to the same queued ranking without buying another task', async () => {
+  const user = userEvent.setup()
+  const started = vi.fn(() => ({ data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: task('rank-1', null), errors: [] } } }))
+  const resumed = vi.fn(() => ({ data: { aiTaskUpdated: task('rank-1', ['second', 'first']) } }))
+  renderBoard([
+    searchMock(), rankMock('engineer', ['first', 'second'], [], { result: started }),
+    { request: { query: JOB_BOARD_RERANKING_SUBSCRIPTION, variables: { id: 'rank-1' } }, error: new Error('Connection interrupted') },
+    { request: { query: JOB_BOARD_RERANKING_SUBSCRIPTION, variables: { id: 'rank-1' } }, result: resumed },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await screen.findByText(/Career-library ranking updates disconnected/)
+  expect(titles()).toEqual(['first role', 'second role'])
+  await user.click(screen.getByRole('button', { name: 'Reconnect ranking updates' }))
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  expect(started).toHaveBeenCalledOnce()
+  expect(resumed).toHaveBeenCalledOnce()
+})

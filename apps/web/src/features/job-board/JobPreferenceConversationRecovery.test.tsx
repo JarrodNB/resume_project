@@ -1,11 +1,17 @@
 /** Recover reopened queued preference turns through real GraphQL subscriptions. */
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { ApolloClient, ApolloLink, InMemoryCache } from '@apollo/client'
+import { ApolloProvider } from '@apollo/client/react'
+import { MockLink } from '@apollo/client/testing'
+import { Observable } from 'rxjs'
+import { MemoryRouter } from 'react-router'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { JobPreferences } from './JobPreferences'
+import { JobPreferenceConversation } from './JobPreferenceConversation'
 import { useJobPreferenceConversation } from './useJobPreferenceConversation'
 import { JOB_PREFERENCE_CONVERSATION, JOB_PREFERENCES_QUERY, START_JOB_PREFERENCE_CONVERSATION } from './jobPreferenceOperations'
 
@@ -49,7 +55,7 @@ it.each(['COMPLETED', 'NEEDS_USER_INPUT'] as const)('refreshes accepted dialogue
   }
 })
 
-it('keeps a newer submitted turn when recovery of its predecessor finishes later', async () => {
+it('waits for predecessor recovery before submitting and retaining a newer turn', async () => {
   const user = userEvent.setup()
   let finishRecovery!: () => void
   const onAccepted = vi.fn(() => new Promise<void>((resolve) => { finishRecovery = resolve }))
@@ -69,10 +75,13 @@ it('keeps a newer submitted turn when recovery of its predecessor finishes later
   ]})
   await screen.findByText('old:NEEDS_USER_INPUT')
   await waitFor(() => expect(onAccepted).toHaveBeenCalledOnce())
+  expect(screen.getByRole('button', {name: 'Answer'})).toBeDisabled()
+  await user.click(screen.getByRole('button', {name: 'Answer'}))
+  expect(screen.queryByText('new:QUEUED')).not.toBeInTheDocument()
+  await act(async () => finishRecovery())
   await waitFor(() => expect(screen.getByRole('button', {name: 'Answer'})).toBeEnabled())
   await user.click(screen.getByRole('button', {name: 'Answer'}))
   await screen.findByText('new:QUEUED')
-  await act(async () => finishRecovery())
   expect(screen.getByText('new:QUEUED')).toBeInTheDocument()
   expect(screen.getByRole('button', {name: 'Answer'})).toBeDisabled()
 })
@@ -103,5 +112,73 @@ it('keeps a fresh current-revision turn busy despite the old query conversation 
   expect(await screen.findByText('Working on your preferences…')).toBeInTheDocument()
   expect(screen.getByRole('textbox', {name: 'Preference 1'})).toBeDisabled()
   expect(screen.getByRole('button', {name: 'Send preferences'})).toBeDisabled()
-  expect(await screen.findByDisplayValue('Fully remote work')).toBeEnabled()
+  await waitFor(() => expect(screen.getByDisplayValue('Fully remote work')).toBeEnabled())
+})
+
+
+it.each(['queued', 'accepted'])('locks editing while a reopened %s turn refreshes its accepted profile', async (initial) => {
+  const user = userEvent.setup()
+  setSectionOpen('job-preferences', true)
+  const accepted = task('slow-recovery', 'COMPLETED')
+  const original = {__typename: 'JobPreferenceProfile' as const, version: 0, confirmedRevision: 0,
+    draftCriteria: [{__typename: 'JobPreferenceCriterion' as const, id: 'remote', text: 'Remote draft', priority: 'must_have'}], confirmedCriteria: []}
+  const updated = {...original, version: 1, draftCriteria: [{...original.draftCriteria[0], text: 'Fully remote work'}]}
+  let finishProfile!: () => void
+  const refreshStarted = vi.fn()
+  let profileReads = 0
+  const heldProfile = new ApolloLink((operation, forward) => {
+    if (operation.operationName !== 'JobPreferences' || ++profileReads !== 2) return forward(operation)
+    return new Observable((observer) => {
+      refreshStarted()
+      finishProfile = () => { observer.next({data: {jobPreferences: updated}}); observer.complete() }
+    })
+  })
+  const client = new ApolloClient({cache: new InMemoryCache(), link: ApolloLink.from([heldProfile, new MockLink([
+    {request: {query: JOB_PREFERENCES_QUERY}, result: {data: {jobPreferences: original}}},
+    {request: {query: JOB_PREFERENCE_CONVERSATION}, result: conversation(initial === 'queued' ? task(accepted.id, 'QUEUED') : accepted)},
+    {request: {query: AI_TASK_UPDATED_SUBSCRIPTION, variables: {id: accepted.id}}, ...(initial === 'accepted' ? {delay: Infinity} : {}), result: {data: {aiTaskUpdated: accepted}}},
+    {request: {query: JOB_PREFERENCE_CONVERSATION}, result: conversation(accepted, 'Review your remote preference')},
+  ])] )})
+  render(<ApolloProvider client={client}><MemoryRouter><JobPreferences /></MemoryRouter></ApolloProvider>)
+  await waitFor(() => expect(refreshStarted).toHaveBeenCalledOnce())
+  const editor = screen.getByRole('textbox', {name: 'Preference 1'})
+  expect(editor).toBeDisabled()
+  expect(screen.getByRole('textbox', {name: 'Tell me what you want next'})).toBeDisabled()
+  await user.type(editor, 'Please keep this edit')
+  expect(editor).toHaveValue('Remote draft')
+  await act(async () => finishProfile())
+  await waitFor(() => expect(screen.getByDisplayValue('Fully remote work')).toBeEnabled())
+  expect(screen.getByRole('textbox', {name: 'Tell me what you want next'})).toBeEnabled()
+})
+
+
+it('waits for the other recovery read after a rejection, then unlocks and offers a working reload', async () => {
+  const user = userEvent.setup()
+  const accepted = task('failed-recovery', 'NEEDS_USER_INPUT')
+  const onAccepted = vi.fn<() => Promise<void>>().mockRejectedValueOnce(new Error('Profile read failed')).mockResolvedValue(undefined)
+  let finishDialogue!: () => void
+  const refreshStarted = vi.fn()
+  let conversationReads = 0
+  const heldDialogue = new ApolloLink((operation, forward) => {
+    if (operation.operationName !== 'JobPreferenceConversation' || ++conversationReads !== 2) return forward(operation)
+    return new Observable((observer) => {
+      refreshStarted()
+      finishDialogue = () => { observer.next(conversation(accepted, 'Which location?')); observer.complete() }
+    })
+  })
+  const client = new ApolloClient({cache: new InMemoryCache(), link: ApolloLink.from([heldDialogue, new MockLink([
+    {request: {query: JOB_PREFERENCE_CONVERSATION}, result: conversation(task(accepted.id, 'QUEUED'))},
+    {request: {query: AI_TASK_UPDATED_SUBSCRIPTION, variables: {id: accepted.id}}, result: {data: {aiTaskUpdated: accepted}}},
+    {request: {query: JOB_PREFERENCE_CONVERSATION}, result: conversation(accepted, 'Which location?')},
+  ])])})
+  render(<ApolloProvider client={client}><MemoryRouter><JobPreferenceConversation version={0} disabled={false} onBusyChange={() => {}} onAccepted={onAccepted} /></MemoryRouter></ApolloProvider>)
+  await waitFor(() => expect(refreshStarted).toHaveBeenCalledOnce())
+  expect(screen.getByRole('textbox', {name: 'Tell me what you want next'})).toBeDisabled()
+  await act(async () => finishDialogue())
+  await screen.findByText('Could not refresh the saved conversation. Reload to recover it.')
+  expect(screen.getByRole('textbox', {name: 'Tell me what you want next'})).toBeEnabled()
+  await user.click(screen.getByRole('button', {name: 'Reload conversation'}))
+  await waitFor(() => expect(onAccepted).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.getByRole('textbox', {name: 'Tell me what you want next'})).toBeEnabled())
+  expect(screen.queryByRole('button', {name: 'Reload conversation'})).not.toBeInTheDocument()
 })

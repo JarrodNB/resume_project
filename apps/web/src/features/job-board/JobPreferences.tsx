@@ -27,8 +27,8 @@ function PreferenceContents() {
     <ErrorAlert title="Couldn't update preferences" messages={preferences.errors} />
     {preferences.errors.length > 0 && <Button type="button" variant="outline" disabled={preferences.busy} onClick={() => void preferences.reload()}>Reload preferences</Button>}
     {preferences.profile && <>
-      <JobPreferenceConversation version={preferences.profile.version} disabled={dirty || preferences.busy} onBusyChange={setConversationBusy} onAccepted={preferences.reload} />
-      <PreferenceEditor key={preferences.profile.version} profile={preferences.profile} busy={preferences.busy || conversationBusy} update={preferences.update} onDirtyChange={setDirty} />
+      <JobPreferenceConversation version={preferences.profile.version} disabled={dirty || preferences.busy || preferences.loading} onBusyChange={setConversationBusy} onAccepted={preferences.reload} />
+      <PreferenceEditor key={preferences.profile.version} profile={preferences.profile} busy={preferences.busy || preferences.loading || conversationBusy} update={preferences.update} onDirtyChange={setDirty} />
     </>}
   </div>
 }

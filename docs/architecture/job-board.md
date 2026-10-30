@@ -179,7 +179,9 @@ Validated completion saves an editable draft and increments its version atomical
 it never confirms preferences. Changed/cleared/confirmed profiles and superseding turns
 fence late output. New conversations can start after a clear even while obsolete work
 finishes. Unsaved manual edits must be saved before sending a message; the local editor
-pauses during its current conversation request. Cross-tab edits are protected by the
+pauses during its current conversation request and until accepted dialogue and profile
+refreshes both settle, including on reopen. Failed recovery unlocks and offers reload.
+Cross-tab edits are protected by the
 same server revision fence. Failed messages remain available for retry after reopening.
 
 The worker screens new user text and unknown draft criteria. Exact criteria from accepted

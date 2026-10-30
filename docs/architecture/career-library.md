@@ -56,9 +56,11 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   alternatives were rejected: letting the worker write embeddings through a second, narrow
   database role (weakens "Rails owns writes"), and returning smaller, packed vectors split
   across several result messages (more moving parts for no product gain). The cost is a few
-  hundredths of a cent per library, so embeddings don't count toward the per-user AI budget,
-  and Rails' embedding calls aren't traced in Logfire. The sync runs as a background job, so
-  an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
+  hundredths of a cent per library. Rails records embedding receipts in the per-user
+  general and combined AI spend, but these background requests use no task admission or
+  concurrency slot. Rails' embedding calls aren't traced in Logfire; see
+  [AI cost accounting](ai-cost-accounting.md) for receipt and budget details. The sync
+  runs as a background job, so an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
   through Pydantic AI, so those calls are traced.
 
 - **The career library is the base; there is no base resume.** Importing a resume fills the

@@ -268,6 +268,10 @@ def test_sources_without_records_are_refused(monkeypatch, asynchronous):
     with screening_session() as session:
         with pytest.raises(ValueError):
             run_screen(FakeClassifier(), monkeypatch, asynchronous, [], approved_sources=["source"])
+        blank = ScreenableRecord(record_type="job", record_id="job", display_title="Job",
+                                 fields={"title": "  ", "requirements": [" "]})
+        with pytest.raises(ValueError):
+            run_screen(FakeClassifier(), monkeypatch, asynchronous, [blank], approved_sources=["source"])
         assert run_screen(FakeClassifier(fail=True), monkeypatch, asynchronous, []).allowed
         assert not session.allowed_sources
 

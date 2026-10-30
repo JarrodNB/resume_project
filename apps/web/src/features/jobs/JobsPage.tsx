@@ -44,8 +44,11 @@ export function JobsPage() {
         <div className="empty-records">
           <BriefcaseBusiness size={30} strokeWidth={1.4} aria-hidden />
           <h2>A place for your next opportunity</h2>
-          <p>No jobs yet. Paste a job ad or a posting link, or add one yourself.</p>
-          <Button asChild variant="outline"><Link to="/jobs/new">Add your first job <ArrowUpRight /></Link></Button>
+          <p>No jobs yet. Search current listings, paste a job ad or a posting link, or add one yourself. Once a job is saved you can see how your career library matches it.</p>
+          <div className="flex flex-wrap justify-center gap-2.5">
+            <Button asChild><Link to="/jobs/find">Find jobs</Link></Button>
+            <Button asChild variant="outline"><Link to="/jobs/new">Add your first job <ArrowUpRight /></Link></Button>
+          </div>
         </div>
       )}
       {jobs && jobs.length > 0 && (

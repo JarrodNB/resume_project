@@ -41,6 +41,7 @@ def _format(line):
     if not match:
         return [line]
     label, body = match.groups()
+    label = label.strip()
     if len(label.split()) > 6 or label.count("(") != label.count(")"):
         return [line]
     items = _sentences(body)

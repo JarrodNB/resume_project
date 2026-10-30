@@ -120,3 +120,26 @@ def test_generated_criterion_provenance_is_owned_completed_and_exact(admin_conne
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     result = read_preference_input(admin_connection, task)
     assert result.criteria[0].trusted_generated is (provenance == "matching")
+
+
+@pytest.mark.db
+def test_rails_spaced_heading_command_reaches_model_with_exact_current_passages(admin_connection, task_dependencies):
+    from dataclasses import replace
+
+    from agents.job_preference_agent import job_preference_agent
+    from tests.test_job_preference_check import model
+    from worker.job_preference_handler import handle_job_preference_check_task
+
+    task, _, listing_id, command = seed(admin_connection)
+    cases = json.loads((Path(__file__).parent / "fixtures/preference_sources.json").read_text())
+    case = next(item for item in cases if item["payload"].get("description", "").startswith("<p>Skills :"))
+    admin_connection.execute("UPDATE job_board_listings SET payload=%s WHERE id=%s", [Jsonb(case["payload"]), listing_id])
+    reference = {key: case["expected"][key] for key in ("source_digest", "truncated")}
+    command["listings"] = [{**reference, "id": str(listing_id), "passages_sha256": case["fingerprint"]}]
+    admin_connection.execute("UPDATE ai_tasks SET input=%s WHERE id=%s", [Jsonb(command), task.ai_task_id])
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    dependencies = replace(task_dependencies, read_preference_input=lambda notification: read_preference_input(admin_connection, notification))
+    with job_preference_agent.override(model=model()):
+        result = handle_job_preference_check_task(task, dependencies)
+    assert result.status == "completed"
+    assert result.result["listings"][0]["source_digest"] == case["expected"]["source_digest"]

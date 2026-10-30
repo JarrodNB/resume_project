@@ -455,5 +455,79 @@
       ]
     },
     "fingerprint": "ccff2ed170dd995a1d02a59a986d6ac8f9dc77809ea59bfdb599d8e84b1f05a7"
+  },
+  {
+    "payload": {
+      "title": "Engineer",
+      "description": "<p>Skills : Python required. SQL required. AWS required.</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "78a1c0df59a4936c8c920732cbb2b97294410d50985ad9b636ee1157bfb167ef",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Engineer"
+        },
+        {
+          "id": "P2",
+          "text": "Description: Skills:"
+        },
+        {
+          "id": "P3",
+          "text": "- Python required."
+        },
+        {
+          "id": "P4",
+          "text": "- SQL required."
+        },
+        {
+          "id": "P5",
+          "text": "- AWS required."
+        }
+      ]
+    },
+    "fingerprint": "3de3e6e062a4a22ba81b8de8bb076a159f3701a667921500a6b3a787cc8a7548"
+  },
+  {
+    "payload": {
+      "title": "Engineer",
+      "description": "<p>Skills   : Python required; SQL required; AWS required</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "1c624e034e6a2b12b9e55355d4b3cb549f83deb658f3bbd1a3924180dd3e0278",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Engineer"
+        },
+        {
+          "id": "P2",
+          "text": "Description: Skills:"
+        },
+        {
+          "id": "P3",
+          "text": "- Python required"
+        },
+        {
+          "id": "P4",
+          "text": "- SQL required"
+        },
+        {
+          "id": "P5",
+          "text": "- AWS required"
+        }
+      ]
+    },
+    "fingerprint": "88aed2989967700c3af4194d508e3dfd6ebc586822690cbb46ee73b9a3559644"
   }
 ]

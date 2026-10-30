@@ -189,13 +189,13 @@ RSpec.describe "Job preference checks" do
     end
   end
 
-  it "preserves generated and completed-check provenance only for exact owner sources" do
+  it "reuses completed-check screening only for exact owner sources" do
     profile = user.job_preference_profile
     criterion = profile.confirmed_criteria.first
     user.ai_tasks.create!(task_type: "generate_summary", status: "completed", result: { criteria: [ criterion ] })
     request
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
-    expect(task.input["criteria"].first["trusted_generated"]).to be(false)
+    expect(task.input["criteria"].first).not_to have_key("trusted_generated")
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task) })
     request
     next_task = user.ai_tasks.order(created_at: :desc).first

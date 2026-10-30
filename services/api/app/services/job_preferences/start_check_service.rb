@@ -40,7 +40,7 @@ module JobPreferences
         source.merge("screened" => checked_listing?(source))
       end
       criteria = profile.confirmed_criteria.map do |criterion|
-        criterion.merge("trusted_generated" => generated_criterion?(criterion), "screened" => checked_criterion?(criterion))
+        criterion.merge("screened" => checked_criterion?(criterion))
       end
       @input = { "profile_id" => profile.id, "confirmed_revision" => profile.confirmed_revision,
         "criteria" => criteria, "listings" => snapshots }
@@ -63,16 +63,8 @@ module JobPreferences
       JSON.generate({ "confirmed_revision" => @revision, "listings" => listings }).bytesize
     end
 
-    def generated_criterion?(criterion)
-      # Provenance is established from validated, completed Rails-owned output, never client flags.
-      @user.ai_tasks.where(task_type: "elicit_job_preferences", status: "completed")
-        .where("result @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
-    end
-
     def checked_criterion?(criterion)
-      prior_check = @user.ai_tasks.where(task_type: "check_job_preferences", status: "completed")
-        .where("input @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
-      prior_check || @user.ai_tasks.where(task_type: "elicit_job_preferences", status: %w[completed needs_user_input])
+      @user.ai_tasks.where(task_type: "check_job_preferences", status: "completed")
         .where("input @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
     end
 

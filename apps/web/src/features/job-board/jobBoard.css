@@ -163,3 +163,26 @@
   [data-slot="dialog-content"].board-preview { width: 100%; padding: 24px 20px; border-left: 0; }
   .board-preview-title { font-size: 24px; }
 }
+
+/* Direct preference entry: compact rows with the next save/confirm action in ink. */
+.preference-editor { display: grid; gap: 1rem; min-width: 0; }
+.preference-help { max-width: 70ch; color: var(--muted-foreground); }
+.preference-fields { min-width: 0; display: grid; gap: 0; }
+.preference-row { display: grid; grid-template-columns: minmax(0, 1fr) 11rem auto; align-items: end; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--border); }
+.preference-row:first-of-type { padding-top: 0; }
+.preference-text, .preference-priority { display: grid; gap: 0.5rem; min-width: 0; }
+.preference-select { width: 100%; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--input); border-radius: 4px; background: var(--background); color: var(--foreground); font: inherit; }
+.preference-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.preference-select:disabled { opacity: 0.5; }
+.preference-text input, .preference-remove { min-height: 44px; }
+.preference-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; padding-top: 1rem; }
+.preference-confirmed { display: grid; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.preference-confirmed li { overflow-wrap: anywhere; }
+.preference-clear { justify-self: start; color: var(--muted-foreground); }
+@media (max-width: 640px) {
+  .preference-row { grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; }
+  .preference-text { grid-column: 1 / -1; }
+  .preference-priority { grid-column: 1; }
+  .preference-text input, .preference-select { font-size: 16px; }
+  .preference-actions > button { flex: 1 1 auto; min-height: 44px; }
+}

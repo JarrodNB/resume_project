@@ -152,5 +152,3 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   ordinary handlers and schemas use only canonical career-context names.
 
 - `summary_generation_handler.py` — frozen owned facts, exact saved screening reuse, batched unknown-field checks, readable prompts and cited proposals; no domain writes.
-
-- `job_preference_conversation_handler.py` — bounded owner-frozen preference drafts and linked private history; screens only new/unknown text, uses deferred clarification, returns editable criteria without confirming them.

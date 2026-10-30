@@ -74,7 +74,7 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening, gap_response_screening, interview_question_screening}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, record_screening, library_screening, job_screening, gap_response_screening, interview_question_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`,
   with additive `cache_write_tokens` and optional `provider_response_id` for current workers,
@@ -84,11 +84,22 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   execution and one final accounting report with its result, or usage-only before retrying.
   Rails resolves each marker once; duplicate/out-of-order markers cannot overwrite a final
   report. Usage-only messages never change task status. A missing final report remains unknown.
+  Final completed/failed results may include `record_screening`, one receipt per saved
+  record: `{record_type, record_id, fingerprints: {field_name: sha256}, revision?}`
+  (`revision` holds `question_revision`/`answer_revision` for interview questions).
+  `Screening::RecordApprovalsService` handles every type (career library entries, `job`,
+  `gap_response`, `interview_question`) with the same rules as the older lists below: Rails
+  approves a field only when its fingerprint matches the record's current value under its
+  row lock and, for types frozen in the task input, the snapshot value too. Summary
+  generation still discards library receipts, and review/edit tasks still check them
+  against the frozen library snapshot. The older lists stay accepted until workers move.
   Final completed/failed results may include `library_screening` entries shaped as
-  `{record_type, record_id, fields}` for newly successful career-library field checks.
-  Rails merges allowlisted field names into the owning records, including when generation
-  failed. Duplicate reports are harmless; unknown kinds/fields and other owners are ignored.
-  Usage-only retry reports do not carry saved field checks.
+  `{record_type, record_id, fields, fingerprints: {field_name: sha256}}` for newly
+  successful career-library field checks. Fingerprints are required: Rails merges an
+  allowlisted field only when its fingerprint matches the saved value, including when
+  generation failed, so a late result cannot approve text edited after queueing.
+  Duplicate reports are harmless; unknown kinds/fields, missing or stale fingerprints and
+  other owners are ignored. Usage-only retry reports do not carry saved field checks.
 
   Final completed/failed gap-analysis and tailoring results may also contain `job_screening`
   entries `{job_id, fields: {field_name: sha256}}`. Each fingerprint covers the exact typed

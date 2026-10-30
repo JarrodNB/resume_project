@@ -95,7 +95,8 @@ RSpec.describe "Career library narrative AI targets" do
       task = AiTask.find(started.dig("aiTask", "id"))
       record.update!(field => "New unchecked user content")
       AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
-        "library_screening" => [{ "record_type" => kind, "record_id" => record.id, "fields" => [field] }] })
+        "library_screening" => [{ "record_type" => kind, "record_id" => record.id, "fields" => [field],
+          "fingerprints" => { field => Digest::SHA256.hexdigest(JSON.generate(record[field])) } }] })
       expect(record.reload.screened_fields).not_to include(field)
       # A completed proposal based on the old source cannot overwrite the new value.
       newer = AiTask.find(edit(section).dig("aiTask", "id"))

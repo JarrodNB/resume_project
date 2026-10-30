@@ -26,7 +26,7 @@ from interviews.timing import stage_timing
 from privacy.contact_mask import contact_scope, covered_prompt_length, mask_outbound
 from privacy.known_contact import KnownContact
 from schemas.user_text_screen import UserTextScreen
-from screening.prompt_guardrail import _input_parts
+from screening.prompt_guardrail import prompt_input_texts, screening_failure_code
 from screening.screen_user_text import screen_user_text_async
 from screening.session import bind_screened_prompt, prompt_is_covered, screening_session
 from text_limits import MAX_PROMPT_TEXT
@@ -116,7 +116,7 @@ class InterviewExecutor:
             prompt = bind_screened_prompt([source], lambda sources: sources[0])
 
             async def guard(ctx, final_prompt):
-                for text in _input_parts(ctx, final_prompt):
+                for text in prompt_input_texts(ctx, final_prompt):
                     if not prompt_is_covered(text):
                         with stage_timing(claim, "screening"):
                             await self._screen(claim, text)
@@ -145,8 +145,7 @@ class InterviewExecutor:
             classify_fallback=unavailable_fallback,
         )
         if not outcome.allowed:
-            raise ScreeningRejected("screening_unavailable" if outcome.unchecked else
-                                    "context_limit" if outcome.too_long else "screening_blocked")
+            raise ScreeningRejected(screening_failure_code(outcome))
 
     async def _transcribe(self, claim, data):
         async with self._stage(claim, "transcription"):
@@ -197,7 +196,7 @@ class InterviewExecutor:
                 **payload.context_input(), "transcript": transcript}, sort_keys=True))
             context = {key: value for key, value in json.loads(source).items() if key != "transcript"}
             history = compact_turn_history(history, context)
-            input_texts = _input_parts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
+            input_texts = prompt_input_texts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
             if sum(covered_prompt_length(text) for text in input_texts) + len(input_texts) * 2 > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
             with stage_timing(claim, "screening"):
@@ -205,7 +204,7 @@ class InterviewExecutor:
             prompt = bind_screened_prompt([source], lambda sources: sources[0])
 
             async def guard(ctx, final_prompt):
-                inputs = _input_parts(ctx, final_prompt)
+                inputs = prompt_input_texts(ctx, final_prompt)
                 if sum(covered_prompt_length(text) for text in inputs) + len(inputs) * 2 > MAX_PROMPT_TEXT:
                     raise ScreeningRejected("context_limit")
                 for text in inputs:

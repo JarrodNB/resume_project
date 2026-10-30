@@ -334,7 +334,7 @@ def test_source_only_parser_accounts_retries_without_screening(
         )
 
     monkeypatch.setattr("screening.screen_user_text.screen_user_text", never_screen)
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", never_screen)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", never_screen)
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     offline_model_resolution(
         settings.job_posting_parse_model, FunctionModel(parse, model_name=settings.job_posting_parse_model),

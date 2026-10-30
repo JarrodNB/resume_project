@@ -76,44 +76,13 @@ test support. See docs/architecture/interview-sessions.md.
   without pausing a section-wide agent. Answers start separate individual regeneration
   tasks, rather than resuming review history. Gap analysis doesn't ask questions.
   Tailoring generates one complete draft per queued execution and does not use `ask_user`.
-- **User-written text is screened for prompt injection before it enters a prompt** (`screening/`), including
-  an uploaded resume before it is parsed. Jev, local Llama Prompt Guard, and a configurable LLM are selectable
-  primary and fallback models. A missing `TYPESAFE_API_KEY` prevents a Jev call. An attempted
-  primary failure uses the configured fallback within the screening deadline
-  (three seconds maximum for each JEV run). If both fail, omit the text; a blocked resume
-  fails the import. Screen each cohesive untrusted input once per task execution. User-written
-  interview answers remain screened; exact Rails-owned AI-generated interview questions are
-  trusted by provenance when reused. Saved job and career-library fields
-  reuse database approvals; unchecked fields screen on first use, and edits clear their checks.
-  Large inputs use overlapping chunks. Optional rejected inputs are omitted with warnings;
-  required rejected inputs prevent generation. Every generative agent declares an official
-  Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
-  prompts to approved sources so the guard does not screen them again; new direct input
-  and unknown user/tool history still receive screening before the provider request.
-  Scraped-ad parsing is a scoped exception authorized after a synthetic injection evaluation:
-  `parse_scraped_job_posting_agent.py` uses a source-boundary/size guard instead of injection
-  classification. It accepts one selected ad, no history/action tools/private context, retains
-  source validators and execution limits, and grants no screening approvals to its output.
-  Pasted ads and later uses of saved job content retain their existing screening policy.
-  A validated completed gap-analysis result can be trusted as generated output within
-  one tailoring execution; saved gap-response requirement/body approvals are reused, with pending fields screened
-  together once and fingerprinted reports retained for every saved answer ID.
-  The spoken-interview runtime is a scoped conversational exception: it reconstructs prior
-  dialogue from authenticated Rails-owned public utterances and screens only the newest
-  candidate message with `screening/conversation.py`. Frozen library field approvals are
-  carried in the private claim and newly checked fields are persisted through its fenced
-  Rails callback before generation. Preparation also persists an exact frozen career-focus
-  fingerprint through that callback and requires its receipt before generation, including
-  focus-only checks; retries reuse only matching fingerprints. Existing queued features retain their current guard.
-  Job and career-library field approvals persist across ordinary tasks through final queue results.
-  Job checks cover title, company, requirements and nice-to-haves for ordinary queued tasks;
-  spoken interviews also freeze and check description and responsibilities. Their `jobs`
-  sources share the fenced frozen-source receipt, while readable vacancy expectations stay
-  separate from candidate evidence. Saved-job preparation outputs `role: null`; Rails retains
-  the authoritative job instead of accepting model-authored role details. Fingerprinted
-  reports can approve only matching current fields on the task's owned job. All new jobs start unchecked.
-  Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
-  and requests before a block or failure. Missing usage stays unknown.
+- **User-written text is screened for prompt injection before it enters a prompt** (`screening/`),
+  including an uploaded resume before it is parsed; a blocked resume fails the import.
+  Every generative agent declares an official Harness `InputGuardrail` through `capabilities`,
+  and trusted builders bind exact assembled prompts to approved sources. A missing
+  `TYPESAFE_API_KEY` prevents Jev calls. Read `screening/AGENTS.md` before changing what
+  enters any prompt: it owns the rules, persisted approvals and scoped exceptions
+  (scraped ads, chat, spoken interviews).
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
   - Basic Interview preparation and spoken dialogue are an explicitly scoped first-iteration
     exception: automated quality datasets, evaluators and LLM judges remain deferred.

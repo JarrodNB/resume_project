@@ -228,9 +228,9 @@ async def test_real_screen_policy_keeps_jev_primary_and_does_not_fallback_on_blo
         called.append(model)
         return UserTextScreenRun(UserTextScreen(prompt_injection=True, harmful_request=False),
                                  'jev-1.13.0', {'prompt_injection': 1.0}, RunUsage())
-    monkeypatch.setattr('chat.execution.screen_user_message_async', blocked)
+    monkeypatch.setattr('screening.conversation.screen_user_message_async', blocked)
     fallback = AsyncMock()
-    monkeypatch.setattr('chat.execution.screen_fallback_message_async', fallback)
+    monkeypatch.setattr('screening.conversation.screen_fallback_message_async', fallback)
     with pytest.raises(ChatRejected, match='screening_blocked'):
         await adapter._screen(claim(), 'ordinary looking text')
     assert called == ['typesafe:jev-1.13.0']

@@ -146,7 +146,7 @@ def test_late_guard_outage_keeps_completed_call_usage(providers, monkeypatch):
     """A partial pass is charged and never mistaken for a successful safety decision."""
     seen, model = providers
     usage = []
-    from screening.prompt_guardrail import _screen_prompt_text
+    from screening.prompt_guardrail import screen_prompt_text
 
     calls = 0
 
@@ -155,9 +155,9 @@ def test_late_guard_outage_keeps_completed_call_usage(providers, monkeypatch):
         calls += 1
         if calls == 2:
             raise RuntimeError("synthetic outage")
-        return await _screen_prompt_text(text, configured_model, timeout)
+        return await screen_prompt_text(text, configured_model, timeout)
 
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", fail_second)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", fail_second)
     agent = Agent(model, capabilities=[InputGuardrail(guard=screen_prompt)])
     with collect_guardrail_usage(usage), pytest.raises(InputBlocked, match="unavailable"):
         agent.run_sync("Career evidence " * 300)
@@ -248,10 +248,24 @@ def test_unchecked_input_never_reaches_generation(failure, providers, monkeypatc
             if failure == "usage_limit":
                 raise UsageLimitExceeded("request cap")
             raise RuntimeError("provider detail must not reach the user")
-        monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", fail)
+        monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", fail)
         if failure == "usage_limit":
             expected = UsageLimitExceeded
     agent = Agent(model, capabilities=[InputGuardrail(guard=screen_prompt)])
     with pytest.raises(expected):
         agent.run_sync(prompt)
     assert seen["generation"] == []
+
+
+@pytest.mark.parametrize(("outcome", "message", "code"), [
+    ({"too_long": True}, "too long", "context_limit"),
+    ({"unchecked": True}, "unavailable", "screening_unavailable"),
+    ({}, "safety check", "screening_blocked"),
+])
+def test_rejections_share_one_wording_and_code(outcome, message, code):
+    from screening.prompt_guardrail import screening_failure_code, screening_failure_message
+    from screening.screen_user_text import ScreenOutcome
+
+    rejected = ScreenOutcome(False, **outcome)
+    assert message in screening_failure_message(rejected)
+    assert screening_failure_code(rejected) == code

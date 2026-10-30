@@ -35,7 +35,7 @@ from schemas.parsed_resume import (
     ProjectsSkillsExtraction,
 )
 from screening import prompt_guardrail
-from screening.prompt_guardrail import BLOCKED_MESSAGE, UNCHECKED_MESSAGE, screen_prompt
+from screening.prompt_guardrail import screen_prompt, screening_failure_message
 from screening.screen_user_text import screen_user_text_async
 from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
 from settings import load_settings
@@ -159,10 +159,10 @@ async def _run_with_deadline(
             settings.user_text_screen_model,
             remaining_timeout(timeout_seconds),
             max_characters=len(resume_text),
-            classify=prompt_guardrail._screen_prompt_text,
+            classify=prompt_guardrail.screen_prompt_text,
         )
         if not screening.allowed:
-            raise InputBlocked(UNCHECKED_MESSAGE if screening.unchecked else BLOCKED_MESSAGE)
+            raise InputBlocked(screening_failure_message(screening))
         with record_prompt_version(RESUME_PARSING_PROMPT_VERSION):
             tasks = [asyncio.create_task(extract(schema)) for schema in _GROUPS]
             try:

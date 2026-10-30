@@ -46,7 +46,7 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Saved generated history must not be sent to the generic classifier")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
 
     first = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
     def question(_messages, _info):
@@ -160,7 +160,7 @@ def test_review_answer_regenerates_without_pausing_or_screening_the_generated_qu
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Prepared source, answer, and generated question must already be covered")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
     payload = edit_input()
     payload["feedback"] = "I migrated the billing endpoints; the outcome is unknown."
     payload["review_question"] = {"review_task_id": str(uuid4()), "question": "Which endpoints did you migrate?"}
@@ -209,7 +209,7 @@ def test_partial_review_batch_preserves_question_indices_and_screens_only_answer
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Saved questions and screened answer fields must already have coverage")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
     payload = edit_input()
     payload["feedback"] = ""
     payload["review_question"] = {"review_task_id": str(uuid4()), "answers": [

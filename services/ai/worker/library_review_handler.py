@@ -5,7 +5,7 @@ from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from schemas.library_review import LibraryReviewInput
 from screening.library_fields import screen_library_fields
-from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
+from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
 from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
@@ -72,7 +72,7 @@ def handle_library_review_task(task, dependencies):
     outcome = screen_library_fields(snapshot.library, check)
     if outcome is not True and not outcome.allowed:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-                               error_message=UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE)
+                               error_message=screening_failure_message(outcome))
     prompt = bind_screened_prompt([source], lambda values: render_review(values[0]))
     labels = [target.label for target in snapshot.targets]
     run = review_library_section(prompt, labels, dependencies.settings)

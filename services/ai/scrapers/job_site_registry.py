@@ -15,6 +15,8 @@ import httpx
 from scrapers.job_page import JobPage
 from scrapers.linkedin.linkedin_job_html_to_page import scrape_linkedin_job
 from scrapers.linkedin.parse_linkedin_job_url import is_linkedin_url
+from scrapers.public_job_page import scrape_public_job
+from scrapers.public_job_url import public_job_url
 
 
 @dataclass(frozen=True)
@@ -33,4 +35,11 @@ JOB_SITE_SCRAPERS = [
 
 def find_job_site_scraper(url: str) -> JobSiteScraper | None:
     """Returns the first scraper whose site hosts the URL."""
-    return next((scraper for scraper in JOB_SITE_SCRAPERS if scraper.matches_url(url)), None)
+    from scrapers.job_page import UnsupportedJobUrlError
+
+    try:
+        public_job_url(url)
+    except UnsupportedJobUrlError:
+        return None
+    return next((scraper for scraper in JOB_SITE_SCRAPERS if scraper.matches_url(url)),
+                JobSiteScraper(name="website", matches_url=lambda _: True, scrape=scrape_public_job))

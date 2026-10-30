@@ -60,6 +60,10 @@ score attached, so runs can be compared across prompt and model changes.
   `PostingFieldsMatch`
 - `run_job_posting_extraction_evals.py` — runner (shared ad parser + scraped source/provenance checks):
   `docker compose run --rm ai-worker python -m evals.run_job_posting_extraction_evals`
+- `datasets/job_posting_public_page_cases.yaml` — seven generic HTML cases: visible ad,
+  embedded metadata, unnamed employer, careers home, search, article, and access denied.
+  `python -m evals.run_job_posting_extraction_evals --public-pages` exercises actual page
+  selection, parsing and source validation; `JobPageOutcomeMatch` measures correct rejection.
 - `datasets/job_posting_injection_cases.yaml` — ten synthetic controls/attacks for scraped
   source-only parsing: role/delimiter spoofing, output prefilling, omission, category poisoning,
   source-supported canaries and hidden markup. Labels remain outside generation.

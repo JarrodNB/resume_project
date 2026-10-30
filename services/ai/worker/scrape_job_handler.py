@@ -25,11 +25,10 @@ from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
 UNSUPPORTED_URL_MESSAGE = (
-    "This link isn't a LinkedIn job posting. Open the job on LinkedIn and copy its link "
-    "(linkedin.com/jobs/view/...)."
+    "Paste a public HTTP or HTTPS link to one job posting. Private addresses and login-only pages aren't supported."
 )
 POSTING_NOT_FOUND_MESSAGE = "We couldn't find this job posting. It may have closed."
-UNREADABLE_PAGE_MESSAGE = "We couldn't read this job posting. Please try again in a few minutes."
+UNREADABLE_PAGE_MESSAGE = "We couldn't read a single job ad from this page. Open the specific posting, or paste its text instead."
 UNFAITHFUL_PAGE_MESSAGE = (
     "We couldn't extract faithful details from this posting. Paste the full ad, or add the job manually."
 )
@@ -78,6 +77,8 @@ def handle_scrape_job_task(task: AiTaskMessage, dependencies: TaskDependencies) 
     usage.insert(0, build_model_usage(run.model or model, run.usage))
     try:
         posting = posting_from_scraped_ad(page, run.parsed)
+    except JobPageUnreadableError:
+        return _failed(task, UNREADABLE_PAGE_MESSAGE, usage=usage)
     except ValueError:
         return _failed(task, UNFAITHFUL_PAGE_MESSAGE, usage=usage)
     return AiResultMessage(

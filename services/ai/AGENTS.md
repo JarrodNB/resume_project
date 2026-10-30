@@ -145,7 +145,8 @@ skip it. Export indexes are not required.
 - `documents/` — PDF/DOCX text extraction
 - `pii/` — local import contact detection, opaque task-local replacements, and restoration;
   bundled Presidio/spaCy assets, coverage limits, and licenses are documented in its README
-- `scrapers/` — deterministic per-site job posting scrapers (LinkedIn so far), no LLM
+- `scrapers/` — pinned public HTML fetching and page selection, with a LinkedIn guest adapter;
+  no LLM or script execution in acquisition
 - `job_postings/` — selected scraped HTML to readable ad text, shared source validation,
   and structured pasted/scraped postings; the shared ad parser handles prose and lists
 - `evals/` — Pydantic Evals datasets, evaluators, and runners

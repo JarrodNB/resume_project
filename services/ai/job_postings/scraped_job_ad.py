@@ -1,8 +1,9 @@
 """Prepare one scraped ad for the shared parser and retain its original identity.
 
 Only the selected job description and top-card fields reach the parser. Parsed
-qualifications must occur in the description; model-authored identity and links
-never replace the scraper's values.
+qualifications must occur in the description. Structured identity stays authoritative;
+visible HTML without metadata uses source-supported parsed identity. The URL never
+comes from model output.
 """
 
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
@@ -18,9 +19,9 @@ PARSED_SCRAPE_WARNING = "AI identified the requirements and duties from this pos
 def scraped_job_ad_text(page: JobPage) -> str:
     """Render readable source fields; keep URL authority outside the model input."""
     description = html_to_description_text(page.description_html)
-    if not page.title.strip() or not description.strip():
+    if (page.metadata_is_authoritative and not page.title.strip()) or not description.strip():
         raise JobPageUnreadableError("The posting has no readable title or description")
-    fields = [f"Title: {page.title.strip()}"]
+    fields = [f"Title: {page.title.strip()}"] if page.title.strip() else []
     if page.company.strip():
         fields.append(f"Company: {page.company.strip()}")
     if page.location and page.location.strip():
@@ -31,6 +32,8 @@ def scraped_job_ad_text(page: JobPage) -> str:
 def posting_from_scraped_ad(page: JobPage, parsed: ParsedJobPosting) -> ScrapedJobPosting:
     """Reject unsupported spans and preserve acquired metadata, description and URL."""
     description = html_to_description_text(page.description_html)
+    if not parsed.is_job_posting:
+        raise JobPageUnreadableError("This page is not one readable job ad")
     # Validate identity against all selected source fields, but qualifications and
     # duties against the description alone, excluding our field labels/metadata.
     problems = find_parsed_job_problems(

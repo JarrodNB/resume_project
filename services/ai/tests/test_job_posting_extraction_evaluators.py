@@ -164,6 +164,21 @@ def test_source_checks_cannot_detect_category_poisoning():
     assert score["verbatim_bullets"] == 1.0
 
 
+def test_public_page_labels_and_non_job_rejection_evaluator():
+    from evals.job_posting_extraction_evaluators import JobPageOutcomeMatch
+    from evals.run_job_posting_extraction_evals import DATASET_PATH
+
+    dataset = load_job_posting_extraction_dataset(
+        DATASET_PATH.with_name("job_posting_public_page_cases.yaml"),
+    )
+    labels = {case.inputs["page_html"]: case.expected_output for case in dataset.cases}
+    report = dataset.evaluate_sync(lambda inputs: labels[inputs["page_html"]], progress=False)
+    assert len(report.cases) == 7
+    assert all(value == 1.0 for value in report.averages().scores.values())
+    wrong = SimpleNamespace(metadata={"not_a_job": True}, output=object())
+    assert JobPageOutcomeMatch().evaluate(wrong)["job_page_outcome"] == 0.0
+
+
 def test_reworded_bullet_fails_verbatim_check() -> None:
     """A requirement that isn't in the posting's text is flagged."""
     output = ScrapedJobPosting(

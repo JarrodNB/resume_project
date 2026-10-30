@@ -44,9 +44,14 @@ class TaskDependencies:
 
 
 def build_http_client(settings: WorkerSettings) -> httpx.Client:
-    """An HTTP client with a timeout that follows redirects."""
+    """Build the injected scraper client; delegate network requests with proxy/CA trust."""
+    from scrapers.public_job_transport import PublicJobTransport
+
     return httpx.Client(
         timeout=settings.job_page_fetch_timeout_seconds,
         follow_redirects=True,
         headers={"User-Agent": USER_AGENT},
+        # Routing/proxies/CA trust are handled by the delegate inside the transport.
+        # Avoid an outer auto-proxy transport bypassing that pinned-TLS delegate.
+        transport=PublicJobTransport(), trust_env=False,
     )

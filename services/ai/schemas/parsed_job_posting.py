@@ -1,5 +1,5 @@
 """
-Description: Structured fields the parse-job-posting agent copies out of a pasted advertisement.
+Description: Structured fields the parse-job-posting agent copies from a pasted or scraped advertisement.
 Rails does not read this model; the handler turns it into a ScrapedJobPosting first.
 Index:
     - ParsedJobPosting: the agent's output_type
@@ -9,9 +9,13 @@ from pydantic import BaseModel, Field
 
 
 class ParsedJobPosting(BaseModel):
-    """Fields copied from a pasted job ad. Every string must appear in the ad."""
+    """Fields copied from one job ad, or an explicit non-job decision. Every string must appear in the ad."""
 
     title: str = Field(description="The job title, copied from the ad.")
+    is_job_posting: bool = Field(
+        default=True,
+        description="True only for a single readable job ad; false for login, search, careers-home, articles or other non-job pages.",
+    )
     company: str | None = Field(
         default=None, description="The hiring company, copied from the ad, or null if unstated."
     )

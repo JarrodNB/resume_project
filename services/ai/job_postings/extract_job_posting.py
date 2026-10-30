@@ -133,7 +133,7 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
         return kept
 
     source_url = posting.source_url
-    if len(source_url) > text_limits.MAX_SHORT_TEXT:
+    if len(source_url) > text_limits.MAX_JOB_URL:
         source_url = ""
         left_out = True
     title = shorten(posting.title, text_limits.MAX_SHORT_TEXT) or ""

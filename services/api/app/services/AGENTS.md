@@ -195,4 +195,4 @@ All business logic, as service objects grouped by domain folder.
 
 - `interviews/session_feedback.rb` — explicit completed-session coaching admission, one-time queue claims and validated result acceptance. Like `CurrentPromptWork`, exposes a cohesive request/claim/apply interface shared by thin GraphQL/internal/result adapters; the queue carries identities, not dialogue.
 
-- `summary_generation/` — explicit missing-summary snapshots, enqueue/recovery, cited-result validation and replay-safe reviewed acceptance/discard. Frozen screening checks stay execution-local.
+- `summary_generation/` — reference-only missing-summary commands, source identity/hash freshness, cited-result validation and replay-safe reviewed acceptance/discard. Python reads owned evidence directly; no source text is stored in task input.

@@ -77,6 +77,21 @@ RSpec.describe AiReaderAccess do
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
+  it "reads only summary-required resume columns and narrowly projected accepted prose" do
+    resume = create(:resume)
+    section = create(:resume_section, resume: resume, section_type: "experience", content: { "items" => [] })
+    accepted = create(:ai_task, user: resume.user, task_type: "tailor_resume", status: "completed", accepted_at: Time.current,
+      result: { "sections" => [ { "section_type" => "experience", "content" => { "items" => [ { "highlights" => [ "Generated prose" ] } ] } } ], "private" => "Never exposed" })
+    expect(select_as_ai_reader("SELECT id, user_id FROM resumes").sole).to include("id" => resume.id)
+    expect(select_as_ai_reader("SELECT id, resume_id, section_type, content, position FROM resume_sections").sole).to include("id" => section.id)
+    expect(select_as_ai_reader("SELECT user_id, prose FROM ai_accepted_resume_prose")).to eq([ { "user_id" => accepted.user_id, "prose" => "Generated prose" } ])
+    %w[title job_id include_summary].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM resumes") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+    expect { select_as_ai_reader("SELECT result FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("UPDATE resume_sections SET content = '{}'::jsonb") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
   it "can't write" do
     create(:job)
 

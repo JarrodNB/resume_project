@@ -152,4 +152,4 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   before the database rename. User prose, history strings and source digests remain exact;
   ordinary handlers and schemas use only canonical career-context names.
 
-- `summary_generation_handler.py` — frozen owned facts, exact saved screening reuse, batched unknown-field checks, readable prompts and cited proposals; no domain writes.
+- `summary_generation_handler.py` — resolves reference-only commands through the owned database reader, verifies source hashes before paid work, reuses exact saved approvals, screens unchecked fields and returns cited proposals; no domain writes. Old copied-source commands fail safely.

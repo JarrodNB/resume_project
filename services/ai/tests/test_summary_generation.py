@@ -1,4 +1,4 @@
-"""Exercise frozen summary sources through the production queue handler and agent seam."""
+"""Exercise loaded summary sources through the production queue handler and agent seam."""
 from uuid import uuid4
 
 import pytest
@@ -7,14 +7,29 @@ from pydantic_ai.models.test import TestModel
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
+_evidence = {}
+
+
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    from dataclasses import replace
+
+    from schemas.summary_generation import SummaryGenerationInput
+    def read(user_id, command):
+        return SummaryGenerationInput(target_kind=command.target_kind, target_id=command.target_id,
+            source_digest=command.source_digest, sources=_evidence[command.target_id])
+    return replace(task_dependencies, read_summary_sources=read)
+
 
 def task(sources=None):
-    return AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_summary",
-        input={"target_kind": "profile", "target_id": str(uuid4()), "source_digest": "a" * 64,
-               "sources": sources if sources is not None else [{"label": "EXPERIENCES_1_DESCRIPTION", "text": "Built billing APIs.", "screened": True}]})
+    owner = uuid4()
+    _evidence[str(owner)] = sources if sources is not None else [{"label": "EXPERIENCES_1_DESCRIPTION", "text": "Built billing APIs.", "screened": True}]
+    return AiTaskMessage(ai_task_id=uuid4(), user_id=owner, task_type="generate_summary",
+        input={"command_version": 1, "target_kind": "profile", "target_id": str(owner),
+               "source_digest": "a" * 64, "source_references": []})
 
 
-def test_generates_a_cited_summary_from_frozen_sources(task_dependencies):
+def test_generates_a_cited_summary_from_loaded_sources(task_dependencies):
     from agents.summary_generation_agent import summary_generation_agent
     with summary_generation_agent.override(model=TestModel(custom_output_args={
         "text": "Engineer who built billing APIs.", "source_labels": ["EXPERIENCES_1_DESCRIPTION"]})):
@@ -139,7 +154,7 @@ def test_sparse_education_does_not_supply_a_completion_claim(task_dependencies):
     assert "Bachelor of Science, environmental science" in prompt
 
 
-def test_saved_resume_target_uses_frozen_sources_and_screens_manual_edits(task_dependencies, monkeypatch):
+def test_saved_resume_target_uses_loaded_sources_and_screens_manual_edits(task_dependencies, monkeypatch):
     from agents.summary_generation_agent import summary_generation_agent
     from screening.screen_user_text import ScreenOutcome
     calls = []
@@ -333,20 +348,9 @@ def test_record_id_on_a_non_library_label_is_invalid(task_dependencies, label):
     assert "invalid" in result.error_message
 
 
-def test_record_ids_do_not_count_toward_the_input_size_cap(task_dependencies, monkeypatch):
-    """A near-cap snapshot Rails accepts (cap measured without ids) is accepted here too."""
-    import json
-
+def test_large_loaded_evidence_is_bounded_before_providers(task_dependencies, monkeypatch):
     monkeypatch.setattr("screening.records.screen_user_text", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("classifier called")))
-    plain = [{"label": f"SKILLS_{i}_NAME", "text": "", "screened": True} for i in range(1, 1001)]
-    message = task(plain)
-    overhead = len(json.dumps(message.input, separators=(",", ":")).encode())
-    text = "x" * ((180_000 - overhead) // len(plain))
-    message.input["sources"] = [{**source, "text": text, "record_id": str(uuid4())} for source in plain]
-    assert len(json.dumps(message.input, separators=(",", ":")).encode()) > 180_000
-    # Fits the input cap; it then stops at the (separate) prompt cap, not as too large.
-    result = handle_ai_task(message, task_dependencies)
-    assert "too large" not in (result.error_message or "")
-    for source in message.input["sources"]:
-        source["text"] += "xx"
+    message = task([{"label": f"SKILLS_{i}_NAME", "text": "x" * 200, "screened": True,
+                     "record_id": str(uuid4())} for i in range(1, 1001)])
+    assert "sources" not in message.input
     assert "too large" in handle_ai_task(message, task_dependencies).error_message

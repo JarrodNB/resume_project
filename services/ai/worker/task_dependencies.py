@@ -16,6 +16,7 @@ from uuid import UUID
 import httpx
 
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
+from schemas.summary_generation import SummaryCommand, SummaryGenerationInput
 from worker.product_name import USER_AGENT
 from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings
@@ -42,6 +43,7 @@ class TaskDependencies:
     read_gap_analysis_context: GapAnalysisContextReader
     read_task_command: Callable[[AiTaskMessage], AiTaskMessage | None] | None = None
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
+    read_summary_sources: Callable[[UUID, SummaryCommand], SummaryGenerationInput | None] | None = None
     score_job_listings: Callable[[UUID, Sequence[tuple[str, list[float]]], str], list[tuple[str, float]]] | None = None
 
 

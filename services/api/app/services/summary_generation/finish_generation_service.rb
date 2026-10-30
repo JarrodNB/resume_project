@@ -12,7 +12,7 @@ module SummaryGeneration
       @user.with_lock do
         task = @user.ai_tasks.generate_summary.find(@task_id)
         next success(task) if task.accepted? || (@discard && task.error_message == DISCARD_MESSAGE)
-        latest = Snapshot.latest(user: @user, target_kind: task.input["target_kind"], target_id: task.input["target_id"])
+        latest = SourceReferences.latest(user: @user, target_kind: task.input["target_kind"], target_id: task.input["target_id"])
         next failure([ "A newer summary draft exists. Reload to continue." ]) unless latest&.id == task.id
         target = task.input["target_kind"] == "resume" ? @user.resumes.lock.find(task.input["target_id"]) : @user
         if @discard
@@ -21,7 +21,7 @@ module SummaryGeneration
           next success(task)
         end
         next failure([ "Wait for a completed summary before accepting." ]) unless task.completed? && ValidateResultService.call(ai_task: task, result: task.result).success?
-        next failure([ "Your career information changed. Generate a new summary." ]) if Snapshot.stale?(user: @user, task: task, lock_sources: true)
+        next failure([ "Your career information changed. Generate a new summary." ]) if SourceReferences.stale?(user: @user, task: task, lock_sources: true)
         task.lock!
         text = @text.nil? ? task.result.fetch("text") : @text.to_s.strip
         next failure([ "Enter a summary within #{TextLimits::PROSE} characters." ]) if text.blank? || text.length > TextLimits::PROSE

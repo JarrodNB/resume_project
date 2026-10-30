@@ -79,6 +79,8 @@ Configuration must work in Docker development and production. Preserve owned dat
   the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.
   `ai_tasks` grants only `id`, `user_id`, `task_type`, `status` and `input` for owned queued
   command loading; result, history and accounting columns remain hidden.
+  Summary reads also grant only resumes(id,user_id), resume_sections(id,resume_id,section_type,content,position),
+  and the non-materialized ai_accepted_resume_prose(user_id,prose) projection of accepted generated prose.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see
 - `graphql_schema/schema.graphql` — GraphQL SDL dump read by `apps/web` codegen (in its own
   folder so the web container mounts the folder and always sees the latest dump). Regenerate after any

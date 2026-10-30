@@ -51,3 +51,5 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `job_listing_similarity.py` — one read-only lateral query averages each listing vector’s
   three nearest library similarities, scoped by task user and configured model. Its
   production builder bounds connection/statement deadlines; it never reads the catalogue.
+
+- `summary_sources.py` — current owned profile/resume evidence with exact reference hashes; resume prose trust reads only the narrow `ai_accepted_resume_prose` view. No sources are stored in commands.

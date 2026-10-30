@@ -1,12 +1,7 @@
-# Freezes owned career facts for one missing-summary request. Inclusion preferences and
-# screening metadata do not change the source digest; changed career facts do.
-# Each library source also carries the `record_id` of the saved row it came from; its
-# label already names the record type and field (see `record_identity`). The worker's
-# screening receipts are checked against this frozen copy before Rails saves them.
-# The id stays out of the digest and the size cap: the cap keeps its old meaning, and the
-# worst case (1000 ids, about 51 KB) still fits the 256 KiB SQS message with the input.
+# Identifies the current owned evidence for a summary without saving source text.
+# Exact field fingerprints fence results, screening receipts and reviewed acceptance.
 module SummaryGeneration
-  class Snapshot
+  class SourceReferences
     MAX_INPUT_BYTES = 180_000
     MAX_SOURCES = 1000
     EMPTY_MESSAGE = "Add career experience, projects, education, certifications, or skills before generating a summary.".freeze
@@ -19,7 +14,7 @@ module SummaryGeneration
     }.freeze
 
     def self.capture(user:, target_kind:, target_id: nil, lock_sources: false)
-      return ResumeSnapshot.capture(user: user, target_id: target_id, lock_sources: lock_sources) if target_kind == "resume"
+      return ResumeSources.capture(user: user, target_id: target_id, lock_sources: lock_sources) if target_kind == "resume"
       raise ActiveRecord::RecordNotFound unless target_kind == "profile" && (target_id.nil? || target_id.to_s == user.id.to_s)
       user.reload
       raise ArgumentError, "A summary already exists. Edit or improve it instead." if user.summary.present?
@@ -49,11 +44,14 @@ module SummaryGeneration
 
     def self.build(target_kind:, target_id:, sources:)
       raise ArgumentError, EMPTY_MESSAGE if sources.empty?
-      snapshot = { "target_kind" => target_kind, "target_id" => target_id, "sources" => sources,
-        "source_digest" => Digest::SHA256.hexdigest(sources.map { |source| source.except("screened", "record_id") }.to_json) }
-      measured = snapshot.merge("sources" => sources.map { |source| source.except("record_id") })
+      measured = sources.map { |source| source.slice("label", "text") }
       raise ArgumentError, "This career evidence is too large to summarize. Reduce its text and try again." if sources.length > MAX_SOURCES || measured.to_json.bytesize > MAX_INPUT_BYTES
-      snapshot
+      references = sources.map do |source|
+        source.slice("label", "record_id", "section_id").merge(
+          "fingerprint" => Screening::RecordApprovalsService.field_fingerprint(source.fetch("text")))
+      end
+      { "command_version" => 1, "target_kind" => target_kind, "target_id" => target_id,
+        "source_references" => references, "source_digest" => Digest::SHA256.hexdigest(references.to_json) }
     end
 
     # The screening record type and field a library source label names, e.g.
@@ -75,6 +73,7 @@ module SummaryGeneration
     end
 
     def self.stale?(user:, task:, lock_sources: false)
+      return true unless task.input["command_version"] == 1
       current = capture(user: user, target_kind: task.input["target_kind"], target_id: task.input["target_id"], lock_sources: lock_sources)
       current["source_digest"] != task.input["source_digest"]
     rescue ActiveRecord::RecordNotFound, ArgumentError

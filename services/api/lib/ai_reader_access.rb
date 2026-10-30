@@ -15,6 +15,9 @@ module AiReaderAccess
 
   READABLE_TASK_COLUMNS = %w[id user_id task_type status input].freeze
 
+  READABLE_RESUME_COLUMNS = %w[id user_id].freeze
+  READABLE_SECTION_COLUMNS = %w[id resume_id section_type content position].freeze
+
   module_function
 
   # Whether the ai_reader role exists (roles are created outside Rails: init SQL, Terraform).
@@ -31,6 +34,18 @@ module AiReaderAccess
     connection.transaction do
       connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM #{role}")
       connection.execute("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM #{role}")
+      connection.execute(<<~SQL)
+        CREATE OR REPLACE VIEW ai_accepted_resume_prose AS
+        SELECT accepted.user_id, prose.value AS prose FROM ai_tasks accepted
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+          jsonb_path_query_array(accepted.result, '$.sections[*] ? (@.section_type == "experience").content.items[*].highlights[*]') ||
+          jsonb_path_query_array(accepted.result, '$.sections[*] ? (@.section_type == "projects").content.items[*].description')
+        ) AS prose(value)
+        WHERE accepted.task_type = 'tailor_resume' AND accepted.status = 'completed' AND accepted.accepted_at IS NOT NULL
+      SQL
+      connection.execute("GRANT SELECT (user_id, prose) ON ai_accepted_resume_prose TO #{role}")
+      connection.execute("GRANT SELECT (#{READABLE_RESUME_COLUMNS.join(', ')}) ON resumes TO #{role}")
+      connection.execute("GRANT SELECT (#{READABLE_SECTION_COLUMNS.join(', ')}) ON resume_sections TO #{role}")
       connection.execute("GRANT USAGE ON SCHEMA public TO #{role}")
       connection.execute("GRANT SELECT ON #{tables} TO #{role}")
       connection.execute("GRANT SELECT (#{user_columns}) ON users TO #{role}")

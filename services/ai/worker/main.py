@@ -25,6 +25,7 @@ from database.career_library_reader import (
     build_database_library_reader,
 )
 from database.job_listing_similarity import build_job_listing_scorer
+from database.summary_sources import build_summary_source_reader
 from database.task_commands import build_task_command_reader
 from llm.run_limits import RUN_LIMIT_MESSAGE
 from llm.usage import TaskUsage, collect_task_usage
@@ -204,6 +205,7 @@ def run_worker() -> None:
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
         read_career_library=build_database_library_reader(settings),
+        read_summary_sources=build_summary_source_reader(settings),
         score_job_listings=build_job_listing_scorer(settings),
         read_task_command=build_task_command_reader(settings),
     )

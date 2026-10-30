@@ -23,27 +23,35 @@ Task execution and the contracts between Rails and Python workers.
 6. When the user answers, Rails publishes a distinct follow-up task with the owned stored
    message history and newest answer. The worker resumes with `DeferredToolResults`.
 
-Missing-summary generation uses `generate_summary`. The user explicitly requests a profile
-or saved-resume summary; Rails freezes owned labeled career fields under its enqueue owner lock and stores
-a substantive source digest. Career-context requirements are context, not qualification
-evidence, so only responses are supplied. Before any provider call, the worker checks the
-fully rendered, privacy-masked generation prompt against the 120,000-character prompt cap.
-Each library source carries its record id; the label names the record type and field. Ids
-stay out of the digest and the 180,000-byte input cap (1000 ids still fit one SQS message). Unknown
-fields go through the shared `screen_records` batching within the existing 80,000-character
-per-call cap, counting privacy expansion. A later batch rejection or outage prevents
-generation and retains usage from all attempted batches. Length failures are reported as
-limits rather than unsafe content. The worker reuses exact saved approvals, renders readable
-source blocks, and returns cited text as a proposal. New library checks come back as
-`record_screening` receipts; Rails saves one only when its fingerprint matches both the
-frozen snapshot value and the live value, so changed live fields are never approved.
-Saved-resume copies have no record id and are never approved. Generation does not write
-profile or resume text.
+Missing-summary generation uses `generate_summary`. Rails saves a versioned command with
+owned target IDs, citation labels, source row/section identities and exact field fingerprints.
+It stores no source text. The worker reads the current owned profile library or saved-resume
+sections through `ai_reader`, in a consistent transaction, and requires the identities and
+hashes to match before any provider work. Career-context requirements are context, not
+qualification evidence, so only responses are supplied. Identity replacement and source edits
+make old work stale even when labels remain the same.
+
+Evidence is bounded to 1000 labeled fields and 180,000 bytes of transient label/text data.
+Before classification, the worker checks the fully rendered, privacy-masked generation prompt
+against the 120,000-character cap. Unknown fields use shared `screen_records` batching within
+the 80,000-character per-call cap, counting privacy expansion. A later rejection/outage prevents
+generation and retains attempted usage. Exact saved field approvals are reused. New library
+checks return as `record_screening` receipts; Rails checks the referenced identity/fingerprint
+and locks the current owned row before approving it. Resume fields never produce library
+approvals. Generation returns a cited proposal and never writes profile or resume text.
+
 Saved-resume evidence comes only from its own non-contact, non-summary career sections,
-independent of the current library and any deleted job. Only exact generated highlights
-and project prose in owned accepted tailoring results skip screening; copied fields and
-unknown or edited text remain subject to screening. SQL selects matching generated values
-without loading historical task bodies into application memory.
+independent of the current library or deleted job. Only exact generated experience highlights
+and project descriptions in owned, completed, accepted tailoring results skip screening.
+The non-materialized `ai_accepted_resume_prose` view exposes only owner ID and those generated
+strings, without granting task results or history to the worker. Copied education, identities,
+skills and changed prose remain untrusted.
+
+Old retained copied-source commands are stale and cannot be executed or accepted under the
+new contract. The worker rejects them before classification/generation. The user can discard
+an old draft or explicitly start a fresh request; nothing automatically replays paid work.
+Previously accepted summaries remain unchanged. Deploy the summary-capable worker and
+`db:grant_ai_reader_access` grants before deploying the new summary producer.
 
 `summaryGeneration` restores the latest task and freshness. Start reuses matching pending
 work or unaccepted proposals; failed/discarded/stale work can start anew. Accept/discard are

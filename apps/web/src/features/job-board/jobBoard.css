@@ -76,9 +76,13 @@
 .board-filter-grid input, .board-filter-grid select { min-height: 44px; }
 .board-filter-grid select { width: 100%; min-width: 0; border: 1.5px solid var(--input); border-radius: 4px; padding: 8px 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; }
 .board-filter-grid select:focus-visible, .board-location-choices input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.board-location-field { display: flex; gap: 8px; }
-.board-location-field input { min-width: 0; }
-.board-location-field button { min-height: 44px; flex-shrink: 0; }
+/* The find / clear action lives inside the field, on its right edge, like the keyword search icon. */
+.board-location-field { position: relative; }
+.board-location-field input { min-width: 0; padding-right: 44px; border-width: 1.5px; border-color: var(--input); border-radius: 4px; background: var(--background); font-size: 14px; }
+.board-location-action { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 3px; color: var(--foreground); cursor: pointer; }
+.board-location-action:disabled { color: var(--muted-foreground); opacity: 0.6; cursor: default; }
+.board-location-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+@media (hover: hover) and (pointer: fine) { .board-location-action:not(:disabled):hover { background: var(--muted); } }
 .board-filter-help { margin-top: 8px; color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
 .board-location-choices { margin-top: 12px; }
 .board-location-choices legend { font-size: 13px; font-weight: 700; }
@@ -93,10 +97,15 @@
 .board-hide-saved { min-height: 44px; white-space: nowrap; font-weight: 600; }
 .board-saved-empty { padding: 32px 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
 
-/* Wide screens: date, remote and sort share a row; the location picker gets a wider row below. */
+/* Wide screens: all six filters share one row. Location gets a double-width column for its field and button.
+   Mid-width screens keep three per row, with the location picker spanning two. */
 @media (min-width: 900px) {
-  .board-filters-panel > .board-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .board-filters-panel > .board-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
   .board-filters-panel > .board-filter-grid > .board-location-picker { grid-column: span 2; order: 1; }
+}
+@media (min-width: 1200px) {
+  .board-filters-panel > .board-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .board-filters-panel > .board-filter-grid > .board-location-picker { grid-column: auto; order: 0; }
 }
 
 /* Multi-select dropdowns: the trigger matches the native selects; options open in a popover. */
@@ -110,7 +119,7 @@
 @media (hover: hover) and (pointer: fine) { .board-multiselect-options label:hover { background: var(--muted); } }
 @media (max-width: 599px) {
   .board-search { padding: 16px; }
-  .board-multiselect-trigger { font-size: 16px; }
+  .board-multiselect-trigger, .board-location-field input { font-size: 16px; }
   .board-search-field { flex-direction: column; }
   .board-search-submit { width: 100%; }
   .board-filter-grid select { font-size: 16px; }

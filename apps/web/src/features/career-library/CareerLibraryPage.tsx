@@ -8,11 +8,9 @@
  *   - CareerLibraryPage: page component
  */
 import { DragDropProvider } from '@dnd-kit/react'
-import { FileUp } from 'lucide-react'
-import { Link } from 'react-router'
 import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
-import { Button } from '@/components/ui/button'
+import { ResumeUpload } from '@/features/resume-import/ResumeUpload'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
@@ -38,20 +36,19 @@ export function CareerLibraryPage() {
 
   return (
     <div className="library-page mx-auto grid gap-6">
-      <PageHeading title="Career library" description="Your experience, all in one place. The foundation for every application." actions={
-        <Button asChild><Link to="/library/import"><FileUp /> Import a resume</Link></Button>
-      } />
+      <PageHeading title="Career library" description="Your experience, all in one place. The foundation for every application." />
       <ImportSummaryNotice />
       {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}
       <ErrorAlert title="Couldn't save that change" messages={reordering.errors} />
       {!library && loading && <p className="text-muted-foreground">Loading…</p>}
       {library && !libraryHasContent(library) && (
-        <div className="empty-records">
-          <FileUp size={30} strokeWidth={1.4} aria-hidden />
-          <h2>Start with your resume</h2>
-          <p>Import a PDF or Word resume and review what it finds before anything is saved, or add your roles and skills by hand below. Jobs are compared against this library, so the more real detail it holds, the better the comparisons.</p>
-          <Button asChild><Link to="/library/import">Import a resume</Link></Button>
-        </div>
+        <section className="library-resume-import" aria-labelledby="resume-import-heading">
+          <div className="grid gap-2">
+            <h2 id="resume-import-heading">Start with your resume</h2>
+            <p>Import a PDF or Word resume and review what it finds before anything is saved, or add your roles and skills by hand below. Jobs are compared against this library, so the more real detail it holds, the better the comparisons.</p>
+          </div>
+          <ResumeUpload />
+        </section>
       )}
       {library && (
         <LibraryWorkspace library={library} movingHighlight={reordering.movingHighlight}>

@@ -62,3 +62,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   `completed_gap_analysis_sources`, a nonmaterialized completed-analysis-only projection.
   Gap responses expose only identity, requirement/body, checks and ordering columns.
   Profile location/links are readable for the copied contact section; authentication fields stay private.
+- `interview_inputs.py` — validates owner/operation/attempt/generation, live lease/deadline,
+  saved mode/settings and session state. Preparation reads current owned job/library/preferences
+  once; turns read prepared questions and accepted public dialogue, with profile contact only
+  for masking. Speech loads its exact saved message. Private model history and media keys
+  remain outside the reader grants. Rails owns every write and media capability.

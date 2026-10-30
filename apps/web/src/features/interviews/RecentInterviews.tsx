@@ -1,4 +1,4 @@
-/** Lists owned sessions with their frozen job identity so past practice stays recognizable. */
+/** Lists owned sessions with their current saved job association so past practice stays recognizable. */
 import { Link } from 'react-router'
 import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'

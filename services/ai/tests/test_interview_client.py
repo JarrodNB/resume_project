@@ -15,7 +15,7 @@ CLAIM = {
     "claim_generation": 2,
     "lease_expires_at": "2026-10-20T00:01:00Z",
     "execution_deadline": "2026-10-20T00:03:00Z",
-    "payload": {"text": "Saved message", "message_id": "message"},
+    "payload": {"version": 1, "user_id": "owner", "interview_id": "interview", "setup": {"question_count": 9}},
 }
 
 
@@ -36,7 +36,7 @@ def test_claim_uses_service_auth_and_canonical_payload():
             "http://api:3000", "service-only", transport=httpx.MockTransport(respond)
         )
         claim = await client.claim("op")
-        assert claim.payload.text == "Saved message"
+        assert claim.payload.user_id == "owner"
         assert claim.identity() == {"attempt_id": "attempt", "claim_generation": 2}
         await client.aclose()
 
@@ -131,7 +131,7 @@ def test_wrong_claim_kind_and_identity_are_rejected():
             await client.claim("op")
         await client.aclose()
 
-    run(check({**CLAIM, "kind": "turn"}))
+    run(check({**CLAIM, "kind": "unsupported"}))
     run(check({**CLAIM, "operation_id": "another"}))
 
 
@@ -263,10 +263,7 @@ def test_real_claim_validates_full_saved_configuration(kind):
         "transcription_model": "gpt-transcribe", "interviewer_model": "gpt-6-luna",
         "speech_model": "gpt-4o-mini-tts", "voice": "marin",
     }
-    payload = CLAIM["payload"] if kind == "speech" else {
-        "recording_id": "recording", "expected_revision": 0, "question": "Question?",
-        "model_history": [], "history_version": 1, "fixture_context": {"synthetic": True},
-    }
+    payload = CLAIM["payload"]
     receipt = {**CLAIM, "kind": kind, "payload": payload,
                "execution_mode": "real", "execution_config": configuration}
 
@@ -288,36 +285,6 @@ def test_provider_admission_requires_matching_durable_receipt(receipt):
             transport=httpx.MockTransport(lambda _: httpx.Response(200, json=receipt))) as client:
             with pytest.raises(RailsTransportError, match="Invalid provider admission receipt"):
                 await client.start_provider(Claim.model_validate(CLAIM), "observation", "speech", "fake", "scripted")
-    run(check())
-
-
-def test_library_screening_callback_is_fenced_and_retries_identical_indices():
-    requests = []
-
-    def respond(request):
-        requests.append(request)
-        if len(requests) == 1:
-            raise httpx.ReadTimeout("receipt lost")
-        return httpx.Response(200, json={"screened_source_indices": [0, 2]})
-
-    async def check():
-        async with RailsInterviewClient("http://api:3000", "service-only", transport=httpx.MockTransport(respond)) as client:
-            receipt = await client.screen_library(Claim.model_validate(CLAIM), [2])
-            assert receipt == {"screened_source_indices": [0, 2]}
-    run(check())
-    assert len(requests) == 2
-    assert requests[0].content == requests[1].content
-    assert requests[0].url.path.endswith("/screen_library")
-    assert json.loads(requests[0].content) == {"attempt_id": "attempt", "claim_generation": 2, "source_indices": [2]}
-
-
-@pytest.mark.parametrize("receipt", [{}, {"screened_source_indices": [True]}, {"screened_source_indices": [0]}])
-def test_library_screening_rejects_incomplete_or_malformed_receipts(receipt):
-    async def check():
-        async with RailsInterviewClient("http://api:3000", "service-only",
-                transport=httpx.MockTransport(lambda request: httpx.Response(200, json=receipt))) as client:
-            with pytest.raises(RailsTransportError):
-                await client.screen_library(Claim.model_validate(CLAIM), [2])
     run(check())
 
 
@@ -391,33 +358,3 @@ def test_twelfth_question_can_restore_or_omit_all_eleven_earlier_questions(omitt
     }
     claim = Claim.model_validate(request)
     assert len(claim.payload.earlier_dialogue.omitted_question_positions if omitted else claim.payload.earlier_dialogue.groups) == 11
-
-
-@pytest.mark.parametrize("value", [None, True, "wrong", "A" * 64])
-def test_focus_screening_requires_exact_persisted_receipt(value):
-    async def check():
-        receipt = {"screened_source_indices": [], "screened_career_focus_sha256": value}
-        async with RailsInterviewClient("http://api:3000", "service-only",
-                transport=httpx.MockTransport(lambda request: httpx.Response(200, json=receipt))) as client:
-            with pytest.raises(RailsTransportError):
-                await client.screen_library(Claim.model_validate(CLAIM), [], career_focus_sha256="a" * 64)
-    run(check())
-
-
-
-def test_focus_only_callback_sends_exact_digest_and_replays_identically():
-    requests = []
-    digest = "a" * 64
-    def respond(request):
-        requests.append(request)
-        if len(requests) == 1:
-            raise httpx.ReadTimeout("receipt lost")
-        return httpx.Response(200, json={"screened_source_indices": [], "screened_career_focus_sha256": digest})
-    async def check():
-        async with RailsInterviewClient("http://api:3000", "service-only", transport=httpx.MockTransport(respond)) as client:
-            assert (await client.screen_library(Claim.model_validate(CLAIM), [], career_focus_sha256=digest))[
-                "screened_career_focus_sha256"] == digest
-    run(check())
-    assert requests[0].content == requests[1].content
-    assert json.loads(requests[0].content) == {"attempt_id": "attempt", "claim_generation": 2,
-        "source_indices": [], "career_focus_sha256": digest}

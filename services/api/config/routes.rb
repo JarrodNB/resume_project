@@ -39,7 +39,7 @@ Rails.application.routes.draw do
     post "interviews/references/:id/claim", to: "interviews#claim_references"
     post "interviews/clarifications/:id/claim", to: "interviews#claim_clarification"
     get "interviews/operations/:id", to: "interviews#status"
-    %w[claim heartbeat screen_library accept accept_transcription accept_preparation fail usage retry start_provider recording reserve_audio register_audio complete_audio].each do |callback|
+    %w[claim heartbeat accept accept_transcription accept_preparation fail usage retry start_provider recording reserve_audio register_audio complete_audio].each do |callback|
       post "interviews/operations/:id/#{callback}", to: "interviews##{callback}"
     end
   end

@@ -63,9 +63,8 @@ def test_stream_observer_websocket_does_not_create_transport_spans(monkeypatch):
     monkeypatch.setenv("AI_HTTP_ENABLED", "false")
     spans = InMemorySpanExporter()
     configure_tracing([SimpleSpanProcessor(spans)])
-    with TestClient(create_app()) as client:
-        with pytest.raises(WebSocketDisconnect), client.websocket_connect("/ai/executions/stream"):
-            pass
+    with TestClient(create_app()) as client, pytest.raises(WebSocketDisconnect), client.websocket_connect("/ai/executions/stream"):
+        pass
     assert not spans.get_finished_spans()
 
 
@@ -83,7 +82,6 @@ def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(mo
     from interviews.real import RealInterviewExecutor
     from privacy.contact_mask import contact_scope, mask_outbound
     from privacy.known_contact import KnownContact
-    from routes.executions import install_execution_routes
     from telemetry import tracing
     from tests.test_eval_report_costs import _model
 
@@ -105,7 +103,7 @@ def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(mo
                 return SimpleNamespace(
                     operation_id=operation_id, kind="preparation", execution_mode="real",
                     execution_deadline=datetime.now(UTC) + timedelta(seconds=10),
-                    payload=SimpleNamespace(frozen_context={"names": ["Operation Contact"]}),
+                    payload=SimpleNamespace(preparation_context={"names": ["Operation Contact"]}),
                 )
 
             async def usage(self, claim, records, **kwargs):

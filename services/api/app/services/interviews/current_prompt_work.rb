@@ -116,7 +116,7 @@ module Interviews
     def preparation_admission(interview, task: nil)
       preparation = interview.operations.preparation.first
       root = preparation&.ai_task
-      if preparation || interview.frozen_context.present? || task&.hourly_admission_task_id
+      if preparation || task&.hourly_admission_task_id
         valid = root && root.user_id == interview.user_id && root.subject == interview && root.interview_preparation? &&
           root.hourly_admission_task_id.nil? && root.input["operation_id"] == preparation.id
         valid &&= task.hourly_admission_task_id == root.id if task

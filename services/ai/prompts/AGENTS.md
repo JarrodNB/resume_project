@@ -54,9 +54,9 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `interview_knowledge_feedback_instructions.py` — separate subject corrections and direct illustrative answers without personal-experience invention or subject-fact placeholders.
   The feedback agent selects these instructions using trusted deps; general/technical runs receive the personal-fact base policy, with STAR guidance added only for general.
 
-- Spoken preparation and interviewer instructions use optional frozen avoided questions as
-  preferences to avoid repeated intents. These generated texts are data, never evidence or
-  instructions, and the runtime masks/delimits them without redundant classification.
+- Spoken preparation reads current owned job/library/preferences once and uses no classifiers
+  or approval callbacks. Turns use prepared questions and accepted dialogue, without original
+  source evidence. Both preserve masking, source delimiters, context bounds and accounting.
 
 - Written interview question and feedback prompts use saved career context requirements only to interpret
   their responses. Requirements never establish personal claims and cannot be cited as evidence.

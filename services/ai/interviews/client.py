@@ -17,7 +17,7 @@ from schemas.interview_setup import InterviewSetup
 
 
 class InterviewContext(BaseModel):
-    """Keep owned frozen facts separate from the imagined vacancy."""
+    """Keep privacy-only contact hints separate from the generated fictional role."""
 
     version: Literal[1]
     personal_evidence: dict[str, Any]
@@ -48,7 +48,7 @@ class PublicQuestionGroup(BaseModel):
 
 
 class EarlierDialogue(BaseModel):
-    """Complete question groups selected by Rails under a content-character cap."""
+    """Complete canonical question groups selected under a content-character cap."""
 
     model_config = ConfigDict(extra="forbid")
     version: Literal[1]
@@ -115,8 +115,18 @@ class SpeechPayload(BaseModel):
 
 
 class PreparationPayload(BaseModel):
-    frozen_context: dict[str, Any]
+    preparation_context: dict[str, Any]
     setup: InterviewSetup = Field(default_factory=lambda: InterviewSetup(question_count=9))
+
+
+class ReferencePayload(BaseModel):
+    """Versioned execution identity; saved text is loaded through owned DB reads."""
+
+    model_config = ConfigDict(extra="forbid")
+    version: Literal[1]
+    interview_id: str
+    user_id: str
+    setup: InterviewSetup
 
 
 class ExecutionConfiguration(BaseModel):
@@ -140,7 +150,7 @@ REAL_CONFIGURATION = ExecutionConfiguration(
 
 
 class Claim(BaseModel):
-    """Canonical inputs and fenced identity for one execution."""
+    """Fenced execution identity; source inputs are expanded only inside Python."""
 
     model_config = ConfigDict(frozen=True)
     execution_mode: Literal["fake", "real"] = "fake"
@@ -151,7 +161,7 @@ class Claim(BaseModel):
     claim_generation: StrictInt
     lease_expires_at: datetime
     execution_deadline: datetime
-    payload: TurnPayload | SpeechPayload | PreparationPayload | TranscriptionPayload
+    payload: ReferencePayload | TurnPayload | SpeechPayload | PreparationPayload | TranscriptionPayload
 
     @model_validator(mode="after")
     def matching_payload(self):
@@ -159,7 +169,7 @@ class Claim(BaseModel):
         if self.execution_config != configuration:
             raise ValueError("Invalid saved execution configuration")
         expected = {"transcription": TranscriptionPayload, "turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
-        if not isinstance(self.payload, expected):
+        if not isinstance(self.payload, (expected, ReferencePayload)):
             raise ValueError("Claim kind and payload differ")  # noqa: TRY004 - Pydantic validator
         return self
 
@@ -299,6 +309,7 @@ class RailsInterviewClient:
         result = await self._request("POST", self._path(operation_id, "claim"),
                                      {"execution_mode": self._execution_mode}, retry=False)
         try:
+            ReferencePayload.model_validate(result.get("payload"))
             claim = Claim.model_validate(result)
             if claim.operation_id != str(operation_id) or claim.execution_mode != self._execution_mode:
                 raise ValueError("Wrong operation")
@@ -326,23 +337,6 @@ class RailsInterviewClient:
 
     async def heartbeat(self, claim: Claim, checkpoint: str | None = None):
         return await self._callback(claim, "heartbeat", checkpoint=checkpoint)
-
-    async def screen_library(self, claim: Claim, source_indices: list[int], *, career_focus_sha256: str | None = None):
-        """Require durable receipts for checked source indices and optional exact focus.
-
-        Omit the focus argument for the unchanged legacy request/response contract.
-        """
-        values = {"source_indices": source_indices}
-        if career_focus_sha256 is not None:
-            values["career_focus_sha256"] = career_focus_sha256
-        result = await self._callback(claim, "screen_library", **values)
-        indices = result.get("screened_source_indices")
-        if (not isinstance(indices, list) or any(type(index) is not int or index < 0 for index in indices)
-                or not set(source_indices).issubset(indices)):
-            raise RailsTransportError("Invalid library screening receipt")
-        if career_focus_sha256 is not None and result.get("screened_career_focus_sha256") != career_focus_sha256:
-            raise RailsTransportError("Invalid career focus screening receipt")
-        return result
 
     async def recording(self, claim: Claim):
         return await self._callback(claim, "recording")

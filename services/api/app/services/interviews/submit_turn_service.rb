@@ -41,7 +41,7 @@ module Interviews
           next failure("Recording has already been submitted") if @interview.operations.turn.where(recording_id: @recording_id).exists?
         end
         next failure("An answer is already processing") if @interview.operations.turn.where(status: %w[pending running]).exists?
-        if @interview.frozen_context.present? && @interview.operations.turn.where(question: question).count >= MAX_PREPARED_SUBMISSIONS_PER_QUESTION
+        if @interview.operations.preparation.exists? && @interview.operations.turn.where(question: question).count >= MAX_PREPARED_SUBMISSIONS_PER_QUESTION
           next failure("This question reached its answer submission limit. Abandon this interview and prepare another to continue.")
         end
 

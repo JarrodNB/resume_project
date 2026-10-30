@@ -27,11 +27,6 @@ module Internal
       respond Interviews::RenewClaimService.call(operation: @operation, **claim_identity, checkpoint: params[:checkpoint])
     end
 
-    def screen_library
-      respond Interviews::RecordLibraryScreeningService.call(operation: @operation, **claim_identity,
-        source_indices: params[:source_indices], career_focus_sha256: params[:career_focus_sha256])
-    end
-
     def recording
       respond Interviews::ReadRecordingService.call(operation: @operation, **claim_identity)
     end

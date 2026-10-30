@@ -33,13 +33,13 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
   return <div className="grid gap-5">
     {job && interview.status !== 'ready' && <InterviewJobSource job={job} />}
     {job && interview.status === 'ready' && job.id && <Link className="justify-self-start text-sm underline underline-offset-4" to={`/jobs/${job.id}`}>Back to job</Link>}
-    {job && interview.status === 'ready' && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. This interview keeps the saved job details from preparation.</p>}
-    {interview.status === 'ready' && role ? <>
+    {job && interview.status === 'ready' && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. Your prepared questions remain available.</p>}
+    {interview.status === 'ready' ? <>
       <div className="grid gap-2">
-        <h2 className="text-xl font-medium">{job ? 'Review your saved job' : 'Review your fictional role'}</h2>
-        <p className="max-w-prose text-sm text-muted-foreground">{job ? 'Questions were prepared for this saved job using your career library. Job requirements describe the vacancy, not your qualifications. Later job or library edits will not change this interview.' : 'This role was prepared from your career library. It is an imagined vacancy; its requirements are not claims about your experience. Later library edits will not change this interview.'}</p>
+        <h2 className="text-xl font-medium">{job ? 'Review your saved job' : role ? 'Review your fictional role' : 'Review your prepared interview'}</h2>
+        <p className="max-w-prose text-sm text-muted-foreground">{job ? 'Questions were prepared using your career library and this job. Job details shown here reflect the current saved job.' : role ? 'This role was prepared from your career library. It is an imagined vacancy; its requirements are not claims about your experience.' : 'Your prepared questions are ready. The original job is no longer available.'}</p>
       </div>
-      {job ? <InterviewJobContext job={job} sectionId={`interview.${interview.id}.job-details`} /> : <div className="grid gap-5 border-y py-5">
+      {job ? <InterviewJobContext job={job} sectionId={`interview.${interview.id}.job-details`} /> : role && <div className="grid gap-5 border-y py-5">
         <h3 className="text-lg font-medium break-words">{role.title}</h3>
         <div className="grid gap-2"><h4 className="font-medium">Responsibilities</h4><ul className="list-disc space-y-2 pl-5 text-sm">{role.responsibilities.map((item, index) => <li className="break-words" key={index}>{item}</li>)}</ul></div>
         <div className="grid gap-2"><h4 className="font-medium">Role requirements</h4><ul className="list-disc space-y-2 pl-5 text-sm">{role.requirements.map((item, index) => <li className="break-words" key={index}>{item}</li>)}</ul></div>

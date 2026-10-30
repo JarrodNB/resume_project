@@ -11,7 +11,8 @@ RSpec.describe "Recorded transcript review" do
     expect(Interviews::StartRecordedTranscriptionService.call(**input).value.id).to eq(operation.id)
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     expect(claim[:kind]).to eq("transcription")
-    expect(claim[:payload]).to eq({ recording_id: recording.id })
+    expect(claim[:payload]).to include(interview_id: interview.id, user_id: interview.user_id)
+    expect(claim[:payload]).not_to have_key(:recording_id)
     args = { operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation], transcript: "I maintained the service." }
     expect(Interviews::AcceptTranscriptionService.call(**args)).to be_success
     expect(Interviews::AcceptTranscriptionService.call(**args)).to be_success

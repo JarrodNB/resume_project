@@ -79,7 +79,7 @@ test support. See docs/architecture/interview-sessions.md.
 - **User-written text is screened for prompt injection before it enters a prompt** (`screening/`),
   including an uploaded resume before it is parsed; a blocked resume fails the import.
   Every generative agent declares an official Harness `InputGuardrail` through `capabilities`,
-  and trusted builders bind exact assembled prompts to approved sources. Spoken answer
+  and trusted builders bind exact assembled prompts to approved sources. Spoken preparation and answer
   turns are an explicit user-authorized exception: no injection classifier runs; exact
   input integrity, context limits, contact replacement and accounting remain. A missing
   `TYPESAFE_API_KEY` prevents Jev calls. Job study-guide generation is a scoped exception:

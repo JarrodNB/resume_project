@@ -58,7 +58,7 @@ The call-site audit covers every production reasoning agent and evaluation judge
 | Written interview questions/feedback | Matching boundary lines chosen outside all source text |
 | Study guide | `job_description` and numbered trusted `previous_study_questions` blocks |
 | Question clarification | `interview_question` block |
-| Spoken preparation/turns | Escaped XML blocks for frozen context, candidate answers, and earlier utterances; reconstructed public dialogue retains model message roles |
+| Spoken preparation/turns | Preparation renders current owned source data once without classifiers; turns use prepared questions and accepted public dialogue. Escaped XML data sections, masking and prompt bounds remain. |
 | Screening LLM fallback | `<user_text>` with every source line quoted by a pipe prefix |
 | Interview eval judge | Separate collision-free `rubrics`, `inputs`, and `output` blocks |
 | Other evaluation judges | Pydantic Evals supplies `<Output>` and `<Rubric>` sections |

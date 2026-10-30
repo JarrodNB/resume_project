@@ -32,7 +32,7 @@ def test_approved_library_and_saved_dialogue_are_not_sent_to_screening(monkeypat
     screens = [text for name, text in models.prompts if name == 'jev-1.13.0']
     assert screens == []
     model_input = models.prompts[-1][1]
-    assert 'unique scheduling' in model_input
+    assert 'unique scheduling' not in model_input
     assert 'Previously accepted' in model_input
     assert 'SystemPromptPart' in model_input
     assert '"screened"' not in model_input
@@ -61,8 +61,8 @@ def test_unchecked_fields_do_not_gain_screening_approvals_during_spoken_turns(mo
     assert not client.failed
     assert not any(name == 'jev-1.13.0' for name, _ in models.prompts)
     history = client.accepted[-1]['model_history']
-    assert sum(part['part_kind'] == 'system-prompt' for msg in history for part in msg['parts']) == 1
-    assert str(history).count('unique scheduling') == 1
+    assert history == []
+    assert 'unique scheduling' not in str(history)
 
 
 def test_spoken_turn_never_requests_a_library_approval_receipt(monkeypatch):
@@ -96,7 +96,7 @@ def test_legacy_private_envelopes_and_acknowledgements_never_reach_jev_or_model(
 def test_assembled_context_limit_fails_before_screening(monkeypatch):
     monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
     request = prepared_claim()
-    request.payload.interview_context.personal_evidence['sources'][0]['text'] = 'x' * 120001
+    request.payload.current_dialogue[0].content = 'x' * 120001
     client, models = Client(), Models()
     run(client, models, request)
     assert client.failed == [('context_limit', False)]
@@ -117,8 +117,8 @@ def test_approved_preparation_requires_no_library_classifier(monkeypatch):
     from tests.test_interview_preparation import run as prepare
     monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
     request = preparation_claim()
-    request.payload.frozen_context['sources'][0]['screened'] = True
-    request.payload.frozen_context['career_focus'] = ''
+    request.payload.preparation_context['sources'][0]['screened'] = True
+    request.payload.preparation_context['career_focus'] = ''
     models = PreparationModels()
     client = prepare(models, request)
     assert not client.failed and client.accepted
@@ -147,9 +147,9 @@ def test_synthetic_fixture_role_and_career_are_preserved(monkeypatch):
     client, models = Client(), Models()
     run(client, models, request)
     assert not client.failed and client.accepted
-    assert 'Fictional software engineer' in models.prompts[-1][1]
-    assert 'Built a team scheduling tool' in models.prompts[-1][1]
-    assert 'Synthetic fixture context' in models.prompts[-1][1]
+    assert 'Fictional software engineer' not in models.prompts[-1][1]
+    assert 'Built a team scheduling tool' not in models.prompts[-1][1]
+    assert 'Synthetic fixture context' not in models.prompts[-1][1]
 
 
 def test_earlier_dialogue_budget_has_specific_failure_without_model_calls(monkeypatch):
@@ -192,6 +192,6 @@ def test_saved_avoidance_reaches_followups_without_new_classification(monkeypatc
     request.payload.interview_context.personal_evidence['avoided_questions'] = ['Describe an old calibration challenge?']
     run(client, models, request)
     assert not client.failed
-    assert 'Describe an old calibration challenge?' in models.prompts[-1][1]
+    assert 'Describe an old calibration challenge?' not in models.prompts[-1][1]
     assert all('Describe an old calibration challenge?' not in text
                for name, text in models.prompts if name == 'jev-1.13.0')

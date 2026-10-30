@@ -594,10 +594,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_150000) do
     t.jsonb "prepared_role", default: {}, null: false
     t.jsonb "setup_config", default: {}, null: false
     t.uuid "job_id"
+    t.string "career_focus", default: "", null: false
+    t.string "preparation_kind", default: "fictional_role", null: false
     t.index ["job_id"], name: "index_interview_sessions_on_job_id"
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
+    t.check_constraint "char_length(career_focus::text) <= 200", name: "interview_career_focus_length"
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
+    t.check_constraint "preparation_kind::text = ANY (ARRAY['saved_job'::character varying, 'fictional_role'::character varying]::text[])", name: "interview_preparation_kind"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 3", name: "interview_session_counters"
     t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying::text, 'ready'::character varying::text, 'active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text, 'abandoned'::character varying::text])", name: "interview_session_status"
   end

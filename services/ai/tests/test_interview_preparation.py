@@ -28,13 +28,13 @@ def preparation_claim():
         execution_config=REAL_CONFIGURATION, attempt_id="attempt", claim_generation=1,
         lease_expires_at=datetime.now(UTC) + timedelta(seconds=30),
         execution_deadline=datetime.now(UTC) + timedelta(seconds=120),
-        payload={"frozen_context": {"version": 1, "career_focus": "laboratory", "sources": [
+        payload={"preparation_context": {"version": 1, "career_focus": "laboratory", "sources": [
             {"type": "profile", "id": "owner", "field": "summary", "text": "I calibrate laboratory equipment."}]}})
 
 
 def test_preparation_claim_preserves_owned_frozen_sources():
     request = preparation_claim()
-    assert request.payload.frozen_context["sources"][0]["text"] == "I calibrate laboratory equipment."
+    assert request.payload.preparation_context["sources"][0]["text"] == "I calibrate laboratory equipment."
 
 
 def test_preparation_applies_saved_style_without_changing_format():
@@ -113,30 +113,21 @@ def test_preparation_screens_frozen_sources_and_accepts_complete_accounted_plan(
     client = run(models)
     assert not client.failed
     assert client.accepted == [prepared_output()]
-    assert [item[0] for item in models.requests] == ["jev-1.13.0", "jev-1.13.0", "gpt-6-luna"]
+    assert [item[0] for item in models.requests] == ["gpt-6-luna"]
     assert "calibrate laboratory equipment" in models.requests[-1][1]
     assert "laboratory" in models.requests[-1][1]
     assert models.requests[-1][2]["max_tokens"] == 4096
-    assert len([item for item in client.calls if item[0] == "start"]) == 3
-
-
-def test_blocked_preparation_never_runs_reasoning_or_accepts_partial_questions():
-    models = Models(blocked=True)
-    client = run(models)
-    assert client.failed == [("screening_blocked", False)]
-    assert not client.accepted
-    assert [item[0] for item in models.requests] == ["jev-1.13.0"]
-    assert not any(call[0] in {"screen_library", "screen_focus"} for call in client.calls)
+    assert len([item for item in client.calls if item[0] == "start"]) == 1
 
 
 def test_preparation_masks_known_contacts_and_does_not_reuse_library_as_role_claims():
     models = Models()
     request = preparation_claim()
-    context = {**request.payload.frozen_context, "avoided_questions": ["How did Morgan Sample contact morgan@example.test?"], "names": ["Morgan Sample"],
+    context = {**request.payload.preparation_context, "avoided_questions": ["How did Morgan Sample contact morgan@example.test?"], "names": ["Morgan Sample"],
         "emails": ["morgan@example.test"], "phones": []}
     context["sources"] = [{"type": "profile", "id": "owner", "field": "summary",
         "text": "Morgan Sample calibrates laboratory equipment. Contact morgan@example.test."}]
-    request = request.model_copy(update={"payload": request.payload.model_copy(update={"frozen_context": context})})
+    request = request.model_copy(update={"payload": request.payload.model_copy(update={"preparation_context": context})})
     client = run(models, request)
     assert not client.failed
     for _, messages, _ in models.requests:
@@ -149,7 +140,7 @@ def test_oversize_preparation_never_dispatches_a_provider():
     models = Models()
     request = preparation_claim()
     request = request.model_copy(update={"payload": request.payload.model_copy(
-        update={"frozen_context": {"sources": [{"text": "x" * 120_001}]}})})
+        update={"preparation_context": {"sources": [{"text": "x" * 120_001}]}})})
     client = run(models, request)
     assert client.failed == [("context_limit", False)]
     assert not models.requests
@@ -215,163 +206,21 @@ def test_malformed_explicit_saved_setup_is_rejected_instead_of_becoming_legacy(s
         Claim.model_validate(raw)
 
 
-def test_matching_saved_focus_check_avoids_classifier_on_preparation_retry():
-    from screening.records import field_fingerprint
-
-    request = preparation_claim()
-    context = request.payload.frozen_context
-    context["sources"][0]["screened"] = True
-    context["screened_career_focus_sha256"] = field_fingerprint(context["career_focus"])
-    models = Models()
-    client = run(models, request)
-    assert client.accepted == [prepared_output()]
-    assert [name for name, _, _ in models.requests] == ["gpt-6-luna"]
-    assert not any(call[0] == "screen_library" for call in client.calls)
-    assert "screened_career_focus_sha256" not in models.requests[-1][1]
-
-
-@pytest.mark.parametrize("stored", [None, True, "invalid", "0" * 64])
-def test_focus_only_check_requires_persistence_with_approved_library(stored):
-    from screening.records import field_fingerprint
-    request = preparation_claim()
-    context = request.payload.frozen_context
-    context["sources"][0]["screened"] = True
-    context["screened_career_focus_sha256"] = stored
-    models = Models()
-    client = run(models, request)
-    assert client.accepted
-    assert ("screen_library", []) in client.calls
-    assert ("screen_focus", field_fingerprint(context["career_focus"])) in client.calls
-    assert [name for name, _, _ in models.requests] == ["jev-1.13.0", "gpt-6-luna"]
-
-
-def test_changed_focus_cannot_reuse_earlier_check():
-    from screening.records import field_fingerprint
-    request = preparation_claim()
-    context = request.payload.frozen_context
-    context["sources"][0]["screened"] = True
-    context["screened_career_focus_sha256"] = field_fingerprint(context["career_focus"])
-    context["career_focus"] = "New focus"
-    models = Models()
-    client = run(models, request)
-    assert ("screen_focus", field_fingerprint("New focus")) in client.calls
-    assert "New focus" in models.requests[0][1]
-
-
-def test_empty_focus_needs_no_focus_check_or_callback():
-    request = preparation_claim()
-    request.payload.frozen_context["career_focus"] = ""
-    request.payload.frozen_context["sources"][0]["screened"] = True
-    models = Models()
-    client = run(models, request)
-    assert [name for name, _, _ in models.requests] == ["gpt-6-luna"]
-    assert not any(call[0] in {"screen_library", "screen_focus"} for call in client.calls)
-
-
-def test_failed_generation_keeps_focus_receipt_for_next_preparation():
-    from pydantic_ai.exceptions import ModelHTTPError
-    class FailingModels(Models):
-        def accounted(self, rails, request, stage, name):
-            if stage == "screening":
-                return super().accounted(rails, request, stage, name)
-            async def fail(messages, info):
-                raise ModelHTTPError(503, name, "synthetic failure")
-            return InterviewModel(FunctionModel(fail, model_name=name), rails, request, stage, "openai", name)
-    request = preparation_claim()
-    request.payload.frozen_context["sources"][0]["screened"] = True
-    failed = run(FailingModels(), request)
-    assert failed.failed == [("dependency_unavailable", True)]
-    digest = next(call[1] for call in failed.calls if call[0] == "screen_focus")
-    retry = request.model_copy(deep=True)
-    retry.payload.frozen_context["screened_career_focus_sha256"] = digest
-    models = Models()
-    assert run(models, retry).accepted
-    assert [name for name, _, _ in models.requests] == ["gpt-6-luna"]
-
-
-@pytest.mark.parametrize("receipt", [{"screened_source_indices": []},
-    {"screened_source_indices": [], "screened_career_focus_sha256": "0" * 64}])
-def test_missing_focus_persistence_receipt_cannot_dispatch_preparer(receipt):
-    from interviews.client import RailsInterviewClient, RailsTransportError
-    class OldServerClient(PreparationClient):
-        async def screen_library(self, request, source_indices, *, career_focus_sha256=None):
-            async with RailsInterviewClient("http://api:3000", "service-only",
-                    transport=httpx.MockTransport(lambda _: httpx.Response(200, json=receipt))) as client:
-                return await client.screen_library(request, source_indices, career_focus_sha256=career_focus_sha256)
-    request = preparation_claim()
-    request.payload.frozen_context["sources"][0]["screened"] = True
-    models = Models()
-    with pytest.raises(RailsTransportError):
-        run(models, request, OldServerClient())
-    assert [name for name, _, _ in models.requests] == ["jev-1.13.0"]
-
-
-@pytest.mark.parametrize("size", [80001, 120001])
-def test_approved_focus_still_obeys_source_and_context_limits(size):
-    from screening.records import field_fingerprint
-    request = preparation_claim()
-    request.payload.frozen_context["career_focus"] = "x" * size
-    request.payload.frozen_context["screened_career_focus_sha256"] = field_fingerprint("x" * size)
-    models = Models()
-    client = run(models, request)
-    assert client.failed == [("context_limit", False)]
-    assert not models.requests
-
-
-
-def test_unavailable_focus_check_cannot_persist_or_generate(monkeypatch):
-    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    request = preparation_claim()
-    request.payload.frozen_context["sources"][0]["screened"] = True
-    models = Models()
-    client = run(models, request)
-    assert client.failed == [("screening_unavailable", True)]
-    assert not models.requests and not client.accepted
-    assert not any(call[0] in {"screen_library", "screen_focus"} for call in client.calls)
-
-
-def test_focus_fingerprints_match_shared_unicode_vectors():
-    import json
-    from pathlib import Path
-    vectors = json.loads((Path(__file__).parent / "fixtures/job_field_fingerprints.json").read_text())
-    for vector in vectors:
-        if not isinstance(vector["value"], str) or not vector["value"]:
-            continue
-        request = preparation_claim()
-        request.payload.frozen_context["sources"][0]["screened"] = True
-        request.payload.frozen_context["career_focus"] = vector["value"]
-        models = Models()
-        client = run(models, request)
-        assert ("screen_focus", vector["sha256"]) in client.calls
-
-
-@pytest.mark.parametrize("focus", ["\u00a0", "\u202f", "\u2003"])
-def test_unicode_whitespace_focus_requires_its_exact_receipt(focus):
-    from screening.records import field_fingerprint
-    request = preparation_claim()
-    request.payload.frozen_context["sources"][0]["screened"] = True
-    request.payload.frozen_context["career_focus"] = focus
-    client = run(Models(), request)
-    assert client.accepted
-    assert ("screen_focus", field_fingerprint(focus)) in client.calls
-
-
 def test_preparation_uses_generated_avoidance_data_without_rescreening_it():
     models = Models()
     request = preparation_claim()
-    request.payload.frozen_context["avoided_questions"] = ["Describe an old calibration challenge?"]
+    request.payload.preparation_context["avoided_questions"] = ["Describe an old calibration challenge?"]
     client = run(models, request)
     assert not client.failed
     assert "Describe an old calibration challenge?" in models.requests[-1][1]
     assert "Avoided questions" in models.requests[-1][1]
-    assert "Describe an old calibration challenge?" not in models.requests[0][1]
 
 
 @pytest.mark.parametrize("excluded", [["x" * 2001], ["question"] * 51, "invalid", [""]])
 def test_invalid_saved_avoidance_never_calls_providers(excluded):
     models = Models()
     request = preparation_claim()
-    request.payload.frozen_context["avoided_questions"] = excluded
+    request.payload.preparation_context["avoided_questions"] = excluded
     client = run(models, request)
     assert client.failed == [("context_limit", False)]
     assert not models.requests
@@ -380,8 +229,8 @@ def test_invalid_saved_avoidance_never_calls_providers(excluded):
 def test_saved_avoidance_overflow_fails_without_omitting_questions():
     models = Models()
     request = preparation_claim()
-    request.payload.frozen_context["avoided_questions"] = ["q" * 2000] * 50
-    request.payload.frozen_context["sources"] = [{"text": "x" * 30000}]
+    request.payload.preparation_context["avoided_questions"] = ["q" * 2000] * 50
+    request.payload.preparation_context["sources"] = [{"text": "x" * 30000}]
     client = run(models, request)
     assert client.failed == [("context_limit", False)]
     assert not models.requests

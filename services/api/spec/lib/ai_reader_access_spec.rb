@@ -104,6 +104,18 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("UPDATE resume_sections SET content = '{}'::jsonb") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
+  it "reads interview execution inputs but hides private history, legacy sources and media" do
+    expect(select_as_ai_reader("SELECT id, preparation_kind FROM interview_sessions")).to eq([])
+    expect(select_as_ai_reader("SELECT attempt_id, claim_generation FROM interview_session_operations")).to eq([])
+    { "interview_sessions" => %w[frozen_context], "interview_session_questions" => %w[model_history],
+      "interview_session_operations" => %w[accepted_result result_fingerprint],
+      "interview_session_media" => %w[staging_key sealed_key] }.each do |table, columns|
+      columns.each do |column|
+        expect { select_as_ai_reader("SELECT #{column} FROM #{table}") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+      end
+    end
+  end
+
   it "can't write" do
     create(:job)
 

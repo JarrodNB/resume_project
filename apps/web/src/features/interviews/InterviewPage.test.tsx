@@ -136,12 +136,21 @@ describe('InterviewPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/interview'))
     expect(router.state.location.state).toEqual({ interviewEnded: 'abandoned' })
   })
-  it('reviews the saved job snapshot without labelling it as a fictional role', async () => {
-    state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Laboratory technician', requirements: [], responsibilities: [] },
+  it('reviews the live saved job without labelling it as a fictional role', async () => {
+    state.interview = { ...snapshot, status: 'ready', preparedRole: {},
       jobContext: { id: 'job-1', title: 'Laboratory technician', company: 'Sample Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
     renderInterview()
     expect(screen.getByRole('heading', { name: 'Review your saved job' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Laboratory technician' })).toBeVisible()
+    expect(screen.queryByText(/imagined vacancy/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Enter interview room' }))
+    expect(state.beginInterview).toHaveBeenCalledOnce()
+  })
+
+  it('enters a prepared interview after its original job is deleted', async () => {
+    state.interview = { ...snapshot, status: 'ready', preparedRole: {}, jobContext: null }
+    renderInterview()
+    expect(screen.getByRole('heading', { name: 'Review your prepared interview' })).toBeVisible()
     expect(screen.queryByText(/imagined vacancy/)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Enter interview room' }))
     expect(state.beginInterview).toHaveBeenCalledOnce()
@@ -1181,7 +1190,7 @@ it('allows read-only review of a legacy completed session without role or audio'
   state.interview = { ...snapshot, executionMode: 'scripted', status: 'completed', operations: [] }
   renderInterview()
   expect(screen.getByRole('heading', { name: 'Interview complete' })).toBeVisible()
-  await userEvent.click(screen.getByRole('button', { name: 'Fictional role' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Prepared interview' }))
   expect(screen.getByText('Role details were not saved for this interview.')).toBeVisible()
   expect(screen.queryByText(/scripted session is retired/)).not.toBeInTheDocument()
 })

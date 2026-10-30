@@ -100,9 +100,9 @@ RSpec.describe "Answering after skipping a follow-up" do
       expected_revision: 2, submission_key: "next", transcription_mode: "typed", candidate_transcript: "I prioritized.").value
     next_claim = Interviews::ClaimOperationService.call(operation: next_turn).value
     payload = next_claim.fetch(:payload)
-    expect(payload.fetch(:model_history)).to eq([])
-    expect(payload.fetch(:current_dialogue)).to eq([ { kind: "opening", content: next_question.content } ])
-    expect(payload.fetch(:earlier_dialogue).fetch(:groups).first.fetch(:messages)).to eq([
+    expect(payload).not_to have_key(:model_history)
+    expect(interview.messages.where(question: next_question).pluck(:content)).to eq([ next_question.content ])
+    expect(Interviews::EarlierDialogue.build(interview, before_position: next_question.position).fetch(:groups).first.fetch(:messages)).to eq([
       { kind: "opening", content: question.content }, { kind: "answer", content: "I led it." } ])
     expect(Interviews::AcceptTurnService.call(operation: next_turn, **next_claim.slice(:attempt_id, :claim_generation),
       transcript: "I prioritized.", decision: "advance", history_version: 1, model_history: [])).to be_success

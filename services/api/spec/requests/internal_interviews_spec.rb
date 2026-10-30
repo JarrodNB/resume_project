@@ -58,7 +58,7 @@ RSpec.describe "Internal interview execution", type: :request do
   it "claims only persisted owner context and exposes a credential-free canonical status" do
     post "#{path}/claim", params: { user_id: SecureRandom.uuid }, headers: headers, as: :json
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body.dig("payload", "text")).to eq(interview.messages.first.content)
+    expect(response.parsed_body.fetch("payload")).to include("interview_id" => interview.id, "user_id" => interview.user_id)
     get path, headers: headers
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body.keys).not_to include("attempt_id", "claim_generation", "payload")

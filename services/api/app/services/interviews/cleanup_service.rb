@@ -97,7 +97,7 @@ module Interviews
         end
         interview.questions.update_all(content: "[expired]", model_history: [])
         interview.messages.update_all(content: "[expired]", acknowledgement: nil)
-        interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, frozen_context: {}, prepared_role: {}, content_purged_at: Time.current)
+        interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, career_focus: "", prepared_role: {}, content_purged_at: Time.current)
       end
       true
     end

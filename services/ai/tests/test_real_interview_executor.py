@@ -4,7 +4,7 @@ import asyncio
 
 import httpx
 import pytest
-from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.messages import ModelResponse, RetryPromptPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage
 
@@ -115,17 +115,17 @@ def test_spoken_turn_does_not_call_injection_classifier(monkeypatch):
 
 
 @pytest.mark.parametrize("decision", ["advance", "continue"])
-def test_repaired_interviewer_output_is_accepted_and_history_can_be_restored(monkeypatch, decision):
-    from interviews.history import restore_history
-
+def test_repaired_interviewer_output_is_accepted_without_returning_history(monkeypatch, decision):
     class RepairingModels(Models):
         def accounted(self, rails, request, stage, name):
             if stage == "screening":
                 return super().accounted(rails, request, stage, name)
             self.interviewer_requests = 0
+            self.retry_prompts = set()
 
             async def respond(messages, info):
                 self.interviewer_requests += 1
+                self.retry_prompts.update((part.tool_call_id, part.tool_name) for message in messages for part in message.parts if isinstance(part, RetryPromptPart))
                 if decision == "advance" and self.interviewer_requests == 2:
                     part = ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-intent")
                 else:
@@ -145,12 +145,8 @@ def test_repaired_interviewer_output_is_accepted_and_history_can_be_restored(mon
     assert not client.failed
     assert len(client.accepted) == 1
     assert client.accepted[0]["decision"] == decision
-    assert restore_history(1, client.accepted[0]["model_history"])
-    retries = [part for message in client.accepted[0]["model_history"] for part in message["parts"]
-               if part["part_kind"] == "retry-prompt"]
-    assert len(retries) == 1
-    assert retries[0]["tool_call_id"] == "result-1"
-    assert retries[0]["tool_name"] == "final_result"
+    assert client.accepted[0]["model_history"] == []
+    assert models.retry_prompts == {("result-1", "final_result")}
     assert models.interviewer_requests == (3 if decision == "advance" else 2)
 
 
@@ -358,7 +354,7 @@ def test_prepared_turn_context_separates_fictional_requirements_and_frozen_evide
     run(client, models, Claim.model_validate(data))
     assert not client.failed and len(client.accepted) == 1
     prompt = models.prompts[-1][1]
-    assert "Candidate career evidence" in prompt and "calibrated instruments" in prompt
+    assert "calibrated instruments" not in prompt
     assert "Fictional role" in prompt and "Lead a laboratory" in prompt
     assert all("Morgan Sample" not in text for _, text in models.prompts)
     assert '"fixture_context":' not in prompt
@@ -418,18 +414,13 @@ def test_three_responses_retain_dialogue_without_repeating_large_frozen_context(
             {"kind": "follow_up", "content": client.accepted[-1]["reply"]},
         ])
         if legacy_history:
-            # Emulate the full prompt envelopes emitted before context compaction.
-            for message in payload["model_history"]:
-                for part in message["parts"]:
-                    if part["part_kind"] == "user-prompt":
-                        part["content"] = json.dumps({"question": payload["question"],
-                            "interview_context": payload["interview_context"],
-                            "earlier_dialogue": payload["earlier_dialogue"],
-                            "transcript": client.accepted[-1]["transcript"]}, sort_keys=True)
+            # Retained sessions may still hold old source envelopes; ignore them.
+            payload["model_history"] = [{"kind": "request", "parts": [{"part_kind": "user-prompt", "content": json.dumps({
+                "interview_context": payload["interview_context"], "transcript": client.accepted[-1]["transcript"]})}]}]
     # Every response still sees the original source and earlier dialogue, and the
     # current-question conversation remains available for follow-up continuity.
     interviewer_prompt = [prompt for name, prompt in models.prompts if name == "gpt-6-luna"][-1]
-    assert "Career evidence." in interviewer_prompt and "What did you learn?" in interviewer_prompt
+    assert "Career evidence." not in interviewer_prompt and "What did you learn?" in interviewer_prompt
     assert interviewer_prompt.count("shortened the appointment wait") == 3
     assert interviewer_prompt.count("How did you measure the shorter wait?") >= 2
 

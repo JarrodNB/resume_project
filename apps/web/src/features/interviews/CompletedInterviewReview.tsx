@@ -37,8 +37,8 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
         : <Button asChild variant={job?.id ? 'outline' : 'default'}><Link to={job ? `/jobs/${job.id}/interview` : '/practice/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link></Button>}
       <Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link>
     </nav>
-    {job && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. This interview keeps the saved job details from preparation.</p>}
-    {job ? <InterviewJobContext job={job} sectionId={`spoken:review:${interview.id}:job`} /> : <ReviewSection title="Fictional role" sectionId={`spoken:review:${interview.id}:role`}>
+    {job && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. Your prepared questions and saved answers remain available.</p>}
+    {job ? <InterviewJobContext job={job} sectionId={`spoken:review:${interview.id}:job`} /> : <ReviewSection title={typeof role?.title === 'string' ? 'Fictional role' : 'Prepared interview'} sectionId={`spoken:review:${interview.id}:role`}>
       {typeof role?.title === 'string' ? <div className="grid gap-4 text-sm">
         <h3 className="text-lg font-medium break-words">{role.title}</h3>
         {(['responsibilities', 'requirements'] as const).map((key) => <div key={key} className="grid gap-2">

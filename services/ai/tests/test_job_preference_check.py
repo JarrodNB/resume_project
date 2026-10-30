@@ -142,10 +142,8 @@ def test_oversized_result_returns_a_small_failure_with_actual_usage(task_depende
 
 import pytest
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
-from pydantic_ai.usage import RunUsage
 
 from schemas.job_preferences import PreferenceCheckInput
-from screening.screen_user_text import ScreenOutcome
 
 
 @pytest.mark.parametrize("support,conflict,status,reason", [
@@ -176,18 +174,28 @@ def test_generated_and_previously_checked_sources_are_not_screened_again(task_de
         assert handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=snapshot()), task_dependencies).status == "completed"
 
 
-def test_unknown_sources_are_screened_and_rejection_is_not_an_unknown_decision(task_dependencies, monkeypatch):
+def test_unknown_preference_and_listing_skip_injection_screening(task_dependencies, monkeypatch):
     values = snapshot()
     values["criteria"][0]["trusted_generated"] = False
-    seen = []
-    def reject(text, *args, **kwargs):
-        seen.append(text)
-        return ScreenOutcome(allowed=False)
-    monkeypatch.setattr("screening.records.screen_user_text", reject)
-    result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
-    assert len(seen) == 1 and "Text:\nFully remote" in seen[0]
-    assert result.status == "failed"
-    assert result.result == {"failure_code": "input_rejected"}
+    values["listings"][0]["screened"] = False
+    def forbidden(*args, **kwargs):
+        raise AssertionError("preference inputs must not be screened")
+    monkeypatch.setattr("screening.records.screen_user_text", forbidden)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_user_text_async", forbidden)
+    with job_preference_agent.override(model=model()):
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.status == "completed"
+    assert result.result["listings"][0]["criteria"][0]["status"] == "matching"
+
+
+def test_preference_input_guard_rejects_empty_and_oversized_prompts():
+    import asyncio
+    from agents.job_preference_agent import check_preference_input
+    from text_limits import MAX_PROMPT_TEXT
+
+    for prompt in ("", "x" * (MAX_PROMPT_TEXT + 1)):
+        with pytest.raises(ValueError, match="bounded nonblank"):
+            asyncio.run(check_preference_input(None, prompt))
 
 
 def test_overlarge_and_duplicate_inputs_fail_before_model_work(task_dependencies):
@@ -208,19 +216,6 @@ def test_accounting_records_actual_decision_model_and_usage(task_dependencies, o
     assert len(accounting.entries) == 1
     assert accounting.entries[0].model == "jev-1.13.0"
     assert accounting.entries[0].input_tokens == 100
-
-
-def test_task_wide_screening_chunk_budget_stops_additional_work(task_dependencies, monkeypatch):
-    from screening.screen_user_text import _record_chunk_attempt
-    values = snapshot()
-    values["criteria"][0]["trusted_generated"] = False
-    def too_many_chunks(*args, **kwargs):
-        for _ in range(129):
-            _record_chunk_attempt()
-        return ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=1), model="jev-1.13.0")
-    monkeypatch.setattr("screening.records.screen_user_text", too_many_chunks)
-    with pytest.raises(UsageLimitExceeded, match="screening request budget"):
-        handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
 
 
 def test_shared_budget_counts_actual_validation_retries_and_preserves_paid_usage():

@@ -196,22 +196,15 @@ both sides unknown with a contradictory-evidence reason. Incomplete excerpts and
 unstated salary units or remote restrictions cannot become assumed promises.
 Provider failure is a failed check, separate from an evidence-based unknown.
 
-Unknown preference text and the cohesive listing source are screened before the
-matching request. Completed owner checks and retained retired-conversation inputs can
-supply exact-text screening approvals; exact owner criteria generated in a completed
-historical conversation retain generated-source trust. These reads never restart conversations.
-Listing reuse requires the same digest AND exact passages: a previous smaller excerpt
-cannot approve previously unseen text.
-Those flags originate only in Rails,
-never browser input. Changed source values cannot reuse approvals. Fixed labeled
-source blocks, the official input guardrail, contact masking, versioned prompts,
-Logfire traces and normal worker attempt accounting apply.
-Criterion provenance follows the exact text, so changing only its priority does not
-repeat screening of unchanged wording.
+Preference criteria and listing passages are treated as data without prompt-injection
+classification. Fixed labeled source blocks, a bounded input guard, contact masking,
+versioned prompts, Logfire traces and normal worker attempt accounting apply. The model
+chooses only from fixed passage IDs and cannot produce evidence prose. This reduces false
+rejections but leaves the decision model exposed to instructions embedded in listing text.
+No screening approvals are granted by a preference check.
 
-Each task allows at most 128 screening chunks. A shared actual-request budget covers
-primary/fallback screening, decisions and validation retries and stops at 240 provider
-requests or 600,000 consumed tokens. Each listing has a fresh one-request JEV run;
+A shared actual-request budget stops at 240 provider requests or 600,000 consumed tokens.
+Each listing has a fresh one-request JEV run;
 runs never reuse a cumulative per-agent usage counter. Up to four decision runs execute
 concurrently, preserve source order, and cancel/await sibling work on failure. All work
 shares the existing 240-second task deadline; each matching request additionally has a

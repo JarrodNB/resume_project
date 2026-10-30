@@ -43,7 +43,7 @@ pytestmark = pytest.mark.real_guardrail
 TAILORING_CALLS_TODAY = 1  # job, used library fields and gap answers share one batch
 GAP_ANALYSIS_CALLS_TODAY = 1  # job and library share one batch after step 5
 SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 6 starts reporting its approvals
-JOB_PREFERENCE_CALLS_TODAY = 1  # criteria and listing passages share one batch
+JOB_PREFERENCE_CALLS_TODAY = 0  # preference checks do not classify their inputs
 SECOND_RUN_LIBRARY_CALLS = 0  # approvals from run one make the library free on run two
 SECOND_RUN_TOTAL_CALLS = 1  # only the job is screened again; a re-screened summary would make it 2
 
@@ -226,7 +226,7 @@ def test_summary_generation_screens_fresh_facts(task_dependencies, classifier_ca
     assert {approval.record_id for approval in approvals} == {source["record_id"] for source in sources}
 
 
-def test_job_preference_check_screens_each_criterion_and_listing(task_dependencies, classifier_calls):
+def test_job_preference_check_does_not_screen_criteria_or_listings(task_dependencies, classifier_calls):
     def listing(n):
         return {"id": str(uuid4()), "source_digest": "a" * 64, "truncated": False, "screened": False,
                 "passages": [{"id": "P1", "text": f"Listing {n} is fully remote."}]}

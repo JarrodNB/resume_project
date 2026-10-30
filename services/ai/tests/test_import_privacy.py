@@ -62,7 +62,7 @@ def test_import_masks_both_providers_and_restores_before_source_checks(
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
             "contact": {"full_name": name, "email": email, "phone": phone},
             "experiences": [{"company": "Acme", "title": "Engineer",
-                "highlight_ids": ["B1"]}],
+                "highlights": [f"Helped {name} ship Python services."]}],
         })])
 
     offline_model_resolution(task_dependencies.settings.user_text_screen_model,

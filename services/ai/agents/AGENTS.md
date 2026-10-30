@@ -9,7 +9,8 @@ instructions from `prompts/`.
 
 - `resume_parsing_agent.py` — resume text -> `ParsedResume` through three bounded concurrent
   full-source extractions: experience; projects/skills; profile/education/certifications.
-  Source screening is shared once; the parser owns stable assembly, combined request/token
+  Experience highlights are copied directly from the full extracted text without list-marker
+  eligibility rules, then checked against the source by the worker. Source screening is shared once; the parser owns stable assembly, combined request/token
   limits, deadline and cancellation. Result `model_usages` prices each answering group;
   worker attempt accounting remains authoritative for concrete fallback requests.
   `format_resume_user_prompt` fences the file as data and neutralizes a resume tag even

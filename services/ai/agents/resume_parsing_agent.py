@@ -2,7 +2,8 @@
 
 The public interface returns one ParsedResume only after all groups succeed. The parser
 owns group assembly, one deadline and combined budgets, and awaits cancelled siblings.
-The documents module owns experience passage IDs and exact highlight reconstruction.
+Each group reads the complete extracted text and returns copied facts directly.
+The worker checks copied highlights against the source after privacy restoration.
 Optional inferred search titles travel beside the extracted facts, never inside ParsedResume.
 """
 
@@ -18,7 +19,6 @@ from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
 from conversation_logging import ConversationLogging
-from documents.experience_source import ExperienceSource
 from llm.generative_model import generative_model
 from llm.model_prices import build_model_usage, reported_model_name
 from llm.run_limits import agent_usage_limits
@@ -127,20 +127,9 @@ async def _run_with_deadline(
 
     async def extract(schema):
         instruction = format_resume_group_instruction(schema.__name__)
-        experience_source = None
-
-        def build_prompt(sources):
-            nonlocal experience_source
-            if schema is ExperienceExtraction:
-                experience_source = ExperienceSource(sources[0])
-                return instruction + "\n" + format_resume_user_prompt(
-                    experience_source.annotated_text
-                )
-            return instruction + "\n" + format_resume_user_prompt(sources[0])
-
         prompt = bind_screened_prompt(
             [resume_text],
-            build_prompt,
+            lambda sources: instruction + "\n" + format_resume_user_prompt(sources[0]),
         )
         group_name = _GROUP_NAMES[schema]
         with _group_tracer.start_as_current_span(
@@ -151,11 +140,7 @@ async def _run_with_deadline(
             span.set_attribute("resume_parse.group", group_name)
             result = await resume_parsing_agent.run(
                 prompt,
-                output_type=(
-                    experience_source.output_type
-                    if experience_source is not None
-                    else schema
-                ),
+                output_type=schema,
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
                 capabilities=[budget],
@@ -165,7 +150,7 @@ async def _run_with_deadline(
             span.set_attribute("resume_parse.input_tokens", result.usage.input_tokens)
             span.set_attribute("resume_parse.cached_input_tokens", result.usage.cache_read_tokens)
             span.set_attribute("resume_parse.output_tokens", result.usage.output_tokens)
-            return result, experience_source
+            return result
 
     async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         settings = load_settings()
@@ -192,12 +177,8 @@ async def _run_with_deadline(
     warnings = []
     usage = RunUsage()
     charges = []
-    for result, experience_source in results:
-        values = (
-            experience_source.reconstruct(result.output)
-            if experience_source is not None
-            else result.output.model_dump()
-        )
+    for result in results:
+        values = result.output.model_dump()
         suggestions.extend(values.pop("job_title_suggestions", []))
         warnings.extend(values.pop("parsing_warnings"))
         fields.update(values)

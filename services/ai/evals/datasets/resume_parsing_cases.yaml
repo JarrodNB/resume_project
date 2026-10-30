@@ -505,6 +505,81 @@ cases:
       minimum_job_title_suggestions: 3
       unsupported_seniority_terms: [senior, lead, principal, staff, chief, manager, director]
 
+  - name: unfamiliar_pdf_markers_and_subheadings
+    inputs: |
+      MORGAN REED
+      EXPERIENCE
+      Platform Engineer — Cedar Systems
+      January 2023 – Present
+      Builds internal services for regional clinics.
+      Service Reliability
+       Built a scheduling API serving
+      40 clinics each day.
+       Reduced failed deployments by 25%.
+      Support Engineer — Harbor Tools
+      June 2020 – December 2022
+       Resolved customer incidents across three regions.
+      CERTIFICATIONS
+       AWS Certified Cloud Practitioner | 2022
+    expected_output:
+      contact:
+        full_name: Morgan Reed
+      experiences:
+        - company: Cedar Systems
+          title: Platform Engineer
+          start_date: "2023-01"
+          is_current: true
+          description: Builds internal services for regional clinics.
+          highlights:
+            - Built a scheduling API serving 40 clinics each day.
+            - Reduced failed deployments by 25%.
+        - company: Harbor Tools
+          title: Support Engineer
+          start_date: "2020-06"
+          end_date: "2022-12"
+          highlights:
+            - Resolved customer incidents across three regions.
+      certifications:
+        - name: AWS Certified Cloud Practitioner
+          issued_date: "2022"
+
+  - name: experience_passages_without_list_markers
+    inputs: |
+      TAYLOR CHEN
+      PROFESSIONAL HISTORY
+      Software Engineer — Maple Labs
+      March 2021 – May 2024
+      Built reporting services used by 12 operations teams.
+      Reduced overnight processing from 90 minutes to 20 minutes.
+      QA Engineer — Pine Software
+      July 2018 – February 2021
+      Automated regression checks for the billing application.
+      Investigated production defects with customer support.
+      PROJECTS
+      Garden Planner
+      Built a personal planting calendar.
+    expected_output:
+      contact:
+        full_name: Taylor Chen
+      experiences:
+        - company: Maple Labs
+          title: Software Engineer
+          start_date: "2021-03"
+          end_date: "2024-05"
+          highlights:
+            - Built reporting services used by 12 operations teams.
+            - Reduced overnight processing from 90 minutes to 20 minutes.
+        - company: Pine Software
+          title: QA Engineer
+          start_date: "2018-07"
+          end_date: "2021-02"
+          highlights:
+            - Automated regression checks for the billing application.
+            - Investigated production defects with customer support.
+      projects:
+        - name: Garden Planner
+          description: Built a personal planting calendar.
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch

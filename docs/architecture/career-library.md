@@ -193,7 +193,11 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   `AiTask`; the user edits it and explicitly imports it. Imports append to the career library
   (skills are de-duplicated by name) and can't be repeated for the same task.
 
-- **Resume parsing extracts, never rewrites.** Bullets are copied word for word and anything
+- **Resume parsing extracts, never rewrites.** Each extraction group receives the complete
+  PDF/DOCX text. The model returns experience highlights directly, without requiring recognized
+  list markers or preselected source IDs. Role context determines which passages belong together;
+  missing or unfamiliar markers do not make a passage ineligible.
+  Bullets are copied word for word and anything
   not stated stays null, so evals can check faithfulness deterministically (every extracted
   highlight, skill, and company must appear in the source text). Ambiguities go into
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is

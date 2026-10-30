@@ -202,6 +202,26 @@ async def test_client_calls_the_server_once_per_run():
 
 
 @pytest.mark.anyio
+async def test_client_reads_again_when_the_same_tool_gets_different_arguments(monkeypatch):
+    async def render_search(call_tool, tool_args, screen):
+        return await call_tool("search_notes", tool_args)
+
+    monkeypatch.setitem(TOOL_RENDERERS, "search_notes", render_search)
+    reads = []
+
+    async def call_tool(name, args):
+        reads.append(args)
+        return f"results for {args['query']}"
+
+    handler = _ResultHandler(never_screen)
+    first = await handler(None, call_tool, "search_notes", {"query": "billing", "limit": 3})
+    second = await handler(None, call_tool, "search_notes", {"query": "hiring", "limit": 3})
+    repeat = await handler(None, call_tool, "search_notes", {"limit": 3, "query": "billing"})
+    assert (first, second, repeat) == ("results for billing", "results for hiring", "results for billing")
+    assert reads == [{"query": "billing", "limit": 3}, {"query": "hiring", "limit": 3}]
+
+
+@pytest.mark.anyio
 async def test_parallel_calls_share_the_read_and_paid_screening():
     from mcp_tools.career_library import library_payload
 

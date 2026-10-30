@@ -1,0 +1,3 @@
+interface:
+  display_name: "Add MCP Tool"
+  short_description: "Add a read-only tool to the ai-mcp server"

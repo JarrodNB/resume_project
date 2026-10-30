@@ -48,7 +48,7 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
 A reply run allows two tool calls and 12 model requests (each tool round trip is
 another request). Text written before a tool call is kept: the saved reply joins the
 text of every model response in the run, so it always matches what was streamed.
-Repeated calls in one run reuse the first result.
+Repeated calls with the same arguments in one run reuse the first result.
 
 ## Ownership and execution
 

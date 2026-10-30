@@ -13,7 +13,7 @@ call it. See docs/architecture/chat.md#tools-mcp for the design.
 - `career_library.py` — the whole `read_career_library` tool: its server half (structured data
   plus saved check status) and its client half (screening, rendering and the size cap).
 - `client.py` — generic per-run toolset over HTTP: mints the token, routes each call to its
-  tool's client half through `TOOL_RENDERERS`, caches once per run, and runs without tools
+  tool's client half through `TOOL_RENDERERS`, caches each tool-and-arguments pair once per run, and runs without tools
   when the server is unreachable. No tool-specific code lives here.
 - `local_server.py` — serves the real HTTP app on localhost for tests and offline evals.
 

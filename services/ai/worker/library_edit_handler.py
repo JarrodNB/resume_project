@@ -18,7 +18,7 @@ from model_inputs.blocks import source_block
 from privacy.contact_mask import mask_outbound
 from schemas.library_edit import LibraryEditInput
 from screening.library_fields import screen_library_fields
-from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
+from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
 from screening.screen_user_text import screen_user_text
 from screening.session import (
     bind_screened_prompt,
@@ -68,7 +68,7 @@ def handle_library_edit_task(task, dependencies):
 
     def failure(outcome):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-                               error_message=TOO_LONG_MESSAGE if outcome.too_long else UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE)
+                               error_message=screening_failure_message(outcome))
 
     history = ModelMessagesTypeAdapter.validate_python(snapshot.history)
     if history and not snapshot.previous_task_id:

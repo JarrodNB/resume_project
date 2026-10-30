@@ -34,7 +34,7 @@ from screening.guardrail_usage import record_guardrail_usage
 from screening.obvious_instruction_override import has_obvious_instruction_override
 from screening.session import current_session
 from screening.yes_confidence import blocks_on_yes_confidence
-from settings import DEFAULT_SCREEN_LLM_MODEL, SCREEN_LLM_OPTION, load_settings
+from settings import DEFAULT_SCREEN_LLM_MODEL, JEV_SCREEN_MODEL, SCREEN_LLM_OPTION, load_settings
 from text_limits import MAX_SCREENED_TEXT
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ MAX_LOCAL_CHUNKS_IN_FLIGHT = 4
 
 def _is_jev_model(model: str) -> bool:
     """Recognize the pinned model and its provider-reported name."""
-    return model in ("typesafe:jev-1.13.0", "jev-1.13.0")
+    return model in (JEV_SCREEN_MODEL, JEV_SCREEN_MODEL.removeprefix("typesafe:"))
 
 
 def _screen_option(model: str) -> str:

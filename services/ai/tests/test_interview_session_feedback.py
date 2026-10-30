@@ -104,7 +104,7 @@ def test_prompt_contains_readable_dialogue_and_reuses_screening(task_dependencie
     request, dependencies = request_and_dependencies(task_dependencies, grant)
     def no_screen(*args, **kwargs):
         raise AssertionError("Previously accepted dialogue must not be screened again")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", no_screen)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", no_screen)
     async def respond(messages, info):
         prompt = messages[-1].parts[-1].content
         assert "Accepted answer: I planned a workshop." in prompt

@@ -21,9 +21,10 @@ from prompts.job_preference_instructions import (
 )
 from screening.prompt_guardrail import screen_prompt
 from screening.session import bind_screened_prompt, remaining_timeout
+from settings import JEV_SCREEN_MODEL
 from telemetry.tracing import record_prompt_version
 
-JEV_PREFERENCE_MODEL = "typesafe:jev-1.13.0"
+JEV_PREFERENCE_MODEL = JEV_SCREEN_MODEL
 job_preference_agent = Agent(name="job_preference_agent", output_type=bool,
     instructions=JOB_PREFERENCE_INSTRUCTIONS, retries=0, defer_model_check=True,
     capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)])

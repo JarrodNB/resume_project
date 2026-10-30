@@ -8,9 +8,11 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Contents
 
-- `conversation.py` — interview-only newest-message screening and exact latest-prompt guard.
-  Its caller reconstructs history from authenticated Rails accepted public dialogue, never
-  caller-controlled private model history. It does not change `screen_prompt` or queued tasks.
+- `conversation.py` — chat and spoken-interview newest-message screening and exact
+  latest-prompt guard. Callers reconstruct history from authenticated Rails accepted public
+  dialogue, never caller-controlled private model history. `screen_with_operation_models`
+  runs fixed Jev with a Nano fallback on models billed to the caller's operation. It does
+  not change `screen_prompt` or queued tasks.
 
 - `local_llama.py` — optional local Llama Prompt Guard 2 22M prompt-injection classifier.
   Exact overlapping substrings are checked against the tokenizer's 512-token limit before
@@ -21,6 +23,9 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   registered through `capabilities` on every generative agent. Enforces exact source coverage
   and screens unknown direct input and user/tool history, under the prompt cap. Blocks fail
   with `InputBlocked`; usage caps propagate. No phrase prefilter on assembled context.
+  `prompt_input_texts` lists the texts a guard must cover; spoken-interview guards reuse it.
+  `screening_failure_message` / `screening_failure_code` are the only wording and Rails codes
+  for a rejected outcome; too-long text is never reported as unsafe.
 - `guardrail_usage.py` — task-scoped capability usage accounting, including blocked runs.
 - `screen_user_text.py` — text over the cap returns `too_long` without any provider call.
   A short note gets a phrase prefilter; whole resumes skip it. JEV gets at most three
@@ -90,3 +95,22 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   provider. Independent source checks may overlap with a bounded concurrency limit.
   Concurrent checks of the same exact source and policy share one execution-local decision.
 - Report each actual classifier model's usage, including retries and calls before failure.
+
+## Scoped Exceptions
+
+- Scraped-ad parsing (`agents/parse_scraped_job_posting_agent.py`) uses a source-boundary
+  and size guard instead of injection classification, authorized after a synthetic injection
+  evaluation. It accepts one selected ad, no history, action tools or private context, keeps
+  source validators and execution limits, and grants no approvals to its output. Pasted ads
+  and later uses of saved job content keep the normal policy.
+- A validated completed gap-analysis result can be trusted as generated output within one
+  tailoring execution. Saved gap-response requirement/body approvals are reused; pending
+  fields are screened together once, with fingerprinted reports for every saved answer ID.
+- Spoken interviews reconstruct prior dialogue from Rails-owned public utterances and screen
+  only the newest candidate message. Frozen library approvals travel in the private claim;
+  new checks persist through its fenced Rails callback before generation. Preparation also
+  persists an exact frozen career-focus fingerprint there and needs its receipt first,
+  including focus-only checks; retries reuse only matching fingerprints. Ordinary queued
+  Job checks cover title, company, requirements and nice-to-haves; interviews also freeze and
+  check description and responsibilities, sharing that receipt. Saved-job preparation outputs
+  `role: null` so Rails keeps the authoritative job.

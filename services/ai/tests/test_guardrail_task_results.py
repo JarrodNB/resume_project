@@ -39,7 +39,7 @@ def test_task_reports_guardrail_costs_without_section_state(blocked, monkeypatch
         generated.append(True)
         return AiResultMessage(ai_task_id=task.ai_task_id, status="completed")
 
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", classify)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", classify)
     monkeypatch.setattr(main, "handle_ai_task", handler)
     queue = FakeResultQueue()
     body = build_task_body(task_type="tailor_resume", input={})

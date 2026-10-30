@@ -165,13 +165,13 @@ def test_source_screened_once_and_group_prompts_reuse_exact_approval(monkeypatch
     from screening import prompt_guardrail
 
     calls = []
-    classify = prompt_guardrail._screen_prompt_text
+    classify = prompt_guardrail.screen_prompt_text
 
     async def screen(text, model, timeout):
         calls.append(text)
         return await classify(text, model, timeout)
 
-    monkeypatch.setattr(prompt_guardrail, "_screen_prompt_text", screen)
+    monkeypatch.setattr(prompt_guardrail, "screen_prompt_text", screen)
     monkeypatch.setattr("agents.resume_parsing_agent.generative_model", lambda *_args: TestModel())
     parse()
     assert calls == ["A complete masked resume\n• Built a thing"]

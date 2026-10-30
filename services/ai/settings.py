@@ -12,6 +12,8 @@ from llm.model_prices import MODEL_PRICES
 
 SCREEN_LLM_OPTION = "llm"
 DEFAULT_SCREEN_LLM_MODEL = "openai:gpt-5-nano"
+# The pinned Jev release: the queued default and the fixed chat/interview screen.
+JEV_SCREEN_MODEL = "typesafe:jev-1.13.0"
 
 
 class AISettings(BaseSettings):
@@ -54,7 +56,7 @@ class AISettings(BaseSettings):
     gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingLevel = False
     # The fallback runs only after an attempted primary provider failure.
-    user_text_screen_model: str = "typesafe:jev-1.13.0"
+    user_text_screen_model: str = JEV_SCREEN_MODEL
     user_text_screen_fallback_model: str = SCREEN_LLM_OPTION
     user_text_screen_llm_model: str = DEFAULT_SCREEN_LLM_MODEL
     user_text_screen_timeout_seconds: float = Field(default=30, gt=0)
@@ -68,7 +70,7 @@ class AISettings(BaseSettings):
         """Choose Jev, local Llama, or the separately configured LLM."""
         if value == DEFAULT_SCREEN_LLM_MODEL:
             return SCREEN_LLM_OPTION  # Older env files named the default model directly.
-        if value not in ("typesafe:jev-1.13.0", "meta-llama/Llama-Prompt-Guard-2-22M",
+        if value not in (JEV_SCREEN_MODEL, "meta-llama/Llama-Prompt-Guard-2-22M",
                          SCREEN_LLM_OPTION):
             raise ValueError("Unknown user text screening model")
         return value

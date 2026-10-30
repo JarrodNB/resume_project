@@ -41,7 +41,7 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", check)
     async def unexpected(*_args, **_kwargs):
         raise AssertionError("Generated text and covered saved fields must not be classified")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
 
     payload = narrative_input(section)
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [

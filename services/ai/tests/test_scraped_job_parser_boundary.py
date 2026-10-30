@@ -75,7 +75,7 @@ def test_pasted_ad_parser_still_requires_injection_screening(task_dependencies, 
         raise AssertionError("Pasted-ad screening was bypassed")
 
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline-test")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", block)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", block)
     model = task_dependencies.settings.job_posting_parse_model
     with (
         parse_job_posting_agent.override(model=FunctionModel(never_generate)),

@@ -29,8 +29,6 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 
 from agents.chat_agent import make_chat_agent
 from agents.chat_summary_agent import make_chat_summary_agent
-from agents.user_text_fallback_agent import screen_fallback_message_async, user_text_fallback_agent
-from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
 from interviews.client import RailsTransportError
 from mcp_tools.client import ToolServerConnection
 from model_inputs.blocks import source_block
@@ -40,9 +38,13 @@ from privacy.contact_mask import contact_scope, import_privacy_scope, mask_outbo
 from privacy.known_contact import KnownContact
 from prompts.chat_instructions import CHAT_INSTRUCTIONS, CHAT_PROMPT_VERSION
 from prompts.chat_summary_instructions import CHAT_SUMMARY_INSTRUCTIONS, CHAT_SUMMARY_PROMPT_VERSION
-from screening.conversation import ScreenedConversationTurn, screen_conversation_turn
+from screening.conversation import (
+    ScreenedConversationTurn,
+    screen_conversation_turn,
+    screen_with_operation_models,
+)
 from screening.library_inputs import LibraryScreeningError
-from screening.screen_user_text import screen_user_text_async
+from screening.prompt_guardrail import screening_failure_code
 from screening.session import current_session, screening_session
 from settings import load_settings
 from telemetry.model_attempt import ModelAttempt
@@ -78,21 +80,12 @@ class ChatExecutionAdapter:
     async def _screen(self, claim, text):
         decision = await self._screen_decision(claim, text)
         if not decision.allowed:
-            raise ChatRejected("context_limit" if decision.too_long else
-                               "screening_unavailable" if decision.unchecked else "screening_blocked")
+            raise ChatRejected(screening_failure_code(decision))
 
     async def _screen_decision(self, claim, text):
         """Screen text on this claim's accounted models and return the decision."""
-        async def primary(chunk, model, timeout):
-            with user_text_screen_agent.override(model=self.models.accounted(self.client, claim, "screening", model)):
-                return await screen_user_message_async(chunk, model, timeout)
-
-        async def fallback(chunk, model, timeout):
-            with user_text_fallback_agent.override(model=self.models.accounted(self.client, claim, "screening", model)):
-                return await screen_fallback_message_async(chunk, model, timeout)
-
-        return await screen_user_text_async(text, "typesafe:jev-1.13.0", 30,
-            classify=primary, classify_fallback=fallback, _fallback_model="openai:gpt-5-nano")
+        return await screen_with_operation_models(
+            text, 30, lambda model: self.models.accounted(self.client, claim, "screening", model))
 
     async def execute(self, claim, output):
         # Bound local detection too; oversized source text never reaches expensive NLP.

@@ -87,7 +87,7 @@ def test_screened_description_covers_the_exact_prompt_once(task_dependencies, mo
         raise AssertionError("assembled prompt was screened twice")
     monkeypatch.setattr("worker.study_guide_handler.screen_user_text", screen_user_text)
     monkeypatch.setattr("screening.screen_user_text.screen_user_message", classify)
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", forbidden)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", forbidden)
     with study_guide_agent.override(model=TestModel()):
         request = task("Maintain stock records.")
         request.input["previous_questions"] = ["How do you count stock?"]

@@ -96,7 +96,7 @@ def fake_prompt_screen(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureR
         )
 
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", allow_text)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", allow_text)
 
 
 @pytest.fixture

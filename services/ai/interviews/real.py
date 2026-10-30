@@ -17,8 +17,6 @@ from pydantic_ai.usage import UsageLimits
 
 from agents.interview_preparation_agent import make_preparer
 from agents.spoken_interviewer_agent import make_interviewer
-from agents.user_text_fallback_agent import screen_fallback_message_async, user_text_fallback_agent
-from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
 from interviews.audio_providers import ProviderError
 from interviews.client import RailsClientError
 from interviews.conversation import (
@@ -38,8 +36,8 @@ from privacy.known_contact import KnownContact
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
 from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
-from screening.conversation import screen_conversation_turn
-from screening.screen_user_text import screen_user_text_async
+from screening.conversation import screen_conversation_turn, screen_with_operation_models
+from screening.prompt_guardrail import screening_failure_code
 from screening.session import screening_session
 from telemetry.privacy import telemetry_scope
 from telemetry.tracing import record_prompt_version
@@ -98,27 +96,10 @@ class RealInterviewExecutor(InterviewExecutor):
             raise ScreeningRejected(str(error)) from None
 
     async def _screen(self, claim, text):
-        async def classify(chunk, model, timeout):
-            with user_text_screen_agent.override(
-                model=self.models.accounted(self.client, claim, "screening", "jev-1.13.0")
-            ):
-                return await screen_user_message_async(chunk, model, timeout)
-
-        async def fallback(chunk, model, timeout):
-            # Shared policy chooses fallback only after attempted Jev failure.
-            if model != "openai:gpt-5-nano":
-                raise ValueError("Unsupported interview screening fallback")
-            with user_text_fallback_agent.override(
-                model=self.models.accounted(self.client, claim, "screening", "gpt-5-nano")
-            ):
-                return await screen_fallback_message_async(chunk, model, timeout)
-
-        outcome = await screen_user_text_async(text, "typesafe:jev-1.13.0", 120,
-                                               classify=classify, classify_fallback=fallback,
-                                               _fallback_model="openai:gpt-5-nano")
+        outcome = await screen_with_operation_models(
+            text, 120, lambda model: self.models.accounted(self.client, claim, "screening", model))
         if not outcome.allowed:
-            raise ScreeningRejected("screening_unavailable" if outcome.unchecked else
-                                    "context_limit" if outcome.too_long else "screening_blocked")
+            raise ScreeningRejected(screening_failure_code(outcome))
 
     def _interviewer(self, claim, guard, *, system_prompt=""):
         return make_interviewer(guard, system_prompt=system_prompt), {

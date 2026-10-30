@@ -93,7 +93,7 @@ def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dep
     async def unexpected(*args):
         pytest.fail("Approved gap context was screened again as an assembled prompt")
 
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", unexpected)
     with (
         user_text_screen_agent.override(model=jev_model(requests)),
         gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT)),
@@ -148,7 +148,7 @@ def test_direct_gap_call_still_screens_unknown_prompt(monkeypatch):
         calls.append(text)
         raise RuntimeError("screen unavailable")
 
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", reject)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", reject)
     with pytest.raises(InputBlocked, match="unavailable"):
         analyze_gaps(prompt, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
     assert calls == [prompt.text]

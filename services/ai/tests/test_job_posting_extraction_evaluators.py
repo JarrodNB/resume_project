@@ -115,7 +115,7 @@ def test_source_only_extraction_keeps_validation_without_a_classifier(
     def never_screen(*args, **kwargs):
         raise AssertionError("Screening was not disabled in the eval experiment")
 
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", never_screen)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", never_screen)
     guards = [cap for cap in parse_scraped_job_posting_agent._root_capability.capabilities
               if isinstance(cap, InputGuardrail)]
     original_guard = guards[0].guard

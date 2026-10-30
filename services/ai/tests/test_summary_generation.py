@@ -76,7 +76,7 @@ def test_exact_source_coverage_prevents_second_screening(task_dependencies, monk
     from agents.summary_generation_agent import summary_generation_agent
     async def forbidden(*args, **kwargs):
         raise AssertionError("approved facts were screened again as a prompt")
-    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", forbidden)
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", forbidden)
     with summary_generation_agent.override(model=TestModel(custom_output_args={"text": "Builds billing APIs.", "source_labels": ["EXPERIENCES_1_DESCRIPTION"]})):
         assert handle_ai_task(task(), task_dependencies).status == "completed"
 

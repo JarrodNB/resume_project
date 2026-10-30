@@ -98,6 +98,21 @@ def test_blocked_source_stops_before_generation(task_dependencies, monkeypatch):
     assert result.result is None
 
 
+def test_too_long_source_is_not_reported_as_unsafe(task_dependencies, monkeypatch):
+    from agents.library_review_agent import library_review_agent
+    from screening.prompt_guardrail import TOO_LONG_MESSAGE
+    from screening.screen_user_text import ScreenOutcome
+    payload = review_input()
+    payload["library"]["experiences"][0]["screened_fields"] = []
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=payload)
+    monkeypatch.setattr("worker.library_review_handler.screen_user_text",
+                        lambda *_args, **_kwargs: ScreenOutcome(False, too_long=True))
+    with library_review_agent.override(model=TestModel()):
+        result = handle_ai_task(task, task_dependencies)
+    assert result.status == "failed"
+    assert result.error_message == TOO_LONG_MESSAGE
+
+
 @pytest.mark.parametrize("question", ["", "   ", "x" * 501, 123, ["What did you do?"]])
 def test_rejects_malformed_generated_questions(task_dependencies, question):
     from pydantic_ai.exceptions import UnexpectedModelBehavior

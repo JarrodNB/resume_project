@@ -21,6 +21,7 @@ class JobPage:
     company: str
     location: str | None
     description_html: str
+    metadata_is_authoritative: bool = True
 
 
 class UnsupportedJobUrlError(Exception):

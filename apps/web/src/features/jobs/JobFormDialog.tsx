@@ -10,7 +10,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { JOB_DESCRIPTION_TEXT, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
+import { JOB_DESCRIPTION_TEXT, JOB_URL_TEXT, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { jobAttributes, type JobDraft } from './jobFormValues'
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION } from './jobsOperations'
 import { StringListField } from './StringListField'
@@ -88,7 +88,7 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
           <JobField label="Title" value={title} onChange={setTitle} required maxLength={SHORT_TEXT} />
           <JobField label="Company" value={company} onChange={setCompany} maxLength={SHORT_TEXT} />
           <JobField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
-          <JobField label="Link" value={url} onChange={setUrl} type="url" maxLength={SHORT_TEXT} />
+          <JobField label="Link" value={url} onChange={setUrl} type="url" maxLength={JOB_URL_TEXT} />
           <JobField label="Notes" value={notes} onChange={setNotes} multiline maxLength={PROSE_TEXT} />
           <JobField label="Description" value={description} onChange={setDescription} multiline maxLength={JOB_DESCRIPTION_TEXT} />
           <StringListField legend="Requirements" addLabel="Add requirement" itemLabel="Requirement" items={requirements} onChange={setRequirements} />

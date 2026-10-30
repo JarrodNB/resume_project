@@ -124,7 +124,7 @@ def test_parses_unlabelled_bullets_with_the_shared_agent(
 
 @pytest.mark.parametrize(
     "url",
-    ["https://www.indeed.com/viewjob?jk=abc123", "https://www.linkedin.com/jobs/"],
+    ["http://127.0.0.1/jobs/1", "https://www.linkedin.com/jobs/"],
 )
 def test_unsupported_urls_fail_without_fetching(
     url: str, task_dependencies: TaskDependencies, fake_job_site: FakeJobSite

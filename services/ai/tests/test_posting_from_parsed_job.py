@@ -15,7 +15,7 @@ from job_postings.posting_from_parsed_job import (
     posting_from_parsed_job,
 )
 from schemas.parsed_job_posting import ParsedJobPosting
-from text_limits import MAX_SHORT_TEXT, POSTING_LEFT_OUT_WARNING
+from text_limits import MAX_JOB_URL, POSTING_LEFT_OUT_WARNING
 
 AD = """\
 AI Engineer
@@ -148,7 +148,7 @@ def test_duplicate_bullets_collapse_by_normalized_text_and_keep_first_spelling()
 def test_pasted_url_respects_saved_length_without_truncating(extra_characters: int) -> None:
     """A long optional link must not prevent saving the rest of a faithful posting."""
     prefix = "https://example.com/jobs/"
-    url = prefix + "a" * (MAX_SHORT_TEXT - len(prefix) + extra_characters)
+    url = prefix + "a" * (MAX_JOB_URL - len(prefix) + extra_characters)
     source = AD.replace("https://example.com/jobs/1", url)
 
     posting = posting_from_parsed_job(source, _parsed(url=url))

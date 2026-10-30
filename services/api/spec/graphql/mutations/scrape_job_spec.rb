@@ -10,7 +10,7 @@ RSpec.describe "Job scraping mutation" do
 
     result = execute_graphql(<<~GQL, user: user)
       mutation {
-        scrapeJob(input: { url: "https://www.linkedin.com/jobs/view/1" }) {
+        scrapeJob(input: { url: "https://company.com/careers/engineer?jobId=42" }) {
           aiTask { taskType status job { id } }
           errors
         }
@@ -22,14 +22,36 @@ RSpec.describe "Job scraping mutation" do
     )
   end
 
-  it "scrapeJob returns an error for an unsupported site" do
+  it "scrapeJob rejects a private destination" do
     result = execute_graphql(<<~GQL, user: user)
-      mutation { scrapeJob(input: { url: "https://example.com/jobs/1" }) { aiTask { id } errors } }
+      mutation { scrapeJob(input: { url: "http://127.0.0.1/jobs/1" }) { aiTask { id } errors } }
     GQL
 
     expect(result.dig("data", "scrapeJob")).to eq(
       "aiTask" => nil, "errors" => [ Jobs::StartJobScrapingService::UNSUPPORTED_URL_MESSAGE ]
     )
+  end
+
+  it "queues and saves a general job URL through the existing result application flow" do
+    queue = instance_double(Shoryuken::Queue, send_message: nil)
+    allow(Shoryuken::Client).to receive(:queues).and_return(queue)
+    allow(ApiSchema.subscriptions).to receive(:trigger)
+    url = "https://company.com/careers/backend?jobId=42&ref=" + "x" * 220
+    response = execute_graphql(<<~GQL, user: user)
+      mutation { scrapeJob(input: { url: "#{url}" }) { aiTask { id } errors } }
+    GQL
+    task = user.ai_tasks.find(response.dig("data", "scrapeJob", "aiTask", "id"))
+    expect(task.input["url"]).to eq(url)
+    posting = { "title" => "Backend Engineer", "company" => "Northwind",
+                "description" => "Python experience is required.", "requirements" => [ "Python experience" ],
+                "source_url" => "https://untrusted.example/other" }
+    applied = AiTasks::ApplyAiResultService.call(message: {
+      "ai_task_id" => task.id, "status" => "completed", "result" => { "scraped_job" => posting }
+    })
+    expect(applied).to be_success
+    expect(task.reload).to be_completed
+    expect(task.subject).to have_attributes(user_id: user.id, url: url, title: "Backend Engineer")
+    expect(task.subject.screened_fields).to be_empty
   end
 
   it "a scrape_job task exposes the created job to its owner only" do

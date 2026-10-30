@@ -72,7 +72,7 @@ reopen for review. Scripted fixtures and abandoned/expired sessions do not appea
 Candidate input supports browser recognition (the default), live provider transcription,
 and complete-recording transcription. The owner-scoped browser preference is independent
 of interviewer speech playback. Typed answers submit reviewed text directly without a recording. They use the explicit
-`typed` input mode, preserve the exact text through screening and acceptance, and never
+`typed` input mode, preserve the exact text through acceptance, and never
 request an audio grant or transcription. Any attached recording still requires owned ready
 media validation. Historical recorded/browser/streaming submissions retain their recording
 checks; a missing recording in those modes is invalid. Text-only operation recovery ends at
@@ -230,15 +230,17 @@ filler on advancement. Accepted history, count, revision and any enabled provide
 Speech refers to exactly the saved response and its question; it cannot generate dialogue.
 History is private, separate from accepted public messages, versioned (currently version 1),
 and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rails treats the
-history as a JSON message envelope; the Python executor validates pinned Pydantic message/tool structure and re-screens
-retained untrusted history before proposing it.
+history as a JSON message envelope; Python validates its message/tool structure and
+reconstructs model context from Rails-owned accepted public dialogue.
 
 Prepared turn claims carry versioned `interview_context`: `personal_evidence` is the original
 frozen source snapshot (including provenance/contact masking inputs), while `fictional_role`
 is the imagined vacancy. These sources stay distinct in the prompt so vacancy requirements
 cannot become personal facts. Legacy turn claims retain `fixture_context`; Python accepts
 exactly one of the two sources. Frozen context and current-question private history are
-bounded and freshly screened before dispatch, with contact masking preserved. Earlier-question
+bounded before dispatch, with contact replacement preserved. Real spoken answer turns
+skip injection classification of both the answer and frozen context; preparation retains
+its source screening. The remaining prompt guard checks exact input integrity only. Earlier-question
 dialogue is not included yet; it belongs to the following context slice.
 
 ## Lock order and database invariants
@@ -721,16 +723,14 @@ summaries, partial messages, or truncation of personal facts are produced.
 
 Python validates the version, budget, unique ordered positions, disjoint omission positions,
 and complete opening/answer/follow-up sequencing, then checks the aggregate content cap.
-Every execution freshly screens the masked source containing this public dialogue together
-with required frozen context, question and current transcript. The existing 120,000-character
-prompt/history guard counts that complete source plus current-question model history before
-interviewer dispatch and on subsequent model requests. Oversized required inputs fail with
-`context_limit`; screening rejection/unavailability retains its explicit failure code.
+Real spoken answer turns do not call injection classifiers. The existing
+120,000-character aggregate context bound, transcript limits, known-contact replacement,
+and per-dispatch model accounting remain enforced. Preparation still screens its inputs.
 Current-question typed version-1 private history preserves accepted transcripts, model output
 and paired tools. Exact copies of the current masked context envelope are replaced by their
 transcript alone, both when restoring older histories and saving new ones. Each execution
-supplies and screens the complete current context once; unfamiliar or changed historical
-inputs remain intact for screening and size checks. This avoids multiplying a large library
+supplies the complete bounded current context; unfamiliar or changed historical
+inputs remain subject to structural and size checks. This avoids multiplying a large library
 and earlier dialogue across all three responses without discarding conversational history.
 Instructions treat prior answers as candidate claims, frozen library evidence as sourced
 facts, and fictional role requirements as imagined requirements, never personal achievements.

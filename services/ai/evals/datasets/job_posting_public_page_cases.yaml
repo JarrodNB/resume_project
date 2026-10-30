@@ -1,0 +1,92 @@
+# Synthetic public HTML ads, structured metadata, and non-job pages.
+# Only inputs reach the parser; labels and rejection expectations stay in evaluation.
+cases:
+- name: plain_company_page
+  inputs:
+    url: https://company.com/careers/42
+    page_html: <main><h1>Backend Engineer</h1><p>Northwind is hiring in Seattle.</p><h2>Requirements</h2><ul><li>Python
+      experience</li></ul><h2>Responsibilities</h2><ul><li>Build APIs</li></ul><h2>Nice
+      to have</h2><ul><li>Go experience is preferred.</li></ul></main>
+  expected_output: &id001
+    source: website
+    source_url: https://company.com/careers/42
+    title: Backend Engineer
+    company: Northwind
+    location: Seattle
+    requirements: &id002
+    - Python experience
+    responsibilities: &id003
+    - Build APIs
+    nice_to_haves: &id004
+    - Go experience is preferred.
+    requirements_sorted_by: llm
+  metadata:
+    not_a_job: false
+- name: embedded_jobposting
+  inputs:
+    url: https://company.com/careers/42
+    page_html: '<script type="application/ld+json">{"@type": "JobPosting", "title":
+      "Backend Engineer", "hiringOrganization": {"name": "Northwind"}, "jobLocation":
+      {"address": {"addressLocality": "Seattle"}}, "description": "<h2>Requirements</h2><ul><li>Python
+      experience</li></ul><h2>Responsibilities</h2><ul><li>Build APIs</li></ul><h2>Nice
+      to have</h2><ul><li>Go experience is preferred.</li></ul>"}</script>'
+  expected_output: *id001
+  metadata:
+    not_a_job: false
+- name: unnamed_employer
+  inputs:
+    url: https://company.com/careers/42
+    page_html: <main><h1>Backend Engineer</h1><p>We are hiring in Seattle.</p><h2>Requirements</h2><ul><li>Python
+      experience</li></ul><h2>Responsibilities</h2><ul><li>Build APIs</li></ul><h2>Nice
+      to have</h2><ul><li>Go experience is preferred.</li></ul></main>
+  expected_output:
+    source: website
+    source_url: https://company.com/careers/42
+    title: Backend Engineer
+    company: null
+    location: Seattle
+    requirements: *id002
+    responsibilities: *id003
+    nice_to_haves: *id004
+    requirements_sorted_by: llm
+  metadata:
+    not_a_job: false
+- name: careers_home
+  inputs:
+    url: https://company.com/careers/42
+    page_html: <main><h1>Careers at Northwind</h1><p>Explore opportunities across
+      engineering and sales.</p><a href="/jobs">View all open jobs</a></main>
+  expected_output: null
+  metadata:
+    not_a_job: true
+- name: jobs_search
+  inputs:
+    url: https://company.com/careers/42
+    page_html: <main><h1>Search jobs</h1><a href="/1">Backend Engineer</a><a href="/2">Product
+      Designer</a><a href="/3">Sales Lead</a></main>
+  expected_output: null
+  metadata:
+    not_a_job: true
+- name: technical_article
+  inputs:
+    url: https://company.com/careers/42
+    page_html: <article><h1>Why we chose Python</h1><p>Our engineering team builds
+      APIs with Python and Go. This article explains our architecture and lessons
+      learned.</p></article>
+  expected_output: null
+  metadata:
+    not_a_job: true
+- name: access_denied
+  inputs:
+    url: https://company.com/careers/42
+    page_html: <main><h1>Access denied</h1><p>Verify you are human. Enable JavaScript
+      and cookies to continue.</p></main>
+  expected_output: null
+  metadata:
+    not_a_job: true
+evaluators:
+- JobPageOutcomeMatch
+- RequirementMatch
+- VerbatimBullets
+- SortedByExpectedPath
+- PostingFieldsMatch

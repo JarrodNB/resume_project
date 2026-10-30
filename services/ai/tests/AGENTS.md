@@ -68,6 +68,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai-worker pytest`
   output (`FunctionModel`), deleted job / empty library / no requirements failures
 - `test_gap_analysis_evaluators.py` — eval labels score 1.0
 - `fixtures/linkedin/` — synthetic LinkedIn guest job pages (synthetic data only)
+- `test_public_job_import.py` — generic URL-to-job handler flow, DNS/private-address rejection,
+  pinned connections/TLS identity, redirects, credentials, byte/time caps, structured/raw HTML,
+  non-job rejection and original URL preservation
 - `test_parse_linkedin_job_url.py` — LinkedIn job link forms, rejected URLs, site registry
 - `test_linkedin_description_to_html.py` — `<br>` lines to paragraphs, bold headings split
 - `test_split_description_sections.py` — heading classification, bullet filing, plain-text

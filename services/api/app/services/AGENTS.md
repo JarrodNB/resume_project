@@ -70,8 +70,9 @@ All business logic, as service objects grouped by domain folder.
   three queries (jobs, newest owned analyze_gaps/tailor_resume per job via DISTINCT ON, resume job ids);
   `record_screening_service.rb` persists successful used-field checks only for the task's
   owned Job and matching fingerprints; edits lock/reload and clear changed field checks atomically;
-  `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
-  `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
+  `start_job_scraping_service.rb` (accepts public HTTP(S) posting links, preserves general
+  paths/queries and canonicalizes LinkedIn links to `https://www.linkedin.com/jobs/view/<id>/`,
+  rejects a job the user already saved, enqueues
   `scrape_job`); `create_job_from_posting_service.rb` saves scraped and pasted results with
   shared validation/mapping and owned URL reuse. Scrapes use the task's canonical URL;
   `start_job_posting_parse_service.rb` (rejects a blank or oversized paste, enqueues

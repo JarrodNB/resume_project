@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { JOB_URL_TEXT } from '@/lib/textLimits'
 import { useScrapeJob } from './useScrapeJob'
 
 /** A URL form that calls scrapeJob and opens the new task's page. */
@@ -30,16 +31,15 @@ export function AddJobFromUrlPage() {
       <div className="grid gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Add a job</h1>
         <p className="text-muted-foreground">
-          Paste a LinkedIn job link. We read the posting directly from LinkedIn, so the requirements are
-          copied word for word.
+          Paste a link to a public job posting. We read the page and copy its job details into your saved jobs.
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Job posting link</CardTitle>
           <CardDescription>
-            On LinkedIn, open the job and use Share, then Copy link (or copy the address bar, even from a
-            search page).
+            Open the specific job and copy its address. If the website requires login or blocks access,
+            you can paste the job description instead.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -50,8 +50,9 @@ export function AddJobFromUrlPage() {
               <Input
                 id="job-url"
                 type="url"
+                maxLength={JOB_URL_TEXT}
                 required
-                placeholder="https://www.linkedin.com/jobs/view/1234567890"
+                placeholder="https://company.com/careers/job-title"
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
               />

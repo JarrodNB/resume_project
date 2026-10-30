@@ -13,6 +13,8 @@ def find_parsed_job_problems(
 ) -> list[str]:
     """Reject unsupported text; scraped lists may require description-only evidence."""
     problems: list[str] = []
+    if not parsed.is_job_posting:
+        return problems
     if not appears_in(parsed.title, source_text):
         problems.append("title must be copied from the advertisement")
     if parsed.company is not None and not appears_in(parsed.company, source_text):

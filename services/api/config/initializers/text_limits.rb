@@ -7,6 +7,7 @@
 #   - BoundedInput: bounds each underlying read, including a chunked body with no length
 module TextLimits
   SHORT = 200
+  JOB_URL = 2_048
   BULLET = 1_000
   PROSE = 4_000
   INTERVIEW_ANSWER = 2_000

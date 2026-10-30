@@ -187,9 +187,16 @@ Per task type:
   generated tokens fail the import. Maps stay in one attempt's memory. English name
   detection is probabilistic and can miss names or mistake other text for names;
   addresses and general URLs are outside this boundary. See `services/ai/pii/README.md`.
-- `scrape_job`: input `{url}` (the canonical `https://www.linkedin.com/jobs/view/<id>/` form of
-  the link the user pasted; `Jobs::StartJobScrapingService` only accepts LinkedIn job links for
-  jobs the user hasn't saved yet). The completed result is
+- `scrape_job`: input `{url}` (a public HTTP(S) posting URL, at most 2,048 characters;
+  LinkedIn links retain job-ID canonicalization). `Jobs::StartJobScrapingService` validates
+  URL form and rejects owned duplicates. The worker validates every DNS answer and pins
+  the destination IP on every redirect, blocking private/special IPv4/IPv6 and alternate ports.
+  It forwards no client credentials/cookies, preserves environment proxies and original-host
+  TLS verification, limits redirects to three and streamed pages to 2 MiB, rejects compressed
+  or non-HTML responses, and checks a 20-second fetch budget with bounded DNS and I/O waits.
+  Generic pages use one embedded JobPosting or selected main/article text. The parser must
+  identify one actual job; list, home, login and access-denied pages fail rather than save.
+  JavaScript-only or blocked sites fall back to pasted text. The completed result is
   `{scraped_job: ScrapedJobPosting}` (`services/ai/schemas/scraped_job_posting.py`: source,
   source_url, title, company, location, description, requirements, nice_to_haves,
   requirements_sorted_by, warnings). `ApplyAiResultService` saves it as a Job
@@ -202,7 +209,9 @@ Per task type:
   fenced source, size limits and no history. It has no action tools or private context and
   grants no screening approvals; later saved-job consumers retain their normal screening.
   Extracted spans must occur in the description; missing fields stay empty. The scraper's
-  metadata and canonical URL remain authoritative. Empty/oversized descriptions and
+  metadata stays authoritative when supplied by a site adapter/structured job object; for
+  unstructured pages identity must be source-supported parser output. The original canonical
+  task URL stays authoritative in both cases. Empty/oversized descriptions and
   unsupported parsed text fail instead of producing a job. The result includes a review
   warning and parsing usage, including validation attempts through worker accounting.
 - `parse_job_posting`: input `{text}` (the pasted advertisement, stripped, at most 20,000

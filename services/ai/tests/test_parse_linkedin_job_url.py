@@ -87,9 +87,9 @@ def test_linkedin_in_url_credentials_does_not_select_the_scraper(url: str) -> No
 
 
 def test_registry_finds_linkedin_by_host() -> None:
-    """LinkedIn hosts map to the LinkedIn scraper; other sites to none."""
+    """LinkedIn retains its adapter; other public URLs use the general scraper."""
     scraper = find_job_site_scraper("https://www.linkedin.com/jobs/view/1")
 
     assert scraper is not None and scraper.name == "linkedin"
-    assert find_job_site_scraper("https://www.indeed.com/viewjob?jk=abc123") is None
+    assert find_job_site_scraper("https://www.indeed.com/viewjob?jk=abc123").name == "website"
     assert not is_linkedin_url("https://notlinkedin.com/jobs/view/1")

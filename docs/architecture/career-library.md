@@ -10,16 +10,18 @@ User facts are stored as rows with embeddings in pgvector for tasks that need se
 search. Complete-draft tailoring reads the owned library once and uses its entries directly.
 
 - **What's embedded:** every career library entry: experiences, highlights, projects,
-  educations, skills, and saved career context entries. Each is embedded as one text with enough context to stand alone
-  ("Senior Engineer at Acme: Cut deploy time 40%"). A gap response is embedded only when saved to the library as a `CareerContext`.
+  educations, certifications, skills, and saved career context entries. Each is embedded as
+  one text with enough context to stand alone ("Senior Engineer at Acme: Cut deploy time 40%").
+  A gap response is embedded only when saved to the library as a `CareerContext`.
 - **Storage:** `library_embeddings` (`source_type` + `source_id`, `content`, `content_digest`,
   `model`, `embedding vector(1536)`), HNSW index with cosine distance, in the same Postgres.
 - **Model:** OpenAI `text-embedding-3-small` at 1536 dimensions (Rails
   `CareerLibraryEmbeddings`, worker `embedding_model`; they must match).
 - **Writing (Rails):** every service that changes library text enqueues
   `CareerLibrary::SyncLibraryEmbeddingsJob` (after commit). `SyncLibraryEmbeddingsService`
-  holds a per-user advisory lock, embeds only entries whose SHA-256(model + text) changed, and
-  deletes rows whose entry is gone, so running it twice is harmless and any run repairs drift.
+  holds a per-user advisory lock, embeds only entries whose SHA-256(model + contact-masked
+  text) changed, and deletes rows whose entry is gone. Stored content remains unmasked.
+  Running it twice is harmless and any run repairs drift.
   `bin/rails career_library:sync_embeddings` backfills all users (e.g. after a model change).
 - **Reading (worker):** `memory/embed_search_query.py` embeds the query through Pydantic AI's
   `Embedder` (traced in Logfire). `database/library_embedding_search.py` loads that user's

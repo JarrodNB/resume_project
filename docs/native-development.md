@@ -63,7 +63,13 @@ The script copies `.env.example` only when a service `.env` does not exist.
 Inherited cloud environment variables take precedence over dotenv files. It
 does not print or copy cloud API keys. Native connection settings override
 Compose hostnames, and one generated internal interview secret is shared by
-Rails and Python. Private generated credentials are saved with mode 0600.
+Rails and Python. A separate generated MCP signing secret is shared by the AI HTTP
+runtime and the MCP tool server. Existing installations gain this secret automatically
+without rotating other credentials. Private generated credentials are saved with mode 0600.
+
+The launcher starts the read-only MCP tool server on `127.0.0.1:8001` before the AI
+HTTP runtime and points chat at its local `/mcp` endpoint. It uses the same `ai_reader`
+database credentials as the AI workers.
 
 For a cloud preview, set these before **start**:
 
@@ -121,7 +127,7 @@ on the same executor and protocol/latency checks.
 - The frontend's Docker-only example-resume mount is unavailable. Upload a
   repository example manually to test resume import.
 
-`check` checks Rails health, both frontend HTTP endpoints, local database,
+`check` checks Rails health, MCP health, both frontend HTTP endpoints, local database,
 emulator and AI HTTP ports, and the recorded jobs-supervisor process identity.
 It does not validate every job delivery, product flow, provider
 credential, subscription, or browser audio path. Inspect worker logs as well.

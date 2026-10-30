@@ -63,8 +63,12 @@ class OperationCostSpanProcessor(SpanProcessor):
         return True
 
 
-def configure_tracing(additional_span_processors=()) -> None:
-    """Configures env-based export and optional caller-owned synchronous span collectors."""
+def configure_tracing(additional_span_processors=(), *, distributed_tracing=None) -> None:
+    """Configures env-based export and optional caller-owned synchronous span collectors.
+
+    Pass distributed_tracing=True only in services that should join callers' traces
+    (the MCP tool server); others keep Logfire's default warning about incoming context.
+    """
     global _price_updater
     export_enabled = bool(os.getenv("LOGFIRE_TOKEN", "").strip())
     if export_enabled and _price_updater is None:
@@ -79,6 +83,7 @@ def configure_tracing(additional_span_processors=()) -> None:
         additional_span_processors=[ContactSpanProcessor(), OperationCostSpanProcessor(),
                                     *additional_span_processors],
         advanced=logfire.AdvancedOptions(log_record_processors=[ContactLogProcessor()]),
+        distributed_tracing=distributed_tracing,
     )
     instrumentation = InstrumentationSettings(tracer_provider=trace.get_tracer_provider())
     Agent.instrument_all(instrumentation)

@@ -6,6 +6,7 @@ provider receipts while the production adapter handles screening, privacy and ag
 Deterministic checks measure targeted continuity and honesty signals, not broad quality.
 """
 import os
+import secrets
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -22,6 +23,9 @@ from evals.chat_evaluators import (
     ChatEvalOutput,
 )
 from evals.telemetry import evaluate_dataset
+from mcp_tools.client import ToolServerConnection
+from mcp_tools.local_server import serve_in_background
+from mcp_tools.server import create_mcp_server
 from prompts.chat_instructions import CHAT_PROMPT_VERSION
 from prompts.chat_summary_instructions import CHAT_SUMMARY_PROMPT_VERSION
 from settings import load_settings
@@ -63,7 +67,12 @@ async def execute_chat_case(case, *, models=None):
         execution_deadline=datetime.now(UTC) + timedelta(seconds=120), payload=case.payload)
 
     async def execute(model_pool):
-        await ChatExecutionAdapter(owner, model_pool).execute(current, None)
+        # Evals never read the database: a local tool server serves the case's synthetic library.
+        secret = secrets.token_urlsafe(48)
+        server = create_mcp_server(secret=secret, read_library=lambda user_id: case.career_library)
+        with serve_in_background(server.http_app(path="/mcp", stateless_http=True)) as url:
+            await ChatExecutionAdapter(owner, model_pool,
+                tool_server=ToolServerConnection(url=url, secret=secret)).execute(current, None)
 
     if models is not None:
         await execute(models)

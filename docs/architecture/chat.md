@@ -1,9 +1,54 @@
 # Career chat
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
-private conversations from the Chat page. It uses only the dialogue the user
-provides: no tools, attachments, saved career-library retrieval, or app actions
-are available in this delivery.
+private conversations from the Chat page. It uses the dialogue the user provides and
+one read-only tool, `read_career_library`. Attachments, other saved app data and app
+actions are not available.
+
+## Tools (MCP)
+
+Chat tools come from a standalone MCP server, the `ai-mcp` service
+(`services/ai/mcp_tools/`). It is one long-running FastMCP process serving streamable
+HTTP at `/mcp`, separate from the chat runtime (`ai-http`). Chat connects to it by URL
+(`MCP_TOOLS_URL`, default `http://ai-mcp:8000/mcp`) through Pydantic AI's `MCPToolset`.
+Other internal services can connect the same way later.
+
+```
+ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader──▶ Postgres
+   screens + renders the result                 returns structured data only
+```
+
+- **Auth and scoping.** For each chat operation, `ai-http` signs a short-lived HS256
+  token (`MCP_TOOLS_SECRET`) naming the claim's user and operation. It expires at the
+  execution deadline, and after 10 minutes at most. The server checks signature, issuer,
+  audience and expiry on every request and takes the user only from the token. Tools take
+  no user or record IDs, so the model cannot choose whose data is read. The port is not
+  published; only services on the internal network reach it. Anyone with the secret can
+  act for any user, so only internal services get it.
+- **Read-only, no model calls.** The server reads through the `ai_reader` role and
+  user-filtered SQL in `services/ai/database/`. It never writes and never calls a model,
+  so it records no AI usage. A future tool that changes data must return a proposal that
+  Rails accepts, using the existing attempt fence.
+- **Caller-side screening and rendering.** The server returns structured data, including
+  each field's saved check status. The tool's client half (in the same file as its server
+  half, `mcp_tools/career_library.py`) reuses saved
+  approvals, screens unchecked fields with the claim's accounted screen, leaves out
+  blocked entries with a note, and renders readable labeled text with no JSON or record IDs.
+  So the model only sees screened text, and screening is billed to the chat operation.
+  Results are capped at 40,000 characters and keep whole entries. New approvals are not
+  saved back yet, so unchecked fields are screened again on later turns.
+- **Allow-listed tools.** The model only sees server tools listed in `TOOL_RENDERERS`
+  (`mcp_tools/client.py`), which maps each tool to its client half. A new server tool stays
+  hidden from chat until it is listed there.
+- **Failures.** If the server is unreachable or rejects the token, the run continues
+  without tools. A database failure returns a generic tool error, and the model is told
+  the library is unavailable. An empty library returns a plain sentence.
+- **No sampling.** The toolset never lets the server call a model.
+
+A reply run allows two tool calls and 12 model requests (each tool round trip is
+another request). Text written before a tool call is kept: the saved reply joins the
+text of every model response in the run, so it always matches what was streamed.
+Repeated calls in one run reuse the first result.
 
 ## Ownership and execution
 
@@ -71,7 +116,12 @@ data, never system instructions.
 Contact masking remains active through model requests, provisional output, tracing and
 exception handling. Render readable labeled dialogue rather than dumping objects into
 prompts. Screening, generation, validation retries, summarization and failures retain
-prompt versions, Logfire traces and actual usage. Execution and per-provider
+prompt versions, Logfire traces and actual usage. Tool runs add a
+`mcp_client.read_career_library` span (section counts, outcome) under Pydantic AI's
+tool-call span. FastMCP carries the trace context in each request's MCP `_meta`, so the
+server's request span and its `mcp_tools.read_career_library` span (tool version, outcome)
+join the same trace. Server spans record metadata only, never library text. Screening
+in the client is billed like any other chat screen. Execution and per-provider
 identities retain durable usage markers, so late receipts can record costs without authorizing stale result acceptance. Missing usage stays
 unknown rather than becoming zero. See [AI safety and usage](ai-safety-and-usage.md).
 

@@ -27,3 +27,5 @@ if model-facing text changes.
 - `chat.py` — readable labeled previous summary and accepted exchange prefix; selection/checkpoints remain with Rails and the chat executor.
 
 - `summary_generation.py` — readable labeled career fact blocks; source selection and screening stay outside the renderer.
+
+- `career_library.py` — readable labeled sections, one per screened library entry, for the chat library tool; no IDs or JSON.

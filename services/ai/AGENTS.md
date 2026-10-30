@@ -181,4 +181,5 @@ skip it. Export indexes are not required.
 - `Dockerfile.dev` — local dev image (virtualenv at `/opt/venv`)
 - `.env.example` — secrets template
 
-- `chat/` — authenticated accepted-history chat adapter on the same shared execution runner; fixed Jev newest-message screening, general AI allowance/accounting, bounded tool-free text replies and optional public streaming. It uses no saved career/job facts. `CHAT_MODEL` and the configured generative fallback support Luna/Nano.
+- `chat/` — authenticated accepted-history chat adapter on the same shared execution runner; fixed Jev newest-message screening, general AI allowance/accounting, bounded text replies and optional public streaming. Replies can call the read-only `read_career_library` tool on the `ai-mcp` server, with a signed token for the claim's user; it reads no saved job facts. `CHAT_MODEL` and the configured generative fallback support Luna/Nano.
+- `mcp_tools/` — the standalone `ai-mcp` MCP tool server (streamable HTTP, token auth, read-only) and the generic client agents use to call it; each tool's server and client halves share one file (see `mcp_tools/AGENTS.md`)

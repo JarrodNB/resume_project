@@ -32,6 +32,21 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual((self.state / "config.json").stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.state.stat().st_mode & 0o777, 0o700)
         self.assertEqual(len(first["interview_secret"]), 64)
+        self.assertEqual(len(first["mcp_secret"]), 64)
+        self.assertNotEqual(first["mcp_secret"], first["interview_secret"])
+
+    def test_existing_config_gains_a_stable_mcp_secret(self):
+        self.state.mkdir(mode=0o700)
+        path = self.state / "config.json"
+        original = {"database_password": "database", "reader_password": "reader",
+                    "interview_secret": "existing-interview-secret"}
+        path.write_text(json.dumps(original))
+        path.chmod(0o600)
+        upgraded = native.config()
+        self.assertEqual({key: upgraded[key] for key in original}, original)
+        self.assertEqual(len(upgraded["mcp_secret"]), 64)
+        self.assertEqual(native.config(), upgraded)
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
     def test_cloud_credentials_survive_and_native_database_is_isolated(self):
         supplied = {"OPENAI_API_KEY": "test-only", "HTTP_PROXY": "http://session-proxy",
@@ -42,6 +57,7 @@ class NativeSetupTests(unittest.TestCase):
             api = native.app_env("api")
             ai = native.app_env("ai-worker")
             http = native.app_env("ai-http")
+            mcp = native.app_env("ai-mcp")
         self.assertEqual(api["OPENAI_API_KEY"], "test-only")
         self.assertEqual(api["HTTP_PROXY"], "http://session-proxy")
         self.assertIn("internal.example", api["NO_PROXY"])
@@ -57,6 +73,10 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(http["DB_USERNAME"], "ai_reader")
         self.assertEqual(http["DATABASE_URL"], ai["DATABASE_URL"])
         self.assertEqual(http["AI_HTTP_ENABLED"], "true")
+        self.assertEqual(http["MCP_TOOLS_URL"], "http://127.0.0.1:8001/mcp")
+        self.assertEqual(http["MCP_TOOLS_SECRET"], mcp["MCP_TOOLS_SECRET"])
+        self.assertEqual(mcp["DATABASE_URL"], ai["DATABASE_URL"])
+        self.assertEqual(mcp["DB_USERNAME"], "ai_reader")
         self.assertEqual(ai["DB_USERNAME"], "ai_reader")
         self.assertTrue(ai["DATABASE_URL"].startswith("postgresql://ai_reader:"))
         self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
@@ -155,6 +175,10 @@ class NativeSetupTests(unittest.TestCase):
         self.assertIn("ai-worker", names)
         self.assertIn("ai-http", names)
         self.assertIn("app:app", dict(events)["ai-http"])
+        self.assertLess(names.index("ai-mcp"), names.index("ai-http"))
+        self.assertIn("mcp_tools.server:create_app", dict(events)["ai-mcp"])
+        self.assertIn("127.0.0.1", dict(events)["ai-mcp"])
+        self.assertIn("8001", dict(events)["ai-mcp"])
         self.assertNotIn("interview", names)
 
     def test_check_rejects_a_missing_or_stale_jobs_supervisor(self):

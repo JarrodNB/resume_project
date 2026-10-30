@@ -39,6 +39,7 @@ from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
 RECORD_TYPES = frozenset({
     "user", "experience", "experience_highlight", "project", "education", "certification",
     "skill", "career_context", "job", "gap_response", "interview_question",
+    "job_preference_criterion", "job_board_listing",
 })
 # Text copied into another row (a saved resume's sections). These are screened but never
 # reported, so they must have no record id; Rails has no recorder for them.

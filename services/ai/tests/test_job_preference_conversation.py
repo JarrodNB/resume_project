@@ -66,6 +66,7 @@ def test_exact_generated_criteria_are_trusted_but_manual_draft_is_screened(task_
     from screening.screen_user_text import ScreenOutcome
     seen = []
     monkeypatch.setattr("worker.job_preference_conversation_handler.screen_user_text", lambda text, *_a, **_k: seen.append(text) or ScreenOutcome(True))
+    monkeypatch.setattr("screening.records.screen_user_text", lambda text, *_a, **_k: seen.append(text) or ScreenOutcome(True))
     payload = {"profile_version": 1, "criteria": [
         {"id": "one", "text": "Remote work", "priority": "must_have"},
         {"id": "two", "text": "Climate industry", "priority": "nice_to_have"}],
@@ -73,7 +74,8 @@ def test_exact_generated_criteria_are_trusted_but_manual_draft_is_screened(task_
     with job_preference_conversation_agent.override(model=TestModel(call_tools=[], custom_output_args={"reply": "Review", "criteria": []})):
         result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="elicit_job_preferences", input=payload), task_dependencies)
     assert result.status == "completed"
-    assert seen == ["Keep these priorities", "Climate industry"]
+    assert seen[0] == "Keep these priorities"
+    assert len(seen) == 2 and "Text:\nClimate industry" in seen[1]
 
 
 def test_history_requires_server_owned_previous_turn():

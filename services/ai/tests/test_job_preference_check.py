@@ -171,7 +171,7 @@ def test_invalid_passage_id_never_becomes_a_supported_match(task_dependencies):
 def test_generated_and_previously_checked_sources_are_not_screened_again(task_dependencies, monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("source with Rails-owned provenance was screened again")
-    monkeypatch.setattr("worker.job_preference_handler.screen_user_text", forbidden)
+    monkeypatch.setattr("screening.records.screen_user_text", forbidden)
     with job_preference_agent.override(model=model()):
         assert handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=snapshot()), task_dependencies).status == "completed"
 
@@ -180,12 +180,12 @@ def test_unknown_sources_are_screened_and_rejection_is_not_an_unknown_decision(t
     values = snapshot()
     values["criteria"][0]["trusted_generated"] = False
     seen = []
-    def reject(text, **kwargs):
+    def reject(text, *args, **kwargs):
         seen.append(text)
         return ScreenOutcome(allowed=False)
-    monkeypatch.setattr("worker.job_preference_handler.screen_user_text", reject)
+    monkeypatch.setattr("screening.records.screen_user_text", reject)
     result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
-    assert seen == ["Fully remote"]
+    assert len(seen) == 1 and "Text:\nFully remote" in seen[0]
     assert result.status == "failed"
     assert result.result == {"failure_code": "input_rejected"}
 
@@ -218,7 +218,7 @@ def test_task_wide_screening_chunk_budget_stops_additional_work(task_dependencie
         for _ in range(129):
             _record_chunk_attempt()
         return ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=1), model="jev-1.13.0")
-    monkeypatch.setattr("worker.job_preference_handler.screen_user_text", too_many_chunks)
+    monkeypatch.setattr("screening.records.screen_user_text", too_many_chunks)
     with pytest.raises(UsageLimitExceeded, match="screening request budget"):
         handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
 

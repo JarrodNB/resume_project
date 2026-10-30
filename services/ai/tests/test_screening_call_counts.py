@@ -43,7 +43,7 @@ pytestmark = pytest.mark.real_guardrail
 TAILORING_CALLS_TODAY = 1  # job, used library fields and gap answers share one batch
 GAP_ANALYSIS_CALLS_TODAY = 1  # job and library share one batch after step 5
 SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 6 starts reporting its approvals
-JOB_PREFERENCE_CALLS_TODAY = 6  # target after step 7: 1 criteria+listings batch
+JOB_PREFERENCE_CALLS_TODAY = 1  # criteria and listing passages share one batch
 SECOND_RUN_LIBRARY_CALLS = 0  # approvals from run one make the library free on run two
 SECOND_RUN_TOTAL_CALLS = 1  # only the job is screened again; a re-screened summary would make it 2
 

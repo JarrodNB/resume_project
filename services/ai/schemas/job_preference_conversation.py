@@ -32,9 +32,11 @@ class JobPreferenceProposal(BaseModel):
 
 class ConversationCriterion(ProposedJobPreference):
     id: str = Field(min_length=1)
+    screened: bool = False
 
 
 class JobPreferenceConversationInput(BaseModel):
+    profile_id: str | None = None
     profile_version: int = Field(ge=0)
     criteria: list[ConversationCriterion] = Field(default_factory=list, max_length=10)
     trusted_criteria: list[str] = Field(default_factory=list, max_length=10)

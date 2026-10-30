@@ -15,8 +15,11 @@ from model_inputs.blocks import source_block
 from privacy.contact_mask import mask_outbound
 from schemas.job_preference_conversation import JobPreferenceConversationInput
 from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
+from screening.record_adapters import job_preference_records
+from screening.records import record_failure_message, screen_records_sync
 from screening.screen_user_text import screen_user_text
 from screening.session import (
+    approve_projected_source,
     bind_screened_prompt,
     current_session,
     trust_generated_source,
@@ -58,20 +61,19 @@ def handle_job_preference_conversation_task(task, dependencies):
     outcome = check(snapshot.message)
     if not outcome.allowed:
         return failure(outcome)
-    current_session().allowed_sources.add(mask_outbound(snapshot.message))
+    approve_projected_source(snapshot.message, snapshot.message, lambda value: value, outcome)
     history = ModelMessagesTypeAdapter.validate_python(snapshot.history)
     if history:
         cover_preference_history(history)
-    # The current draft may have been manually edited. Only exact server-marked generated
-    # criteria can skip screening; a saved history never automatically approves a new draft.
-    for criterion in snapshot.criteria:
-        if criterion.text in snapshot.trusted_criteria:
-            trust_generated_source(criterion.text)
-        else:
-            outcome = check(criterion.text)
-            if not outcome.allowed:
-                return failure(outcome)
-            current_session().allowed_sources.add(mask_outbound(criterion.text))
+    generated = [criterion for criterion in snapshot.criteria if criterion.text in snapshot.trusted_criteria]
+    for criterion in generated:
+        trust_generated_source(criterion.text)
+    records = job_preference_records([criterion for criterion in snapshot.criteria if criterion not in generated])
+    outcome = screen_records_sync(records, approved_sources=[criterion.text for criterion in snapshot.criteria if criterion not in generated])
+    usage.extend(outcome.decision.model_usages)
+    if not outcome.allowed:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+            error_message=record_failure_message(outcome))
 
     deferred = None
     if snapshot.question_id:

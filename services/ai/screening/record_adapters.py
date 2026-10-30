@@ -158,3 +158,16 @@ def _library_title(record_type, record):
 def _short(text):
     text = " ".join(text.split())
     return text if len(text) <= _TITLE_CHARACTERS else text[:_TITLE_CHARACTERS - 1].rstrip() + "…"
+
+
+def job_preference_records(criteria, listings=()):
+    """Keep each criterion and exact listing excerpt distinct; metadata stays out of text."""
+    records = [ScreenableRecord(record_type="job_preference_criterion", record_id=str(item.id),
+        fields={"text": item.text}, display_title=_short(item.text),
+        approved_fields=frozenset({"text"}) if item.screened or getattr(item, "trusted_generated", False) else frozenset())
+        for item in criteria]
+    records.extend(ScreenableRecord(record_type="job_board_listing", record_id=str(item.id),
+        fields={"passages": [passage.text for passage in item.passages]},
+        display_title=_short(item.passages[0].text),
+        approved_fields=frozenset({"passages"}) if item.screened else frozenset()) for item in listings)
+    return records

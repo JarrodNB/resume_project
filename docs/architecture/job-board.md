@@ -197,7 +197,9 @@ unstated salary units or remote restrictions cannot become assumed promises.
 Provider failure is a failed check, separate from an evidence-based unknown.
 
 Unknown preference text and the cohesive listing source are screened before the
-matching request. Completed owner checks can supply matching source approvals.
+matching request. Completed owner checks and retained retired-conversation inputs can
+supply exact-text screening approvals; exact owner criteria generated in a completed
+historical conversation retain generated-source trust. These reads never restart conversations.
 Listing reuse requires the same digest AND exact passages: a previous smaller excerpt
 cannot approve previously unseen text.
 Those flags originate only in Rails,

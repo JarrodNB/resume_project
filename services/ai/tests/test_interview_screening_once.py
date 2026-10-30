@@ -21,6 +21,16 @@ from worker.task_handlers import handle_ai_task
 pytestmark = pytest.mark.real_guardrail
 
 
+def screened_answer(request):
+    """The written answer as record screening labels it."""
+    return "Entry 1\nAnswer text:\n" + request.input["answer_text"]
+
+
+def library_receipts(session):
+    """Career-library receipts, without the practice-answer receipt."""
+    return [report for report in session.record_screening if report.record_type != "interview_question"]
+
+
 @pytest.fixture
 def classifier(monkeypatch):
     """Record provider text and reject a synthetic marker without a local phrase rule."""
@@ -63,7 +73,7 @@ def test_feedback_screens_answer_and_library_once(task_dependencies, classifier)
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
-    assert classifier[0] == request.input["answer_text"]
+    assert classifier[0] == screened_answer(request)
     assert len(classifier) == 2 and "Python" in classifier[1]
 
 
@@ -86,7 +96,7 @@ def test_saved_generated_question_is_not_screened_again(task_dependencies, class
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
-    assert classifier == [request.input["answer_text"]]
+    assert classifier == [screened_answer(request)]
 
 
 def test_replacement_reuses_generated_exclusions_without_screening(task_dependencies, classifier):
@@ -118,7 +128,7 @@ def test_generated_question_does_not_trigger_a_classifier_outage(task_dependenci
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
-    assert classifier == [request.input["answer_text"]]
+    assert classifier == [screened_answer(request)]
 
 
 @pytest.mark.parametrize("feedback", [False, True])
@@ -132,7 +142,8 @@ def test_checked_library_fields_reused_but_new_fields_screen(task_dependencies, 
     with screening_session() as session, agent.override(
             model=TestModel(custom_output_args=output() if feedback else _output())):
         result = handle_ai_task(task() if feedback else _task(), deps)
-        reports = [report.model_dump(exclude={"fingerprints"}) for report in session.library_screening]
+        reports = [{"record_type": report.record_type, "record_id": report.record_id,
+                    "fields": list(report.fingerprints)} for report in library_receipts(session)]
     assert result.status == "completed"
     library_checks = classifier[1:] if feedback else classifier
     assert len(library_checks) == 1
@@ -158,9 +169,9 @@ def test_all_checked_library_fields_skip_classifier(task_dependencies, classifie
     with screening_session() as session, agent.override(
             model=TestModel(custom_output_args=output() if feedback else _output())):
         result = handle_ai_task(request, deps)
-        assert not session.library_screening
+        assert not library_receipts(session)
     assert result.status == "completed"
-    assert classifier == ([request.input["answer_text"]] if feedback else [])
+    assert classifier == ([screened_answer(request)] if feedback else [])
 
 
 def test_checked_oversized_entry_still_fails(task_dependencies, classifier):
@@ -189,8 +200,8 @@ def test_successful_library_checks_survive_generation_failure(task_dependencies,
     monkeypatch.setattr(f"worker.{handler}_handler.{generate}", invalid)
     with screening_session() as session:
         result = handle_ai_task(task() if feedback else _task(), deps)
-        assert [(report.record_type, report.record_id, report.fields) for report in session.library_screening] == [
-            ("user", "user", ["summary"])]
+        assert [(report.record_type, report.record_id, list(report.fingerprints))
+                for report in library_receipts(session)] == [("user", "user", ["summary"])]
     assert result.status == "failed"
     if feedback:
         assert "saved" in result.error_message
@@ -204,7 +215,7 @@ def test_rejected_library_fields_never_report_approval(task_dependencies, classi
     with screening_session() as session, interview_questions_agent.override(
             model=TestModel(custom_output_args=_output())):
         result = handle_ai_task(_task(), deps)
-        assert not session.library_screening
+        assert not session.record_screening
     assert result.status == "failed" and "screening_blocked" in result.error_message
     assert len(classifier) == 1
 

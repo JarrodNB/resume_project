@@ -657,7 +657,8 @@ def test_tailoring_reuses_job_checks_from_gap_analysis_and_checks_only_edited_li
     with screening_session() as session, user_text_screen_agent.override(model=jev_model([])):
         assert prepare_gap_analysis(context, today=date(2026, 10, 25),
             screen_model="typesafe:jev-1.13.0", timeout_seconds=5).prompt is not None
-        context.job.screened_fields = list(session.job_screening[0].fields)
+        context.job.screened_fields = list(next(
+            receipt for receipt in session.record_screening if receipt.record_type == "job").fingerprints)
 
     async def run():
         with screening_session() as session:

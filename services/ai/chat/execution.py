@@ -266,8 +266,8 @@ class ChatExecutionAdapter:
         try:
             values = {"reply": reply, "screened_message_sha256": digest}
             session = current_session()
-            if session and session.library_screening:
-                values["library_screening"] = [report.model_dump() for report in session.library_screening]
+            if session and session.record_screening:
+                values["record_screening"] = [report.model_dump() for report in session.record_screening]
             if summary_update is not None:
                 values["summary_update"] = summary_update
             await self.client.accept(claim, **values)

@@ -197,6 +197,46 @@ RSpec.describe "Chat streamed turns" do
     expect(Chat::AcceptReplyService.call(**args.merge(library_screening: reports.reverse))).not_to be_success
   end
 
+  it "persists record_screening approvals through the shared recorder and keeps retries idempotent" do
+    skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
+    changed = create(:skill, user: user, name: "Python", screened_fields: [])
+    other = create(:skill, user: create(:user), name: "Ruby", screened_fields: [])
+    operation = start
+    saved = claim(operation)
+    receipt = ->(record, value) { { "record_type" => "skill", "record_id" => record.id, "revision" => {},
+      "fingerprints" => { "name" => Digest::SHA256.hexdigest(JSON.generate(value)) } } }
+    receipts = [receipt.call(skill, "Ruby"), receipt.call(changed, "Python"), receipt.call(other, "Ruby")]
+    changed.update!(name: "Edited")
+    args = { operation: operation, **identity(saved), reply: "Saved skills reviewed.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: receipts }
+    expect(Chat::AcceptReplyService.call(**args)).to be_success
+    expect(skill.reload.screened_fields).to eq(["name"])
+    expect(changed.reload.screened_fields).to eq([])
+    expect(other.reload.screened_fields).to eq([])
+    expect(Chat::AcceptReplyService.call(**args)).to be_success
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: receipts.reverse))).not_to be_success
+    # The same receipts sent as the older list are a different accepted body.
+    old_style = receipts.map { |item| item.except("revision").merge("fields" => ["name"]) }
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: [], library_screening: old_style)).errors).to eq(["Accepted result conflicts"])
+  end
+
+  it "rejects malformed or unbounded record_screening lists without saving anything" do
+    skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
+    operation = start
+    saved = claim(operation)
+    receipt = { "record_type" => "skill", "record_id" => skill.id,
+      "fingerprints" => { "name" => Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
+    args = { operation: operation, **identity(saved), reply: "Reviewed.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message) }
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: [receipt] * 501))).not_to be_success
+    many = receipt.merge("fingerprints" => (1..17).to_h { |n| [ "field#{n}", "a" * 64 ] })
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: [many]))).not_to be_success
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: [receipt.merge("revision" => "1")]))).not_to be_success
+    expect(Chat::AcceptReplyService.call(**args.merge(record_screening: "nope"))).not_to be_success
+    expect(skill.reload.screened_fields).to eq([])
+    expect(chat.messages).to be_empty
+  end
+
   it "does not save library approvals for stale claims or unbounded receipt lists" do
     skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
     operation = start

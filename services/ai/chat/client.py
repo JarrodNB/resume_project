@@ -118,10 +118,10 @@ class RailsChatClient(RailsInterviewClient):
             raise RailsTransportError("Invalid chat status receipt")
         return result
 
-    async def accept(self, claim, *, reply, screened_message_sha256, summary_update=None, library_screening=None):
+    async def accept(self, claim, *, reply, screened_message_sha256, summary_update=None, record_screening=None):
         values = {"reply": reply, "screened_message_sha256": screened_message_sha256}
         if summary_update is not None:
             values["summary_update"] = summary_update
-        if library_screening is not None:
-            values["library_screening"] = library_screening
+        if record_screening is not None:
+            values["record_screening"] = record_screening
         return await self._callback(claim, "accept", **values)

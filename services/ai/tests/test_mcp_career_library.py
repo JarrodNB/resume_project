@@ -16,6 +16,7 @@ from mcp_tools.server import create_mcp_server
 from mcp_tools.tokens import TOKEN_AUDIENCE, TOKEN_ISSUER, mint_tool_token
 from schemas.gap_analysis_context import CareerLibrary
 from screening.library_inputs import LibraryScreeningError
+from screening.screen_user_text import ScreenOutcome
 
 SECRET = "server-test-secret-0123456789abcdefghij"
 
@@ -236,7 +237,7 @@ async def test_parallel_calls_share_the_read_and_paid_screening():
     async def screen(text):
         screens.append(text)
         await asyncio.sleep(0)
-        return SimpleNamespace(allowed=True)
+        return ScreenOutcome(allowed=True)
 
     handler = _ResultHandler(screen)
     first, second = await asyncio.gather(
@@ -264,13 +265,13 @@ async def test_many_skills_share_one_check_and_exact_receipts():
 
     async def screen(text):
         checks.append(text)
-        return True
+        return ScreenOutcome(allowed=True)
 
     with screening_session():
         handler, call_tool, _ = handler_for(library, screen)
         text = await handler(None, call_tool, "read_career_library", {})
         assert len(checks) == 1 and "Skill 39" in text
-        reports = current_session().library_screening
+        reports = current_session().record_screening
         assert len(reports) == 40
         assert all(len(report.fingerprints["name"]) == 64 for report in reports)
         # A second renderer in this operation reuses exact approvals too.
@@ -319,4 +320,4 @@ async def test_unavailable_batch_grants_no_approval_and_never_returns_partial_co
         try:
             await handler(None, call_tool, "read_career_library", {})
         finally:
-            assert not current_session().library_screening
+            assert not current_session().record_screening

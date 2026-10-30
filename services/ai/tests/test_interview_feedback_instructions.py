@@ -25,7 +25,7 @@ from worker.task_handlers import handle_ai_task
 @pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
 def test_provider_receives_scope_specific_instructions(task_dependencies, monkeypatch, set_type):
     """Exercises the real handler/agent request so knowledge never receives personal-only rules."""
-    monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=True))
     deps = replace(task_dependencies, read_career_library=lambda user: CareerLibrary())
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_interview_answer",

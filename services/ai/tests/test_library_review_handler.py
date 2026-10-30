@@ -75,7 +75,8 @@ def test_screening_covers_only_unchecked_source_not_generated_output(task_depend
         {"target_label": "T2", "color": "red", "reason": "Generated advice two."},
     ]})):
         result = handle_ai_task(task, task_dependencies)
-        assert [(report.record_type, report.fields) for report in session.library_screening] == [("experience_highlight", ["content"])]
+        assert [(report.record_type, list(report.fingerprints)) for report in session.record_screening] == [
+            ("experience_highlight", ["content"])]
     assert result.status == "completed"
     assert len(seen) == 1
     assert "Helped with migration" in seen[0]
@@ -90,11 +91,12 @@ def test_blocked_source_stops_before_generation(task_dependencies, monkeypatch):
     payload = review_input()
     payload["library"]["experiences"][0]["screened_fields"] = []
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=payload)
-    monkeypatch.setattr("worker.library_review_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False))
+    monkeypatch.setattr("screening.records.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False))
     with library_review_agent.override(model=TestModel()):
         result = handle_ai_task(task, task_dependencies)
     assert result.status == "failed"
-    assert "safety check" in result.error_message
+    # The message names the entry that needs another look.
+    assert result.error_message == "We couldn't use: Engineer at Acme. Review those entries and try again."
     assert result.result is None
 
 
@@ -105,7 +107,7 @@ def test_too_long_source_is_not_reported_as_unsafe(task_dependencies, monkeypatc
     payload = review_input()
     payload["library"]["experiences"][0]["screened_fields"] = []
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=payload)
-    monkeypatch.setattr("worker.library_review_handler.screen_user_text",
+    monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *_args, **_kwargs: ScreenOutcome(False, too_long=True))
     with library_review_agent.override(model=TestModel()):
         result = handle_ai_task(task, task_dependencies)
@@ -176,6 +178,6 @@ def test_oversized_section_fails_without_model_or_screen_calls(task_dependencies
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=payload)
     def unexpected(*args, **kwargs):
         raise AssertionError("Oversized section must fail before model work")
-    monkeypatch.setattr("worker.library_review_handler.screen_user_text", unexpected)
+    monkeypatch.setattr("screening.records.screen_user_text", unexpected)
     result = handle_ai_task(task, task_dependencies)
     assert result.status == "failed" and "too long" in result.error_message

@@ -41,23 +41,23 @@ def test_gap_preparation_screens_readable_sources_and_keeps_exact_prompt(monkeyp
     context = build_gap_analysis_context()
     requests = []
 
-    def allow(text, **_kwargs):
+    def allow(text, *_args, **_kwargs):
         requests.append(text)
         return ScreenOutcome(allowed=True)
 
-    monkeypatch.setattr("gap_analysis.prepare_gap_analysis.screen_user_text", allow)
+    monkeypatch.setattr("screening.records.screen_user_text", allow)
     with screening_session():
         prepared = prepare_gap_analysis(
             context, today=date(2026, 1, 1), screen_model="test", timeout_seconds=5,
         )
     assert prepared.prompt is not None
-    assert len(requests) == 2
-    assert "Job title:\nPlatform Engineer" in requests[0]
+    # The job and the library are screened together as readable labeled entries.
+    assert len(requests) == 1
+    assert "Entry 1\nTitle:\nPlatform Engineer" in requests[0]
     assert "Requirements:\n" in requests[0]
+    assert "Entry 2\n" in requests[0]
     assert '"id"' not in requests[0]
     assert '"requirements"' not in requests[0]
-    assert "Entry 1\n" in requests[1]
-    assert '"id"' not in requests[1]
     assert "[R1]" in prepared.prompt.text
 
 
@@ -75,14 +75,15 @@ def test_large_valid_job_stays_within_screening_limit_after_readable_format(monk
     original = context.job.model_dump_json(exclude_none=True, exclude={"responsibilities"})
     assert len(original) < text_limits.MAX_SCREENED_TEXT
     requests = []
-    monkeypatch.setattr("gap_analysis.prepare_gap_analysis.screen_user_text",
-                        lambda text, **_: requests.append(text) or ScreenOutcome(allowed=True))
+    monkeypatch.setattr("screening.records.screen_user_text",
+                        lambda text, *_, **__: requests.append(text) or ScreenOutcome(allowed=True))
     with screening_session():
         prepared = prepare_gap_analysis(context, today=date(2026, 1, 1),
                                         screen_model="test", timeout_seconds=5)
     assert prepared.prompt is not None
+    # Too long for one screened string together, so the job and library split, each whole.
     assert len(requests) == 2
-    assert len(requests[0]) <= text_limits.MAX_SCREENED_TEXT
+    assert all(len(request) <= text_limits.MAX_SCREENED_TEXT for request in requests)
 
 
 def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dependencies, fake_context_reader):
@@ -101,12 +102,12 @@ def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dep
         for _delivery in range(2):
             result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
             assert result.status == "completed"
-    # One job and one complete library source in each fresh delivery.
-    assert len(requests) == 4
-    assert requests[:2] == requests[2:]
-    assert sum("Built Python APIs" in text for text in requests[:2]) == 1
-    assert sum("Platform Engineer" in text for text in requests[:2]) == 1
-    assert sum(usage.input_tokens for usage in result.usage[1:]) == 200
+    # The job and complete library share one call in each fresh delivery.
+    assert len(requests) == 2
+    assert requests[0] == requests[1]
+    assert "Built Python APIs" in requests[0]
+    assert "Platform Engineer" in requests[0]
+    assert sum(usage.input_tokens for usage in result.usage[1:]) == 100
 
 
 def test_required_gap_job_block_prevents_generation(task_dependencies, fake_context_reader):
@@ -126,8 +127,10 @@ def test_blocked_library_stops_analysis_and_retains_usage(task_dependencies, fak
         result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
     assert result.status == "failed"
     assert result.result is None
-    assert len(requests) == 2
-    assert sum(item.input_tokens for item in result.usage) == 200
+    assert len(requests) == 1
+    assert sum(item.input_tokens for item in result.usage) == 100
+    # Many new entries were screened together, so the message points at recent edits.
+    assert "recent edits" in result.error_message
 
 
 def test_unavailable_required_job_fails_closed(monkeypatch, task_dependencies, fake_context_reader):
@@ -166,7 +169,12 @@ def test_queued_library_failure_reports_real_usage_once(
     from tests.test_process_task_message import FakeResultQueue
     from worker.main import process_task_message
 
-    fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
+    # A long summary splits the one screened string into two chunks, so the failure
+    # comes after one completed, billed request.
+    monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "2000")
+    context = build_gap_analysis_context()
+    context.career_library.summary = "Career background " * 150
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
     requests = []
     model = jev_model(requests, blocked_text="Built Python APIs" if failure == "block" else None)
 

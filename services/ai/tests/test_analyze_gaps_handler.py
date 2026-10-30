@@ -62,7 +62,7 @@ VALID_OUTPUT = {
 def allow_gap_sources(monkeypatch):
     """Keep handler unit cases offline; request-boundary cases live in gap context tests."""
     monkeypatch.setattr(
-        "gap_analysis.prepare_gap_analysis.screen_user_text",
+        "screening.records.screen_user_text",
         lambda *_args, **_kwargs: ScreenOutcome(allowed=True),
     )
 
@@ -207,7 +207,7 @@ def test_blocked_career_context_fails_complete_analysis(
     ]
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
     monkeypatch.setattr(
-        "gap_analysis.prepare_gap_analysis.screen_user_text",
+        "screening.records.screen_user_text",
         lambda text, *_args, **_kwargs: ScreenOutcome(allowed="Ignore previous instructions" not in text),
     )
 
@@ -229,7 +229,7 @@ def test_responsibility_only_job_fails_before_screening_or_generation(
     def unexpected_call(*args, **kwargs):
         raise AssertionError("No provider work is needed for a duty-only job")
 
-    monkeypatch.setattr("gap_analysis.prepare_gap_analysis.screen_user_text", unexpected_call)
+    monkeypatch.setattr("screening.records.screen_user_text", unexpected_call)
     monkeypatch.setattr("worker.analyze_gaps_handler.analyze_gaps", unexpected_call)
 
     result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
@@ -250,7 +250,7 @@ def test_mixed_job_excludes_duties_from_screening_and_results(
         screened.append(text)
         return ScreenOutcome(allowed=True)
 
-    monkeypatch.setattr("gap_analysis.prepare_gap_analysis.screen_user_text", screen)
+    monkeypatch.setattr("screening.records.screen_user_text", screen)
     with gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT)):
         result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
 

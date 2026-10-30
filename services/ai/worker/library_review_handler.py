@@ -4,9 +4,9 @@ from agents.library_review_agent import review_library_section
 from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from schemas.library_review import LibraryReviewInput
-from screening.library_fields import screen_library_fields
-from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
-from screening.screen_user_text import screen_user_text
+from screening.prompt_guardrail import TOO_LONG_MESSAGE
+from screening.record_adapters import library_records
+from screening.records import record_failure_message, screen_records_sync
 from screening.session import bind_screened_prompt, within_screening_session
 from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
 from worker.queue_messages import AiResultMessage
@@ -53,26 +53,21 @@ def render_review(source: str) -> str:
 
 @within_screening_session
 def handle_library_review_task(task, dependencies):
-    """Reuse checked saved fields and bind the exact plain-text prompt before generation."""
+    """Reuse checked saved fields, screen the rest together, and bind the exact plain-text prompt before generation."""
     snapshot = LibraryReviewInput.model_validate(task.input)
     source = snapshot.library.model_dump_json(exclude_none=True)
     prompt = render_review(source)
     if len(source) > MAX_SCREENED_TEXT or len(prompt) > MAX_PROMPT_TEXT:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=TOO_LONG_MESSAGE)
     usage = []
-
-    def check(text):
-        outcome = screen_user_text(
-            text, dependencies.settings.user_text_screen_model,
-            dependencies.settings.llm_run_timeout_seconds, check_phrases=False,
-        )
-        usage.extend(outcome.model_usages)
-        return outcome
-
-    outcome = screen_library_fields(snapshot.library, check)
-    if outcome is not True and not outcome.allowed:
-        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-                               error_message=screening_failure_message(outcome))
+    # Rails approves the resulting receipts only when they also match this frozen snapshot.
+    # A snapshot with no text has nothing to approve; the prompt guard checks it instead.
+    if records := library_records(snapshot.library):
+        outcome = screen_records_sync(records, approved_sources=[source])
+        usage.extend(outcome.decision.model_usages)
+        if not outcome.allowed:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                                   error_message=record_failure_message(outcome))
     prompt = bind_screened_prompt([source], lambda values: render_review(values[0]))
     labels = [target.label for target in snapshot.targets]
     run = review_library_section(prompt, labels, dependencies.settings)

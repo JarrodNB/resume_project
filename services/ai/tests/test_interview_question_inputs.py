@@ -49,12 +49,11 @@ def test_question_context_keeps_visible_evidence_and_citations_together(set_type
 
 
 @pytest.mark.parametrize("trust_history", [False, True])
-def test_preparation_requires_approval_for_every_prompt_source(trust_history):
+def test_preparation_requires_approval_for_every_prompt_source(trust_history, monkeypatch):
     """Preparing context cannot itself turn unapproved generated history into coverage."""
+    monkeypatch.setattr("screening.records.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(allowed=True))
     with screening_session():
-        selected = screen_library_inputs(
-            CareerLibrary(summary="Checked career detail."), lambda _: ScreenOutcome(allowed=True),
-        )
+        selected = screen_library_inputs(CareerLibrary(summary="Checked career detail."))
         excluded = "Question to avoid?"
         recent = "Earlier question?"
         if trust_history:
@@ -73,11 +72,13 @@ def test_preparation_requires_approval_for_every_prompt_source(trust_history):
         assert not prompt_is_covered(context.text)
 
 
-def test_preparation_fails_instead_of_omitting_rejected_sources():
-    with screening_session(), pytest.raises(LibraryScreeningError, match="screening_blocked"):
+def test_preparation_fails_instead_of_omitting_rejected_sources(monkeypatch):
+    monkeypatch.setattr("screening.records.screen_user_text",
+                        lambda text, *_args, **_kwargs: ScreenOutcome(allowed="Rejected evidence" not in text))
+    with screening_session() as session, pytest.raises(LibraryScreeningError, match="screening_blocked"):
         screen_library_inputs(
             CareerLibrary(summary="Kept evidence", career_contexts=[
                 CareerContext(id="rejected", requirement="Context", response="Rejected evidence"),
             ]),
-            lambda text: ScreenOutcome(allowed="Rejected evidence" not in text),
         )
+    assert not session.record_screening and not session.allowed_sources

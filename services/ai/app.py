@@ -51,6 +51,7 @@ def create_app():
         if configured is None:
             yield
             return
+        from database.chat_inputs import build_chat_input_reader
         from database.interview_inputs import build_interview_input_reader
         from settings import AISettings
         database_settings = AISettings()
@@ -79,7 +80,8 @@ def create_app():
                     input_reader=build_interview_input_reader(database_settings),
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
                 runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(rails, executor),
-                                          "chat": ChatExecutionAdapter(chat_rails, chat_models)})
+                                          "chat": ChatExecutionAdapter(chat_rails, chat_models,
+                                              input_reader=build_chat_input_reader(database_settings))})
                 app.state.execution_runner = runner
                 async with optional_streaming(app, runner,
                         enabled=os.getenv("AI_STREAMING_ENABLED") == "true",
@@ -114,8 +116,11 @@ def create_app():
         is_ready = bool(runner and runner.ready)
         reason = getattr(app.state, "reason", "runtime_disabled") or "execution_unavailable"
         if is_ready:
+            from database.chat_inputs import chat_database_ready
             from database.interview_inputs import interview_database_ready
             is_ready = await asyncio.to_thread(interview_database_ready, app.state.database_settings)
+            if is_ready:
+                is_ready = await asyncio.to_thread(chat_database_ready, app.state.database_settings)
             if not is_ready:
                 reason = "database_unavailable"
         return JSONResponse({"ready": is_ready, **({} if is_ready else {"reason": reason})},

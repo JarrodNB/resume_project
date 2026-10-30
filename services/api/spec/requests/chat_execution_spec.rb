@@ -32,6 +32,9 @@ RSpec.describe "Chat execution callbacks", type: :request do
     claim = response.parsed_body
     expect(claim.dig("payload", "user_id")).to eq(user.id)
     expect(claim.dig("payload", "max_input_characters")).to eq(10_000)
+    expect(claim.fetch("payload").keys).to contain_exactly("version", "conversation_id", "user_id", "expected_position",
+      "summary_base_version", "summary_through_position", "summary_plan", "max_input_characters", "summarize_every_user_messages")
+    expect(response.body).not_to include(operation.message)
     identity = claim.slice("attempt_id", "claim_generation")
     post path("heartbeat"), params: identity, as: :json, headers: headers
     expect(response).to have_http_status(:ok)

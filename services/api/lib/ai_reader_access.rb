@@ -25,11 +25,14 @@ module AiReaderAccess
 
   READABLE_RESUME_COLUMNS = %w[id user_id].freeze
   READABLE_SECTION_COLUMNS = %w[id resume_id section_type content position].freeze
-  READABLE_INTERVIEW_COLUMNS = {
+  READABLE_EXECUTION_COLUMNS = {
     interview_sessions: %w[id user_id job_id status execution_mode revision current_question_position expires_at content_purged_at career_focus preparation_kind prepared_role fixture_context setup_config],
     interview_session_operations: %w[id interview_session_id question_id message_id recording_id kind status attempt_id claim_generation lease_expires_at execution_deadline expected_revision candidate_transcript transcription_mode],
     interview_session_questions: %w[id interview_session_id content position skipped_at],
     interview_session_messages: %w[id interview_session_id question_id kind content acknowledgement position],
+    chat_conversations: %w[id user_id summary_text summary_version summary_through_position],
+    chat_operations: %w[id chat_conversation_id message status attempt_id claim_generation lease_expires_at execution_deadline expected_position summary_base_version summary_plan],
+    chat_messages: %w[chat_conversation_id position role content screened_sha256],
     avoided_interview_questions: %w[user_id question_text created_at id]
   }.freeze
 
@@ -84,7 +87,7 @@ module AiReaderAccess
       SQL
       connection.execute("GRANT SELECT ON queued_tailoring_commands TO #{role}")
       connection.execute("GRANT SELECT (id, job_id, requirement, body, screened_fields, created_at) ON job_gap_responses TO #{role}")
-      READABLE_INTERVIEW_COLUMNS.each do |table, columns|
+      READABLE_EXECUTION_COLUMNS.each do |table, columns|
         selected = columns.map { |column| connection.quote_column_name(column) }.join(", ")
         connection.execute("GRANT SELECT (#{selected}) ON #{connection.quote_table_name(table)} TO #{role}")
       end

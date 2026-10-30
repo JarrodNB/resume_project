@@ -30,9 +30,10 @@ RSpec.describe "Chat rolling memory" do
     operation, result = start_and_claim
     expect(result).to be_success
     saved = result.value
-    expect(saved.dig(:payload, :summary)).to eq(text: "", version: 0, through_position: 0)
+    expect(saved.dig(:payload, :summary_base_version)).to eq(0)
     expect(saved.dig(:payload, :summary_plan)).to eq(through_position: 30, scheduled: true)
-    expect(saved.dig(:payload, :messages).map { |m| m.fetch("position") }).to eq((1..38).to_a)
+    expect(saved.dig(:payload, :expected_position)).to eq(38)
+    expect(saved.dig(:payload, :summary_through_position)).to eq(0)
     expect(accept(operation, saved, summary_update: { "text" => "Facts 1–15", "expected_version" => 0, "through_position" => 30 })).to be_success
     expect(chat.reload.attributes.slice("summary_text", "summary_version", "summary_through_position")).to eq(
       "summary_text" => "Facts 1–15", "summary_version" => 1, "summary_through_position" => 30)
@@ -44,16 +45,16 @@ RSpec.describe "Chat rolling memory" do
     operation, result = start_and_claim
     update = { "text" => "Facts 1–15", "expected_version" => 0, "through_position" => 30 }
     expect(accept(operation, result.value, summary_update: update)).to be_success
-    # The turn after a checkpoint still receives all uncovered dialogue, not just five new messages.
+    # The next claim retains the current checkpoint; Python loads every uncovered exchange.
     next_operation, next_result = start_and_claim
-    expect(next_result.value.dig(:payload, :summary)).to eq(text: "Facts 1–15", version: 1, through_position: 30)
+    expect(next_result.value.dig(:payload, :summary_base_version)).to eq(1)
     expect(next_result.value.dig(:payload, :summary_plan)).to be_nil
-    expect(next_result.value.dig(:payload, :messages).map { |m| m.fetch("position") }).to eq((31..40).to_a)
+    expect(next_result.value.dig(:payload, :expected_position)).to eq(40)
     expect(accept(next_operation, next_result.value)).to be_success
     append_exchanges(22, 39)
     second_operation, second = start_and_claim
     expect(second.value.dig(:payload, :summary_plan)).to eq(through_position: 70, scheduled: true)
-    expect(second.value.dig(:payload, :messages).map { |m| m.fetch("position") }).to eq((31..78).to_a)
+    expect(second.value.dig(:payload, :expected_position)).to eq(78)
     second_update = { "text" => "Facts 1–35, including previous summary", "expected_version" => 1, "through_position" => 70 }
     expect(accept(second_operation, second.value, summary_update: second_update)).to be_success
     expect(accept(second_operation, second.value, summary_update: second_update.reverse_each.to_h)).to be_success
@@ -71,7 +72,7 @@ RSpec.describe "Chat rolling memory" do
     expect(chat.reload.messages.count).to eq(26)
     _, next_result = start_and_claim
     expect(next_result.value.dig(:payload, :summary_plan)).to be_nil # Cadence did not reset to a new 20-turn cycle.
-    expect(next_result.value.dig(:payload, :messages).first.fetch("position")).to eq(15)
+    expect(next_result.value.dig(:payload, :summary_through_position)).to eq(14)
   end
 
   it "selects only uncovered messages even when full visible history is much larger than model context" do
@@ -79,7 +80,7 @@ RSpec.describe "Chat rolling memory" do
     chat.update!(summary_text: "Facts through turn95", summary_version: 5, summary_through_position: 190)
     _, result = start_and_claim
     expect(result).to be_success
-    expect(result.value.dig(:payload, :messages).map { |m| m.fetch("position") }).to eq((191..200).to_a)
+    expect(result.value.dig(:payload, :expected_position)).to eq(200)
     expect(chat.messages.count).to eq(200)
   end
 
@@ -125,7 +126,7 @@ RSpec.describe "Chat rolling memory" do
   end
 
 
-  it "compacts long sequences of small messages before their snapshot row bound is exhausted" do
+  it "compacts long sequences of small messages before their source row bound is exhausted" do
     stub_const("ChatLimits::SUMMARIZE_EVERY_USER_MESSAGES", 10_000)
     append_exchanges(1, 450)
     _, result = start_and_claim
@@ -134,16 +135,16 @@ RSpec.describe "Chat rolling memory" do
   end
 
 
-  it "rejects transport-expanded source snapshots before reserving a provider execution" do
+  it "does not treat JSON transport expansion as additional chat source" do
     (1..19).each do |turn|
       text = "<" * 10_000
       chat.messages.create!(role: "user", position: turn * 2 - 1, content: text, screened_sha256: Digest::SHA256.hexdigest(text))
       chat.messages.create!(role: "assistant", position: turn * 2, content: "Reply")
     end
     operation, result = start_and_claim
-    expect(result).not_to be_success
-    expect(operation.reload.failure_code).to eq("context_limit")
-    expect(operation.execution_attempts).to be_empty
+    expect(result).to be_success
+    expect(result.value.fetch(:payload)).not_to have_key(:messages)
+    expect(operation.execution_attempts.count).to eq(1)
   end
 
 end

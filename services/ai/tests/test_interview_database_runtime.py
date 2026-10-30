@@ -16,6 +16,7 @@ def preserve_environment():
 @pytest.mark.parametrize("runtime", ["fixture", "real"])
 def test_database_outage_is_not_reported_ready(monkeypatch, runtime):
     import database.interview_inputs
+    monkeypatch.setattr("database.chat_inputs.chat_database_ready", lambda _: True)
 
     monkeypatch.setattr(
         database.interview_inputs, "interview_database_ready", lambda _: False, raising=False

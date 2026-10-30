@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import logfire
 import pytest
+from psycopg import OperationalError
 from pydantic_ai.models.function import FunctionModel
 
 from chat.client import ChatClaim
@@ -276,16 +277,19 @@ async def test_chat_client_uses_shared_bounded_transport_with_separate_claim_con
     import httpx
 
     from chat.client import RailsChatClient
-    current = claim()
+    current = claim().model_dump(mode='json')
+    current['payload'] = {'version': 1, 'conversation_id': 'chat-1', 'user_id': 'user-1',
+        'expected_position': 0, 'summary_base_version': 0, 'summary_through_position': 0,
+        'summary_plan': None, 'max_input_characters': 10000, 'summarize_every_user_messages': 20}
     paths = []
     def respond(request):
         paths.append(request.url.path)
         assert request.headers['authorization'] == 'Bearer test-service'
-        return httpx.Response(200, json=current.model_dump(mode='json'))
+        return httpx.Response(200, json=current)
     async with RailsChatClient('http://rails.test', 'test-service', transport=httpx.MockTransport(respond)) as client:
-        saved = await client.claim(current.operation_id)
-    assert saved == current
-    assert paths == [f'/internal/chat/operations/{current.operation_id}/claim']
+        saved = await client.claim(current["operation_id"])
+    assert saved.model_dump(mode='json') == current
+    assert paths == [f'/internal/chat/operations/{current['operation_id']}/claim']
 
 
 def test_chat_claim_rejects_incomplete_or_out_of_order_history():
@@ -683,3 +687,36 @@ async def test_new_library_approvals_are_sent_with_chat_acceptance():
     report = owner.accepted[0]["record_screening"][0]
     assert report == {"record_type": "skill", "record_id": "s1", "revision": {},
         "fingerprints": {"name": hashlib.sha256(json.dumps("Ruby").encode()).hexdigest()}}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("error,retryable", [(ValueError("stale claim"), False),
+    (OperationalError("offline database unavailable"), True)])
+async def test_failed_reference_read_never_screens_or_starts_models(error, retryable):
+    from chat.client import ChatReferencePayload
+    owner = Owner()
+    def reject(_):
+        raise error
+    adapter = ChatExecutionAdapter(owner, Models(lambda *_: None), input_reader=reject)
+    adapter._screen = AsyncMock()
+    current = claim().model_copy(update={"payload": ChatReferencePayload(version=1,
+        conversation_id="chat-1", user_id="user-1", expected_position=0, summary_base_version=0,
+        summary_through_position=0, max_input_characters=10000, summarize_every_user_messages=20)})
+    await adapter.execute(current, Sink())
+    assert owner.starts == [] and owner.accepted == []
+    assert owner.failed == [("dependency_unavailable" if retryable else "execution_failed", retryable)]
+    assert owner.receipts == [(None, [], False)]
+    adapter._screen.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_http_claim_refuses_inline_source_even_when_authenticated():
+    import httpx
+
+    from chat.client import RailsChatClient
+    from interviews.client import RailsTransportError
+    current = claim()
+    async with RailsChatClient('http://rails.test', 'test-service', transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, json=current.model_dump(mode='json')))) as client:
+        with pytest.raises(RailsTransportError, match='Invalid chat claim'):
+            await client.claim(current.operation_id)

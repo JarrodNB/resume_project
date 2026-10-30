@@ -137,6 +137,19 @@ RSpec.describe AiReaderAccess do
     end
   end
 
+  it "reads narrow chat inputs but hides private execution results and feedback" do
+    expect(select_as_ai_reader("SELECT id, summary_version, summary_through_position FROM chat_conversations")).to eq([])
+    expect(select_as_ai_reader("SELECT message, expected_position, summary_base_version, summary_plan FROM chat_operations")).to eq([])
+    expect(select_as_ai_reader("SELECT position, role, content, screened_sha256 FROM chat_messages")).to eq([])
+    { "chat_conversations" => %w[title], "chat_operations" => %w[accepted_result result_fingerprint],
+      "chat_messages" => %w[thumbs_up thumbs_down] }.each do |table, columns|
+      columns.each do |column|
+        expect { select_as_ai_reader("SELECT #{column} FROM #{table}") }
+          .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+      end
+    end
+  end
+
   it "can't write" do
     create(:job)
 

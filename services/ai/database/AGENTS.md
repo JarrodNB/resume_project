@@ -83,3 +83,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   reading current job text and valid completed prompts through narrow ordinary views.
   It preserves batch/slot order and rejects excess context without dropping history.
 - `interview_questions.py` reads queued task-owned written-practice sources in one repeatable-read transaction. It checks set/subject ownership, target and peer revisions, then selects active generated slots and account-owned preferences. Feedback reads only the selected active question’s answer and current approvals at its commanded revisions. Narrow grants exclude feedback, vectors, provider receipts and accounting; retained source copies are checks only.
+
+- `chat_inputs.py` verifies live owned operation fences, expected message position and
+  saved summary checkpoints/plans in one repeatable-read transaction. It loads only
+  pending input, uncovered accepted dialogue and rolling summary; profile contact is
+  privacy-only. Private acceptance receipts, feedback and account secrets are not granted.

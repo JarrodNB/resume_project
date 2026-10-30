@@ -1,7 +1,7 @@
 """Validate canonical chat claims over the shared bounded Rails callback transport.
 
 The browser never supplies history, contact data, or attempt identity to this client.
-Only the fixed Rails owner can provide the accepted records used as model context.
+Rails grants IDs and checkpoints; Python loads the accepted records itself.
 """
 from datetime import datetime
 from typing import Literal
@@ -49,6 +49,7 @@ class ChatSummaryPlan(BaseModel):
 
 
 class ChatPayload(BaseModel):
+    """Process-local hydrated context; never accepted from the Rails claim transport."""
     model_config = ConfigDict(extra="forbid", frozen=True)
     conversation_id: str
     user_id: str
@@ -78,8 +79,22 @@ class ChatPayload(BaseModel):
             if plan.scheduled and (last // 2 + 1) % self.summarize_every_user_messages:
                 raise ValueError("Scheduled summary is off cadence")
         if sum(len(m.content) for m in self.messages) + len(self.message) + len(self.summary.text) > 200_000:
-            raise ValueError("Chat source snapshot exceeds its bounded size")
+            raise ValueError("Chat source exceeds its bounded size")
         return self
+
+
+class ChatReferencePayload(BaseModel):
+    """A bounded owned command; saved source text never crosses the claim transport."""
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    version: Literal[1]
+    conversation_id: str
+    user_id: str
+    expected_position: StrictInt = Field(ge=0)
+    summary_base_version: StrictInt = Field(ge=0)
+    summary_through_position: StrictInt = Field(ge=0)
+    summary_plan: ChatSummaryPlan | None = None
+    max_input_characters: StrictInt = Field(ge=1, le=80000)
+    summarize_every_user_messages: StrictInt = Field(ge=1)
 
 
 class ChatClaim(BaseModel):
@@ -89,7 +104,7 @@ class ChatClaim(BaseModel):
     claim_generation: StrictInt = Field(ge=1)
     lease_expires_at: datetime
     execution_deadline: datetime
-    payload: ChatPayload
+    payload: ChatReferencePayload | ChatPayload
 
     def identity(self):
         return {"attempt_id": self.attempt_id, "claim_generation": self.claim_generation}
@@ -105,6 +120,7 @@ class RailsChatClient(RailsInterviewClient):
     async def claim(self, operation_id):
         result = await self._request("POST", self._path(operation_id, "claim"), {}, retry=False)
         try:
+            ChatReferencePayload.model_validate(result.get("payload"))
             claim = ChatClaim.model_validate(result)
             if claim.operation_id != str(operation_id):
                 raise ValueError("Wrong operation")

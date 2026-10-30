@@ -17,9 +17,9 @@ import httpx
 
 from database.tailoring_sources import TailoringSources
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
-from schemas.summary_generation import SummaryCommand, SummaryGenerationInput
 from schemas.library_review import LibraryReviewInput
 from schemas.study_guide import StudyGuideInput
+from schemas.summary_generation import SummaryCommand, SummaryGenerationInput
 from worker.product_name import USER_AGENT
 from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings

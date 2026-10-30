@@ -41,7 +41,7 @@ pytestmark = pytest.mark.real_guardrail
 # Today's classifier call counts on a fresh library. Each target is what the plan expects
 # after the step named in the comment.
 TAILORING_CALLS_TODAY = 37  # 20 skills + 5 roles + 10 highlights + summary + job; target after step 4: 1 library/job/gap batch
-GAP_ANALYSIS_CALLS_TODAY = 2  # job + library; target after step 5: 1 job+library batch
+GAP_ANALYSIS_CALLS_TODAY = 1  # job and library share one batch after step 5
 SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 6 starts reporting its approvals
 JOB_PREFERENCE_CALLS_TODAY = 6  # target after step 7: 1 criteria+listings batch
 SECOND_RUN_LIBRARY_CALLS = 0  # approvals from run one make the library free on run two
@@ -145,7 +145,13 @@ def run_like_the_worker(task, dependencies):
     """
     with screening_session(dependencies.settings.llm_run_timeout_seconds) as session:
         result = handle_ai_task(task, dependencies)
-        return result, list(session.library_screening)
+        # Both transports coexist until tailoring and the other legacy callers move.
+        approvals = list(session.library_screening)
+        approvals.extend(SimpleNamespace(record_type=receipt.record_type, record_id=receipt.record_id,
+                                         fields=list(receipt.fingerprints))
+                         for receipt in session.record_screening
+                         if receipt.record_type not in {"job", "gap_response", "interview_question"})
+        return result, approvals
 
 
 def run_tailoring(dependencies, context):
@@ -190,7 +196,7 @@ def test_gap_analysis_screens_a_fresh_library(task_dependencies, classifier_call
     assert approvals
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == GAP_ANALYSIS_CALLS_TODAY
-    assert len(library_calls(classifier_calls)) == 1  # the library blob; the other call is the job
+    assert len(library_calls(classifier_calls)) == 1  # one combined job/library blob
 
     apply_library_approvals(context.career_library, approvals)
     classifier_calls.primary.clear()
@@ -204,8 +210,10 @@ def test_gap_analysis_screens_a_fresh_library(task_dependencies, classifier_call
 
 
 def test_summary_generation_screens_fresh_facts(task_dependencies, classifier_calls):
-    sources = [{"label": f"SKILLS_{i}_NAME", "text": f"Skill {i}", "screened": False} for i in range(20)]
-    sources += [{"label": f"EXPERIENCES_{i}_DESCRIPTION", "text": f"Built system {i}.", "screened": False}
+    sources = [{"label": f"SKILLS_{i}_NAME", "text": f"Skill {i}", "screened": False,
+                "record_id": str(uuid4())} for i in range(20)]
+    sources += [{"label": f"EXPERIENCES_{i}_DESCRIPTION", "text": f"Built system {i}.", "screened": False,
+                 "record_id": str(uuid4())}
                 for i in range(5)]
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_summary", input={
         "target_kind": "profile", "target_id": str(uuid4()), "source_digest": "a" * 64,
@@ -216,9 +224,8 @@ def test_summary_generation_screens_fresh_facts(task_dependencies, classifier_ca
     assert result.status == "completed", result.error_message
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == SUMMARY_CALLS_TODAY
-    # Today the approvals are discarded: the worker has nothing to report for Rails to save.
-    # Target after step 6: one receipt per screened source record.
-    assert approvals == []
+    assert len(approvals) == 25
+    assert {approval.record_id for approval in approvals} == {source["record_id"] for source in sources}
 
 
 def test_job_preference_check_screens_each_criterion_and_listing(task_dependencies, classifier_calls):
@@ -245,7 +252,7 @@ def test_job_preference_check_screens_each_criterion_and_listing(task_dependenci
     assert classifier_calls.total() == JOB_PREFERENCE_CALLS_TODAY
 
 
-def test_tailoring_approvals_make_the_next_gap_analysis_library_free(task_dependencies, classifier_calls):
+def test_gap_analysis_only_screens_library_fields_tailoring_did_not_use(task_dependencies, classifier_calls):
     context = fresh_context()
     tailored, approvals = run_tailoring(task_dependencies, context)
     assert tailored.status == "completed", tailored.error_message
@@ -256,12 +263,11 @@ def test_tailoring_approvals_make_the_next_gap_analysis_library_free(task_depend
 
     gap, gap_approvals = run_gap_analysis(task_dependencies, context)
     assert gap.status == "completed", gap.error_message
-    # Today tailoring only screens the skill name, so gap analysis still screens the skill
-    # categories (one library call) plus the job. Target after step 5: the same field set,
-    # so only the job (1 call) remains.
+    # Tailoring uses skill names only. Gap analysis must still check the categories;
+    # it batches those newly used fields with the unchecked job.
     assert len(library_calls(classifier_calls)) == 0
-    assert [c for c in classifier_calls.primary if "category:" in c] != []
-    assert classifier_calls.total() == 2
+    assert [c for c in classifier_calls.primary if "Category:" in c] != []
+    assert classifier_calls.total() == 1
     assert classifier_calls.fallback == []
     assert {(a.record_type, tuple(a.fields)) for a in gap_approvals} == {("skill", ("category",))}
     assert len(gap_approvals) == 20

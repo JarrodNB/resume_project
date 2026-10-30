@@ -35,12 +35,19 @@ module Interviews
         "fingerprints" => { source["field"] => Screening::RecordApprovalsService.field_fingerprint(source_value(source)) } }
     end
 
-    def self.owned_record(user, source)
+    # Jobs count only when they are this interview's own saved job, matching the shared
+    # recorder's write rule; a detached interview (job deleted) reuses no job approval.
+    def self.owned_record(interview, source)
       return unless valid_source?(source)
 
+      user = interview.user
       scope = case source["type"]
       when "profile" then User.where(id: user.id)
       when "highlights" then ExperienceHighlight.joins(:experience).where(experiences: { user_id: user.id })
+      when "jobs"
+        return unless interview.job_id
+
+        user.jobs.where(id: interview.job_id)
       else user.public_send(source["type"])
       end
       scope.find_by(id: source["id"])
@@ -56,7 +63,7 @@ module Interviews
         next unless source.is_a?(Hash)
         next if source["screened"] == true
 
-        record = owned_record(interview.user, source)
+        record = owned_record(interview, source)
         source["screened"] = !!(record && record[source["field"]] == source_value(source) &&
           record.screened_fields.include?(source["field"]))
       end

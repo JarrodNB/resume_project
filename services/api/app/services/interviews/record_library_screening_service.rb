@@ -2,6 +2,10 @@
 # Only a current execution may report source indices. Live fields earn approval through the
 # shared recorder: the owned, locked value must match the screened frozen value's fingerprint,
 # and jobs must be this interview's own saved job. Replay is harmless.
+# Lock order: the interview operation lock (user row first) is taken before any record row.
+# Record rows then follow the shared recorder's order (job before library types, ids sorted
+# within a type), not source-index order. That is safe because every path that locks several
+# screened records, here and in AI-result application, takes the user lock first.
 # Preparation may also remember an exact frozen career-focus check, never a session-wide pass.
 require "digest"
 require "json"

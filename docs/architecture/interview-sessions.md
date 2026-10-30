@@ -397,7 +397,9 @@ For `/internal/interviews/operations/:id`:
   `Screening::RecordApprovalsService.record_interview_sources`, under the interview operation
   lock and then each record's row lock, with the fingerprint of the frozen value: the owner
   must match and the current value must have the same fingerprint, so edits or deletions
-  cannot accidentally approve new text. Preparation may also submit optional `career_focus_sha256`,
+  cannot accidentally approve new text. Record rows lock in the recorder's order (job before
+  library types, ids sorted), which is safe because every multi-record approval path takes the
+  user lock first. Claim-time reuse of live approvals follows the same job rule. Preparation may also submit optional `career_focus_sha256`,
   the SHA-256 of the exact frozen focus encoded as UTF-8 JSON without ASCII escaping or
   extra whitespace (Python `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`,
   Ruby stdlib `JSON.generate`). Rails validates it against the locked nonempty focus before

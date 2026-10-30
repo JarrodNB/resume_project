@@ -57,6 +57,29 @@ RSpec.describe "Saved-job spoken preparation" do
     expect(interview.reload.frozen_context.fetch("sources")[index]["screened"]).to be(true)
   end
 
+  it "reuses a live job approval at claim time only for this interview's own job" do
+    other_job = create(:job, user: user, title: "Other title", screened_fields: [ "title" ])
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    foreign_source = { "type" => "jobs", "id" => other_job.id, "field" => "title", "value" => other_job.title, "text" => other_job.title }
+    own_source = { "type" => "jobs", "id" => job.id, "field" => "title", "value" => job.title, "text" => job.title }
+    interview.update!(frozen_context: interview.frozen_context.merge("sources" => interview.frozen_context["sources"] + [ foreign_source, own_source ]))
+    claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
+    expect(claim).to be_success
+    expect(claim.value.dig(:payload, :frozen_context, "sources").last(2).map { |source| source["screened"] }).to eq([ false, true ])
+  end
+
+  it "reuses no live job approval at claim time after the job is deleted" do
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    replacement = create(:job, user: user, title: job.title, screened_fields: [ "title" ])
+    source = { "type" => "jobs", "id" => replacement.id, "field" => "title", "value" => replacement.title, "text" => replacement.title }
+    interview.update!(frozen_context: interview.frozen_context.merge("sources" => interview.frozen_context["sources"] + [ source ]))
+    job.destroy!
+    expect(interview.reload.job_id).to be_nil
+    claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
+    expect(claim).to be_success
+    expect(claim.value.dig(:payload, :frozen_context, "sources").last["screened"]).to be(false)
+  end
+
   it "invalidates newly approved job fields when an earlier editor saves" do
     earlier_editor = Job.find(job.id)
     interview = Interviews::StartPreparationService.call(user: user, job: job).value

@@ -239,7 +239,17 @@ RSpec.describe Screening::RecordApprovalsService do
       expect(job.reload.screened_fields).to match_array(%w[title requirements])
     end
 
-    it "never approves another job, a job after detachment, or task-bound types" do
+    it "approves nothing once the interview's job was deleted and detached" do
+      session = interview
+      reports = [ receipt("job", job, [ "title" ]) ]
+      job.destroy!
+      expect(session.reload.job_id).to be_nil
+      expect(record_interview(reports, session: session)).to be_success
+      expect(Job.where(id: reports.first["record_id"])).to be_empty
+      expect(Job.where("screened_fields <> '{}'")).to be_empty
+    end
+
+    it "never approves another job, a job on an interview without one, or task-bound types" do
       other_job = create(:job, user: user)
       response = create(:job_gap_response, job: job)
       expect(record_interview([ receipt("job", other_job, [ "title" ]), receipt("gap_response", response, [ "body" ]) ])).to be_success

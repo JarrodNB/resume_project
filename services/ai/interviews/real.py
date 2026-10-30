@@ -1,4 +1,4 @@
-"""Run real interviews with approved frozen context and newest-message screening.
+"""Run real interviews with bounded context and accounted providers.
 
 Rails supplies accepted public dialogue and persists field approvals. The runtime uses
 fixed accounted providers with configurable Luna reasoning, preserving Rails ownership
@@ -36,7 +36,7 @@ from privacy.known_contact import KnownContact
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
 from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
-from screening.conversation import screen_conversation_turn, screen_with_operation_models
+from screening.conversation import screen_with_operation_models
 from screening.prompt_guardrail import screening_failure_code
 from screening.session import screening_session
 from telemetry.privacy import telemetry_scope
@@ -169,36 +169,39 @@ class RealInterviewExecutor(InterviewExecutor):
         payload = claim.payload
         context = payload.personal_evidence()
         role = payload.interview_context.fictional_role if payload.interview_context else None
-        with screening_session(120):
-            formatted = system_context(context, role) + "\n\n" + interview_style(payload.setup)
-            previous = earlier_context(payload)
-            if previous:
-                formatted += "\n\n" + previous
-            history = conversation_history(payload, formatted)
-            if len(formatted) > MAX_PROMPT_TEXT:
-                raise ScreeningRejected("context_limit")
-            enforce_context_limit(history, "")
-            transcript = payload.candidate_transcript
-            if payload.transcription_mode != "typed":
-                grant = await self.client.recording(claim)
-                data = await asyncio.to_thread(download_audio, grant["download_url"],
-                    expected_checksum=grant["checksum"], expected_byte_size=grant["byte_size"], **self._media_options())
-                if transcript is None:
-                    transcript = await self._transcribe(claim, data)
-            if not isinstance(transcript, str) or not transcript.strip():
-                raise ScreeningRejected("empty_audio")
-            if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
-                raise ScreeningRejected("transcript_too_long")
-            enforce_context_limit(history, data_block("candidate_answer", mask_outbound(transcript)))
-            await self._approve_library(claim, context)
-            turn = await screen_conversation_turn(transcript,
-                screen=lambda text: self._screen(claim, text),
-                render=lambda text: data_block("candidate_answer", text))
-            enforce_context_limit(history, turn.prompt)
-            agent, options = self._interviewer(claim, turn.guard, system_prompt=formatted)
-            result = await agent.run(turn.prompt, message_history=history,
-                usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
-            saved = serialize_history(result.all_messages())
+        formatted = system_context(context, role) + "\n\n" + interview_style(payload.setup)
+        previous = earlier_context(payload)
+        if previous:
+            formatted += "\n\n" + previous
+        history = conversation_history(payload, formatted)
+        if len(formatted) > MAX_PROMPT_TEXT:
+            raise ScreeningRejected("context_limit")
+        enforce_context_limit(history, "")
+        transcript = payload.candidate_transcript
+        if payload.transcription_mode != "typed":
+            grant = await self.client.recording(claim)
+            data = await asyncio.to_thread(download_audio, grant["download_url"],
+                expected_checksum=grant["checksum"], expected_byte_size=grant["byte_size"], **self._media_options())
+            if transcript is None:
+                transcript = await self._transcribe(claim, data)
+        if not isinstance(transcript, str) or not transcript.strip():
+            raise ScreeningRejected("empty_audio")
+        if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
+            raise ScreeningRejected("transcript_too_long")
+        enforce_context_limit(history, data_block("candidate_answer", mask_outbound(transcript)))
+        # Spoken turns deliberately skip injection classifiers. Keep exact-input
+        # integrity, contact masking, context bounds and accounted model execution.
+        prompt = data_block("candidate_answer", mask_outbound(transcript))
+
+        async def guard(ctx, final_prompt):
+            if final_prompt != prompt:
+                raise ValueError("Interview input changed")
+            return True
+
+        agent, options = self._interviewer(claim, guard, system_prompt=formatted)
+        result = await agent.run(prompt, message_history=history,
+            usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
+        saved = serialize_history(result.all_messages())
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
                 reply=result.output.reply, acknowledgement=result.output.acknowledgement, history_version=1, model_history=saved)

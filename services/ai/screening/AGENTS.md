@@ -8,7 +8,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Contents
 
-- `conversation.py` — chat and spoken-interview newest-message screening and exact
+- `conversation.py` — chat newest-message screening and exact
   latest-prompt guard. Callers reconstruct history from authenticated Rails accepted public
   dialogue, never caller-controlled private model history. `screen_with_operation_models`
   runs fixed Jev with a Nano fallback on models billed to the caller's operation. It does
@@ -106,8 +106,10 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 - A validated completed gap-analysis result can be trusted as generated output within one
   tailoring execution. Saved gap-response requirement/body approvals are reused; pending
   fields are screened together once, with fingerprinted reports for every saved answer ID.
-- Spoken interviews reconstruct prior dialogue from Rails-owned public utterances and screen
-  only the newest candidate message. Frozen library approvals travel in the private claim;
+- Spoken answer turns reconstruct prior dialogue from Rails-owned public utterances and
+  deliberately skip injection classification for candidate answers and frozen context.
+  They retain exact-prompt integrity, size limits, contact replacement, and accounted
+  generation; they never grant screening approvals. Preparation still screens sources. Frozen library approvals travel in the private claim;
   new checks persist through its fenced Rails callback before generation. Preparation also
   persists an exact frozen career-focus fingerprint there and needs its receipt first,
   including focus-only checks; retries reuse only matching fingerprints. Ordinary queued

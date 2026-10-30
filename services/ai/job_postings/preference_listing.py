@@ -88,6 +88,14 @@ def description_text(html):
     # during parsing, then apply the established HTML4 rules to text nodes only.
     # Rails treats a raw carriage return as whitespace, not a new paragraph line.
     protected = html.replace("&", "&amp;").replace("\r", "&amp;#13;")
+    # Rails' HTML4 parser parses children inside these containers as markup.
+    # Newer libxml treats them as RCDATA/raw text. Neutralize only their names;
+    # their attributes, children and closing boundaries remain in the input.
+    protected = re.sub(
+        r"(</?)(textarea|title|xmp|iframe|noembed|noframes|plaintext)(?=[\s/>])",
+        lambda match: f"{match[1]}cg-html4-{match[2].lower()}",
+        protected, flags=re.IGNORECASE,
+    )
     soup = BeautifulSoup(protected, "lxml")
     for node in soup.select("script, style"):
         node.decompose()

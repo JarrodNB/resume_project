@@ -1029,5 +1029,1065 @@
       ]
     },
     "fingerprint": "11c4cc3a0e2fe07ea41d07e5b916919609bb010113ba03947a67bb3e7de0c10f"
+  },
+  {
+    "payload": {
+      "title": "Rawtext textarea",
+      "description": "<textarea>A &amp; B<br>C</textarea>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "9bdf12a6dcded38cc80d7c9a32f5996df1788d2452100aba0041d42d571020eb",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext textarea"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "2c318dcdcf713d34199139822c17ab2545d7012aba49d3988010f791ee2e9db1"
+  },
+  {
+    "payload": {
+      "title": "Rawtext textarea",
+      "description": "Before<textarea>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></textarea>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "e795300aba508afa1fe8c7baa85cb8193cecd73e597b134ae0b2e195730b3eb7",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext textarea"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "92a47398d4cf3f2e0b4b2a9fd350deea766b1218b206cc3fe111a4c7b635135d"
+  },
+  {
+    "payload": {
+      "title": "Rawtext textarea",
+      "description": "<textarea>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "ffccb201e10a645a6e0ad4651b33591b4cff2f2372fce8cd561b99d0c5c35d97",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext textarea"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "ea51f303a65119b97e936bf572c93afcf0a007305e61d5035dac07257eceb17a"
+  },
+  {
+    "payload": {
+      "title": "Rawtext title",
+      "description": "<title>A &amp; B<br>C</title>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "016430f6edddb22bb9989c36d7c5bb16adefd81c03659f5e1e1cce185bc363ea",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext title"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "b0989c395f81da7f040d4d2da408127e03c880fd477a4e74f95ea5236b44333b"
+  },
+  {
+    "payload": {
+      "title": "Rawtext title",
+      "description": "Before<title>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></title>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "0338409b97745b6acf28d09d596fc6758ba4c822b60dcbea5ea93c217adba445",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext title"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "3cb335636611c3e43a00c0191b74ea58806283917d9490a27eb80d1ac40ef12c"
+  },
+  {
+    "payload": {
+      "title": "Rawtext title",
+      "description": "<title>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "a087b014a447162469ea73b3af90be92a92edbd4250da22884385447b4837d5e",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext title"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "1d47559c0c09bb6cd67478ee13daa3f78e720415d87fda60a06f3a0ff0c80f0d"
+  },
+  {
+    "payload": {
+      "title": "Rawtext xmp",
+      "description": "<xmp>A &amp; B<br>C</xmp>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "00563616014b762db66fecd0a5c67cf4468ad7c73f51d8e24304b1a97965978c",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext xmp"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "b2885f6642fbf6425a32cb74f11058a2841ae889e5bb39cc78a653e1f39b71bd"
+  },
+  {
+    "payload": {
+      "title": "Rawtext xmp",
+      "description": "Before<xmp>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></xmp>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "794dd2c892926cf303d8ea5c6253238d95c017a481d23217a0ae40628cfb03f2",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext xmp"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "0ebb4fc2878cc93f62df31cbd88c9ba59d9e5601e1426d852144d459b8eac6da"
+  },
+  {
+    "payload": {
+      "title": "Rawtext xmp",
+      "description": "<xmp>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "695faecb4fc735d0c0dfc0e31ad7b0e2db763f3f616f21efe4b1cc6e52321d33",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext xmp"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "77878e4b1a97b20f22b1710770fc9ddf650597561eae3eb44d639fdf99f6b036"
+  },
+  {
+    "payload": {
+      "title": "Rawtext iframe",
+      "description": "<iframe>A &amp; B<br>C</iframe>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "a16976895604cab3a94eb567f78c8f0e0a5f2aef46f521b3d19ab2fd3f6f1973",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext iframe"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "6227f4a01a2df5775dcba524a054c7842af3f291a57e88abaa61c35fc9270a22"
+  },
+  {
+    "payload": {
+      "title": "Rawtext iframe",
+      "description": "Before<iframe>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></iframe>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "7dc831571be20dae8cc810cd5dce7cdd807da512d4f393a835efb2b97808a8b2",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext iframe"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "0e6134f4f98c8eb4acc4a4ae86209e96d73465f802937d8bed467143f67cc1bc"
+  },
+  {
+    "payload": {
+      "title": "Rawtext iframe",
+      "description": "<iframe>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "0ba1bd6b351ee62626c9792e814b0633c84cab8f7c8d529507aca40c9d68cdfb",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext iframe"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "468adde32ffc4546a0f963d3d3f01c140dd322bcfba68bf7307bc21cf8adb101"
+  },
+  {
+    "payload": {
+      "title": "Rawtext noembed",
+      "description": "<noembed>A &amp; B<br>C</noembed>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "00dff5283ba837412f0b686aeb863d9071b9c3eb2ac9caa469e950d84f9c900b",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext noembed"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "eb2d7b423c6bbbe3270e0072bc33d78a9e0744f5ef9e3abcc7cfbf07e385a0d7"
+  },
+  {
+    "payload": {
+      "title": "Rawtext noembed",
+      "description": "Before<noembed>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></noembed>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "21b2b5ae5d9427dcc41a1bb24244a5d7295a3838223fa138d274864f330cfb7f",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext noembed"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "dfc3c50b03a91da1eaae7a1580169a9a24f626b0aa89edd9d90e4b3ec7d70bb2"
+  },
+  {
+    "payload": {
+      "title": "Rawtext noembed",
+      "description": "<noembed>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "863d06f4ea39a175463701aa7c3e0e1668ebc15d37aeed5f4380a7aaacc4a6c1",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext noembed"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "dec5f9fad0bf43595ba2be4e0c7e7eab619d44e77c42c208a64b1c0083081751"
+  },
+  {
+    "payload": {
+      "title": "Rawtext noframes",
+      "description": "<noframes>A &amp; B<br>C</noframes>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "74e45aef31f320bdc153f83d4b2ae2316f1b0da7ac5f5eedef28477195927629",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext noframes"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "23e934746ebecb0ddb0906ac987e7f0a1386fb0f08473cc1dd5817a50e0d3a97"
+  },
+  {
+    "payload": {
+      "title": "Rawtext noframes",
+      "description": "Before<noframes>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></noframes>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "c0161727c1fa3394e15825080113025fb44440fede1d765d8a9c438bce73608c",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext noframes"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "ec632a28553fa70883bf075b525cab30ddf9b1ef0150e83d25912306e9bb949d"
+  },
+  {
+    "payload": {
+      "title": "Rawtext noframes",
+      "description": "<noframes>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "9a2578a74c253ec90aa0eabed8074780a9720b1edbb46cecc2734ae64a2787fd",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext noframes"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "96b62b29d5b1a3bb30a23f0bde9d95315451a85fcb35d49ea1f1eb75bb119885"
+  },
+  {
+    "payload": {
+      "title": "Rawtext plaintext",
+      "description": "<plaintext>A &amp; B<br>C</plaintext>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "17133454458d72805140bad6fd698bb9a2f574ed240fbb22b7025342643b5232",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext plaintext"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "908388210567e685f7e5476f88449b7c886ec6cc7ebb493681e3c6c18fe2fe8d"
+  },
+  {
+    "payload": {
+      "title": "Rawtext plaintext",
+      "description": "Before<plaintext>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></plaintext>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "7cc6ff8379846e1ee5bb25d8c2da733c48b0fa2ed4e29852c97edbb4ba759fe8",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext plaintext"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "b9d9b71b0940caca62fae3c03990ee72f733c51436091b54c99e9f682e658788"
+  },
+  {
+    "payload": {
+      "title": "Rawtext plaintext",
+      "description": "<plaintext>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "bf0ca89fe8f076dcd08c8640cae27f0d7ddcd30c11b38813783e297233afcf04",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext plaintext"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "cef70220747304ae4df29e70c4d18d221ec15aa1f1f1f904ceb6d62a54483707"
+  },
+  {
+    "payload": {
+      "title": "Rawtext listing",
+      "description": "<listing>A &amp; B<br>C</listing>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "225f5b92a396f7644dd6fae7f168ebe235de2952088c985bbd88401131c75fad",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext listing"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "02e9daa4fffbefe36d123fb3a8e4365bbe2fa6b87dedc85b3f8728629f897a2c"
+  },
+  {
+    "payload": {
+      "title": "Rawtext listing",
+      "description": "Before<listing>A<b>B</b><p>C &ZeroWidthSpace; D</p><ul><li>E<li>F</ul></listing>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "28b560ccebe6a6001608b9944603d041a4479d1aa6e11ca360f025f96b66efd0",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext listing"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "- E"
+        },
+        {
+          "id": "P5",
+          "text": "- F"
+        },
+        {
+          "id": "P6",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "dc3b768215b90bc142fd7241b07f3bbe4ce42d383f69e53649a71b3987b2c04a"
+  },
+  {
+    "payload": {
+      "title": "Rawtext listing",
+      "description": "<listing>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "26aedf1b1cea28f2fcee689fcbe752d0db99ca2a6e303a2c5ae14841124e27c6",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext listing"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "283c7d31f8bdbd52946cb491dae6fc0f1a9ca276ba4a963e9317e1752674587f"
+  },
+  {
+    "payload": {
+      "title": "Rawtext boundaries",
+      "description": "<TEXTAREA data-note=\"x > y\">A &amp; B<br>C</TEXTAREA>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "4f8d830f653050608a849a9759f9647824eb664530143c39046a26d5d1d3fd98",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "3d0b85e565968663625c64dbdde13bfa78352b063522800c2a161a9fdec8e585"
+  },
+  {
+    "payload": {
+      "title": "Rawtext boundaries",
+      "description": "<textarea/>A &amp; B<br>C"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "4f8d830f653050608a849a9759f9647824eb664530143c39046a26d5d1d3fd98",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "3d0b85e565968663625c64dbdde13bfa78352b063522800c2a161a9fdec8e585"
+  },
+  {
+    "payload": {
+      "title": "Rawtext boundaries",
+      "description": "<noscript>A &amp; B<br>C</noscript>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "4f8d830f653050608a849a9759f9647824eb664530143c39046a26d5d1d3fd98",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "3d0b85e565968663625c64dbdde13bfa78352b063522800c2a161a9fdec8e585"
+  },
+  {
+    "payload": {
+      "title": "Rawtext boundaries",
+      "description": "Before<noscript>A<b>B</b><p>C &ZeroWidthSpace; D</p></noscript>After"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "ea8777cc74bc5e53d6028f43d9f2641b9437069eaab6f66f040d9ed5a0c1375e",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAB"
+        },
+        {
+          "id": "P3",
+          "text": "C &ZeroWidthSpace; D"
+        },
+        {
+          "id": "P4",
+          "text": "After"
+        }
+      ]
+    },
+    "fingerprint": "7bfd6902b5f5acc0a0c68823e75a442ec56360297fd06b42d8913442cc9f1b7e"
+  },
+  {
+    "payload": {
+      "title": "Rawtext boundaries",
+      "description": "<noscript>A &amp; B<br>C<p>D"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "bc0768764eef98b2beef94adf6a663b6cebb572f285dce7f48190b6132831418",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        },
+        {
+          "id": "P4",
+          "text": "D"
+        }
+      ]
+    },
+    "fingerprint": "9a7a5f54982b9e95b0dc2bf53bfc47cee35ec9c6447e19e225e708f75cac22ed"
+  },
+  {
+    "payload": {
+      "title": "Rawtext literal boundaries",
+      "description": "<TeXtArEa data-note=\"<textarea> > y\">A &amp; B<br>C</tExTaReA>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "e0a294ea206b15fc39e78a3f2a047beac83c28ff237e22a5e3102fd1365dca53",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext literal boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: A & B"
+        },
+        {
+          "id": "P3",
+          "text": "C"
+        }
+      ]
+    },
+    "fingerprint": "c946b1c8106dd432606b9af84559acbbb8377ff0a6d6e35a6ac400904771c84c"
+  },
+  {
+    "payload": {
+      "title": "Rawtext literal boundaries",
+      "description": "<p>&lt;textarea&gt;A &amp; B&lt;br&gt;C&lt;/textarea&gt;</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "86dee6790f827f2998958ce8f71836e39b98b6c969d0a7a9ca046146129be7e8",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext literal boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: <textarea>A & B<br>C</textarea>"
+        }
+      ]
+    },
+    "fingerprint": "9bee85e3ca36a04f8822b954f04a48598c4dbad1de7cee5bc70eedc0d06d9ad4"
+  },
+  {
+    "payload": {
+      "title": "Rawtext literal boundaries",
+      "description": "<!-- <textarea>ignored<br> -->Before<script>const text = \"<textarea>ignored<br>\";</script>After<p>End</p>"
+    },
+    "count": 1,
+    "criterion_text": "遠隔 & <work>  é 👩‍💻",
+    "criterion_fingerprint": "ead415ed1d291c4a7b6a6dd5dc1f26fb20b1a189caa032c66f23f34d74debefc",
+    "expected": {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "source_digest": "60937f172d28678afc0cf67386482c45a51b8cb2ca1dcc2b30108622e10fc2b5",
+      "truncated": false,
+      "passages": [
+        {
+          "id": "P1",
+          "text": "Job: Rawtext literal boundaries"
+        },
+        {
+          "id": "P2",
+          "text": "Description: BeforeAfter"
+        },
+        {
+          "id": "P3",
+          "text": "End"
+        }
+      ]
+    },
+    "fingerprint": "6ab487500ec570825c94949752cf681a4b6ae3dac38c99e2fa91278955e4baa7"
   }
 ]

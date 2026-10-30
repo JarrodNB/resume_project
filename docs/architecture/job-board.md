@@ -178,7 +178,8 @@ never supplies trusted posting text. Checks create no private Job.
 and text fingerprints, plus listing identities, source/passage fingerprints and truncation
 flags. It stores no criteria text or listing passages. Python mirrors Rails' established
 HTML4 entity decoding, HTML structure and whitespace before checking exact source digests;
-HTML5-only names stay literal. Python reads the owned queued command,
+HTML5-only names stay literal; raw-text/RCDATA containers retain Rails' parsed child
+markup behavior. Python reads the owned queued command,
 current confirmed profile and selected shared catalogue rows in one repeatable read; changed
 revisions or fingerprints fail before model work. Retained legacy copies are comparison
 fences only, never source authority. The transient source

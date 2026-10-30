@@ -9,7 +9,7 @@ import { useStartInterview } from './useInterviewSession'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { difficultyOptions, focusOptions, interviewerOptions, lengthOptions, typeOptions } from './interviewSetupOptions'
-import { InterviewJobContext, type InterviewJob } from './InterviewJobContext'
+import type { InterviewJob } from './InterviewJobContext'
 
 function Choices({ title, name, options, value, change }: { title: string; name: string; options: { value: string; label: string; description: string }[]; value: string; change: (value: string) => void }) {
   return <fieldset className="interview-setup-section"><legend>{title}</legend><div className="interview-setup-choices">
@@ -46,8 +46,7 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
   }
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
   return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); void prepare() }}>
-    <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library. Review the job context before entering the room.' : 'Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.'}</p></div>
-    {job && <InterviewJobContext job={job} sectionId={`job.${job.id}.interview-details`} />}
+    <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library.' : 'Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.'}</p></div>
     <fieldset disabled={busy} className="interview-setup-fields">
       <Choices title="Interview type" name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} />
       <Choices title="Difficulty" name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} />

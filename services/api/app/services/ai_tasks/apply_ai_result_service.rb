@@ -51,8 +51,9 @@ module AiTasks
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
         if ai_task.elicit_job_preferences? && %w[completed needs_user_input].include?(status)
-          result = JobPreferences::ApplyConversationService.call(ai_task: ai_task, message: @message)
-          attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })
+          # Retained queue/history types must never apply output from a retired feature.
+          attributes.merge!(status: "failed", result: nil, message_history: [], pending_questions: [],
+            error_message: "Preference conversations are no longer available.", completed_at: Time.current)
         elsif ai_task.improve_library_entry? && %w[completed needs_user_input].include?(status)
           result = CareerLibrary::ApplyEditService.call(ai_task: ai_task, message: @message)
           attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })

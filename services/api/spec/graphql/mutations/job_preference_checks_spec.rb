@@ -189,7 +189,7 @@ RSpec.describe "Job preference checks" do
     end
   end
 
-  it "preserves generated and completed-check provenance only for exact owner sources" do
+  it "reuses completed-check screening only for exact owner sources" do
     profile = user.job_preference_profile
     criterion = profile.confirmed_criteria.first
     user.ai_tasks.create!(task_type: "generate_summary", status: "completed", result: { criteria: [ criterion ] })
@@ -202,6 +202,26 @@ RSpec.describe "Job preference checks" do
     expect(next_task.input["criteria"].first["screened"]).to be(true)
     expect(next_task.input["listings"].first["screened"]).to be(true)
   end
+  [ [ "completed", "result" ], [ "completed", "input" ], [ "needs_user_input", "input" ] ].each do |status, source|
+    it "reuses exact owner historical #{source} provenance from a #{status} retired conversation" do
+      criterion = user.job_preference_profile.confirmed_criteria.first
+      attributes = ->(value) { { task_type: "elicit_job_preferences", status: status, source => { "criteria" => [ value ] } } }
+      create(:user).ai_tasks.create!(attributes.call(criterion))
+      user.ai_tasks.create!(attributes.call(criterion.merge("text" => "Fully remote elsewhere")))
+      first = request.dig("data", "checkJobBoardPreferenceResults", "aiTask", "input", "criteria").first
+      expect(first.fetch("trusted_generated", false)).to be(false)
+      expect(first["screened"]).to be(false)
+
+      user.ai_tasks.create!(attributes.call(criterion))
+      current = request.dig("data", "checkJobBoardPreferenceResults", "aiTask", "input", "criteria").first
+      if source == "result"
+        expect(current["trusted_generated"]).to be(true)
+      else
+        expect(current["screened"]).to be(true)
+      end
+    end
+  end
+
   it "bounds short-line passage counts and marks omitted content honestly" do
     listing.update!(payload: { title: "Engineer", description: (1..90).map { |n| "Line #{n}" }.join("\n") })
     expect(request.dig("data", "checkJobBoardPreferenceResults", "errors")).to eq([])

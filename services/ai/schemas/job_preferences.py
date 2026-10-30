@@ -11,6 +11,7 @@ class FrozenPreference(BaseModel):
     id: UUID
     text: str = Field(min_length=1, max_length=500)
     priority: Literal["must_have", "nice_to_have"]
+    # Exact owner-text provenance from retained historical generated criteria remains valid.
     trusted_generated: bool = False
     screened: bool = False
 

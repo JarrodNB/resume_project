@@ -29,6 +29,14 @@ RSpec.describe "Next-job preferences" do
     GQL
   end
 
+  it "does not expose preference conversation queries or mutations" do
+    query = execute_graphql("query { jobPreferenceConversation { stale } }", user: user)
+    mutation = execute_graphql('mutation { startJobPreferenceConversation(input: { message: "Remote", expectedVersion: 0 }) { errors } }', user: user)
+    expect(query.fetch("errors").first.fetch("message")).to include("doesn't exist")
+    expect(mutation.fetch("errors").first.fetch("message")).to include("doesn't exist")
+    expect(user.ai_tasks).to be_empty
+  end
+
   it "starts with an empty private profile" do
     expect(read.dig("data", "jobPreferences")).to include("version" => 0, "confirmedRevision" => 0,
       "draftCriteria" => [], "confirmedCriteria" => [])

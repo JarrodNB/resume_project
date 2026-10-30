@@ -63,8 +63,9 @@ module JobPreferences
       JSON.generate({ "confirmed_revision" => @revision, "listings" => listings }).bytesize
     end
 
+    # Retired conversations cannot run again, but retained exact owner-text provenance
+    # still prevents re-screening previously generated or successfully screened criteria.
     def generated_criterion?(criterion)
-      # Provenance is established from validated, completed Rails-owned output, never client flags.
       @user.ai_tasks.where(task_type: "elicit_job_preferences", status: "completed")
         .where("result @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
     end

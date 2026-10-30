@@ -1,6 +1,6 @@
 """Assess a bounded frozen search batch against its owner's confirmed preferences.
 
-Rails owns identity and persistence. The worker returns extractive evidence and bounds
+Rails owns identity and persistence. The worker returns independent probabilities and bounds
 all decision calls; preference checks do not classify inputs for prompt injection.
 """
 import asyncio
@@ -41,7 +41,7 @@ async def assess_listings(criteria, listings):
 
 @within_screening_session
 def handle_job_preference_check_task(task, dependencies):
-    """Return a complete evidence check or an explicit failure, never partial fake unknowns."""
+    """Return complete preference probabilities or an explicit failure."""
     try:
         snapshot = PreferenceCheckInput.model_validate(task.input)
     except ValidationError:
@@ -54,18 +54,9 @@ def handle_job_preference_check_task(task, dependencies):
     if sum(item.input_tokens + item.output_tokens for item in usage) > MAX_TASK_TOKENS:
         raise UsageLimitExceeded("This preference check exceeded its token budget.")
     listings = [value for value, _ in assessed]
-    for listing in listings:
-        passages = {}
-        for decision in listing["criteria"]:
-            for side in ("support", "contradiction"):
-                evidence = decision[side]
-                if evidence:
-                    passages[evidence["passage_id"]] = evidence
-                    decision[side] = {"passage_id": evidence["passage_id"]}
-        listing["evidence_passages"] = list(passages.values())
     result = {"confirmed_revision": snapshot.confirmed_revision, "listings": listings}
     completed = AiResultMessage(ai_task_id=task.ai_task_id, status="completed", usage=usage, result=result)
     if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > MAX_RESULT_BYTES or len(completed.model_dump_json().encode("utf-8")) > MAX_ENVELOPE_BYTES:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-            error_message="This check has too much listing evidence. Narrow your search or check fewer results.")
+            error_message="This check has too many preference probabilities. Narrow your search or check fewer results.")
     return completed

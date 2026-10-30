@@ -6,10 +6,10 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
-- `job_preferences/start_check_service.rb` — one 1–100-listing snapshot with exact source digests and bounded input/evidence budgets; completed checks reuse only matching exact-source approvals. Result validation checks complete coverage, current sources and compact exact quote dictionaries.
+- `job_preferences/start_check_service.rb` — one 1–100-listing snapshot with exact source digests and bounded input/result budgets; completed checks reuse only matching exact-source approvals. Result validation checks complete coverage, current sources and finite native preference probabilities.
 
 - `job_preferences/` — owner-scoped reusable next-job preference reads and version-fenced draft/confirm/clear writes. No catalogue changes.
-- `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing snapshots, queued JEV checks, source-digest currentness and exact evidence/result acceptance.
+- `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing snapshots, queued JEV checks, source-digest currentness and finite probability/result acceptance.
 
 - `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
 

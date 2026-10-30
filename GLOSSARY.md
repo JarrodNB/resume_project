@@ -14,8 +14,9 @@ The user's reusable set of confirmed next-job preferences. An editable draft sta
 until the user confirms it.
 
 **Preference assessment**:
-A comparison of one job posting with the user's confirmed preferences. A condition can match,
-conflict, or remain unknown when the posting does not establish it.
+Independent model-estimated probabilities that one job posting satisfies each confirmed
+preference. These estimates are not verified facts, confidence margins, or a distribution
+that must sum to one.
 
 **Summary inclusion**:
 Whether a summary appears on a resume. The library preference supplies the default for new

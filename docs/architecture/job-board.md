@@ -181,26 +181,31 @@ budget across the batch. Each passage is at most 500 characters, with at most 64
 passages per listing; smaller per-listing budgets also reduce the passage count so
 short-line metadata stays bounded. Omitted bytes or passages set the truncation flag.
 The complete input must fit 180,000 UTF-8 bytes. A conservative result-size preflight
-rejects evidence-heavy sets before paid work, even below the 100-listing limit. A normal
+bounds identity/probability result size before paid work, even below the 100-listing limit. A normal
 20-listing page with all ten criteria is covered by a boundary regression. The worker has no catalogue
 or preference-profile database grant. Shared pages contain no private results.
 
-The new JEV preference agent chooses supporting and contradicting passage IDs for
-each criterion in one request. Its fixed options include `none`; it cannot generate
-evidence prose. Application code copies each distinct selected source excerpt once into the listing
-result's `evidence_passages`; criterion support/contradiction values reference its passage ID.
-Rails validates every dictionary quote against the frozen input, and the browser resolves
-only validated references for display. This avoids repeating a long quote for every criterion. Neither
-side means unknown, support alone matching, contradiction alone conflicting, and
-both sides unknown with a contradictory-evidence reason. Incomplete excerpts and
-unstated salary units or remote restrictions cannot become assumed promises.
-Provider failure is a failed check, separate from an evidence-based unknown.
+The JEV preference agent builds one dynamic Pydantic output field per confirmed
+preference, from one to ten: `p1` through `p10`, each a finite float bounded to `[0, 1]`.
+Fields map back to the frozen criterion UUIDs in code. Pydantic AI maps bounded floats
+to Jev's native `Noul` probability primitive, returning raw probabilities rather than
+thresholding booleans or converting confidence margins. These are independent questions:
+several preferences may all score highly and their values need not sum to one. Neither
+passage IDs nor `none` are offered as model choices; input passage segmentation remains
+only a source-size/provenance boundary, and the prompt renders posting text without IDs.
+
+The result for a criterion is exactly `{id, probability}`. No source citation, evidence
+quote, status or reason is generated. Explicit support raises fit estimates and explicit
+contradictions lower them; omitted, partial or ambiguous details leave uncertainty.
+The percentages are model estimates from limited posting text, not calibrated real-world
+likelihoods or verified facts. In particular, missing-source estimates may be low rather
+than centered at 0.5. Provider failure remains a failed check, never a fabricated score.
 
 Preference criteria and listing passages are treated as data without prompt-injection
 classification. Fixed labeled source blocks, a bounded input guard, contact masking,
 versioned prompts, Logfire traces and normal worker attempt accounting apply. The model
-chooses only from fixed passage IDs and cannot produce evidence prose. This reduces false
-rejections but leaves the decision model exposed to instructions embedded in listing text.
+returns only bounded numeric estimates, with no evidence prose. This avoids categorical
+source-selection mistakes but leaves the model exposed to instructions embedded in listing text.
 No screening approvals are granted by a preference check.
 
 A shared actual-request budget stops at 240 provider requests or 600,000 consumed tokens.
@@ -214,9 +219,10 @@ must fit 160,000 bytes, reserving queue space for concrete usage receipts. The w
 checks its complete serialized result envelope against 240,000 bytes and returns a small,
 usage-preserving failure rather than an oversized success.
 
-Rails accepts only exact queued listing/criterion coverage and exact frozen evidence,
-consistent outcomes/reasons, the matching profile revision and unchanged live source
-digests. Finished tasks keep their outcome under duplicate delivery; late usage remains
+Rails accepts only exact queued listing/criterion coverage, finite numeric probabilities
+from zero to one, the matching profile revision and unchanged live source digests. Unknown
+keys, booleans, numeric strings, missing scores and old categorical result shapes are rejected.
+A late old-worker result fails clearly and can be explicitly retried with the current worker. Finished tasks keep their outcome under duplicate delivery; late usage remains
 independently deduplicated. The UI follows subscriptions, makes checks explicit, and
 invalidates displayed conclusions when the loaded search snapshot or confirmed
 revision changes. Normal already-loaded page navigation and hiding already-saved roles
@@ -224,28 +230,30 @@ preserve the snapshot. Draft-only preference edits do not invalidate a confirmed
 No per-row query/subscription hooks are mounted: the one batch task supplies pure row views.
 
 “Check these results” explicitly assesses all raw loaded candidates, before local hiding or
-20-row paging. Preference fit ordering uses fewer must-have conflicts, then fewer unknown
-must-haves, more matching nice-to-haves, and fewer conflicting nice-to-haves; ties retain
-provider order. Every listing stays accessible. Criterion outcomes and counts describe
-preference fit, never qualification percentages. One Result order selector chooses search,
-career-library or preference order and reuses completed outcomes without model requests.
-Each row shows outcome counts first, with remembered, initially collapsed preference
-details for inspecting criteria and quotes. An omitted-source notice stays visible even
-when all criteria have supporting or contradicting evidence.
+20-row paging. Preference fit ordering compares the mean must-have probability first,
+then the mean nice-to-have probability, both descending; provider order breaks ties.
+An absent priority group contributes zero uniformly, so an all-nice-to-have profile sorts
+by its nice-to-have mean. No weighted blend, match threshold or status category is applied.
+Every listing stays accessible. One Result order selector chooses search, career-library
+or preference order and reuses completed results without model requests. Each row shows
+explicitly labeled priority-group averages first, then remembered, initially collapsed
+individual preference percentages. An omitted-source notice stays visible.
 New search submissions, accepted refreshed pages, newly loaded provider pages and confirmed
 profile revisions require an explicit new check; stale starts, completion, failures and busy
 state cannot affect the newer scope or a replacement signed-in session.
 
-Run `python -m evals.run_job_preference_evals` from the AI service for the eight-case
-synthetic production-screening/JEV experiment. It prints deterministic decision and
-exact-evidence scores plus actual known usage; it uses paid providers and writes no
-report file. The cases cover explicit support/contradiction, omissions, incompatible
-salary units, remote-location restrictions, contradictory passages, a compound
-condition with missing information, and an injected posting. Offline evaluator tests
-check that fabricated quotes and screening outages cannot pass. `--batch-smoke` runs just
-one fixed three-listing/three-criterion batch through the same worker, with production
-screening, deterministic exact-evidence/outcome/order scores, duration and known cost receipts.
-It is a paid smoke experiment, not a 100-listing load or general-quality claim.
+Run `python -m evals.run_job_preference_evals` from the AI service for eight synthetic
+native-JEV cases with evaluator-only broad expected probability bands. It prints numeric
+probabilities and actual usage; no subjective judge, screening calls or report files are
+used. Cases cover clear compatibility/contradiction, omissions, incompatible salary units,
+remote restrictions, contradictory text, partial compound conditions and injected text.
+Offline evaluator tests reject missing/nonpassing/NaN scores and execution failures.
+`--batch-smoke` instead performs exactly four requests: a three-listing/three-preference
+batch and a ten-preference boundary posting. It checks native numeric validity, independence,
+broad directional bands and ordering, and reports cost/latency. Its uncertainty bands are
+quality expectations, not probability calibration. A missing-source score outside a band
+fails the runner and must be reported rather than relabeled to pass. A tiny smoke does not
+establish general quality or 100-listing load performance.
 
 ## Optional hybrid reranking
 

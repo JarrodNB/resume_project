@@ -1,6 +1,6 @@
 /** Retain one explicit preference check with its search visit, even while the page is closed.
  * Requests use the raw loaded snapshot and a confirmed profile revision. Changed source,
- * a newer confirmation or an old task update cannot replace the current evidence.
+ * a newer confirmation or an old task update cannot replace the current estimate.
  * The owning visit notifies React; request locks and async records stay private here.
  */
 import type { ApolloClient } from '@apollo/client'
@@ -80,7 +80,7 @@ export function createJobBoardPreferenceCheck(client: ApolloClient, getSnapshot:
       taskId: task?.status === 'QUEUED' ? task.id : '',
       error: (failure && same(failure, confirmedRevision) ? failure.message : null)
         || (task?.status === 'FAILED' ? task.errorMessage || 'The preference check failed. Please try again.' : null)
-        || (task?.status === 'COMPLETED' && !assessments ? 'The check returned incomplete evidence. Please try again.' : null),
+        || (task?.status === 'COMPLETED' && !assessments ? 'The check returned invalid probabilities. Please try again.' : null),
       limitReached: snapshot.listings.length > 100,
     }
   }

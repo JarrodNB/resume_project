@@ -19,6 +19,7 @@ from database.tailoring_sources import TailoringSources
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from schemas.summary_generation import SummaryCommand, SummaryGenerationInput
 from schemas.library_review import LibraryReviewInput
+from schemas.study_guide import StudyGuideInput
 from worker.product_name import USER_AGENT
 from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings
@@ -43,6 +44,7 @@ class TaskDependencies:
     http_client: httpx.Client
     # Called with (user_id, job_id); production reads Postgres as ai_reader.
     read_gap_analysis_context: GapAnalysisContextReader
+    read_study_guide_sources: Callable[[AiTaskMessage], StudyGuideInput | None] | None = None
     read_task_command: Callable[[AiTaskMessage], AiTaskMessage | None] | None = None
     read_tailoring_sources: Callable[[UUID, UUID, UUID, UUID | None], TailoringSources | None] | None = None
     read_career_library: Callable[[UUID], CareerLibrary] | None = None

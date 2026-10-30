@@ -76,3 +76,6 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   only its new generated fragment; Python reconstructs prompts/answers from the canonical owned
   commands. Retained legacy histories discard user/source requests and subtract the exact owned
   generated prefix, failing safely if that prefix is inconsistent.
+- `study_guide_sources.py` binds queued task/owner/type/Job identity and expiry before
+  reading current job text and valid completed prompts through narrow ordinary views.
+  It preserves batch/slot order and rejects excess context without dropping history.

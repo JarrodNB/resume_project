@@ -8,20 +8,20 @@ RSpec.describe "Study guide generation" do
 
   before { allow(Shoryuken::Client).to receive_message_chain(:queues, :send_message) }
 
-  it "queues the exact description without requiring a career library" do
+  it "queues only the job reference without requiring a career library" do
     data = execute_graphql(mutation, user: user, variables: { id: job.id })
     expect(data.dig("data", "generateStudyGuide", "errors")).to eq([])
     task = user.ai_tasks.last
     expect(task.task_type).to eq("generate_study_guide")
     expect(task.subject).to eq(job)
-    expect(task.input).to eq("job_id" => job.id, "description" => job.description, "previous_questions" => [])
+    expect(task.input).to eq("job_id" => job.id)
   end
-  it "freezes all earlier owned question prompts when appending" do
+  it "leaves earlier question prompts in their completed records" do
     prompts = Array.new(5) { |i| { "question" => "Prior question #{i}?", "why_it_matters" => "Role", "answer" => "Explanation", "example" => "Example" } }
     create(:ai_task, user: user, subject: job, task_type: "generate_study_guide", status: "completed",
       result: { "study_guide" => { "version" => 1, "title" => "Prior", "questions" => prompts } })
     execute_graphql(mutation, user: user, variables: { id: job.id })
-    expect(user.ai_tasks.order(created_at: :desc).first.input["previous_questions"]).to eq(prompts.map { |item| item["question"] })
+    expect(user.ai_tasks.order(created_at: :desc).first.input).to eq("job_id" => job.id)
   end
 
   it "does not forget old questions when generation reaches its bounded context" do
@@ -131,5 +131,4 @@ RSpec.describe "Study guide generation" do
     response = execute_graphql('query($id: ID!) { aiTask(id: $id) { result } }', user: create(:user), variables: { id: task.id })
     expect(response["errors"].first["message"]).to eq("Record not found")
   end
-
 end

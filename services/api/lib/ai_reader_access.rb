@@ -6,6 +6,8 @@
 #   - ROLE_NAME / READABLE_*: the exact tables and columns the worker may read
 #   - role_exists?: whether the role exists in this Postgres cluster
 #   - grant: revokes every other privilege and grants exactly the allowed ones
+require_relative "ai_study_guide_reader_views"
+
 module AiReaderAccess
   ROLE_NAME = "ai_reader".freeze
   READABLE_TABLES = %w[
@@ -39,6 +41,7 @@ module AiReaderAccess
     user_columns = READABLE_USER_COLUMNS.map { |column| connection.quote_column_name(column) }.join(", ")
 
     connection.transaction do
+      AiStudyGuideReaderViews.create(connection)
       connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM #{role}")
       connection.execute("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM #{role}")
       connection.execute(<<~SQL)
@@ -54,6 +57,7 @@ module AiReaderAccess
       connection.execute("GRANT SELECT (#{READABLE_RESUME_COLUMNS.join(', ')}) ON resumes TO #{role}")
       connection.execute("GRANT SELECT (#{READABLE_SECTION_COLUMNS.join(', ')}) ON resume_sections TO #{role}")
       connection.execute("GRANT USAGE ON SCHEMA public TO #{role}")
+      connection.execute("GRANT SELECT ON ai_study_guide_commands, ai_study_guide_questions TO #{role}")
       connection.execute("GRANT SELECT ON #{tables} TO #{role}")
       connection.execute("GRANT SELECT (#{user_columns}) ON users TO #{role}")
       task_columns = READABLE_TASK_COLUMNS.map { |column| connection.quote_column_name(column) }.join(", ")

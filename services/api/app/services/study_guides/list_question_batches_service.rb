@@ -18,10 +18,9 @@ module StudyGuides
       last = rows.last
       cursor = last ? verifier.generate({ "job_id" => @job.id, "created_at" => last.created_at.iso8601(6), "id" => last.id }, purpose: "study-question-collection") : @cursor
       content = rows.map do |batch|
-        source = batch.input["description"]
         { id: batch.id, result: batch.result,
-          source_description_fingerprint: source.is_a?(String) ? DescriptionSnapshot.fingerprint(source) : nil,
-          out_of_date: DescriptionSnapshot.out_of_date?(source: source, description: @job.description) }
+          source_description_fingerprint: DescriptionFingerprint.source_fingerprint(batch),
+          out_of_date: DescriptionFingerprint.task_out_of_date?(batch, description: @job.description) }
       end
       success(batches: content, end_cursor: cursor, total_questions: all.count * 5, errors: [])
     rescue ArgumentError, KeyError

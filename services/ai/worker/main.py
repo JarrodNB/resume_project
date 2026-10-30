@@ -27,6 +27,7 @@ from database.career_library_reader import (
 from database.job_listing_similarity import build_job_listing_scorer
 from database.summary_sources import build_summary_source_reader
 from database.tailoring_sources import build_tailoring_sources_reader
+from database.study_guide_sources import build_study_guide_reader
 from database.task_commands import build_task_command_reader
 from llm.run_limits import RUN_LIMIT_MESSAGE
 from llm.usage import TaskUsage, collect_task_usage
@@ -210,6 +211,7 @@ def run_worker() -> None:
         read_summary_sources=build_summary_source_reader(settings),
         score_job_listings=build_job_listing_scorer(settings),
         read_task_command=build_task_command_reader(settings),
+        read_study_guide_sources=build_study_guide_reader(settings),
     )
 
     stop_requested = False

@@ -83,6 +83,9 @@ Configuration must work in Docker development and production. Preserve owned dat
   result/history and accounting columns remain hidden.
   Summary reads also grant only resumes(id,user_id), resume_sections(id,resume_id,section_type,content,position),
   and the non-materialized ai_accepted_resume_prose(user_id,prose) projection of accepted generated prose.
+  Study guides read current owned
+  job sources and validated generated prompts through the narrow ordinary
+  `ai_study_guide_commands` / `ai_study_guide_questions` views.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see
 - `graphql_schema/schema.graphql` — GraphQL SDL dump read by `apps/web` codegen (in its own
   folder so the web container mounts the folder and always sees the latest dump). Regenerate after any

@@ -132,8 +132,36 @@ RSpec.describe "Study guide results" do
     allow(Shoryuken::Client).to receive(:queues).and_return(queue)
     requested = StudyGuides::StartGuideService.call(user: user, job: job)
     expect(requested).to be_success
-    expect(requested.value.input["description"]).to eq("Plan warehouse replenishment.")
+    expect(requested.value.input).to eq("job_id" => job.id)
     expect(job.ai_tasks.count).to eq(2)
     expect(task.reload.result).to eq("study_guide" => guide)
+  end
+  it "accepts reference-only work with an execution fingerprint and preserves freshness without source copies" do
+    task.update!(input: { job_id: job.id })
+    fingerprint = StudyGuides::DescriptionFingerprint.fingerprint(job.description)
+    Jobs::UpdateJobService.call(job: job, attributes: { description: "Updated after source read." })
+    apply("study_guide" => guide, "source_description_fingerprint" => fingerprint)
+    expect(task.reload).to be_completed
+    expect(task.input).to eq("job_id" => job.id)
+    expect(task.result).to eq("study_guide" => guide, "source_description_fingerprint" => fingerprint)
+    expect(StudyGuides::DescriptionFingerprint.task_out_of_date?(task, description: job.reload.description)).to be(true)
+    read = StudyGuides::ListGuidesService.call(job: job, user: user)
+    expect(read.value[:guides].sole).to include(source_description_fingerprint: fingerprint, out_of_date: true)
+    questions = StudyGuides::ListQuestionBatchesService.call(job: job, user: user)
+    expect(questions.value[:batches].sole).to include(source_description_fingerprint: fingerprint, out_of_date: true)
+  end
+
+  it "rejects reference-only results without an execution fingerprint" do
+    task.update!(input: { job_id: job.id })
+    apply("study_guide" => guide)
+    expect(task.reload).to be_failed
+    expect(task.result).to be_nil
+  end
+
+  it "rejects copied source metadata in completed results" do
+    task.update!(input: { job_id: job.id })
+    apply("study_guide" => guide, "source_description_fingerprint" => StudyGuides::DescriptionFingerprint.fingerprint(job.description), "description" => job.description)
+    expect(task.reload).to be_failed
+    expect(task.result).to be_nil
   end
 end

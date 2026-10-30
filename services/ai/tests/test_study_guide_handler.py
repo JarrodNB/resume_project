@@ -1,11 +1,20 @@
 """Exercise description-only guide generation through the queue dispatch interface."""
+from dataclasses import replace
 from uuid import uuid4
 
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from schemas.study_guide import StudyGuideInput
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
+
+
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    def read(task):
+        return StudyGuideInput.model_validate(task.input)
+    return replace(task_dependencies, read_study_guide_sources=read)
 
 
 def task(description="Reconcile inventory records and physical stock counts."):
@@ -13,7 +22,7 @@ def task(description="Reconcile inventory records and physical stock counts."):
                          input={"job_id": str(uuid4()), "description": description})
 
 
-def test_generates_from_the_frozen_description_without_library(task_dependencies):
+def test_generates_from_the_current_description_without_library(task_dependencies):
     from agents.study_guide_agent import study_guide_agent
 
     with study_guide_agent.override(model=TestModel()):
@@ -44,7 +53,7 @@ def test_injection_like_description_generates_without_classification(task_depend
     assert all(item.model != "jev-1.13.0" for item in result.usage)
 
 
-def test_prompt_uses_only_the_snapshot_and_output_failures_are_recoverable(task_dependencies, monkeypatch):
+def test_prompt_uses_only_loaded_sources_and_output_failures_are_recoverable(task_dependencies, monkeypatch):
     from pydantic_ai.exceptions import UnexpectedModelBehavior
     seen = []
     def reject(prompt, settings):
@@ -214,3 +223,28 @@ def test_invalid_diagram_cannot_complete_and_retains_usage(task_dependencies, ch
     assert result.status == "failed"
     assert result.result is None
     assert result.usage[-1].output_tokens > 0
+
+
+def test_reference_task_reads_current_sources_and_ignores_legacy_copies(task_dependencies, monkeypatch):
+    from agents.study_guide_agent import study_guide_agent
+    from schemas.study_guide import StudyGuideInput
+    request = task("OLD COPIED DESCRIPTION")
+    seen = []
+    def read(message):
+        seen.append(message.ai_task_id)
+        return StudyGuideInput(job_id=message.input["job_id"], description="Current saved inventory duties.")
+    dependencies = replace(task_dependencies, read_study_guide_sources=read)
+    with study_guide_agent.override(model=TestModel()):
+        result = handle_ai_task(request, dependencies)
+    assert result.status == "completed"
+    assert seen == [request.ai_task_id]
+    assert result.result["source_description_fingerprint"] == __import__("hashlib").sha256(b"Current saved inventory duties.").hexdigest()
+
+
+def test_unavailable_durable_work_stops_before_generation(task_dependencies, monkeypatch):
+    def forbidden(*args):
+        raise AssertionError("unavailable work reached provider")
+    monkeypatch.setattr("worker.study_guide_handler.generate_study_guide", forbidden)
+    result = handle_ai_task(task(), replace(task_dependencies, read_study_guide_sources=lambda task: None))
+    assert result.status == "failed"
+    assert not result.usage

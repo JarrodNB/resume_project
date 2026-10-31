@@ -24,7 +24,7 @@ RSpec.describe Screening::RecordApprovalsService do
     expect(described_class::RECORD_TYPES.transform_values { |entry| entry[:fields] }).to eq(
       "job_preference_criterion" => %w[text], "job_board_listing" => %w[passages],
       "interview_question" => %w[question_text answer_text],
-      "job" => %w[title company description requirements responsibilities nice_to_haves],
+      "job" => %w[title company location description requirements responsibilities nice_to_haves],
       "gap_response" => %w[requirement body], "user" => %w[summary],
       "experience" => %w[company title location description], "experience_highlight" => %w[content],
       "project" => %w[name role description], "education" => %w[institution degree field_of_study description],

@@ -253,4 +253,24 @@ RSpec.describe "Chat streamed turns" do
     expect(chat.messages).to be_empty
   end
 
+  it "persists only current owned active job labels after the exact chat claim is accepted" do
+    job = create(:job, user: user, title: "Engineer", company: "Acme", screened_fields: [])
+    changed = create(:job, user: user, title: "Original", screened_fields: [])
+    foreign = create(:job, title: "Private", screened_fields: [])
+    archived = create(:job, user: user, title: "Archived", archived_at: Time.current, screened_fields: [])
+    receipt = ->(record) { { "record_type" => "job", "record_id" => record.id,
+      "fingerprints" => %w[title company].to_h { |field| [ field, Screening::RecordApprovalsService.field_fingerprint(record[field]) ] } } }
+    reports = [ job, changed, foreign, archived ].map { |record| receipt.call(record) }
+    changed.update!(title: "Edited", company: "Edited company")
+    operation = start
+    saved = claim(operation)
+    args = { operation: operation, **identity(saved), reply: "Your saved jobs.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: reports }
+    expect(Chat::AcceptReplyService.call(**args.merge(attempt_id: SecureRandom.uuid))).not_to be_success
+    expect(job.reload.screened_fields).to eq([])
+    expect(Chat::AcceptReplyService.call(**args)).to be_success
+    expect(job.reload.screened_fields).to match_array(%w[title company])
+    [ changed, foreign, archived ].each { |record| expect(record.reload.screened_fields).to eq([]) }
+    expect(Chat::AcceptReplyService.call(**args)).to be_success
+  end
 end

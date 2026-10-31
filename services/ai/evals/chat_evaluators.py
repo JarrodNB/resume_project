@@ -13,6 +13,7 @@ from schemas.gap_analysis_context import CareerLibrary
 
 
 class ChatEvalInput(BaseModel):
+    saved_jobs: list[dict] = Field(default_factory=list)
     payload: ChatPayload
     # Synthetic saved library the read_career_library tool returns; empty when omitted.
     career_library: CareerLibrary = Field(default_factory=CareerLibrary)

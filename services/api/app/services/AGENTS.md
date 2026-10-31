@@ -17,6 +17,8 @@ All business logic, as service objects grouped by domain folder.
   (career library, job, gap response, interview question and job preferences). Its `RECORD_TYPES` registry owns each
   type's screened fields, owner/task scope and extra checks; a field is approved only when its
   fingerprint matches the locked current value (and the task snapshot where one exists).
+  Accepted chat replies explicitly enable owned active-job receipts after locked claim fences;
+  other taskless callers remain limited to career-library records.
   Spoken preparation/turns produce no screening approvals. Preference criteria use text
   fingerprints on their owner profile; shared catalogue listings use exact passage fingerprints.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`

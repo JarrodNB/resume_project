@@ -15,11 +15,12 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
 from mcp_tools.career_library import register_career_library_tools
+from mcp_tools.saved_jobs import register_job_summary_tools, register_saved_jobs_tools
 from mcp_tools.tokens import tool_token_secret, tool_token_verifier
 from schemas.gap_analysis_context import CareerLibrary
 
 
-def create_mcp_server(*, secret: str, read_library: Callable[[UUID | str], CareerLibrary]) -> FastMCP:
+def create_mcp_server(*, secret: str, read_library: Callable[[UUID | str], CareerLibrary], read_jobs=None, read_job_summary=None) -> FastMCP:
     """Build the tool server with token auth and every tool registered."""
     server = FastMCP("careergrind-tools", auth=tool_token_verifier(secret), mask_error_details=True)
 
@@ -28,6 +29,16 @@ def create_mcp_server(*, secret: str, read_library: Callable[[UUID | str], Caree
         return PlainTextResponse("ok")
 
     register_career_library_tools(server, read_library)
+    if read_jobs is None:
+        from database.saved_jobs import build_database_saved_jobs_reader
+        from settings import load_settings
+        read_jobs = build_database_saved_jobs_reader(load_settings())
+    if read_job_summary is None:
+        from database.saved_jobs import build_database_job_summary_reader
+        from settings import load_settings
+        read_job_summary = build_database_job_summary_reader(load_settings())
+    register_saved_jobs_tools(server, read_jobs, secret=secret)
+    register_job_summary_tools(server, read_job_summary, secret=secret)
     return server
 
 

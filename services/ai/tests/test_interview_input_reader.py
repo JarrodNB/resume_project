@@ -163,7 +163,6 @@ def test_turn_reads_prepared_question_and_public_dialogue_after_sources_deleted(
     assert hydrated.payload.question == "Prepared question?"
     assert hydrated.payload.candidate_transcript == "Accepted reviewed answer"
     assert hydrated.payload.current_dialogue[0].content == "Prepared question?"
-    assert hydrated.payload.model_history == []
     assert not hydrated.payload.personal_evidence().get("sources")
 
 

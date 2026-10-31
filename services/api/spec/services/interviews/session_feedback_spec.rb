@@ -93,7 +93,7 @@ RSpec.describe "Completed interview feedback" do
       candidate_transcript: "I built a scheduler.", submission_key: "finish", request_fingerprint: "test", expected_revision: interview.revision,
       claim_generation: 1, attempt_id: attempt, lease_expires_at: 1.minute.from_now, execution_deadline: 2.minutes.from_now)
     result = Interviews::AcceptTurnService.call(operation: operation, attempt_id: attempt, claim_generation: 1,
-      transcript: "I built a scheduler.", decision: "advance", history_version: 1, model_history: [])
+      transcript: "I built a scheduler.", decision: "advance")
     expect(result).to be_success
     expect(interview.reload).to be_completed
     expect(interview.feedback).to be_nil

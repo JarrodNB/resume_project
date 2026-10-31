@@ -60,8 +60,7 @@ RSpec.describe "Interview delivery cutover" do
     operation = typed_turn(interview)
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     input = { operation: operation, **claim.slice(:attempt_id, :claim_generation),
-      transcript: operation.candidate_transcript, decision: "continue", reply: "How did you verify the change?",
-      history_version: 1, model_history: [] }
+      transcript: operation.candidate_transcript, decision: "continue", reply: "How did you verify the change?" }
     first = Interviews::AcceptTurnService.call(**input)
     expect(first).to be_success
     count = enqueued_jobs.count

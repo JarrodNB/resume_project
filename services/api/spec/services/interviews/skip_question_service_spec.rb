@@ -91,8 +91,7 @@ RSpec.describe "Answering after skipping a follow-up" do
       expected_revision: 0, submission_key: "first", transcription_mode: "typed", candidate_transcript: "I led it.").value
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     expect(Interviews::AcceptTurnService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
-      transcript: "I led it.", decision: "continue", reply: "How?", history_version: 1,
-      model_history: [])).to be_success
+      transcript: "I led it.", decision: "continue", reply: "How?")).to be_success
     expect(Interviews::SkipQuestionService.call(interview: interview, question_id: question.id,
       expected_revision: 1, submission_key: "skip-follow-up")).to be_success
     next_question = interview.questions.last
@@ -106,7 +105,7 @@ RSpec.describe "Answering after skipping a follow-up" do
     expect(interview.messages.where(question: question).order(:position).pluck(:content)).to eq([
       question.content, "I led it.", "How?" ])
     expect(Interviews::AcceptTurnService.call(operation: next_turn, **next_claim.slice(:attempt_id, :claim_generation),
-      transcript: "I prioritized.", decision: "advance", history_version: 1, model_history: [])).to be_success
+      transcript: "I prioritized.", decision: "advance")).to be_success
     expect(interview.reload).to be_completed
     expect(interview.messages.where(kind: "answer").pluck(:content)).to eq([ "I led it.", "I prioritized." ])
   end

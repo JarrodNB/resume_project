@@ -35,8 +35,7 @@ RSpec.describe "Complete prepared interview" do
     operation.update!(status: "running", attempt_id: SecureRandom.uuid, claim_generation: 1,
       lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)
     input = { operation: operation, attempt_id: operation.attempt_id, claim_generation: 1,
-      transcript: "I checked the instrument.", decision: decision, reply: decision == "continue" ? "How did you check it?" : nil,
-      history_version: 1, model_history: [] }
+      transcript: "I checked the instrument.", decision: decision, reply: decision == "continue" ? "How did you check it?" : nil }
     first = Interviews::AcceptTurnService.call(**input)
     expect(first).to be_success
     expect(Interviews::AcceptTurnService.call(**input).value).to eq(first.value)
@@ -92,7 +91,7 @@ RSpec.describe "Complete prepared interview" do
       expect(claim.value.fetch(:payload)).not_to have_key(:earlier_dialogue)
       result = Interviews::AcceptTurnService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, transcript: "I maintained instruments.",
-        decision: "advance", reply: nil, history_version: 1, model_history: [])
+        decision: "advance", reply: nil)
       expect(result).to be_success
       expect(session.reload).to be_completed
       expect(session.messages.where(kind: "closing").count).to eq(1)

@@ -115,7 +115,7 @@ RSpec.describe "Basic Interview concurrency" do
       else
         Interviews::AcceptTurnService.call(operation: InterviewSessionOperation.find(turn.id),
           **claim.slice(:attempt_id, :claim_generation), transcript: "I calibrated it", decision: "continue",
-          reply: "What changed?", history_version: 1, model_history: [])
+          reply: "What changed?")
       end
     end
     expect(results.first).to be_success
@@ -124,7 +124,7 @@ RSpec.describe "Basic Interview concurrency" do
     count = @interview.messages.count
     replay = Interviews::AcceptTurnService.call(operation: turn.reload,
       **claim.slice(:attempt_id, :claim_generation), transcript: "I calibrated it", decision: "continue",
-      reply: "What changed?", history_version: 1, model_history: [])
+      reply: "What changed?")
     expect(replay.success?).to eq(results.last.success?)
     expect(@interview.messages.count).to eq(count)
     expect(@interview.operations.where(status: %w[pending running])).to be_empty
@@ -181,7 +181,7 @@ RSpec.describe "Basic Interview concurrency" do
     results = race do
       Interviews::AcceptTurnService.call(operation: @interview.operations.find(turn.id),
         attempt_id: turn.attempt_id, claim_generation: 1, transcript: "I calibrated it",
-        decision: "continue", reply: "Ignored at cap", history_version: 1, model_history: [])
+        decision: "continue", reply: "Ignored at cap")
     end
     expect(results).to all(be_success)
     expect(@interview.reload).to have_attributes(current_question_position: 1, revision: 1)
@@ -215,8 +215,7 @@ RSpec.describe "Basic Interview concurrency" do
       results = race do |index|
         operation = @user.interview_sessions.find(@interview.id).operations.find(turn.id)
         Interviews::AcceptTurnService.call(operation: operation, attempt_id: turn.attempt_id, claim_generation: 1,
-          transcript: conflict ? "Answer #{index}" : "Same answer", decision: "advance", reply: nil,
-          history_version: 1, model_history: [])
+          transcript: conflict ? "Answer #{index}" : "Same answer", decision: "advance", reply: nil)
       end
       expect(results.count(&:success?)).to eq(conflict ? 1 : 2)
       expect(@interview.reload).to have_attributes(status: "completed", revision: 1)

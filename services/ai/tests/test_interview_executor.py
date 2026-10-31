@@ -27,13 +27,12 @@ def audio():
     return output.getvalue()
 
 
-def claim(history=None, kind="turn", text=FOLLOW_UP):
+def claim(kind="turn", text=FOLLOW_UP):
     return Claim(operation_id="op", kind=kind, attempt_id="attempt", claim_generation=1,
         lease_expires_at=datetime.now(UTC) + timedelta(seconds=60),
         execution_deadline=datetime.now(UTC) + timedelta(seconds=180),
         payload={"recording_id": "recording", "expected_revision": 0,
-                 "question": "Describe your teamwork", "model_history": history or [],
-                 "history_version": 1, "fixture_context": {"synthetic": True}}
+                 "question": "Describe your teamwork", "fixture_context": {"synthetic": True}}
         if kind == "turn" else {"text": text, "message_id": "message"})
 
 
@@ -97,8 +96,9 @@ def test_normal_turn_returns_no_private_history_and_reports_each_zero_cost_stage
     assert not client.failed
     first = client.accepted[0]
     assert (first["transcript"], first["decision"], first["reply"]) == (TRANSCRIPT, "continue", FOLLOW_UP)
-    assert first["model_history"] == []
-    execute(client, claim(first["model_history"]))
+    assert set(first) >= {"transcript", "decision", "reply"}
+    assert "model_history" not in first and "history_version" not in first
+    execute(client, claim())
     assert len(client.accepted) == 2
     starts = [call for call in client.calls if call[0] == "start"]
     for _, identity, _ in starts:
@@ -111,7 +111,6 @@ def test_advance_returns_only_intent_without_choosing_next_opening():
     result = client.accepted[0]
     assert result["decision"] == "advance"
     assert result["reply"] is None
-    assert result["model_history"] == []
 
 
 @pytest.mark.parametrize("scenario,code", [
@@ -205,7 +204,7 @@ def test_known_fixture_contact_is_masked_before_screening_and_absent_from_saved_
     request.payload.fixture_context.update({"names": ["Sample Person"], "career": "Sample Person built tools"})
     client = Client()
     execute(client, request)
-    saved = str(client.accepted[0]["model_history"])
+    saved = str(client.accepted[0])
     assert "Sample Person" not in saved
     assert all("Sample Person" not in text for text in screened)
     assert any("«name»" in text for text in screened)
@@ -255,7 +254,7 @@ def test_earlier_public_dialogue_is_freshly_screened_masked_and_present_in_promp
         client = Client()
         execute(client, request)
         assert not client.failed
-        saved = str(client.accepted[0]["model_history"])
+        saved = str(client.accepted[0])
         assert "Sample Person" not in saved
         assert "earlier_dialogue" not in saved
     assert sum("repaired the sensor" in text for text in screened) >= 2

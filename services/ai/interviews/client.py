@@ -74,8 +74,6 @@ class TurnPayload(BaseModel):
     recording_id: str | None
     expected_revision: int
     question: str
-    model_history: list[dict[str, Any]]
-    history_version: int
     earlier_dialogue: EarlierDialogue | None = None
     current_dialogue: list[PublicMessage] | None = Field(default=None, max_length=7)
     fixture_context: dict[str, Any] | None = None
@@ -355,8 +353,6 @@ class RailsInterviewClient:
         transcript: str,
         decision: str,
         reply: str | None,
-        history_version: int,
-        model_history: list[dict[str, Any]],
         acknowledgement: str | None = None,
     ):
         return await self._callback(
@@ -365,8 +361,6 @@ class RailsInterviewClient:
             transcript=transcript,
             decision=decision,
             reply=reply,
-            history_version=history_version,
-            model_history=model_history,
             **({"acknowledgement": acknowledgement} if acknowledgement is not None else {}),
         )
 

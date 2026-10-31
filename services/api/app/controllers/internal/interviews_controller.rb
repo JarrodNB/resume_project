@@ -49,8 +49,7 @@ module Internal
 
     def accept
       respond Interviews::AcceptTurnService.call(operation: @operation, **claim_identity,
-        transcript: params.require(:transcript), decision: params.require(:decision), reply: params[:reply], acknowledgement: params[:acknowledgement],
-        history_version: params.require(:history_version), model_history: params[:model_history].as_json)
+        transcript: params.require(:transcript), decision: params.require(:decision), reply: params[:reply], acknowledgement: params[:acknowledgement])
     end
 
     def accept_transcription

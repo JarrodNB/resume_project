@@ -233,8 +233,6 @@ def read_interview_input(connection, claim):
                     recording_id=row["recording_id"],
                     expected_revision=row["expected_revision"],
                     question=question["content"],
-                    model_history=[],
-                    history_version=1,
                     current_dialogue=current,
                     earlier_dialogue=EarlierDialogue(
                         version=1,

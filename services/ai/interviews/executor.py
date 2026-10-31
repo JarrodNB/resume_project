@@ -221,7 +221,7 @@ class InterviewExecutor:
                                          usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
-                                            reply=result.output.reply, history_version=1, model_history=[])
+                                            reply=result.output.reply)
         with stage_timing(claim, "acceptance"):
             await self._reconcile(claim, accept)
 

@@ -33,8 +33,7 @@ RSpec.describe "Recorded transcript review" do
       submission_key: "reviewed", candidate_transcript: text, transcription_mode: "typed").value
     claim = Interviews::ClaimOperationService.call(operation: turn).value
     args = { operation: turn, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation], transcript: text,
-      decision: "continue", reply: "What changed?", history_version: 1,
-      model_history: [] }
+      decision: "continue", reply: "What changed?" }
     2.times { expect(Interviews::AcceptTurnService.call(**args)).to be_success }
     expect(interview.reload.revision).to eq(1)
     expect(interview.questions.first.accepted_answer_count).to eq(1)

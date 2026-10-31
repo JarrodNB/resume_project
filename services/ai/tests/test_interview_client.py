@@ -333,8 +333,7 @@ def test_acceptance_preserves_optional_acknowledgement_without_changing_legacy_p
 
     async def check():
         async with RailsInterviewClient("http://api:3000", "secret", transport=httpx.MockTransport(respond)) as client:
-            values = {"transcript": "I fixed the booking process.", "decision": "continue", "reply": "What changed?",
-                      "history_version": 1, "model_history": []}
+            values = {"transcript": "I fixed the booking process.", "decision": "continue", "reply": "What changed?"}
             await client.accept(Claim.model_validate(CLAIM), **values)
             await client.accept(Claim.model_validate(CLAIM), **values, acknowledgement="You fixed the booking process.")
 

@@ -117,8 +117,7 @@ def test_real_turn_does_not_return_saved_dialogue_as_model_history():
     run_turn(client, models, request)
     assert client.accepted and not client.failed
     assert "Previously saved question marker?" in models.prompts[-1][1]
-    assert client.accepted[0]["history_version"] == 1
-    assert client.accepted[0]["model_history"] == []
+    assert "model_history" not in client.accepted[0]
 
 
 def test_fixture_turn_returns_only_new_output_and_uses_public_dialogue():
@@ -129,10 +128,9 @@ def test_fixture_turn_returns_only_new_output_and_uses_public_dialogue():
     client = Client()
     execute(client, request)
     assert not client.failed
-    assert client.accepted[0]["model_history"] == []
 
 
-def test_fixture_ignores_private_history_when_owned_public_dialogue_is_present(monkeypatch):
+def test_fixture_uses_owned_public_dialogue_as_history(monkeypatch):
     from types import SimpleNamespace
 
     from interviews.client import PublicMessage
@@ -148,13 +146,12 @@ def test_fixture_ignores_private_history_when_owned_public_dialogue_is_present(m
             return await agent.run(prompt, **kwargs)
         return SimpleNamespace(run=run), options
     monkeypatch.setattr(InterviewExecutor, "_interviewer", interviewer)
-    request = claim(history=[{"private": "never use this copied source"}])
+    request = claim()
     request.payload.current_dialogue = [PublicMessage(kind=kind, content=text) for kind, text in [
         ("opening", "Saved opening?"), ("answer", "The exact earlier answer."), ("follow_up", "Saved follow-up?")]]
     client = Client()
     execute(client, request)
     assert not client.failed
-    assert client.accepted[0]["model_history"] == []
 
     prompt, history = captured[0]
     assert "The exact earlier answer." in str(history)

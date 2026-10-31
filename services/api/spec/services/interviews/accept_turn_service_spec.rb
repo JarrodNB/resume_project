@@ -14,8 +14,7 @@ RSpec.describe "Basic Interview acceptance" do
   let(:input) do
     { operation: operation, attempt_id: operation.attempt_id, claim_generation: operation.claim_generation,
       transcript: "I paired with a teammate to fix our scheduler.", decision: "continue",
-      reply: "What changed after that?", history_version: 1,
-      model_history: [] }
+      reply: "What changed after that?" }
   end
 
   it "saves acknowledgement separately and speaks it before the accepted follow-up" do
@@ -191,9 +190,8 @@ RSpec.describe "Basic Interview acceptance" do
     expect(question.reload).to have_attributes(accepted_answer_count: 0)
   end
 
-  it "rejects unsupported or oversized history and invalid transcript/decision without writes" do
-    [ { history_version: 2 }, { model_history: {} }, { model_history: [ "not a message" ] },
-      { model_history: [ { "content" => "x" * 262_144 } ] }, { transcript: " " },
+  it "rejects an invalid transcript or decision without writes" do
+    [ { transcript: " " },
       { transcript: "x" * (TextLimits::PROSE + 1) }, { decision: "skip" }, { reply: nil } ].each do |change|
       expect(Interviews::AcceptTurnService.call(**input.merge(change))).not_to be_success
     end
@@ -219,52 +217,11 @@ RSpec.describe "Basic Interview acceptance" do
     expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
     expect(operation.reload.status).to eq("running")
   end
-  it "reports excessively nested history as invalid instead of raising" do
-    nested = 110.times.reduce("text") { |value, _| [ value ] }
-    result = Interviews::AcceptTurnService.call(**input.merge(model_history: [ { "parts" => nested } ]))
-    expect(result).not_to be_success
-    expect(interview.messages.count).to eq(1)
-  end
-
-  it "ignores JSON object key ordering when resolving an accepted receipt" do
-    first = Interviews::AcceptTurnService.call(**input)
-    reordered = input[:model_history].map { |message| message.to_a.reverse.to_h }
-    expect(Interviews::AcceptTurnService.call(**input.merge(model_history: reordered)).value).to eq(first.value)
-  end
-
   it "refuses acceptance after interview expiry without consuming an answer" do
     accepted_input = input
     interview.update!(expires_at: 1.second.ago)
     expect(Interviews::AcceptTurnService.call(**accepted_input)).not_to be_success
     expect(question.reload.accepted_answer_count).to eq(0)
     expect(interview.messages.count).to eq(1)
-  end
-  it "rejects copied private history on a new running claim without writing dialogue" do
-    expect(Interviews::AcceptTurnService.call(**input.merge(model_history: [ { "private" => "old source" } ]))).not_to be_success
-    expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
-    expect(question.reload.accepted_answer_count).to eq(0)
-    expect(operation.reload.status).to eq("running")
-  end
-
-  it "replays an already accepted legacy callback after private columns are removed" do
-    legacy = input.merge(model_history: [ { "kind" => "request", "parts" => [ { "content" => "legacy private source", "part_kind" => "user-prompt" } ] } ])
-    normalize = ->(value) do
-      case value
-      when Hash then value.stringify_keys.sort.to_h.transform_values { |child| normalize.call(child) }
-      when Array then value.map { |child| normalize.call(child) }
-      else value
-      end
-    end
-    payload = legacy.except(:operation)
-    receipt = { "revision" => 1, "status" => "active", "message_ids" => [ "original-answer", "original-reply" ], "question_id" => question.id }
-    operation.update!(status: "accepted", accepted_at: Time.current,
-      result_fingerprint: Digest::SHA256.hexdigest(JSON.generate(normalize.call(payload))), accepted_result: receipt)
-    before = [ interview.attributes, question.attributes, operation.attributes, interview.messages.map(&:attributes) ]
-    expect(Interviews::AcceptTurnService.call(**legacy).value).to eq(receipt)
-    reordered = legacy[:model_history].map { |message| message.to_a.reverse.to_h }
-    expect(Interviews::AcceptTurnService.call(**legacy.merge(model_history: reordered)).value).to eq(receipt)
-    expect(Interviews::AcceptTurnService.call(**legacy.merge(transcript: "Changed"))).not_to be_success
-    expect(Interviews::AcceptTurnService.call(**legacy.merge(model_history: [ { "changed" => true } ]))).not_to be_success
-    expect([ interview.reload.attributes, question.reload.attributes, operation.reload.attributes, interview.messages.reload.map(&:attributes) ]).to eq(before)
   end
 end

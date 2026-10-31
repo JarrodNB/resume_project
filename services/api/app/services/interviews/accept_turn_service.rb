@@ -5,16 +5,14 @@ require "digest"
 
 module Interviews
   class AcceptTurnService < ApplicationService
-    MAX_HISTORY_BYTES = 262_144
     CLOSING = "Thank you. This interview is complete.".freeze
 
     def initialize(operation:, attempt_id:, claim_generation:, transcript:, decision:, reply: nil,
-      history_version:, model_history:, acknowledgement: nil)
+      acknowledgement: nil)
       @operation = operation
       @attempt_id, @claim_generation = attempt_id, claim_generation
       @transcript, @decision, @reply = transcript, decision, reply
       @acknowledgement = acknowledgement
-      @history_version, @model_history = history_version, model_history
     end
 
     # Receives an already-authorized internal operation, not a browser-supplied owner ID.
@@ -31,12 +29,9 @@ module Interviews
         @operation.ai_task&.lock!
         fingerprint = Digest::SHA256.hexdigest(JSON.generate(canonical_payload))
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
-        # Retained accepted callbacks fingerprint their original bounded legacy payload.
-        # Resolve them before rejecting private history on a new running claim.
         if @operation.accepted?
           next @operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts with its original payload")
         end
-        next failure("Private model history is no longer accepted") unless @model_history.empty?
         next failure("Claim is stale or expired") unless current_claim?
         if @operation.text_only?
           next failure("Reviewed answer expired") unless @operation.created_at + 1.hour > Time.current
@@ -112,15 +107,11 @@ module Interviews
 
     def valid_payload?
       @transcript.is_a?(String) && @transcript.present? && @transcript.length <= TextLimits::PROSE &&
-        %w[continue advance].include?(@decision) && valid_reply? && valid_acknowledgement? &&
-        @history_version == 1 && @model_history.is_a?(Array) && @model_history.all? { |message| message.is_a?(Hash) } &&
-        JSON.generate(@model_history).bytesize <= MAX_HISTORY_BYTES
-    rescue JSON::GeneratorError, JSON::NestingError
-      false
+        %w[continue advance].include?(@decision) && valid_reply? && valid_acknowledgement?
     end
 
     def canonical_payload
-      # JSON object order is irrelevant to identity, including nested history objects.
+      # JSON object order is irrelevant to identity.
       normalize = ->(value) do
         case value
         when Hash then value.stringify_keys.sort.to_h.transform_values { |child| normalize.call(child) }
@@ -129,7 +120,7 @@ module Interviews
         end
       end
       payload = { attempt_id: @attempt_id, claim_generation: @claim_generation, transcript: @transcript,
-        decision: @decision, reply: @reply, history_version: @history_version, model_history: @model_history }
+        decision: @decision, reply: @reply }
       # Omitted acknowledgements keep historical fingerprints replayable.
       payload[:acknowledgement] = @acknowledgement unless @acknowledgement.nil?
       normalize.call(payload)

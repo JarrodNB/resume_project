@@ -180,6 +180,7 @@ it('checks a resumed pending search once without duplicating execution on rerend
   renderPage({ path: '/test', url: '/test', mocks: [{ request: { ...mock.request, variables: { input: { interviewId: 'interview', messageId: 'opening', retryFailed: false, visitId: '00000000-0000-4000-8000-000000000003' } } }, result }, taskMock()],
     element: <StrictMode><InterviewCareerReferences ownerId="owner" interviewId="interview" visitId="00000000-0000-4000-8000-000000000003" message={{ ...message, careerReferences: saved }} disabled={false} /></StrictMode> })
   expect(await screen.findByText(body)).toBeInTheDocument()
+  await waitFor(() => expect(result).toHaveBeenCalledOnce())
   fireEvent.click(screen.getByRole('checkbox', { name: 'Blur reference text' }))
   expect(result).toHaveBeenCalledOnce()
 })

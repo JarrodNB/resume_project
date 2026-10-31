@@ -156,6 +156,7 @@
 .board-preview-title { font-size: 28px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
 .board-preview-heading [data-slot="dialog-description"] { margin-top: 10px; }
 .board-preview-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.board-preview-actions .board-listing-saved { display: contents; }
 .board-preview-description h3 { font-size: 18px; font-weight: 700; }
 .board-preview-warnings { overflow-wrap: anywhere; }
 .board-preview-warnings ul { list-style: disc; padding-left: 20px; }

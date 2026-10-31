@@ -260,10 +260,18 @@ def _finish(pending, outcomes, approved_sources, *, keep_usage):
         for record, fields in pending:
             session.record_checks.update(_field_key(record, name, value) for name, value in fields.items())
             if record.record_id:
-                session.record_screening.append(RecordScreening(
-                    record_type=record.record_type, record_id=record.record_id,
-                    fingerprints={name: field_fingerprint(value) for name, value in fields.items()},
-                    revision=dict(record.revision)))
+                fingerprints = {name: field_fingerprint(value) for name, value in fields.items()}
+                existing = next((receipt for receipt in session.record_screening
+                    if receipt.record_type == record.record_type and receipt.record_id == record.record_id
+                    and receipt.revision == dict(record.revision)), None)
+                if existing is not None:
+                    # A list followed by detail is still one checked record. Keep the
+                    # latest exact checked value when a live field changes between reads.
+                    existing.fingerprints.update(fingerprints)
+                else:
+                    session.record_screening.append(RecordScreening(
+                        record_type=record.record_type, record_id=record.record_id,
+                        fingerprints=fingerprints, revision=dict(record.revision)))
         session.allowed_sources.update(mask_outbound(source) for source in approved_sources)
     return RecordScreeningOutcome(decision, tuple(approved_sources), pending_records)
 

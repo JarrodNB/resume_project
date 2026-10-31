@@ -31,9 +31,11 @@ it('shows the top three and opens all saved skills through the keyboard-accessib
   more.focus()
   await user.keyboard('{Enter}')
   const dialog = screen.getByRole('dialog')
+  expect(within(dialog).queryByRole('list', { name: 'Saved skill mentions' })).not.toBeInTheDocument()
+  await user.click(within(dialog).getByRole('button', { name: 'Skill mentions' }))
   const fullList = within(dialog).getByRole('list', { name: 'Saved skill mentions' })
   expect(within(fullList).getAllByRole('listitem').map(item => item.textContent)).toEqual([
-    'Rust1 mention', 'Python3 mentions', 'SQL2 mentions', 'Docker1 mention', 'AWS1 mention', 'JavaNot mentioned',
+    'Rust1 mention', 'Python3 mentions', 'SQL2 mentions', 'Docker1 mention', 'AWS1 mention',
   ])
   await user.keyboard('{Escape}')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -46,6 +48,7 @@ it.each(['', '   '])('distinguishes unavailable descriptions %j from zero mentio
   expect(screen.getByText('Skill mentions unavailable: no description.')).toBeVisible()
   expect(screen.queryByText(/saved skills mentioned/)).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Engineer' }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Skill mentions' }))
   expect(within(screen.getByRole('dialog')).getByText('Skill mentions unavailable: no description.')).toBeVisible()
   expect(screen.queryByText('Not mentioned')).not.toBeInTheDocument()
 })

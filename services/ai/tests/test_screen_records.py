@@ -114,7 +114,8 @@ def test_fingerprints_reused_within_a_run_and_changed_values_screen_again(monkey
                                    display_title="Rust")
         assert run_screen(classifier, monkeypatch, asynchronous, [changed, skill(2)]).pending == (changed,)
         assert len(classifier.texts) == 2 and "Skill number 2" not in classifier.texts[1]
-        assert len(session.record_screening) == 3
+        assert len(session.record_screening) == 2
+        assert session.record_screening[0].fingerprints["name"] == field_fingerprint("Rust")
 
 
 def test_revision_must_match_to_reuse_a_receipt(monkeypatch):

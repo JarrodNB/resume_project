@@ -2,7 +2,7 @@
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
-one read-only tool, `read_career_library`. Attachments, other saved app data and app
+read-only tools for the career library and active saved-job postings. Attachments, other saved app data and app
 actions are not available.
 
 ## Tools (MCP)
@@ -45,7 +45,7 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   the library is unavailable. An empty library returns a plain sentence.
 - **No sampling.** The toolset never lets the server call a model.
 
-A reply run allows two tool calls and 12 model requests (each tool round trip is
+A reply run allows three tool calls and 12 model requests (each tool round trip is
 another request). Text written before a tool call is kept: the saved reply joins the
 text of every model response in the run, so it always matches what was streamed.
 Repeated calls with the same arguments in one run reuse the first result.
@@ -179,7 +179,8 @@ JSON string values per field. Chat returns these in `record_screening` on final
 acceptance.
 Rails accepts them only under the current operation fence and owner lock, then
 `Screening::RecordApprovalsService` compares each fingerprint with the owned record
-under its row lock; with no task, only career-library records can be approved. A stale
+under its row lock. Chat acceptance explicitly enables owned active-job approvals after
+its locked claim fences; other taskless callers can approve only career-library records. A stale
 value earns no approval. Receipts participate in acceptance replay identity. Failed
 or stale operations save no approvals; ordinary edits still clear changed checks.
 
@@ -188,3 +189,43 @@ attributes, never names or templates. Export masks content, logs and exceptions 
 preserving instrumentation keys and model/provider/tool identifiers, including nested
 metric dimensions. Detector discovery only receives source content, never telemetry
 or model configuration. A detected word matching a model identifier must not rename it.
+
+### Active saved-job list
+
+`list_saved_jobs()` reads only the token owner's active jobs, newest saved first with
+an ID tie-breaker. Chat receives readable titles, companies and selection references,
+without posting facts, raw IDs, analyses or notes. The list is complete or fails: more
+than 500 jobs or 40,000 rendered characters produces a limit error. Empty lists are
+explicit. Database failures return only an unavailable outcome.
+
+Saved title/company approvals are reused; unchecked used fields are checked together
+with the chat operation's accounted screen. Blocked, unavailable or oversize checks fail
+the whole operation without sharing partial text. New exact field receipts return with
+chat acceptance. The existing per-run cache avoids repeating reads and screening.
+
+Selection references are 45-character signed identities, bound to the token's user and
+operation and expiring with the token (at most ten minutes). All replicas share the signing
+secret; references contain no source snapshots and need no in-memory registry. Detail resolution still filters by current owner and active status. The existing
+three-tool-call limit supports listing, detail, and career-library advice together.
+
+### Selected saved-job summary
+
+`read_job_summary(job_reference)` resolves a list-issued reference bound to the owner,
+operation and expiry, then independently reads the current owned active job. It returns
+only title, company, location, requirements, responsibilities and nice-to-haves as labeled
+text, with absent fields stated explicitly. Notes and generated analyses stay private.
+Identical titles retain distinct references; chat asks which job when selection is unclear.
+Missing/deleted/archived selections are unavailable. Invalid references and database
+failures expose no database details. The complete summary must fit 40,000 characters.
+Saved approvals are reused; unchecked used fields pass through the caller's accounted
+screen and exact receipts return through fenced chat acceptance. Location edits discard
+saved location approvals. List, summary, and career-library reads fit the three-tool reply limit.
+The eval runner serves synthetic jobs locally and never falls back to database reads.
+Receipts for the same record and revision merge checked field fingerprints, keeping the
+latest checked value. Listing 500 jobs then reading one summary stays within the existing
+500-record acceptance bound without dropping receipts.
+
+Chat acceptance sends at most 500 optional approval receipts across all tools. All
+used fields are screened before the model sees them, including fields whose receipts
+do not fit. Excess receipts are omitted from persistence only; those fields may need
+screening again on a later turn. The reply and its source facts remain complete.

@@ -985,7 +985,10 @@ includes the effective environment-configured minimum similarity for both modes.
 report establishes fixture agreement, not semantic relevance or real embedding calibration.
 
 `--paid` explicitly runs real embeddings against synthetic source text and reports label
-agreement and accounted usage; no dialogue model or database is required. It uses the production source-text projection and selection seam, not a Postgres
+agreement and accounted usage; no dialogue model or database is required. Missing/stale-index
+and exact-distance fixtures run only offline because rebuilding current embeddings cannot
+reproduce those conditions. Paid reports include skipped case names, reasons and count;
+their label-agreement metric covers only the remaining semantic cases. It uses the production source-text projection and selection seam, not a Postgres
 query/latency benchmark. `--output PATH`
 saves the report only when requested. Errors and mismatched labels fail visibly. Evaluation does not change interview behavior. No paid semantic run or human relevance
 assessment was performed during the initial implementation.

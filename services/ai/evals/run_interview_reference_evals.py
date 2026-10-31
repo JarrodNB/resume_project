@@ -3,6 +3,7 @@
 Default execution is offline: vector distances are fixture inputs, not measured
 semantic similarity. Optional --paid embeds synthetic evidence and queries through
 the existing traced/accounted embedding helper; it does not call a dialogue model.
+Index-state and exact-distance fixtures run only offline; paid reports name skipped cases.
 Reports print to stdout; only --output saves a file. Neither mode changes admission.
 """
 import argparse
@@ -69,6 +70,10 @@ def run_evaluation(*, paid=False):
     settings = load_settings()
     min_similarity = settings.interview_reference_min_similarity
     cases = json.loads(DATASET.read_text())
+    skipped_cases = [{"name": case["name"], "reason": case["offline_only_reason"]}
+                     for case in cases if paid and case.get("offline_only_reason")]
+    if paid:
+        cases = [case for case in cases if not case.get("offline_only_reason")]
     results = []
     usage = None
     if paid:
@@ -86,6 +91,8 @@ def run_evaluation(*, paid=False):
         results = [evaluate_case(case, min_similarity=min_similarity) for case in cases]
     return {"mode": "real_embeddings" if paid else "offline_policy", "policy_version": SELECTION_POLICY_VERSION,
             "min_similarity": min_similarity,
+            "skipped_cases": skipped_cases,
+            "skipped_case_count": len(skipped_cases),
             "provider_requests": sum(1 for _ in usage.entries) if usage else 0,
             "usage_incomplete": usage.incomplete if usage else False,
             "usage": [entry.model_dump(mode="json") for entry in usage.entries] if usage else [],

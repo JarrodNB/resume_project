@@ -354,7 +354,8 @@
         "score": 0.03
       }
     ],
-    "expected_ids": []
+    "expected_ids": [],
+    "offline_only_reason": "Stale-index behavior requires supplied old index text; paid mode embeds current text."
   },
   {
     "name": "keyword overlap without embedding rejected",
@@ -369,7 +370,8 @@
       ]
     },
     "matches": [],
-    "expected_ids": []
+    "expected_ids": [],
+    "offline_only_reason": "Missing-index behavior requires supplied empty matches; paid mode rebuilds current embeddings."
   },
   {
     "name": "keyword overlap cannot bypass distant vector",
@@ -392,7 +394,8 @@
         "score": 0.03
       }
     ],
-    "expected_ids": []
+    "expected_ids": [],
+    "offline_only_reason": "Forced distant-vector behavior requires supplied distance; paid mode measures a new distance."
   },
   {
     "name": "keyword overlap cannot bypass stale vector",
@@ -415,7 +418,8 @@
         "score": 0.03
       }
     ],
-    "expected_ids": []
+    "expected_ids": [],
+    "offline_only_reason": "Stale-index behavior requires supplied old index text; paid mode embeds current text."
   },
   {
     "name": "minimum similarity boundary qualifies",
@@ -440,6 +444,7 @@
     ],
     "expected_ids": [
       "00000000-0000-0000-0000-000000000001"
-    ]
+    ],
+    "offline_only_reason": "Exact cutoff behavior requires supplied boundary distance; paid mode measures a new distance."
   }
 ]

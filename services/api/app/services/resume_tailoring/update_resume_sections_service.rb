@@ -36,21 +36,19 @@ module ResumeTailoring
 
     private
 
-    # A list of { id, content }, or an error message. `return` inside `each` leaves this method.
+    # A list of { id, content }, or an error message. `return` inside `map` leaves this method.
     def parsed_sections
       return "Sections must be a list." unless @sections.is_a?(Array)
 
-      updates = []
-      @sections.each do |section|
+      @sections.map do |section|
         return "Each section needs an id." unless section.is_a?(Hash)
 
         data = section.deep_stringify_keys
         return "Each section needs an id." if data["id"].blank?
         return "Section content must be an object." unless data["content"].is_a?(Hash)
 
-        updates << { id: data["id"], content: data["content"] }
+        { id: data["id"], content: data["content"] }
       end
-      updates
     end
   end
 end

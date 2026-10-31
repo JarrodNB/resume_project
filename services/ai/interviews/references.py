@@ -4,7 +4,6 @@ Query embeddings and hybrid search reuse the library index. Display text comes
 from the user's saved records, never a stale vector row or a generated answer.
 """
 import asyncio
-import re
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -12,11 +11,9 @@ from pydantic import BaseModel, Field
 from database.library_embedding_search import search_career_library
 from database.open_read_only_connection import open_read_only_connection
 from memory.embed_search_query import embed_search_query_async
-from memory.hybrid_rank import keyword_rank
+from settings import DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY
 
-SELECTION_POLICY_VERSION = "interview-references-v3"
-MAX_VECTOR_DISTANCE = 0.35  # Conservative initial policy; semantic calibration remains unmeasured.
-_QUERY_BOILERPLATE = frozenset(["a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "describe", "did", "do", "experience", "explain", "for", "from", "had", "have", "how", "i", "in", "is", "it", "me", "my", "of", "on", "or", "our", "please", "role", "tell", "that", "the", "their", "them", "there", "these", "they", "this", "to", "was", "were", "what", "when", "where", "which", "who", "why", "will", "with", "work", "would", "you", "your", "about", "example", "time", "situation"])
+SELECTION_POLICY_VERSION = "interview-references-v4"
 
 SOURCE_TYPES = frozenset({"Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "CareerContext"})
 
@@ -62,7 +59,7 @@ def reference_index_texts(library):
 
     Keep this projection aligned with CareerLibrary::BuildEmbeddingTextsService.
     Whitespace is normalized for comparison only; display bodies stay untouched.
-    A stale vector is ignored and current source text can still match keywords.
+    A stale vector is ignored until Rails refreshes the index.
     """
     texts = {}
 
@@ -124,38 +121,28 @@ def retrieve_references(user_id, question_text, settings, library):
     with open_read_only_connection(settings) as connection:
         matches = search_career_library(connection, user_id, embedded.vector, question_text,
             settings.embedding_model, limit=12, source_types=SOURCE_TYPES)
-    return select_references(library, question_text, matches), embedded.usage
+    return select_references(library, question_text, matches,
+        min_similarity=settings.interview_reference_min_similarity), embedded.usage
 
 
-def select_references(library, query_text, matches):
-    """Rank the supported owned corpus; bound the final distinct cards, not its prefix.
+def select_references(library, query_text, matches, *,
+                      min_similarity=DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY):
+    """Return distinct saved sources whose current vectors meet minimum similarity.
 
-    Vectors must match current source text and meet a conservative cosine cutoff.
-    This one-time compatibility check does not monitor later library changes.
-    Keyword fallback uses substantive
-    query terms, including saved career context requirement labels for ranking only. This initial
-    heuristic is versioned, not a calibrated confidence measure.
+    The search already supplies hybrid ordering. Keyword matches cannot bypass
+    the similarity cutoff, and unindexed or stale-index sources are ineligible.
+    The threshold is a policy heuristic, not calibrated relevance confidence.
     """
     sources = saved_reference_sources(library)
-    text = {key: f"{ref.title} {ref.body}" for key, ref in sources.items()}
     groups = {key: key for key in sources}
     for role in library.experiences:
         for highlight in role.highlights:
             groups[("ExperienceHighlight", highlight.id)] = ("Experience", role.id)
-    for context in library.career_contexts:
-        key = ("CareerContext", context.id)
-        if key in text:
-            text[key] = f"{context.requirement} {text[key]}"
-    meaningful_query = " ".join(term for term in re.findall(r"[a-z0-9]+", query_text.lower())
-                                if term not in _QUERY_BOILERPLATE)
-    ids = {str(index): key for index, key in enumerate(sources)}
-    keyword_keys = [ids[index] for index in keyword_rank(meaningful_query,
-                    [(index, text[key]) for index, key in ids.items()])]
     current_index_text = reference_index_texts(library)
     vector_keys = [(match.source_type, match.source_id) for match in matches
-                   if match.distance <= MAX_VECTOR_DISTANCE and (match.source_type, match.source_id) in sources
+                   if 1 - match.distance >= min_similarity and (match.source_type, match.source_id) in sources
                    and " ".join(match.content.split()) == current_index_text[(match.source_type, match.source_id)]]
-    ordered = list(dict.fromkeys(vector_keys + keyword_keys))
+    ordered = list(dict.fromkeys(vector_keys))
     # Keep search rank within each class, but concrete highlights/narratives precede
     # role descriptions and bare skills; a role plus its bullets consumes one card.
     priority = {"ExperienceHighlight": 0, "Project": 0, "CareerContext": 0, "Experience": 1, "Skill": 2}

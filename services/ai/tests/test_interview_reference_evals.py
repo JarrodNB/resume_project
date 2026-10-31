@@ -33,8 +33,8 @@ def test_paid_mode_reports_embedding_usage_and_label_metrics_at_fake_provider_se
     from llm.usage import current_task_usage
     from memory.embed_search_query import QueryEmbedding
 
-    monkeypatch.setattr("worker.settings.load_settings", lambda: SimpleNamespace(
-        embedding_model="openai:text-embedding-3-small", embedding_dimensions=2))
+    monkeypatch.setattr("evals.run_interview_reference_evals.load_settings", lambda: SimpleNamespace(
+        embedding_model="openai:text-embedding-3-small", embedding_dimensions=2, interview_reference_min_similarity=.65))
     monkeypatch.setattr("telemetry.tracing.configure_tracing", lambda: None)
     monkeypatch.setattr("evals.telemetry.eval_run", lambda *args, **kwargs: nullcontext())
     monkeypatch.setattr("evals.telemetry.record_score", lambda *args: None)
@@ -71,3 +71,10 @@ def test_paid_corpus_uses_current_production_index_prose(monkeypatch):
     matches = paid_matches(case, SimpleNamespace(embedding_model="synthetic", embedding_dimensions=2))
     assert matches[0].content == "Project: Release tooling (Maintainer): Built release checks."
     assert evaluate_case(case, matches=matches)["passed"]
+
+
+def test_offline_evaluation_uses_and_reports_environment_similarity(monkeypatch):
+    monkeypatch.setenv("INTERVIEW_REFERENCE_MIN_SIMILARITY", "0.99")
+    report = run_evaluation()
+    assert report["min_similarity"] == .99
+    assert all(case["selected_ids"] == [] for case in report["cases"])

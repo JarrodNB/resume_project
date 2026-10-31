@@ -925,11 +925,16 @@ transcripts and acknowledgement text are excluded. Query embeddings use existing
 masking and accounted/traced Pydantic AI embedding helpers; there is no dialogue-model call.
 The AI worker reads owned library records and the existing hybrid vector/keyword index.
 
-Selection policy `interview-references-v3` keeps at most three distinct source groups,
-prefers narrative evidence to bare skills, and rejects distant vector candidates. Its
-initial cosine-distance cutoff is 0.35, not calibrated confidence. Keyword matching covers the complete supported saved corpus, including unindexed sources.
+Selection policy `interview-references-v4` keeps at most three distinct source groups
+and prefers narrative evidence to bare skills. Every displayed reference must meet
+`INTERVIEW_REFERENCE_MIN_SIMILARITY` in the AI worker environment (default 0.65, finite
+range 0 through 1, inclusive). The default equals cosine distance at most 0.35; this
+is an initial heuristic, not calibrated confidence. Hybrid keyword ranking may order
+indexed candidates but cannot bypass the similarity cutoff. Unindexed sources are
+ineligible until their embeddings have been synchronized. Restart the AI worker after
+changing the environment setting; invalid values fail settings validation.
 At selection time, vector candidates must match the current normalized index text; stale
-index wording is not reused to rank newly edited evidence. This is a one-time source
+index wording cannot qualify newly edited evidence until its embedding is refreshed. This is a one-time source
 compatibility check rather than ongoing library monitoring. Career context requirement labels can help ranking; only saved career context
 responses are displayed as evidence. Written practice Q&A vectors, job-only gap answers,
 profile summary and historical spoken answers are not additional indexed sources.
@@ -967,15 +972,16 @@ expiry. Existing topic uniqueness, field lengths and library-size limits apply; 
 topics require renaming and never overwrite another response. Overlong source text remains
 visible for editing before save. Saving does not change the interview or refresh saved
 references. The context is eligible for subsequent career-library retrieval, including
-interview references, with the normal embedding sync and keyword fallback; relevance still
-determines selection. Only its saved response is displayed as career evidence.
+interview references after normal embedding sync; the configured similarity threshold
+still determines reference eligibility. Only its saved response is displayed as career evidence.
 
 ### Retrieval evaluation evidence
 
 From `services/ai`, run `python -m evals.run_interview_reference_evals` with its installed
 runtime. It prints a JSON report from synthetic fixtures through the production
 `select_references` interface. Default execution is offline: supplied vector distances
-exercise cutoff/grouping contracts, and real keyword matching exercises fallback. A green
+exercise cutoff/grouping contracts and rejection of keyword-only matches. The report
+includes the effective environment-configured minimum similarity for both modes. A green
 report establishes fixture agreement, not semantic relevance or real embedding calibration.
 
 `--paid` explicitly runs real embeddings against synthetic source text and reports label

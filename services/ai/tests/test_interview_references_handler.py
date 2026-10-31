@@ -32,7 +32,8 @@ def test_denied_reference_claim_does_no_search(task_dependencies):
     assert result.result is None and not result.usage
 
 
-def test_claimed_search_returns_exact_saved_context_without_requirement(task_dependencies, monkeypatch):
+@pytest.mark.parametrize(("min_similarity", "expected_count"), [(.65, 1), (.9, 0)])
+def test_claimed_search_returns_exact_saved_context_without_requirement(task_dependencies, monkeypatch, min_similarity, expected_count):
     from contextlib import nullcontext
     from unittest.mock import Mock
 
@@ -45,20 +46,22 @@ def test_claimed_search_returns_exact_saved_context_without_requirement(task_dep
     source_id = str(uuid4())
     library = CareerLibrary(career_contexts=[CareerContext(id=source_id, requirement="REQUIREMENT NOT EVIDENCE",
         response="I maintained Kubernetes clusters.\nExact saved detail.")])
-    deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: library)
+    deps = replace(claimed_dependencies(task_dependencies),
+        settings=task_dependencies.settings.model_copy(update={"interview_service_secret": "test",
+            "interview_reference_min_similarity": min_similarity}), read_career_library=lambda _: library)
     # These are true external seams: embeddings and database I/O. Saved evidence projection is real.
     async def embed(*args):
         return QueryEmbedding([1.0], RequestUsage(input_tokens=8))
     monkeypatch.setattr("interviews.references.embed_search_query_async", embed)
     monkeypatch.setattr("interviews.references.open_read_only_connection", lambda _: nullcontext(object()))
     search = Mock(return_value=[LibrarySearchMatch(source_type="CareerContext", source_id=source_id,
-        content="Stale index text must not be displayed", distance=0.2, score=0.03)])
+        content="Fact: REQUIREMENT NOT EVIDENCE: I maintained Kubernetes clusters.\nExact saved detail.", distance=0.2, score=0.03)])
     monkeypatch.setattr("interviews.references.search_career_library", search)
     task = reference_task()
     result = handle_ai_task(task, deps)
     assert result.status == "completed"
-    assert result.result == {"selection_policy_version": "interview-references-v3", "references": [{"source_type": "CareerContext", "source_id": source_id,
-        "title": "Saved career context", "body": library.career_contexts[0].response}]}
+    assert result.result == {"selection_policy_version": "interview-references-v4", "references": [{"source_type": "CareerContext", "source_id": source_id,
+        "title": "Saved career context", "body": library.career_contexts[0].response}][:expected_count]}
     assert result.usage[0].input_tokens == 8
     assert search.call_args.args[1] == task.user_id
     assert "CareerContext" in search.call_args.kwargs["source_types"]
@@ -84,7 +87,7 @@ def test_empty_library_does_not_embed(task_dependencies):
     from schemas.gap_analysis_context import CareerLibrary
     deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: CareerLibrary())
     result = handle_ai_task(reference_task(), deps)
-    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v3", "references": []}
+    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v4", "references": []}
     assert result.usage == []
 
 

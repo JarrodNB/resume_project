@@ -60,11 +60,12 @@ def test_claimed_search_returns_exact_saved_context_without_requirement(task_dep
     task = reference_task()
     result = handle_ai_task(task, deps)
     assert result.status == "completed"
-    assert result.result == {"selection_policy_version": "interview-references-v4", "references": [{"source_type": "CareerContext", "source_id": source_id,
+    assert result.result == {"selection_policy_version": "interview-references-v5", "references": [{"source_type": "CareerContext", "source_id": source_id,
         "title": "Saved career context", "body": library.career_contexts[0].response}][:expected_count]}
     assert result.usage[0].input_tokens == 8
     assert search.call_args.args[1] == task.user_id
     assert "CareerContext" in search.call_args.kwargs["source_types"]
+    assert "Skill" not in search.call_args.kwargs["source_types"]
 
 
 def test_mismatched_prompt_never_searches(task_dependencies):
@@ -87,8 +88,27 @@ def test_empty_library_does_not_embed(task_dependencies):
     from schemas.gap_analysis_context import CareerLibrary
     deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: CareerLibrary())
     result = handle_ai_task(reference_task(), deps)
-    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v4", "references": []}
+    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v5", "references": []}
     assert result.usage == []
+
+
+def test_skills_only_library_does_not_embed_or_search(task_dependencies, monkeypatch):
+    from unittest.mock import Mock
+
+    from schemas.gap_analysis_context import CareerLibrary, LibrarySkill
+
+    embed = Mock(side_effect=AssertionError("must not embed"))
+    search = Mock(side_effect=AssertionError("must not search"))
+    monkeypatch.setattr("interviews.references.embed_search_query_async", embed)
+    monkeypatch.setattr("interviews.references.search_career_library", search)
+    library = CareerLibrary(skills=[LibrarySkill(id=str(uuid4()), name="Kubernetes")])
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: library)
+    result = handle_ai_task(reference_task(), deps)
+    assert result.status == "completed"
+    assert result.result == {"selection_policy_version": "interview-references-v5", "references": []}
+    assert result.usage == []
+    embed.assert_not_called()
+    search.assert_not_called()
 
 
 def test_sources_project_exact_bodies_and_exclude_summary():

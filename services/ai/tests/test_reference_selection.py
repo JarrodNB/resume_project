@@ -27,7 +27,15 @@ def test_missing_vectors_cannot_qualify_through_keywords():
     assert refs == []
 
 
-def test_roles_and_highlights_share_one_slot_and_narratives_precede_skills():
+def test_strong_skill_match_is_not_a_reference():
+    from interviews.references import select_references
+    skill = LibrarySkill(id=str(uuid4()), name='Kubernetes', category='Infrastructure')
+    match = LibrarySearchMatch(source_type='Skill', source_id=skill.id,
+        content='Infrastructure: Kubernetes', distance=0, score=.03)
+    assert select_references(CareerLibrary(skills=[skill]), 'Kubernetes', [match]) == []
+
+
+def test_roles_and_highlights_share_one_slot_while_skill_matches_are_excluded():
     from interviews.references import select_references
     role = LibraryExperience(id=str(uuid4()), title='Engineer', company='Example', description='Maintained Kubernetes',
         highlights=[LibraryHighlight(id=str(uuid4()), content='Led Kubernetes migration'),
@@ -37,10 +45,12 @@ def test_roles_and_highlights_share_one_slot_and_narratives_precede_skills():
     from interviews.references import reference_index_texts
     index_text = reference_index_texts(library)
     matches = [LibrarySearchMatch(source_type=kind, source_id=identity, content=index_text[(kind, identity)], distance=.1, score=.03)
-               for kind, identity in [('Skill',skill.id), ('Experience',role.id), ('ExperienceHighlight',role.highlights[0].id),
+               for kind, identity in [('Experience',role.id), ('ExperienceHighlight',role.highlights[0].id),
                                       ('ExperienceHighlight',role.highlights[1].id)]]
+    matches.insert(0, LibrarySearchMatch(source_type='Skill', source_id=skill.id,
+        content='Kubernetes', distance=0, score=.05))
     refs = select_references(library, 'Kubernetes', matches)
-    assert [r.source_type for r in refs] == ['ExperienceHighlight', 'Skill']
+    assert [r.source_type for r in refs] == ['ExperienceHighlight']
     assert refs[0].body == role.highlights[0].content
 
 
@@ -117,17 +127,15 @@ def test_fresh_rails_index_prose_matches_every_supported_source_without_changing
         issued_date=date(2024, 1, 1), issued_date_precision='year', expiry_date=date(2027, 5, 1),
         expiry_date_precision='month', credential_id='ABC', credential_url='https://example.test/ABC',
         description='Deployment qualification.')
-    skill = LibrarySkill(id=str(uuid4()), name='Kubernetes', category='Infrastructure')
     context = CareerContext(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
     library = CareerLibrary(experiences=[role], projects=[project], educations=[education],
-        certifications=[certification], skills=[skill], career_contexts=[context])
+        certifications=[certification], career_contexts=[context])
     cases = [
         ('Experience', role.id, 'Engineer at Example (London): Maintained reliable releases.', role.description),
         ('ExperienceHighlight', role.highlights[0].id, 'Engineer at Example: Improved rollout checks.', role.highlights[0].content),
         ('Project', project.id, 'Project: Release tooling (Maintainer): Built release checks.', project.description),
         ('Education', education.id, 'BSc in Computing, Example University: Studied reliability.', education.description),
         ('Certification', certification.id, 'Certification: Operations, Issuer: Example Institute, Issued date: 2024, Expiry date: 2027-05, Credential id: ABC, Credential url: https://example.test/ABC: Deployment qualification.', certification.description),
-        ('Skill', skill.id, 'Infrastructure: Kubernetes', skill.name),
         ('CareerContext', context.id, 'Fact: Operations: Reduced deployment delays.', context.response),
     ]
     for kind, source_id, index_text, body in cases:

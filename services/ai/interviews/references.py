@@ -2,6 +2,7 @@
 
 Query embeddings and hybrid search reuse the library index. Display text comes
 from the user's saved records, never a stale vector row or a generated answer.
+Bare skill records are excluded; substantive saved examples can still mention skills.
 """
 import asyncio
 from uuid import UUID
@@ -13,9 +14,9 @@ from database.open_read_only_connection import open_read_only_connection
 from memory.embed_search_query import embed_search_query_async
 from settings import DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY
 
-SELECTION_POLICY_VERSION = "interview-references-v4"
+SELECTION_POLICY_VERSION = "interview-references-v5"
 
-SOURCE_TYPES = frozenset({"Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "CareerContext"})
+SOURCE_TYPES = frozenset({"Experience", "ExperienceHighlight", "Project", "Education", "Certification", "CareerContext"})
 
 
 class CareerReference(BaseModel):
@@ -47,8 +48,6 @@ def saved_reference_sources(library):
             education.description or education.degree or education.field_of_study)
     for certification in library.certifications:
         add("Certification", certification, certification.name, certification.description or certification.name)
-    for skill in library.skills:
-        add("Skill", skill, skill.category or "Saved skill", skill.name)
     for context in library.career_contexts:
         add("CareerContext", context, "Saved career context", context.response)
     return sources
@@ -95,8 +94,6 @@ def reference_index_texts(library):
                     getattr(certification, f"{field}_precision")])
             fields.append(f"{field.replace('_', ' ').capitalize()}: {value}")
         add("Certification", certification, details(", ".join(fields), certification.description))
-    for skill in library.skills:
-        add("Skill", skill, f"{skill.category}: {skill.name}" if skill.category and skill.category.strip() else skill.name)
     # Match Rails’ retained embedding text prefix; source identity uses CareerContext.
     for context in library.career_contexts:
         add("CareerContext", context, f"Fact: {context.requirement}: {context.response}")
@@ -144,8 +141,8 @@ def select_references(library, query_text, matches, *,
                    and " ".join(match.content.split()) == current_index_text[(match.source_type, match.source_id)]]
     ordered = list(dict.fromkeys(vector_keys))
     # Keep search rank within each class, but concrete highlights/narratives precede
-    # role descriptions and bare skills; a role plus its bullets consumes one card.
-    priority = {"ExperienceHighlight": 0, "Project": 0, "CareerContext": 0, "Experience": 1, "Skill": 2}
+    # role descriptions; a role plus its bullets consumes one card.
+    priority = {"ExperienceHighlight": 0, "Project": 0, "CareerContext": 0, "Experience": 1}
     ordered.sort(key=lambda key: priority.get(key[0], 1))
     selected, seen_groups, seen_bodies = [], set(), set()
     for key in ordered:

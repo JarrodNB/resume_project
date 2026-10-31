@@ -122,7 +122,7 @@
     "expected_ids": []
   },
   {
-    "name": "bare skill when no narrative",
+    "name": "bare skill excluded even without narrative",
     "query": "Explain Kubernetes.",
     "library": {
       "skills": [
@@ -142,9 +142,7 @@
         "score": 0.03
       }
     ],
-    "expected_ids": [
-      "00000000-0000-0000-0000-000000000006"
-    ]
+    "expected_ids": []
   },
   {
     "name": "education evidence",
@@ -446,5 +444,44 @@
       "00000000-0000-0000-0000-000000000001"
     ],
     "offline_only_reason": "Exact cutoff behavior requires supplied boundary distance; paid mode measures a new distance."
+  },
+  {
+    "name": "narrative mentioning skill remains eligible",
+    "query": "Describe Kubernetes work.",
+    "library": {
+      "skills": [
+        {
+          "id": "00000000-0000-0000-0000-000000000021",
+          "name": "Kubernetes",
+          "category": "Tools"
+        }
+      ],
+      "projects": [
+        {
+          "id": "00000000-0000-0000-0000-000000000022",
+          "name": "Cluster rollout",
+          "description": "Migrated production services to Kubernetes with staged rollout checks."
+        }
+      ]
+    },
+    "matches": [
+      {
+        "source_type": "Skill",
+        "source_id": "00000000-0000-0000-0000-000000000021",
+        "content": "Tools: Kubernetes",
+        "distance": 0,
+        "score": 0.05
+      },
+      {
+        "source_type": "Project",
+        "source_id": "00000000-0000-0000-0000-000000000022",
+        "content": "Project: Cluster rollout: Migrated production services to Kubernetes with staged rollout checks.",
+        "distance": 0.1,
+        "score": 0.03
+      }
+    ],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000022"
+    ]
   }
 ]

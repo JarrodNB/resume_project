@@ -1422,6 +1422,7 @@ type ImportParsedResumePayload {
 type InterviewCareerReferences {
   aiTaskId: ID
   attemptCount: Int!
+  canRetry: Boolean!
   deadline: ISO8601DateTime
   id: ID!
   references: [CareerReference!]!
@@ -2932,6 +2933,7 @@ input RequestInterviewReferencesInput {
   interviewId: ID!
   messageId: ID!
   retryFailed: Boolean = false
+  visitId: ID
 }
 
 """

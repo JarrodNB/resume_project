@@ -1,5 +1,6 @@
 /** Follow saved references for one exact prompt without changing interview progress or answer drafts.
- * Pending work uses task subscriptions; a saved deadline permits explicit recovery without polling.
+ * Visit receipts permit one refresh on resume. Pending work uses task subscriptions;
+ * a saved deadline permits explicit recovery without polling.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@apollo/client/react'
@@ -22,7 +23,7 @@ function taskReferences(result: unknown): CareerReference[] | null {
   return references
 }
 
-export function useInterviewCareerReferences(interviewId: string, messageId: string, saved: SavedReferences) {
+export function useInterviewCareerReferences(interviewId: string, messageId: string, saved: SavedReferences, visitId?: string) {
   const [local, setLocal] = useState<SavedReferences>(null)
   const record = local && (!saved || local.attemptCount > saved.attemptCount) ? local : saved
   const [request, { loading }] = useMutation(REQUEST_INTERVIEW_REFERENCES)
@@ -31,6 +32,7 @@ export function useInterviewCareerReferences(interviewId: string, messageId: str
   const recordKey = record ? `${record.id}:${record.attemptCount}` : null
   const expired = recordKey !== null && expiredKey === recordKey
   const locked = useRef(false)
+  const [visitUnconfirmed, setVisitUnconfirmed] = useState(Boolean(visitId))
   const savedComplete = record?.status === 'completed' || record?.status === 'empty'
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(savedComplete ? '' : record?.aiTaskId ?? '')
   const currentTask = aiTask?.id === record?.aiTaskId ? aiTask : null
@@ -46,16 +48,18 @@ export function useInterviewCareerReferences(interviewId: string, messageId: str
     return () => window.clearTimeout(timer)
   }, [recordKey, record?.deadline, complete])
 
-  async function retrieve(retryFailed = false) {
-    if (locked.current || complete || pending) return
+  async function retrieve(retryFailed = false, resume = false) {
+    const checkVisit = resume || (retryFailed && visitUnconfirmed)
+    if (locked.current || (!checkVisit && (complete || pending))) return
     locked.current = true
     setError(null)
     try {
-      const response = await request({ variables: { input: { interviewId, messageId, retryFailed } } })
+      const response = await request({ variables: { input: { interviewId, messageId, retryFailed, ...(visitId ? { visitId } : {}) } } })
       const payload = response.data?.requestInterviewReferences
       if (payload?.errors.length || !payload?.careerReferences) {
         setError(payload?.errors.join('. ') || 'Could not request career examples. Please retry.')
       } else {
+        setVisitUnconfirmed(false)
         setExpiredKey(null)
         setLocal(payload.careerReferences)
       }
@@ -63,7 +67,7 @@ export function useInterviewCareerReferences(interviewId: string, messageId: str
       setError('Could not confirm career examples. Retry to check their saved status.')
     } finally { locked.current = false }
   }
-  return { retrieve, references, complete, pending: pending || loading, failed, canRetry: (record?.attemptCount ?? 0) < 2,
+  return { retrieve, references, complete, pending: pending || loading, failed, canRetry: Boolean(error && visitUnconfirmed) || (record?.canRetry ?? true),
     error: error || (failed ? currentTask?.errorMessage || 'Career examples did not finish. Please retry.' : null),
     subscriptionError: subscriptionError ? 'Live career example updates disconnected. Reopen this interview to check saved status.' : null }
 }

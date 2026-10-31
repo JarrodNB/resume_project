@@ -26,10 +26,10 @@ const snapshot = {
   setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
   id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2099-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
-  messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.', careerReferences: { id: 'saved-references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [] } }],
+  messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.', careerReferences: { id: 'saved-references', status: 'empty', canRetry: true, attemptCount: 1, aiTaskId: null, deadline: null, references: [] } }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
 }
-function renderInterview(url = '/practice/interviews/session', mocks: MockLink.MockedResponse[] = [], savedJobs = jobsMock(), historyState?: unknown) { return renderPage({ path: '/practice/interviews/:id?', url, historyState, mocks: [...mocks, savedJobs], element: <InterviewPage />, extraRoutes: [{ path: '/practice/questions', element: <p>Written practice</p> }, { path: '/jobs/:jobId/interview', element: <p>Job practice setup</p> }] }) }
+function renderInterview(url = '/practice/interviews/session', mocks: MockLink.MockedResponse[] = [], savedJobs = jobsMock(), historyState?: unknown) { return renderPage({ path: '/practice/interviews/:id?', url, historyState, mocks: [...mocks, { request: { query: REQUEST_INTERVIEW_REFERENCES, variables: () => true }, maxUsageCount: Infinity, result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errors: [], careerReferences: { __typename: 'InterviewCareerReferences', ...snapshot.messages[0].careerReferences } } } } }, savedJobs], element: <InterviewPage />, extraRoutes: [{ path: '/practice/questions', element: <p>Written practice</p> }, { path: '/jobs/:jobId/interview', element: <p>Job practice setup</p> }] }) }
 type SavedJob = { id: string; title: string; company: string | null; stage: 'UNAPPLIED' | 'APPLIED' | 'INTERVIEWING' | 'REJECTED' | 'OFFER' }
 /** Saved jobs offered on the role step; mocked on every render so setup never waits on an unmocked query. */
 function jobsMock(jobs: SavedJob[] = []): MockLink.MockedResponse {
@@ -46,7 +46,7 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
+beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewPage', () => {
   it('pauses automatic microphone capture while reviewing a Career context copy', async () => {
@@ -1301,9 +1301,9 @@ it('restores a saved prompt preference without changing the current question', (
 it('automatically retrieves references by default without blocking the draft', async () => {
   state.interview = { ...snapshot, messages: [{ ...snapshot.messages[0], careerReferences: null }] }
   renderInterview('/practice/interviews/session', [{ request: { query: REQUEST_INTERVIEW_REFERENCES,
-    variables: { input: { interviewId: 'session', messageId: 'opening', retryFailed: false } } }, delay: 30,
+    variables: { input: { interviewId: 'session', messageId: 'opening', retryFailed: false, visitId: '00000000-0000-4000-8000-000000000001' } } }, delay: 30,
     result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errors: [], careerReferences: {
-      __typename: 'InterviewCareerReferences', id: 'references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [],
+      __typename: 'InterviewCareerReferences', id: 'references', status: 'empty', canRetry: true, attemptCount: 1, aiTaskId: null, deadline: null, references: [],
     } } } } }])
   const answer = screen.getByRole('textbox', { name: 'Your answer' })
   expect(answer).toBeEnabled()
@@ -1375,4 +1375,22 @@ describe('choosing who the interview is for', () => {
     expect(screen.getByRole('button', { name: 'Change role' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Who is this interview for?' })).not.toBeInTheDocument()
   })
+})
+
+it('keeps a reference visit through rerenders and gives a reopened interview a new visit', async () => {
+  vi.mocked(crypto.randomUUID).mockReturnValueOnce('00000000-0000-4000-8000-000000000011').mockReturnValueOnce('00000000-0000-4000-8000-000000000012')
+  const visits: string[] = []
+  const result = vi.fn((variables) => {
+    visits.push(variables.input.visitId)
+    return { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errors: [], careerReferences: { __typename: 'InterviewCareerReferences', ...snapshot.messages[0].careerReferences } } } }
+  })
+  const view = renderInterview('/practice/interviews/session', [{ request: { query: REQUEST_INTERVIEW_REFERENCES, variables: () => true }, maxUsageCount: Infinity, result }])
+  await waitFor(() => expect(result).toHaveBeenCalledTimes(1))
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Blur reference text' }))
+  fireEvent(document, new Event('visibilitychange'))
+  expect(result).toHaveBeenCalledTimes(1)
+  await act(() => view.router.navigate('/practice/questions'))
+  await act(() => view.router.navigate('/practice/interviews/session'))
+  await waitFor(() => expect(result).toHaveBeenCalledTimes(2))
+  expect(visits).toEqual(['00000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000012'])
 })

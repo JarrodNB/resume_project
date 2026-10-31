@@ -5,6 +5,7 @@ module Mutations
       argument :interview_id, ID, required: true
       argument :message_id, ID, required: true
       argument :retry_failed, Boolean, required: false, default_value: false
+      argument :visit_id, ID, required: false
       field :career_references, Types::InterviewCareerReferencesType, null: true
 
       def resolve(interview_id:, **args)

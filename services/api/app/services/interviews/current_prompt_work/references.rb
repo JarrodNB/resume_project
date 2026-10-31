@@ -1,5 +1,6 @@
 # Career references search saved evidence with their own in-flight allowance.
-# An empty successful search is reusable. Acceptance verifies exact owned source wording,
+# Each interview visit can refresh successful work; duplicate visits reuse its search.
+# Acceptance verifies exact owned source wording,
 # while claim validation fences changes to the canonical follow-up search context.
 module Interviews
   class CurrentPromptWork
@@ -7,13 +8,58 @@ module Interviews
       SOURCES = { "Experience" => :experiences, "Project" => :projects, "Education" => :educations,
         "Certification" => :certifications, "Skill" => :skills, "CareerContext" => :career_contexts }.freeze
 
+      # A visit receipt makes retrying the navigation request safe even after later visits.
+      # Failed work still requires an explicit retry; only completed work starts a new cycle.
+      def request(interview:, message_id:, retry_failed: false, visit_id: nil)
+        return failure("Invalid interview visit") if visit_id && !visit_id.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
+        publish = nil
+        result = interview.user.with_lock do
+          interview.lock!
+          message = interview.messages.find_by(id: message_id, kind: %w[opening follow_up])
+          next failure("Question is no longer current") unless ClarificationPrompt.current?(interview, message)
+          record = records(interview).find_or_initialize_by(message: message)
+          seen_visit = visit_id && record.persisted? && record.visits.exists?(visit_id: visit_id)
+          task = record.ai_task
+          refresh = visit_id && !seen_visit && task&.completed?
+          if task && !task.finished? && record.deadline && record.deadline <= Time.current
+            fail_task(task, "References timed out. Retry explicitly.")
+          end
+          if !refresh && (task&.completed? || (task && (!task.failed? || !retry_failed)))
+            record.visits.find_or_create_by!(visit_id: visit_id) if visit_id
+            next success(record)
+          end
+          next failure("References retry limit reached") if !refresh && record.retry_count >= 1
+          admission = preparation_admission(interview)
+          next admission unless admission.success?
+          allowance = check_allowance(user: interview.user, existing_task: admission.value)
+          next allowance unless allowance.success?
+          record.save! unless record.persisted?
+          task = interview.user.ai_tasks.create!(task_type: task_type, subject: interview,
+            hourly_admission_task: admission.value, input: task_input(interview, record))
+          record.update!(ai_task: task, attempt_count: record.attempt_count + 1,
+            retry_count: refresh || record.attempt_count.zero? ? 0 : record.retry_count + 1,
+            references: [], claimed_at: nil, deadline: 3.minutes.from_now)
+          record.visits.find_or_create_by!(visit_id: visit_id) if visit_id
+          publish = task
+          success(record)
+        end
+        AiTasks::PublishTaskToQueueService.call(ai_task: publish) if publish
+        result
+      rescue *AiTasks::EnqueueAiTaskService::QUEUE_ERRORS
+        if publish
+          with_result_lock(ai_task: publish) do
+            fail_task(publish, "Could not queue references") unless publish.finished?
+          end
+        end
+        failure("Could not queue references. Please retry.")
+      end
+
       private
 
       def records(interview) = interview.career_references
       def task_type = "interview_references"
       def label = "References"
       def claimed_guard_first? = false
-      def reusable?(record) = record.references.any? || record.ai_task&.completed?
 
       def check_allowance(user:, existing_task:)
         AiUsage::CheckAiTaskAllowanceService.call(user: user, existing_task: existing_task, interview: true, reference_work: true)

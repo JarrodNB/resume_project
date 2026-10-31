@@ -898,10 +898,22 @@ The migration can reverse before any reference child tasks have been created. On
 reference usage exists, restoring the old child-task constraint can reject those retained
 rows; preserve the populated schema and accounting records during application rollback.
 
-`requestInterviewReferences(interviewId, messageId, retryFailed)` authorizes an owned,
+`requestInterviewReferences(interviewId, messageId, retryFailed, visitId)` authorizes an owned,
 active real-mode interview's latest opening/follow-up. Rails saves one
-`InterviewCareerReferences` record per prompt, with at most two explicitly requested
-queue task attempts. `interview_references` tasks reuse preparation's hourly admission
+`InterviewCareerReferences` record per prompt. Each reopened active interview route or
+full page reload receives a new browser visit UUID. A new visit refreshes completed
+or empty references; rerenders, panel changes and tab focus retain the same visit.
+Durable prompt/visit receipts deduplicate even delayed replays of earlier visits.
+A visit joining live pending work records its receipt and reuses that work. Failed
+or expired work still requires explicit retry, with one retry per search cycle.
+A later successful search can refresh again without a lifetime attempt cap.
+The monotonic `attemptCount` orders snapshots across refreshes; `canRetry` reports
+the separate cycle retry allowance. Legacy two-attempt records retain exhausted
+retry state during migration. Starting a fresh search clears earlier reference cards,
+and a fresh empty result replaces any earlier evidence. Visit receipts cascade on
+reference deletion and therefore follow interview retention. The refresh migration is
+forward-only because retained generations can exceed the original two-attempt constraint. Requests without a
+visit ID retain saved-result reuse for older clients. `interview_references` tasks reuse preparation's hourly admission
 but retain their own spend accounting. Reference in-flight work has its own per-user pool,
 using the same configured operation cap, so queued guidance cannot exhaust slots needed
 for answer execution. The critical-operation pool excludes reference tasks; reference
@@ -911,7 +923,7 @@ Reference capacity counts only the latest prompt-linked attempts whose three-min
 deadline is still live. An earlier prompt's expired attempt does not occupy a slot,
 even without worker redelivery. Redelivery checks expiry and prompt availability before
 the once-only claim guard, failing obsolete work while retaining late usage. This adds
-no polling, automatic regeneration or background sweeper. A private authenticated claim rechecks
+no polling, refresh while remaining on the page, or background sweeper. A private authenticated claim rechecks
 availability and returns session/record identities and the once-only claim timestamp.
 Python validates that claim through read-only owned database access and builds the bounded query
 from canonical messages; task commands retain only identities and source digests.

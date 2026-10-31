@@ -8,7 +8,7 @@ export const INTERVIEW_FIELDS = graphql(`
     setup { questionCount questionFormat difficulty interviewer focusAreas }
     jobContext { id title company description requirements responsibilities niceToHaves }
     questions { id content questionType position acceptedAnswerCount skipped }
-    messages { id questionId kind position content avoided acknowledgement spokenContent careerReferences { id status attemptCount aiTaskId deadline references { sourceType sourceId title body } } clarification { id status explanation attemptCount aiTaskId deadline } }
+    messages { id questionId kind position content avoided acknowledgement spokenContent careerReferences { id status canRetry attemptCount aiTaskId deadline references { sourceType sourceId title body } } clarification { id status explanation attemptCount aiTaskId deadline } }
     operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry reviewTranscript expectedRevision }
   }
 `)
@@ -98,7 +98,7 @@ export const AVOID_INTERVIEW_PROMPT = graphql(`
 export const REQUEST_INTERVIEW_REFERENCES = graphql(`
   mutation RequestInterviewReferences($input: RequestInterviewReferencesInput!) {
     requestInterviewReferences(input: $input) {
-      careerReferences { id status attemptCount aiTaskId deadline references { sourceType sourceId title body } }
+      careerReferences { id status canRetry attemptCount aiTaskId deadline references { sourceType sourceId title body } }
       errors
     }
   }

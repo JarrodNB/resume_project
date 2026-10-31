@@ -9,7 +9,7 @@ import { PRODUCT_NAME } from '@/lib/productName'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { useInterviewCareerReferences } from './useInterviewCareerReferences'
 
-type Props = { ownerId: string; interviewId: string; message: InterviewSnapshotFragment['messages'][number]; disabled: boolean }
+type Props = { ownerId: string; interviewId: string; message: InterviewSnapshotFragment['messages'][number]; disabled: boolean; visitId?: string }
 
 /** Matches the career library's section names; highlights belong to their role's Experience entry. */
 const SOURCE_LABELS: Record<string, string> = {
@@ -22,18 +22,18 @@ export function InterviewCareerReferences(props: Props) {
   return <PromptReferences key={`${props.ownerId}:${props.interviewId}:${props.message.id}`} {...props} />
 }
 
-function PromptReferences({ ownerId, interviewId, message, disabled }: Props) {
+function PromptReferences({ ownerId, interviewId, message, disabled, visitId }: Props) {
   const preferenceKey = `${PRODUCT_NAME}:interview-reference-blur:${ownerId}`
   const [blur, setBlur] = useState(() => {
     try { return localStorage.getItem(preferenceKey) !== 'false' } catch { return true }
   })
-  const guidance = useInterviewCareerReferences(interviewId, message.id, message.careerReferences)
+  const guidance = useInterviewCareerReferences(interviewId, message.id, message.careerReferences, visitId)
   const requested = useRef(false)
   useEffect(() => {
-    if (disabled || requested.current || guidance.pending || guidance.complete || guidance.failed || guidance.error) return
+    if (disabled || requested.current || (!visitId && (guidance.pending || guidance.complete || guidance.failed || guidance.error))) return
     requested.current = true
-    void guidance.retrieve()
-  }, [disabled, guidance])
+    void guidance.retrieve(false, Boolean(visitId))
+  }, [disabled, guidance, visitId])
   const count = guidance.references.length
   return <section className="interview-evidence" aria-label="Relevant career examples">
     <div className="interview-evidence-head">

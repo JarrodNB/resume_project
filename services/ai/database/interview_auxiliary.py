@@ -41,7 +41,8 @@ def read_interview_auxiliary(connection, task, grant):
           WHERE t.id=%(task)s AND t.task_type=%(kind)s AND t.status='queued'
           AND t.subject_type='InterviewSession' AND t.subject_id=s.id
           AND s.user_id=%(user)s AND s.id=%(session)s AND r.id=%(record)s
-          AND r.claimed_at=%(claimed)s::timestamptz AND r.attempt_count BETWEEN 1 AND 2
+          AND r.claimed_at=%(claimed)s::timestamptz AND r.attempt_count >= 1
+          {"" if key == "reference_id" else "AND r.attempt_count <= 2"}
           AND r.deadline>CURRENT_TIMESTAMP
           AND s.expires_at>CURRENT_TIMESTAMP AND s.content_purged_at IS NULL
           AND s.execution_mode='real'"""

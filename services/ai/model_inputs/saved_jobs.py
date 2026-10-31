@@ -1,4 +1,6 @@
-"""Render screened saved-job labels without exposing database metadata or posting facts."""
+"""Render screened saved jobs as readable text for the chat model: a title/company list and one posting's details.
+
+No database metadata or JSON; absent posting fields are shown as "Not provided"."""
 
 
 def render_saved_jobs(jobs):

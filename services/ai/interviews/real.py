@@ -65,22 +65,16 @@ class RealInterviewExecutor(InterviewExecutor):
         """Standalone calls own their timeout; the shared runner supplies it otherwise."""
         if claim.execution_mode != "real":
             raise ValueError("Real executor requires a real claim")
-        from interviews.client import ReferencePayload
-        if isinstance(claim.payload, ReferencePayload):
-            if self.input_reader is None:
-                from database.interview_inputs import build_interview_input_reader
-                from settings import AISettings
-                self.input_reader = build_interview_input_reader(AISettings())
-            try:
-                claim = await asyncio.to_thread(self.input_reader, claim)
-            except OperationalError:
-                await self.client.fail(claim, "dependency_unavailable", True)
-                await self.client.usage(claim, [], incomplete=False)
-                return
-            except ValueError:
-                await self.client.fail(claim, "execution_failed", False)
-                await self.client.usage(claim, [], incomplete=False)
-                return
+        try:
+            claim = await self._load_inputs(claim)
+        except OperationalError:
+            await self.client.fail(claim, "dependency_unavailable", True)
+            await self.client.usage(claim, [], incomplete=False)
+            return
+        except ValueError:
+            await self.client.fail(claim, "execution_failed", False)
+            await self.client.usage(claim, [], incomplete=False)
+            return
         try:
             remaining = min((claim.execution_deadline - datetime.now(UTC)).total_seconds(), 120)
             if remaining <= 0:

@@ -16,7 +16,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 from pydantic_ai_harness import InputBlocked
 
 from agents.user_text_screen_agent import UserTextScreenRun
-from interviews.client import RailsTransportError
+from interviews.client import RailsTransportError, ReferencePayload
 from interviews.conversation import (
     ContextLimitExceeded,
     conversation_history,
@@ -72,17 +72,21 @@ class InterviewExecutor:
             # Fake execution cannot incur provider charges, even when local work fails.
             await self.client.usage(claim, [{"cost_microdollars": 0}], observation_id=identity)
 
+    async def _load_inputs(self, claim):
+        """Expand an identity-only claim from the read-only database; other claims pass through."""
+        if not isinstance(claim.payload, ReferencePayload):
+            return claim
+        if self.input_reader is None:
+            from database.interview_inputs import build_interview_input_reader
+            from settings import AISettings
+            self.input_reader = build_interview_input_reader(AISettings())
+        return await asyncio.to_thread(self.input_reader, claim)
+
     async def execute(self, claim, *, deadline_managed=False):
         """Run one operation; fail safe domain errors, leaving transport loss recoverable."""
         finished = False
         try:
-            from interviews.client import ReferencePayload
-            if isinstance(claim.payload, ReferencePayload):
-                if self.input_reader is None:
-                    from database.interview_inputs import build_interview_input_reader
-                    from settings import AISettings
-                    self.input_reader = build_interview_input_reader(AISettings())
-                claim = await asyncio.to_thread(self.input_reader, claim)
+            claim = await self._load_inputs(claim)
 
             if claim.kind == "turn":
                 await self._turn(claim)

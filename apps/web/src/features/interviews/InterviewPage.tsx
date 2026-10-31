@@ -91,6 +91,7 @@ function OwnedInterview({ id }: { id: string }) {
   const { operation: reviewOperation, pending: reviewPending, saving: savingRecording } = answer.review
   const [muted, setMuted] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [referenceVisitId] = useState(() => crypto.randomUUID())
   const [careerContextOpen, setCareerContextOpen] = useState(false)
   const [pendingTranscriptionMode, setPendingTranscriptionMode] = useState<TranscriptionMode | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
@@ -256,7 +257,7 @@ function OwnedInterview({ id }: { id: string }) {
     </section>
     {/* Career examples sit beside the answer so they never push it below the fold. */}
     <div className="interview-side">
-    {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
+    {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={id} visitId={referenceVisitId} message={reply} disabled={turnActive || state.busy} />}
     <aside className="interview-transcript" aria-label="History">
       <h2 className="mb-4 text-lg font-semibold">History</h2>
       <ol className="interview-exchanges">

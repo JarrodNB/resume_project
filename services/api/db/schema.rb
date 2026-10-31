@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_31_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_31_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -340,10 +340,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_010000) do
     t.string "policy_version", default: "1", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "retry_count", default: 0, null: false
     t.index ["ai_task_id"], name: "index_interview_career_references_on_ai_task_id"
     t.index ["interview_session_id"], name: "index_interview_career_references_on_interview_session_id"
     t.index ["message_id"], name: "index_interview_career_references_on_message_id", unique: true
-    t.check_constraint "attempt_count >= 0 AND attempt_count <= 2 AND jsonb_typeof(\"references\") = 'array'::text AND jsonb_array_length(\"references\") <= 3", name: "interview_career_reference_bounds"
+    t.check_constraint "attempt_count >= 0 AND retry_count >= 0 AND retry_count <= 1 AND jsonb_typeof(\"references\") = 'array'::text AND jsonb_array_length(\"references\") <= 3", name: "interview_career_reference_bounds"
   end
 
   create_table "interview_clarifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -429,6 +430,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_010000) do
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
     t.check_constraint "retired_at IS NULL AND \"position\" IS NOT NULL AND \"position\" >= 1 AND \"position\" <= 5 OR retired_at IS NOT NULL AND \"position\" IS NULL", name: "interview_question_position"
+  end
+
+  create_table "interview_reference_visits", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "career_references_id", null: false
+    t.uuid "visit_id", null: false
+    t.index ["career_references_id", "visit_id"], name: "interview_reference_visit_identity", unique: true
+    t.index ["career_references_id"], name: "index_interview_reference_visits_on_career_references_id"
   end
 
   create_table "interview_session_feedbacks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -998,6 +1006,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_010000) do
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"
   add_foreign_key "interview_questions", "interview_question_sets"
+  add_foreign_key "interview_reference_visits", "interview_career_references", column: "career_references_id", on_delete: :cascade
   add_foreign_key "interview_session_feedbacks", "ai_tasks", on_delete: :nullify
   add_foreign_key "interview_session_feedbacks", "interview_sessions"
   add_foreign_key "interview_session_media", "interview_session_messages", column: "message_id"

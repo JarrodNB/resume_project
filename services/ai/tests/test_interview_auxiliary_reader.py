@@ -242,8 +242,8 @@ def test_configured_handler_hydrates_without_injected_reader(task_dependencies, 
     with psycopg.connect(
         host=os.environ["DB_HOST"],
         dbname=database,
-        user="postgres",
-        password="postgres",
+        user=os.environ.get("DB_ADMIN_USERNAME", "postgres"),
+        password=os.environ.get("DB_ADMIN_PASSWORD", "postgres"),
         row_factory=dict_row,
         autocommit=True,
     ) as admin:
@@ -254,7 +254,7 @@ def test_configured_handler_hydrates_without_injected_reader(task_dependencies, 
                     "db_host": os.environ["DB_HOST"],
                     "db_name": database,
                     "db_username": "ai_reader",
-                    "db_password": "ai_reader",
+                    "db_password": os.environ.get("DB_PASSWORD", "ai_reader"),
                     "interview_service_secret": "test-secret",
                 }
             )
@@ -305,3 +305,11 @@ def test_configured_handler_hydrates_without_injected_reader(task_dependencies, 
             )
             admin.execute("DELETE FROM interview_sessions WHERE id=%s", (grant["interview_id"],))
             admin.execute("DELETE FROM users WHERE id=%s", (task.user_id,))
+
+
+def test_reference_refresh_attempts_remain_readable_after_two_attempts(admin_connection):
+    task, grant, table, _, _ = seed(admin_connection, "references")
+    admin_connection.execute(
+        f"UPDATE {table} SET attempt_count=3 WHERE id=%s", (grant["record_id"],)
+    )
+    assert read(admin_connection, task, grant)["question_text"] == "Current generated question?"

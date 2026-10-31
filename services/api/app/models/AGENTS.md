@@ -88,3 +88,5 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   AiUsageAttempt ledger entries; missing reports remain incomplete.
 
 - `interview_session_feedback.rb` — one retained coaching result and latest queue attempt per completed interview, separate from accepted dialogue. Session destruction delegates feedback payload scrubbing before its dependent record disappears.
+
+- `interview_reference_visit.rb` — prompt/visit receipts deduplicate reference refresh requests; receipts cascade with their reference record. Reference attempt counts order all generations, while retry_count bounds retries within the current search cycle.

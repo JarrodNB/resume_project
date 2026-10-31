@@ -13,7 +13,7 @@ import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperatio
 type Saved = NonNullable<InterviewSnapshotFragment['messages'][number]['careerReferences']> & { __typename?: 'InterviewCareerReferences' }
 const body = 'I rebuilt the deployment checks and reduced failed releases.'
 const entry = { __typename: 'CareerReference' as const, sourceType: 'ExperienceHighlight', sourceId: 'highlight', title: 'Engineer at Acme', body }
-const saved: Saved = { __typename: 'InterviewCareerReferences', id: 'references', status: 'queued', attemptCount: 1, aiTaskId: 'task', deadline: '2099-01-01T00:00:00Z', references: [] }
+const saved: Saved = { __typename: 'InterviewCareerReferences', id: 'references', status: 'queued', canRetry: true, attemptCount: 1, aiTaskId: 'task', deadline: '2099-01-01T00:00:00Z', references: [] }
 const message = { __typename: 'InterviewSessionMessage', id: 'opening', questionId: 'question', kind: 'opening', position: 0,
   content: 'Describe an improvement you made.', avoided: false, acknowledgement: null, spokenContent: 'Describe an improvement you made.', clarification: null, careerReferences: null } as InterviewSnapshotFragment['messages'][number]
 function renderReferences(record: Saved | null = null, mocks: MockLink.MockedResponse[] = [], ownerId = "owner") {
@@ -94,7 +94,7 @@ it('offers explicit retry after a saved deadline without polling', async () => {
   expect(await screen.findByText(body)).toHaveAttribute('aria-hidden', 'true')
 })
 it('does not offer a third attempt and preserves the independent answer', () => {
-  renderReferences({ ...saved, status: 'failed', attemptCount: 2 }, [taskMock('FAILED')])
+  renderReferences({ ...saved, status: 'failed', canRetry: false, attemptCount: 2 }, [taskMock('FAILED')])
   expect(screen.getByText(/reached its career example retry limit/)).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Retry career examples' })).not.toBeInTheDocument()
   expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeEnabled()
@@ -125,7 +125,7 @@ it('waits until answer processing is over without disabling independent controls
     const [disabled, setDisabled] = useState(true)
     return <><button onClick={() => setDisabled(false)}>Answer saved</button><InterviewCareerReferences ownerId="owner" interviewId="interview" message={message} disabled={disabled} /></>
   }
-  renderPage({ path: '/test', url: '/test', mocks: [{ ...mock, result }, taskMock()], element: <Processing /> })
+  renderPage({ path: '/test', url: '/test', mocks: [{ ...mock, result }, taskMock('COMPLETED', 'task-2')], element: <Processing /> })
   expect(result).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Answer saved' }))
   await waitFor(() => expect(result).toHaveBeenCalledOnce())
@@ -153,4 +153,49 @@ it('keeps blur controls usable when local storage is unavailable', () => {
   fireEvent.click(screen.getByRole('checkbox', { name: 'Blur reference text' }))
   expect(screen.getByText(body)).toHaveAttribute('aria-hidden', 'false')
   vi.restoreAllMocks()
+})
+
+it('refreshes a saved empty result once when an interview visit resumes', async () => {
+  const mock = requestMock(false, 2)
+  const result = vi.fn(() => mock.result)
+  renderPage({ path: '/test', url: '/test', mocks: [{ ...mock, request: { ...mock.request, variables: { input: { interviewId: 'interview', messageId: 'opening', retryFailed: false, visitId: '00000000-0000-4000-8000-000000000001' } } }, result }, taskMock('COMPLETED', 'task-2')],
+    element: <InterviewCareerReferences ownerId="owner" interviewId="interview" visitId="00000000-0000-4000-8000-000000000001" message={{ ...message, careerReferences: { ...saved, status: 'empty' } }} disabled={false} /> })
+  expect(await screen.findByText(body)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Blur reference text' }))
+  expect(result).toHaveBeenCalledOnce()
+})
+
+it('replaces populated evidence with a fresh empty result after resume', async () => {
+  const mock = requestMock(false, 3)
+  const complete = { ...mock.result.data.requestInterviewReferences.careerReferences, status: 'empty', references: [] }
+  renderPage({ path: '/test', url: '/test', mocks: [{ request: { ...mock.request, variables: { input: { interviewId: 'interview', messageId: 'opening', retryFailed: false, visitId: '00000000-0000-4000-8000-000000000002' } } }, result: { data: { requestInterviewReferences: { ...mock.result.data.requestInterviewReferences, careerReferences: complete } } } }],
+    element: <InterviewCareerReferences ownerId="owner" interviewId="interview" visitId="00000000-0000-4000-8000-000000000002" message={{ ...message, careerReferences: { ...saved, status: 'completed', references: [entry] } }} disabled={false} /> })
+  expect(await screen.findByText('No relevant saved examples found for this question.')).toBeVisible()
+  expect(screen.queryByText(body)).not.toBeInTheDocument()
+})
+
+it('checks a resumed pending search once without duplicating execution on rerender', async () => {
+  const mock = requestMock()
+  const result = vi.fn(() => mock.result)
+  renderPage({ path: '/test', url: '/test', mocks: [{ request: { ...mock.request, variables: { input: { interviewId: 'interview', messageId: 'opening', retryFailed: false, visitId: '00000000-0000-4000-8000-000000000003' } } }, result }, taskMock()],
+    element: <StrictMode><InterviewCareerReferences ownerId="owner" interviewId="interview" visitId="00000000-0000-4000-8000-000000000003" message={{ ...message, careerReferences: saved }} disabled={false} /></StrictMode> })
+  expect(await screen.findByText(body)).toBeInTheDocument()
+  await waitFor(() => expect(result).toHaveBeenCalledOnce())
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Blur reference text' }))
+  expect(result).toHaveBeenCalledOnce()
+})
+
+it('retries an unconfirmed resume refresh even when saved guidance is complete and exhausted', async () => {
+  const visitId = '00000000-0000-4000-8000-000000000004'
+  const mock = requestMock(false, 3)
+  const input = { interviewId: 'interview', messageId: 'opening', retryFailed: false, visitId }
+  const retryResult = vi.fn(() => mock.result)
+  renderPage({ path: '/test', url: '/test', mocks: [
+    { request: { query: REQUEST_INTERVIEW_REFERENCES, variables: { input } }, error: new Error('lost refresh receipt') },
+    { request: { query: REQUEST_INTERVIEW_REFERENCES, variables: { input: { ...input, retryFailed: true } } }, result: retryResult }, taskMock('COMPLETED')],
+    element: <InterviewCareerReferences ownerId="owner" interviewId="interview" visitId={visitId} message={{ ...message, careerReferences: { ...saved, attemptCount: 2, canRetry: false, status: 'empty' } }} disabled={false} /> })
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not confirm career examples')
+  fireEvent.click(screen.getByRole('button', { name: 'Retry career examples' }))
+  expect(await screen.findByText(body)).toBeInTheDocument()
+  expect(retryResult).toHaveBeenCalledOnce()
 })

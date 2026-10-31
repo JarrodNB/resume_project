@@ -34,8 +34,8 @@ RSpec.describe "Spoken interview GraphQL" do
   it "requests owned career references and hides expired task content" do
     current = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
     allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
-    mutation = 'mutation($input: RequestInterviewReferencesInput!) { requestInterviewReferences(input: $input) { careerReferences { id status references { sourceType sourceId title body } attemptCount aiTaskId deadline } errors } }'
-    variables = { input: { interviewId: current.id, messageId: current.messages.first.id } }
+    mutation = 'mutation($input: RequestInterviewReferencesInput!) { requestInterviewReferences(input: $input) { careerReferences { id status canRetry references { sourceType sourceId title body } attemptCount aiTaskId deadline } errors } }'
+    variables = { input: { interviewId: current.id, messageId: current.messages.first.id, visitId: SecureRandom.uuid } }
     expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
     result = execute_graphql(mutation, user: user, variables: variables)
     expect(result["errors"]).to be_nil

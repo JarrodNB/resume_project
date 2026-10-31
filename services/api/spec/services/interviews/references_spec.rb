@@ -57,6 +57,69 @@ RSpec.describe "Interview question references" do
     expect(references.ai_task.input["query_digest"]).to eq(Digest::SHA256.hexdigest(follow_up.content))
   end
 
+  it "refreshes an empty completed search once for a new visit" do
+    service = Interviews::CurrentPromptWork::References.new
+    visit = SecureRandom.uuid
+    first = service.request(interview: interview, message_id: prompt.id, visit_id: visit).value
+    first.ai_task.update!(status: "completed")
+    resumed = service.request(interview: interview, message_id: prompt.id, visit_id: SecureRandom.uuid).value
+    expect(resumed.ai_task_id).not_to eq(first.ai_task_id)
+    expect(resumed.attempt_count).to eq(2)
+    resumed.ai_task.update!(status: "completed")
+    expect(service.request(interview: interview, message_id: prompt.id, visit_id: visit).value.ai_task_id).to eq(resumed.ai_task_id)
+    expect(interview.user.ai_tasks.interview_references.count).to eq(2)
+  end
+
+  it "reuses pending work across visits and remembers each joined visit after completion" do
+    service = Interviews::CurrentPromptWork::References.new
+    first = service.request(interview: interview, message_id: prompt.id, visit_id: SecureRandom.uuid).value
+    joined_visit = SecureRandom.uuid
+    expect(service.request(interview: interview, message_id: prompt.id, visit_id: joined_visit).value.ai_task_id).to eq(first.ai_task_id)
+    first.ai_task.update!(status: "completed")
+    expect(service.request(interview: interview, message_id: prompt.id, visit_id: joined_visit).value.ai_task_id).to eq(first.ai_task_id)
+    expect(interview.user.ai_tasks.interview_references.count).to eq(1)
+  end
+
+  it "permits repeated completed refreshes with one failure retry per cycle" do
+    service = Interviews::CurrentPromptWork::References.new
+    current = nil
+    3.times do
+      current = service.request(interview: interview, message_id: prompt.id, visit_id: SecureRandom.uuid).value
+      current.ai_task.update!(status: "completed")
+    end
+    expect(current.attempt_count).to eq(3)
+    current.ai_task.update!(status: "failed")
+    retried = service.request(interview: interview, message_id: prompt.id, retry_failed: true)
+    expect(retried).to be_success
+    expect(retried.value.attempt_count).to eq(4)
+    expect(retried.value.retry_count).to eq(1)
+    retried.value.ai_task.update!(status: "failed")
+    expect(service.request(interview: interview, message_id: prompt.id, retry_failed: true)).not_to be_success
+    expect(service.request(interview: interview, message_id: prompt.id, visit_id: SecureRandom.uuid).value.ai_task_id).to eq(retried.value.ai_task_id)
+  end
+
+  it "clears earlier evidence on refresh and rejects an old result without changing answers" do
+    service = Interviews::CurrentPromptWork::References.new
+    original = interview.attributes.slice("revision", "current_question_position")
+    old = service.request(interview: interview, message_id: prompt.id, visit_id: SecureRandom.uuid).value
+    old_task = old.ai_task
+    service.claim(ai_task: old_task)
+    old.update!(references: [{ source_type: "Experience", source_id: SecureRandom.uuid, title: "Old", body: "Old evidence" }])
+    old_task.update!(status: "completed")
+    fresh = service.request(interview: interview, message_id: prompt.id, visit_id: SecureRandom.uuid).value
+    expect(fresh.references).to eq([])
+    expect(service.apply(ai_task: old_task, result: { "references" => [] })).not_to be_success
+    service.claim(ai_task: fresh.ai_task)
+    expect(service.apply(ai_task: fresh.ai_task, result: { "references" => [] })).to be_success
+    expect(interview.reload.attributes.slice("revision", "current_question_position")).to eq(original)
+    expect(interview.messages.answer.count).to eq(0)
+  end
+
+  it "rejects malformed visit identities without creating work" do
+    expect(Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id, visit_id: "bad")).not_to be_success
+    expect(interview.career_references.count).to eq(0)
+  end
+
   def request_references
     Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id).value
   end

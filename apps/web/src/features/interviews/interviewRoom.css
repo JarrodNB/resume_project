@@ -24,14 +24,39 @@
 .interview-stage .interview-mic { min-height: 64px; padding: 16px 24px; gap: 12px; border-radius: 32px; font-size: 16px; }
 .interview-mic svg { width: 24px; height: 24px; }
 .interview-stage[data-recording="true"] .interview-mic { background: var(--destructive); color: var(--primary-foreground); }
+/* Career evidence is a side panel beside the stage, so the answer stays directly under the question. */
+.interview-side { display: grid; gap: 24px; min-width: 0; }
+.interview-evidence { display: grid; gap: 14px; min-width: 0; padding: 20px 24px 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }
+.interview-evidence-head { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px 24px; }
+.interview-evidence-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.interview-evidence-title { font-size: 16px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; }
+.interview-evidence-count { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1.5px solid var(--rule-strong); border-radius: 3px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.interview-evidence-note { max-width: 56ch; font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
+.interview-evidence-blur { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.interview-evidence-blur input { width: 16px; height: 16px; accent-color: var(--primary); }
+.interview-evidence-state { display: flex; align-items: baseline; gap: 10px; font-size: 14px; line-height: 1.6; }
+.interview-evidence-state > span { transform: translateY(1px); }
+.interview-evidence-state.is-quiet { color: var(--muted-foreground); }
+.interview-evidence-state.is-action { color: var(--signal-action-text); font-weight: 600; }
+.interview-evidence-stop { width: 12px; height: 12px; flex: none; border: 2px solid var(--stop-off); border-radius: 50%; }
+.interview-evidence-retry { justify-self: start; min-height: 44px; }
+.interview-evidence-list { display: grid; border-top: 2px solid var(--rule-strong); }
+.interview-evidence-item { display: grid; gap: 8px; min-width: 0; padding: 14px 0 16px; border-bottom: 1px solid var(--border); }
+.interview-evidence-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.interview-evidence-item-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.interview-evidence-source { font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
+.interview-evidence-item-title { overflow-wrap: anywhere; font-size: 16px; font-weight: 700; line-height: 1.25; }
+.interview-evidence-reveal { flex: none; min-height: 36px; }
+.interview-evidence-body { max-width: 68ch; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 14px; line-height: 1.6; transition: filter 240ms var(--ease-out-strong), opacity 240ms var(--ease-out-strong); }
+.interview-evidence-body[data-concealed="true"] { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; filter: blur(5px); opacity: .7; pointer-events: none; user-select: none; }
 .interview-transcript { min-width: 0; padding: 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }
 .interview-exchanges { display: grid; gap: 16px; max-height: 640px; overflow-y: auto; scrollbar-color: var(--input) transparent; scrollbar-width: thin; }
 .interview-exchange { display: grid; gap: 10px; padding: 16px; margin-right: 16px; border-radius: 12px; background: var(--secondary); }
 .interview-exchange[data-speaker="you"] { margin-left: 16px; margin-right: 0; background: var(--muted); }
 .interview-exchange button { height: auto; min-height: 36px; white-space: normal; }
 @container (max-width: 850px) { .interview-room { grid-template-columns: minmax(0, 1fr); } .interview-exchanges { max-height: 440px; } }
-@media (max-width: 600px) { .interview-stage { padding: 24px 16px; } .interview-transcript { padding: 20px 16px; } .interview-presence { width: 72px; height: 72px; } .interview-record-controls { flex-direction: column; } .interview-record-controls button { min-height: 44px; width: 100%; } }
-@media (prefers-reduced-motion: reduce) { .interview-presence { transition: none; } .interview-stage[data-speaking="true"] .interview-presence svg path { animation: none; } }
+@media (max-width: 600px) { .interview-stage { padding: 24px 16px; } .interview-evidence { padding: 20px 16px; } .interview-evidence-reveal { min-height: 44px; } .interview-transcript { padding: 20px 16px; } .interview-presence { width: 72px; height: 72px; } .interview-record-controls { flex-direction: column; } .interview-record-controls button { min-height: 44px; width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .interview-presence, .interview-evidence-body { transition: none; } .interview-stage[data-speaking="true"] .interview-presence svg path { animation: none; } }
 
 /* Setup follows the same ruled record as the career library; native inputs keep keyboard behavior. */
 .interview-setup { display: grid; gap: 24px; max-width: 920px; min-width: 0; }

@@ -39,6 +39,27 @@ def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool(acknowledgem
     assert len(observed) == 2
 
 
+
+def test_interviewer_receives_follow_up_guidance_with_candidate_answer():
+    observed = []
+
+    async def respond(messages, info):
+        observed.append(str(messages))
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"decision": "continue", "acknowledgement": None,
+             "reply": "How did you check that the reporting prototype worked?"})])
+
+    async def guard(ctx, prompt):
+        return True
+
+    result = asyncio.run(make_interviewer(guard).run(
+        "I built a reporting prototype in the existing application to meet the deadline.",
+        model=FunctionModel(respond)))
+    assert result.output.reply == "How did you check that the reporting prototype worked?"
+    assert "reporting prototype" in observed[0]
+    assert "rather than assuming a formal process" in observed[0]
+    assert "single clear question" in observed[0]
+
 def test_each_validation_retry_has_a_distinct_durable_observation():
     from interviews.models import InterviewModel
     from tests.test_interview_executor import Client, claim
@@ -87,7 +108,7 @@ def test_synthetic_eval_fixture_contracts_offline():
     from evals.run_spoken_interviewer_evals import run_spoken_interviewer_evals
 
     report = run_spoken_interviewer_evals()
-    assert len(report.cases) == 3 and not report.failures
+    assert len(report.cases) == 4 and not report.failures
     assert all(all(result.value for result in case.assertions.values()) for case in report.cases)
 
 

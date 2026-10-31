@@ -23,7 +23,8 @@ it('prepares for the selected job with limited-context copy and the existing rou
   expect(screen.queryByText(/prepare a fictional role/)).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('radio', { name: /Stretch/ }))
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch',
     interviewer: 'daniel', focusAreas: [] }, 'job-1')

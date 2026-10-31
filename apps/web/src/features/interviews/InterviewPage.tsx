@@ -9,6 +9,7 @@ import { SaveInterviewAnswer } from './SaveInterviewAnswer'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
 import { InterviewRoleStep } from './InterviewRoleStep'
+import { TRANSCRIPTION_HELP } from './transcriptionHelp'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { interviewerOptions } from './interviewSetupOptions'
 import { PageHeading } from '@/components/PageHeading'
@@ -40,12 +41,6 @@ import type { TranscriptionMode } from './transcriptionCapture'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewStreaming } from './useInterviewStreaming'
 import { useInterviewSession } from './useInterviewSession'
-
-const TRANSCRIPTION_HELP = {
-  browser: 'Browser recognition fills your answer while you speak using your browser’s speech service.',
-  streaming: 'Streaming transcription fills your answer while you speak using OpenAI. Try it if browser recognition is unreliable.',
-  recorded: 'Recorded audio transcription records first. After you finish, choose Transcribe recording to fill your answer for review.',
-}
 
 export function InterviewPage() {
   const { id } = useParams()

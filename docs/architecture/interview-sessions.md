@@ -19,8 +19,8 @@ application stage. Library-only starts retain fictional-role preparation.
 Rails saves the owned job ID, scalar `preparation_kind` and optional `career_focus`, plus
 bounded setup choices. It does not copy the job or library into the session or claim.
 Python validates the live operation's owner, attempt, generation, mode, lease and deadline,
-then reads the current owned job, career library and avoided-question preferences in one
-read-only transaction during preparation. Missing required jobs and empty libraries stop
+then reads the current owned job, career library, avoided-question preferences and recent
+main questions in one read-only transaction during preparation. Missing required jobs and empty libraries stop
 before provider dispatch. Notes, gap responses and tailored resumes are excluded.
 
 Preparation runs no injection classifiers and records no source approvals. Contact masking,
@@ -28,6 +28,21 @@ escaped data sections, aggregate prompt bounds, exact-input integrity and provid
 remain. Job expectations are separate from candidate evidence. Saved-job output requires
 `role: null`; Rails stores `prepared_role: {}` and rejects invented replacement roles.
 Fictional-role practice still generates and saves a validated imagined role.
+
+Preparation also reads up to 20 latest retained prepared main questions, newest question creation
+first with stable session/position/identity ties. Saved-job history matches the exact job and
+saved-job preparation kind; generic history includes all fictional-role sessions across formats
+and career focuses. Both are owner-scoped, exclude the current session and purged content, and
+match the execution mode so fixture questions do not enter real practice. Skipped, unanswered
+and expired-but-not-yet-purged questions remain useful history. Deleted saved jobs never become
+generic history. Cleanup removes expired content, so this is variety guidance over retained
+questions rather than permanent history or a guarantee of novelty.
+
+Recent questions enter separate escaped, contact-masked data blocks as variety guidance,
+not candidate evidence or strict exclusions; explicitly avoided questions stay strict exclusions.
+Count and per-question limits are checked before model dispatch, and the complete readable
+context including history must fit the existing aggregate prompt limit. History is loaded only
+inside Python's existing preparation transaction, never copied into commands or HTTP claims.
 
 Turns read prepared questions and canonical accepted public dialogue from the database.
 They do not reload the original job/library/preferences or private model history. Current

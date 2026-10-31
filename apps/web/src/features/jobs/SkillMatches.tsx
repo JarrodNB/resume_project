@@ -1,4 +1,4 @@
-/** Shows literal mentions of saved skills separately from the AI requirement comparison. */
+/** Shows only the saved skills literally mentioned in a job, separately from the AI requirement comparison. */
 import { Link } from 'react-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { skillMentionCount } from './skillMentionCounts'
@@ -6,6 +6,9 @@ import { useSkillMatches } from './useSkillMatches'
 
 export function SkillMatches({ description }: { description: string | null | undefined }) {
   const { data, loading, error } = useSkillMatches(Boolean(description?.trim()))
+  const mentioned = (data?.skills ?? [])
+    .map(skill => ({ skill, count: skillMentionCount(description, skill.name) }))
+    .filter(({ count }) => count > 0)
   return (
     <Card>
       <CardHeader>
@@ -17,17 +20,15 @@ export function SkillMatches({ description }: { description: string | null | und
           : error ? <p role="alert">Couldn't load your skills. Reopen Fit to try again.</p>
           : loading || !data ? <p role="status">Loading your skills…</p>
           : data.skills.length === 0 ? <p><Link className="underline" to="/library">Add skills to your career library</Link> to see their mentions here.</p>
+          : mentioned.length === 0 ? <p>None of your saved skills are mentioned in this job description.</p>
           : (
             <ul aria-label="Saved skill mentions" className="grid gap-2 text-sm">
-              {data.skills.map(skill => {
-                const count = skillMentionCount(description, skill.name)
-                return (
-                  <li key={skill.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <span className="min-w-0 break-words">{skill.name}</span>
-                    <span className="text-muted-foreground">{count === 0 ? 'Not mentioned' : `${count} ${count === 1 ? 'mention' : 'mentions'}`}</span>
-                  </li>
-                )
-              })}
+              {mentioned.map(({ skill, count }) => (
+                <li key={skill.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span className="min-w-0 break-words">{skill.name}</span>
+                  <span className="text-muted-foreground">{`${count} ${count === 1 ? 'mention' : 'mentions'}`}</span>
+                </li>
+              ))}
             </ul>
           )}
       </CardContent>

@@ -33,3 +33,13 @@
     reply: null
   relevant_terms: []
   acknowledgement_terms: []
+- name: practical-follow-up
+  question: Tell me about delivering a technical project under time pressure.
+  answer: I built a reporting prototype in the existing application to meet the deadline.
+  history: []
+  expected:
+    decision: continue
+    acknowledgement: null
+    reply: How did you check that the reporting prototype worked?
+  relevant_terms: [check, prototype]
+  acknowledgement_terms: []

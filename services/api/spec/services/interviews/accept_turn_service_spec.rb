@@ -51,6 +51,19 @@ RSpec.describe "Basic Interview acceptance" do
     end
   end
 
+  it "replays a turn accepted before model history was retired instead of reporting a conflict" do
+    first = Interviews::AcceptTurnService.call(**input)
+    expect(first).to be_success
+    legacy_payload = { attempt_id: operation.attempt_id, claim_generation: operation.claim_generation,
+      decision: "continue", history_version: 1, model_history: [], reply: input[:reply],
+      transcript: input[:transcript] }
+    operation.update!(result_fingerprint: Digest::SHA256.hexdigest(JSON.generate(legacy_payload)))
+    count = interview.messages.count
+    expect(Interviews::AcceptTurnService.call(**input).value).to eq(first.value)
+    expect(interview.messages.count).to eq(count)
+    expect(Interviews::AcceptTurnService.call(**input, reply: "A different reply.")).not_to be_success
+  end
+
   [ "", " ", "x" * 281, 123 ].each do |acknowledgement|
     it "rejects invalid acknowledgement #{acknowledgement.inspect[0, 20]} without committing an answer" do
       expect(Interviews::AcceptTurnService.call(**input, acknowledgement: acknowledgement)).not_to be_success

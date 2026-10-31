@@ -49,7 +49,8 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
   const preferenceCheck = useBoardPreferenceCheck(visit)
   const reranking = useJobBoardReranking(visit)
   const skillQuery = useSkillMatches(state.snapshot.listings.length > 0)
-  const skills = !skillQuery.loading && !skillQuery.error ? skillQuery.data?.skills ?? null : null
+  // Keep showing cached skills while `cache-and-network` refetches in the background.
+  const skills = !skillQuery.error ? skillQuery.data?.skills ?? null : null
   const skillsMessage = skillQuery.loading ? 'Loading saved skills…' : skillQuery.error ? "Couldn't load saved skills." : !skills?.length ? 'Add skills to your career library to see skill mentions.' : undefined
   const submittedSearch = state.snapshot.submitted
   const board = { ...state, pages: state.snapshot.pages, providerListings: state.snapshot.listings, listings: reranking.listings, nextCursor: visit.nextCursor() }

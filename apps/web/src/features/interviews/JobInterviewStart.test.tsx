@@ -42,6 +42,7 @@ it('starts the chosen round for the selected job without checking for other inte
   fireEvent.click(screen.getByRole('radio', { name: /Maya/ }))
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
   fireEvent.click(screen.getByRole('checkbox', { name: 'Leadership' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(await screen.findByText('Saved interview')).toBeVisible()
   expect(prepare).toHaveBeenCalledTimes(1)
@@ -57,7 +58,8 @@ it('shows the error and allows another try when the selected job is deleted afte
       startMock(defaultSetup, reject),
     ],
   })
-  fireEvent.click(await screen.findByRole('button', { name: 'Prepare interview' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue to settings' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Record not found')
   expect(reject).toHaveBeenCalledTimes(1)
   expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled()

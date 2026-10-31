@@ -125,16 +125,6 @@ module ResumeImports
       @summary["merged"] += 1
     end
 
-    # Saves one record per item after the user's existing ones; the block fills in each record.
-    def create_records(association, list)
-      first_position = (association.maximum(:position) || -1) + 1
-      list.each_with_index.map do |item, offset|
-        record = association.new(position: first_position + offset)
-        yield(record, item)
-        record.tap(&:save!)
-      end
-    end
-
     # Fills an Experience and its ordered highlights from a parsed experience.
     def assign_experience(experience, item)
       experience.assign_attributes(
@@ -193,7 +183,10 @@ module ResumeImports
     def create_new_skills
       known_names = @user.skills.pluck(:name).map(&:downcase).to_set
       new_skills = items("skills").select { |skill| skill["name"].present? && known_names.add?(skill["name"].downcase) }
-      create_records(@user.skills, new_skills) { |record, skill| record.assign_attributes(skill.slice("name", "category")) }
+      first_position = (@user.skills.maximum(:position) || -1) + 1
+      new_skills.each_with_index do |skill, offset|
+        @user.skills.create!(skill.slice("name", "category").merge(position: first_position + offset))
+      end
     end
 
     # Turns "YYYY-MM" or "YYYY" into the first day of that month or year; nil otherwise.

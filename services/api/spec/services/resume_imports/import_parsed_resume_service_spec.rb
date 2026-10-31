@@ -82,6 +82,24 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.reload.name).to eq("Jane Doe")
   end
 
+  it "appends skills in submitted order while skipping existing and repeated names" do
+    create(:skill, user: user, name: "Python", category: nil, position: 4)
+    parsed_resume["skills"] = [
+      { "name" => "python" },
+      { "name" => "Ruby", "category" => "Languages" },
+      { "name" => "RUBY", "category" => "Ignored duplicate" },
+      { "name" => "SQL", "category" => "Databases" }
+    ]
+    user.skills.load
+
+    result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+
+    expect(result).to be_success
+    expect(user.skills.reload.pluck(:name, :category, :position)).to eq([
+      [ "Python", nil, 4 ], [ "Ruby", "Languages", 5 ], [ "SQL", "Databases", 6 ]
+    ])
+  end
+
   it "fills blank profile fields without overwriting existing ones and creates no resume" do
     user.update!(phone: "555-0100")
     parsed_resume["contact"].merge!("phone" => "555-9999", "location" => "Perth", "links" => [ { "label" => "GitHub", "url" => "https://github.com/jane" } ])

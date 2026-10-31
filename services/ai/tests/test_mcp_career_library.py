@@ -53,7 +53,7 @@ class Reader:
 def served():
     """Start the real server over HTTP; yields (url, reader)."""
     reader = Reader(checked_library())
-    app = create_mcp_server(secret=SECRET, read_library=reader).http_app(path="/mcp", stateless_http=True)
+    app = create_mcp_server(secret=SECRET, read_library=reader, read_jobs=lambda _: [], read_job_summary=lambda _, __: None).http_app(path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         yield url, reader
 
@@ -112,7 +112,7 @@ async def test_server_rejects_requests_without_a_valid_token(served, token):
 @pytest.mark.anyio
 async def test_database_failure_is_a_tool_error_without_details():
     reader = Reader(psycopg.OperationalError("password authentication failed for ai_reader"))
-    app = create_mcp_server(secret=SECRET, read_library=reader).http_app(path="/mcp", stateless_http=True)
+    app = create_mcp_server(secret=SECRET, read_library=reader, read_jobs=lambda _: [], read_job_summary=lambda _, __: None).http_app(path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id="user-1", operation_id="op"))) as c:
             result = await c.call_tool("read_career_library", {}, raise_on_error=False)
@@ -252,7 +252,7 @@ async def test_parallel_calls_share_the_read_and_paid_screening():
 @pytest.mark.anyio
 async def test_every_server_tool_has_a_client_renderer():
     # A server tool without a renderer is silently hidden from agents; catch that here.
-    server = create_mcp_server(secret=SECRET, read_library=Reader(CareerLibrary()))
+    server = create_mcp_server(secret=SECRET, read_library=Reader(CareerLibrary()), read_jobs=lambda _: [], read_job_summary=lambda _, __: None)
     names = {tool.name for tool in await server.list_tools()}
     assert names == set(TOOL_RENDERERS)
 

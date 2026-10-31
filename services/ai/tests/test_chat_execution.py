@@ -560,7 +560,7 @@ def tool_server(library):
         reads.append(user_id)
         return library
 
-    app = create_mcp_server(secret=secret, read_library=read).http_app(path='/mcp', stateless_http=True)
+    app = create_mcp_server(secret=secret, read_library=read, read_jobs=lambda _: [], read_job_summary=lambda _, __: None).http_app(path='/mcp', stateless_http=True)
     with serve_in_background(app) as url:
         yield ToolServerConnection(url=url, secret=secret), reads
 

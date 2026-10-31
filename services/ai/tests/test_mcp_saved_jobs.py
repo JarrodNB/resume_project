@@ -18,7 +18,7 @@ def anyio_backend():
 
 @pytest.mark.anyio
 async def test_saved_job_list_is_available_over_authenticated_http():
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary()).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [], read_job_summary=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         token = mint_tool_token(SECRET, user_id="owner", operation_id="operation")
@@ -41,7 +41,7 @@ async def test_list_reads_token_owner_and_renders_only_checked_labels():
                  "screened_fields": ["title", "company"], "notes": "PRIVATE"}]
     async def screen(text):
         pytest.fail("Saved checks must be reused")
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         token = mint_tool_token(SECRET, user_id="owner", operation_id="operation")
@@ -74,7 +74,8 @@ async def test_auth_rejects_before_any_saved_jobs_read(kind):
         claims["aud"] = "wrong"
     token = "bad" if kind == "bad" else jwt.encode(claims, SECRET, algorithm="HS256")
     app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(),
-                            read_jobs=lambda user: users.append(user) or []).http_app(path="/mcp", stateless_http=True)
+                            read_jobs=lambda user: users.append(user) or [],
+                            read_job_summary=lambda _, __: None).http_app(path="/mcp", stateless_http=True)
     with serve_in_background(app) as url, pytest.raises(Exception):  # noqa: B017
         async with Client(url, auth=None if kind == "missing" else BearerAuth(token)) as client:
             await client.call_tool("list_saved_jobs", {})
@@ -86,7 +87,7 @@ async def test_database_failure_hides_details():
     import psycopg
     def read(_):
         raise psycopg.OperationalError("private password details")
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id="owner", operation_id="op"))) as client:
@@ -122,7 +123,7 @@ async def test_unchecked_labels_are_screened_together_and_fail_closed(decision, 
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("count,title", [(501, "Engineer"), (1, "x" * 40_001)])
+@pytest.mark.parametrize("count,title", [(501, "Engineer"), (1, "x" * 60_001)])
 async def test_limits_reject_complete_list_before_screening(count, title):
     from mcp_tools.saved_jobs import render_saved_jobs_result
     from screening.library_inputs import LibraryScreeningError
@@ -149,19 +150,19 @@ async def test_empty_and_unavailable_results_are_explicit():
 
 
 @pytest.mark.anyio
-async def test_server_rejects_overflow_and_arguments_cannot_select_another_owner():
+async def test_server_returns_overflow_sentinel_and_arguments_cannot_select_another_owner():
     from uuid import uuid4
     users = []
     def read(user):
         users.append(user)
         return [{"id": str(uuid4()), "title": "Engineer"}] * 501
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id="owner", operation_id="op"))) as client:
             result = await client.call_tool("list_saved_jobs", {}, raise_on_error=False)
-            assert result.is_error
-            assert "saved_jobs_context_limit" in str(result.content)
+            assert not result.is_error
+            assert len(result.structured_content["jobs"]) == 501
             await client.call_tool("list_saved_jobs", {"user_id": "other"}, raise_on_error=False)
     assert users and set(users) == {"owner"}
 

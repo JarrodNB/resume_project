@@ -52,6 +52,9 @@ from settings import load_settings
 from telemetry.model_attempt import ModelAttempt
 from telemetry.privacy import telemetry_scope
 from telemetry.tracing import flush_tracing, record_prompt_version
+
+# Keeps Rails' acceptance bounded when tools read many distinct records.
+MAX_RECORD_SCREENING_RECEIPTS = 500
 from text_limits import MAX_PROMPT_TEXT
 
 
@@ -286,7 +289,10 @@ class ChatExecutionAdapter:
                 # These are optional future screening approvals, not the sources used
                 # for this reply. Keep Rails' acceptance bound when tools read
                 # distinct collections; every source above was still screened.
-                values["record_screening"] = [report.model_dump() for report in session.record_screening[:500]]
+                receipts = session.record_screening
+                if len(receipts) > MAX_RECORD_SCREENING_RECEIPTS:
+                    logfire.warn("Chat record screening receipts truncated", count=len(receipts))
+                values["record_screening"] = [report.model_dump() for report in receipts[:MAX_RECORD_SCREENING_RECEIPTS]]
             if summary_update is not None:
                 values["summary_update"] = summary_update
             await self.client.accept(claim, **values)

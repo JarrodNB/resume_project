@@ -1,7 +1,7 @@
-# Build readable, immutable listing evidence and a digest of the complete source.
-# Excerpts remain exact source text; a truncated snapshot never claims unseen details.
+# Build readable current listing evidence and a digest of the complete source.
+# Excerpts remain exact source text; a truncated projection never claims unseen details.
 module JobBoard
-  class PreferenceListingSnapshot
+  class PreferenceListingSources
     MAX_TEXT_BYTES = 8_000
     PASSAGE_CHARACTERS = 500
 
@@ -25,7 +25,7 @@ module JobBoard
 
     def digest = Digest::SHA256.hexdigest(text)
 
-    def snapshot(max_text_bytes: MAX_TEXT_BYTES)
+    def projection(max_text_bytes: MAX_TEXT_BYTES)
       source = text
       excerpt = source.truncate_bytes(max_text_bytes, omission: "")
       pieces = excerpt.split("\n").reject(&:blank?).flat_map { |line| line.scan(/.{1,#{PASSAGE_CHARACTERS}}/m) }

@@ -40,8 +40,8 @@ RSpec.describe "Completed interview feedback" do
     task = record.ai_task
     grant = service.claim(ai_task: task).value
     expect(grant[:allowed]).to be(true)
-    expect(grant[:questions].pluck(:question_id)).to eq([ question.id ])
-    expect(grant[:questions].first[:dialogue].pluck(:content)).to eq([ "I built a scheduler and tested it with the team.", "How did you test it?", "I added integration tests." ])
+    expect(grant.keys).to match_array(%i[allowed interview_id record_id claimed_at])
+    expect(grant).to include(interview_id: interview.id, record_id: record.id)
     expect(service.claim(ai_task: task).value).to eq(allowed: false)
     message = { "ai_task_id" => task.id, "status" => "completed", "result" => { "interview_session_feedback" => content },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 12 } ] }
@@ -93,7 +93,7 @@ RSpec.describe "Completed interview feedback" do
       candidate_transcript: "I built a scheduler.", submission_key: "finish", request_fingerprint: "test", expected_revision: interview.revision,
       claim_generation: 1, attempt_id: attempt, lease_expires_at: 1.minute.from_now, execution_deadline: 2.minutes.from_now)
     result = Interviews::AcceptTurnService.call(operation: operation, attempt_id: attempt, claim_generation: 1,
-      transcript: "I built a scheduler.", decision: "advance", history_version: 1, model_history: [])
+      transcript: "I built a scheduler.", decision: "advance")
     expect(result).to be_success
     expect(interview.reload).to be_completed
     expect(interview.feedback).to be_nil

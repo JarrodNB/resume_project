@@ -6,10 +6,10 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
-- `job_preferences/start_check_service.rb` — one 1–100-listing snapshot with exact source digests and bounded input/result budgets; completed checks reuse only matching exact-source approvals. Result validation checks complete coverage, current sources and finite native preference probabilities.
+- `job_preferences/start_check_service.rb` — one 1–100-listing reference command with exact source/passage fingerprints and bounded input/result budgets; completed checks reuse only matching exact-source approvals. Result validation checks complete coverage, current sources and finite native preference probabilities.
 
 - `job_preferences/` — owner-scoped reusable next-job preference reads and version-fenced draft/confirm/clear writes. No catalogue changes.
-- `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing snapshots, queued JEV checks, source-digest currentness and finite probability/result acceptance.
+- `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing references, queued JEV checks, source-digest currentness and finite probability/result acceptance.
 
 - `chat/` — private saved chat pagination and durable execution policy. `ContextPlanService` checks uncovered accepted dialogue without copying sources into claims and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
 
@@ -17,8 +17,7 @@ All business logic, as service objects grouped by domain folder.
   (career library, job, gap response, interview question and job preferences). Its `RECORD_TYPES` registry owns each
   type's screened fields, owner/task scope and extra checks; a field is approved only when its
   fingerprint matches the locked current value (and the task snapshot where one exists).
-  The legacy `record_interview_sources` helper is unused by spoken preparation or turns
-  and remains only until migration cleanup. Preference criteria use text
+  Spoken preparation/turns produce no screening approvals. Preference criteria use text
   fingerprints on their owner profile; shared catalogue listings use exact passage fingerprints.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
@@ -52,7 +51,7 @@ All business logic, as service objects grouped by domain folder.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids
   duplicating its optional field schema, and UUIDs remain separate from provider IDs.
 - `job_board/start_reranking_service.rb` — optional owner-scoped AI task for 1–100 shared listing IDs;
-  snapshots bounded plain-text excerpts and the submitted keyword. Existing matching queued work
+  stores selected listing IDs and the fresh submitted keyword once; Python reads current catalogue text. Existing matching queued work
   is reused; normal AI allowance checks apply. `validate_reranking_result_service.rb` accepts only
   exact permutations of the frozen candidate IDs.
 - `job_board/search_filters.rb` — validates and canonicalizes provider date, city/state, employment, remote type, salary, company, and sort preferences for HTTP/cache identity.
@@ -104,7 +103,7 @@ All business logic, as service objects grouped by domain folder.
   existing task subscription only when the task outcome changes; a
   completed `scrape_job` saves its Job in the same locked transaction (task `subject`), or the
   task fails if the Job can't be saved. Complete tailoring drafts stay in task results;
-  applying a result never changes their input snapshots. Attempt IDs deduplicate usage
+  applying a result never changes their reference commands. Attempt IDs deduplicate usage
   independently, including late reports after a finished outcome.
 - `resume_tailoring/start_resume_tailoring_service.rb` — queues `tailor_resume`, or returns the
   task already in progress or an unsaved draft with at least one browser-supported,
@@ -190,7 +189,7 @@ All business logic, as service objects grouped by domain folder.
   Python reads the current shared list only during preparation; turns use prepared questions
   and accepted dialogue without reloading source preferences.
 
-- `study_guides/` — snapshots an owned job description under owner/job locks, queues guide generation, validates completed learning material before persistence, and pages successful guide summaries with signed job-bound keyset cursors.
+- `study_guides/` — stores an owned job identity and expiry fence, queues guide generation from current database sources, validates completed learning material before persistence, and pages successful guide summaries with signed job-bound keyset cursors.
 
 - `interviews/session_feedback.rb` — explicit completed-session coaching admission, one-time queue claims and validated result acceptance. Like `CurrentPromptWork`, exposes a cohesive request/claim/apply interface shared by thin GraphQL/internal/result adapters; the queue carries identities, not dialogue.
 

@@ -5,16 +5,14 @@ require "digest"
 
 module Interviews
   class AcceptTurnService < ApplicationService
-    MAX_HISTORY_BYTES = 262_144
     CLOSING = "Thank you. This interview is complete.".freeze
 
     def initialize(operation:, attempt_id:, claim_generation:, transcript:, decision:, reply: nil,
-      history_version:, model_history:, acknowledgement: nil)
+      acknowledgement: nil)
       @operation = operation
       @attempt_id, @claim_generation = attempt_id, claim_generation
       @transcript, @decision, @reply = transcript, decision, reply
       @acknowledgement = acknowledgement
-      @history_version, @model_history = history_version, model_history
     end
 
     # Receives an already-authorized internal operation, not a browser-supplied owner ID.
@@ -50,8 +48,7 @@ module Interviews
         answer = interview.messages.create!(question: question, kind: "answer", position: message_position,
           semantic_key: "turn:#{@operation.id}:answer", content: @transcript)
         response = save_response(interview, question, message_position + 1)
-        question.update!(accepted_answer_count: question.accepted_answer_count + 1,
-          history_version: @history_version, model_history: @model_history)
+        question.update!(accepted_answer_count: question.accepted_answer_count + 1)
         interview.update!(revision: interview.revision + 1)
         if interview.active? && SpeechPlayback.provider?(interview)
           speech = interview.operations.create!(kind: "speech", question: response.question, message: response)
@@ -110,15 +107,11 @@ module Interviews
 
     def valid_payload?
       @transcript.is_a?(String) && @transcript.present? && @transcript.length <= TextLimits::PROSE &&
-        %w[continue advance].include?(@decision) && valid_reply? && valid_acknowledgement? &&
-        @history_version == 1 && @model_history.is_a?(Array) && @model_history.all? { |message| message.is_a?(Hash) } &&
-        JSON.generate(@model_history).bytesize <= MAX_HISTORY_BYTES
-    rescue JSON::GeneratorError, JSON::NestingError
-      false
+        %w[continue advance].include?(@decision) && valid_reply? && valid_acknowledgement?
     end
 
     def canonical_payload
-      # JSON object order is irrelevant to identity, including nested history objects.
+      # JSON object order is irrelevant to identity.
       normalize = ->(value) do
         case value
         when Hash then value.stringify_keys.sort.to_h.transform_values { |child| normalize.call(child) }
@@ -127,7 +120,7 @@ module Interviews
         end
       end
       payload = { attempt_id: @attempt_id, claim_generation: @claim_generation, transcript: @transcript,
-        decision: @decision, reply: @reply, history_version: @history_version, model_history: @model_history }
+        decision: @decision, reply: @reply }
       # Omitted acknowledgements keep historical fingerprints replayable.
       payload[:acknowledgement] = @acknowledgement unless @acknowledgement.nil?
       normalize.call(payload)

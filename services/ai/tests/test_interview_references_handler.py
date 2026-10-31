@@ -3,6 +3,7 @@ from dataclasses import replace
 from uuid import UUID, uuid4
 
 import httpx
+import pytest
 
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
@@ -66,13 +67,12 @@ def test_claimed_search_returns_exact_saved_context_without_requirement(task_dep
 def test_mismatched_prompt_never_searches(task_dependencies):
     task = reference_task()
     task.input["question_text"] = "Changed question"
-    result = handle_ai_task(task, claimed_dependencies(task_dependencies))
+    result = handle_ai_task(task, replace(claimed_dependencies(task_dependencies), read_interview_auxiliary=unavailable_context))
     assert result.status == "failed"
     assert result.result is None and not result.usage
 
 
 def test_extra_context_is_rejected_before_claim(task_dependencies):
-    import pytest
     from pydantic import ValidationError
     task = reference_task()
     task.input["draft_answer"] = "PRIVATE"
@@ -169,7 +169,7 @@ def test_claim_identity_mismatch_cannot_read_another_users_library(task_dependen
     task = reference_task()
     task.user_id = uuid4()
     reader = Mock(side_effect=AssertionError('must not read'))
-    deps = replace(claimed_dependencies(task_dependencies), read_career_library=reader)
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=reader, read_interview_auxiliary=unavailable_context)
     result = handle_ai_task(task, deps)
     assert result.status == 'failed'
     reader.assert_not_called()
@@ -180,7 +180,7 @@ def test_reference_identity_mismatch_cannot_start_embedding(task_dependencies):
     task = reference_task()
     task.input['reference_id'] = str(uuid4())
     reader = Mock(side_effect=AssertionError('must not read'))
-    result = handle_ai_task(task, replace(claimed_dependencies(task_dependencies), read_career_library=reader))
+    result = handle_ai_task(task, replace(claimed_dependencies(task_dependencies), read_career_library=reader, read_interview_auxiliary=unavailable_context))
     assert result.status == 'failed'
     reader.assert_not_called()
 
@@ -197,3 +197,13 @@ def test_follow_up_uses_exact_rails_granted_query(task_dependencies, monkeypatch
                    read_career_library=lambda _: CareerLibrary())
     assert handle_ai_task(task, deps).status == "completed"
     assert retrieve.call_args.args[1] == task.input["query_text"]
+
+
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    # Unit tests isolate canonical reads; DB tests exercise the production adapter.
+    return replace(task_dependencies, read_interview_auxiliary=lambda task, grant: grant)
+
+
+def unavailable_context(task, grant):
+    raise ValueError("Saved claim no longer matches")

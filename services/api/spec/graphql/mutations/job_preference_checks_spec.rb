@@ -10,11 +10,11 @@ RSpec.describe "Job preference checks" do
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 1, action: :confirm)
   end
   def request(revision: 2, id: listing.id, owner: user)
-    execute_graphql(mutation, user: owner, variables: { id: id, revision: revision, digest: JobBoard::PreferenceListingSnapshot.new(listing).digest })
+    execute_graphql(mutation, user: owner, variables: { id: id, revision: revision, digest: JobBoard::PreferenceListingSources.new(listing).digest })
   end
 
   def request_batch(listings, revision: 2)
-    execute_graphql(<<~GQL, user: user, variables: { listings: listings.map { |item| { listingId: item.id, expectedDigest: JobBoard::PreferenceListingSnapshot.new(item).digest } }, revision: revision })
+    execute_graphql(<<~GQL, user: user, variables: { listings: listings.map { |item| { listingId: item.id, expectedDigest: JobBoard::PreferenceListingSources.new(item).digest } }, revision: revision })
       mutation($listings: [JobPreferenceListingInput!]!, $revision: Int!) {
         checkJobBoardPreferenceResults(input: {listings: $listings, confirmedRevision: $revision}) { aiTask { id status input } errors }
       }
@@ -31,8 +31,16 @@ RSpec.describe "Job preference checks" do
     expect(Shoryuken::Client).to have_received(:queues).once
   end
 
+  it "stores only preference identities and exact-source fingerprints" do
+    request
+    input = user.ai_tasks.last.input
+    expect(input.to_json).not_to include("Fully remote", '"passages"', '"screened"')
+    expect(input["criteria"].first.keys).to match_array(%w[id priority text_sha256])
+    expect(input["listings"].first.keys).to match_array(%w[id source_digest truncated passages_sha256])
+  end
+
   it "canonicalizes uppercase UUIDs and rejects case variants of the same listing" do
-    digest = JobBoard::PreferenceListingSnapshot.new(listing).digest
+    digest = JobBoard::PreferenceListingSources.new(listing).digest
     expect(request(id: listing.id.upcase).dig("data", "checkJobBoardPreferenceResults", "errors")).to eq([])
     service = JobPreferences::StartCheckService.call(user: user, confirmed_revision: 2,
       listings: [ { listing_id: listing.id.upcase, expected_digest: digest }, { listing_id: listing.id, expected_digest: digest } ])
@@ -87,10 +95,10 @@ RSpec.describe "Job preference checks" do
   it "does not reuse a partial batch screening check to approve previously unseen text" do
     listing.update!(payload: { title: "Engineer", description: "First part. " * 900 })
     profile = user.job_preference_profile
-    short = JobBoard::PreferenceListingSnapshot.new(listing).snapshot(max_text_bytes: 1200)
+    short = JobBoard::PreferenceListingSources.new(listing).projection(max_text_bytes: 1200)
     user.ai_tasks.create!(task_type: "check_job_preferences", status: "completed", input: { listings: [ short ], criteria: profile.confirmed_criteria })
     request
-    expect(user.ai_tasks.order(created_at: :desc).first.input["listings"].first["screened"]).to be(false)
+    expect(user.ai_tasks.order(created_at: :desc).first.input["listings"].first).not_to have_key("screened")
   end
   it "queues a frozen listing and the owner's confirmed preferences without saving a Job" do
     response = request
@@ -98,8 +106,8 @@ RSpec.describe "Job preference checks" do
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
     expect(task.task_type).to eq("check_job_preferences")
     expect(task.input["confirmed_revision"]).to eq(2)
-    expect(task.input["criteria"].first["text"]).to eq("Fully remote")
-    expect(task.input["listings"].first["passages"].map { |p| p["text"] }.join).to include("Fully remote within the US.")
+    expect(task.input["criteria"].first["text_sha256"]).to eq(Screening::RecordApprovalsService.field_fingerprint("Fully remote"))
+    expect(task.input["listings"].first).not_to have_key("passages")
     expect(Job.count).to eq(0)
   end
   def outcome(task, probability: 0.93)
@@ -109,8 +117,8 @@ RSpec.describe "Job preference checks" do
   end
 
   def screening_receipts(task)
-    criterion = task.input["criteria"].first
-    source = task.input["listings"].first
+    criterion = task.user.job_preference_profile.confirmed_criteria.first
+    source = JobPreferences::CheckSources.listing_source(listing.reload, task.input["listings"].size)
     fingerprint = ->(value) { Screening::RecordApprovalsService.field_fingerprint(value) }
     [ { "record_type" => "job_preference_criterion", "record_id" => criterion["id"],
         "fingerprints" => { "text" => fingerprint.call(criterion["text"]) } },
@@ -223,12 +231,12 @@ RSpec.describe "Job preference checks" do
     user.ai_tasks.create!(task_type: "generate_summary", status: "completed", result: { criteria: [ criterion ] })
     request
     task = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first
-    expect(task.input["criteria"].first["trusted_generated"]).to be(false)
+    expect(task.input["criteria"].first).not_to have_key("trusted_generated")
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => outcome(task), "record_screening" => screening_receipts(task) })
     request
     next_task = user.ai_tasks.order(created_at: :desc).first
-    expect(next_task.input["criteria"].first["screened"]).to be(true)
-    expect(next_task.input["listings"].first["screened"]).to be(true)
+    expect(user.job_preference_profile.reload.screened_criteria_sha256).to include(Screening::RecordApprovalsService.field_fingerprint("Fully remote"))
+    expect(listing.reload.screened_sha256).not_to be_nil
   end
   [ [ "completed", "result" ], [ "completed", "input" ], [ "needs_user_input", "input" ] ].each do |status, source|
     it "reuses exact owner historical #{source} provenance from a #{status} retired conversation" do
@@ -237,15 +245,15 @@ RSpec.describe "Job preference checks" do
       create(:user).ai_tasks.create!(attributes.call(criterion))
       user.ai_tasks.create!(attributes.call(criterion.merge("text" => "Fully remote elsewhere")))
       first = request.dig("data", "checkJobBoardPreferenceResults", "aiTask", "input", "criteria").first
-      expect(first.fetch("trusted_generated", false)).to be(false)
-      expect(first["screened"]).to be(false)
+      expect(first).not_to have_key("trusted_generated")
+      expect(first).not_to have_key("screened")
 
       user.ai_tasks.create!(attributes.call(criterion))
       current = request.dig("data", "checkJobBoardPreferenceResults", "aiTask", "input", "criteria").first
       if source == "result"
-        expect(current["trusted_generated"]).to be(true)
+        expect(current).not_to have_key("trusted_generated")
       else
-        expect(current["screened"]).to be(true)
+        expect(user.job_preference_profile.reload.screened_criteria_sha256).to include(Screening::RecordApprovalsService.field_fingerprint(criterion["text"]))
       end
     end
   end
@@ -254,9 +262,9 @@ RSpec.describe "Job preference checks" do
     listing.update!(payload: { title: "Engineer", description: (1..90).map { |n| "Line #{n}" }.join("\n") })
     expect(request.dig("data", "checkJobBoardPreferenceResults", "errors")).to eq([])
     item = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first.input["listings"].first
-    expect(item["passages"].size).to eq(64)
+    expect(JobPreferences::CheckSources.listing_source(listing, 1)["passages"].size).to eq(64)
     expect(item["truncated"]).to be(true)
-    expect(item["source_digest"]).to eq(JobBoard::PreferenceListingSnapshot.new(listing).digest)
+    expect(item["source_digest"]).to eq(JobBoard::PreferenceListingSources.new(listing).digest)
   end
 
   it "reuses exact text screening when only a criterion's priority changes" do
@@ -267,6 +275,6 @@ RSpec.describe "Job preference checks" do
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 2, action: :save_draft, criteria: [ criterion.merge("priority" => "nice_to_have") ])
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 3, action: :confirm)
     request(revision: 4)
-    expect(user.ai_tasks.order(created_at: :desc).first.input["criteria"].first["screened"]).to be(true)
+    expect(user.job_preference_profile.reload.screened_criteria_sha256).to include(Screening::RecordApprovalsService.field_fingerprint(criterion["text"]))
   end
 end

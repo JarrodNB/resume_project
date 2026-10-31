@@ -97,8 +97,9 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
   SQS messages or internal Rails–FastAPI execution requests/claim responses. Send only
   versioned IDs and bounded control metadata; Python loads owned records itself.
   AI-produced results and explicit scoped media capabilities retain their own contracts.
-  Existing stored copies and HTTP payloads are being removed in the approved staged
-  migration; do not add new ones or describe the migration as finished prematurely.
+  Fresh user command text may be stored once on its canonical task/operation record;
+  transport still carries only its identity. Editable ResumeSection content, confirmed
+  preferences, public GraphQL state and transaction isolation are separate domain concepts.
 - SQS can deliver a message more than once. Every handler on either side of the queue must
   be safe to run twice (see [Duplicate Messages](docs/architecture/ai-tasks.md#duplicate-messages)).
 - Long-running AI work goes through SQS (ElasticMQ locally). Interactive interviews and chat are the

@@ -40,6 +40,14 @@ def _profile_sources(connection, user_id):
     user = connection.execute("SELECT summary FROM users WHERE id = %(user_id)s", {"user_id": user_id}).fetchone()
     if user is None or (user["summary"] and user["summary"].strip()):
         return None
+    # One owned query for all highlights; more than 1000 can never fit the source cap anyway.
+    highlights = {}
+    for highlight in connection.execute("""
+        SELECT h.id::text, h.experience_id::text, h.content, h.screened_fields FROM experience_highlights h
+        JOIN experiences e ON e.id = h.experience_id
+        WHERE e.user_id = %(user_id)s ORDER BY h.experience_id, h.id LIMIT 1001
+    """, {"user_id": user_id}).fetchall():
+        highlights.setdefault(highlight["experience_id"], []).append(highlight)
     sources = []
     for table, fields in LIBRARY_FIELDS.items():
         # Tables/columns are fixed constants; values stay bound and every row is owned.
@@ -52,13 +60,7 @@ def _profile_sources(connection, user_id):
                     sources.append({"label": f"{table.upper()}_{index}_{field.upper()}", "text": row[field],
                                     "screened": field in row["screened_fields"], "record_id": row["id"]})
             if table == "experiences":
-                highlights = connection.execute("""
-                    SELECT h.id::text, h.content, h.screened_fields FROM experience_highlights h
-                    JOIN experiences e ON e.id = h.experience_id
-                    WHERE e.user_id = %(user_id)s AND e.id = %(experience_id)s
-                    ORDER BY h.id LIMIT 1001
-                """, {"user_id": user_id, "experience_id": row["id"]}).fetchall()
-                for position, highlight in enumerate(highlights, 1):
+                for position, highlight in enumerate(highlights.get(row["id"], []), 1):
                     sources.append({"label": f"EXPERIENCES_{index}_HIGHLIGHT_{position}",
                                     "text": highlight["content"], "screened": "content" in highlight["screened_fields"],
                                     "record_id": highlight["id"]})

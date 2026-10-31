@@ -55,7 +55,7 @@ RSpec.describe AiReaderAccess do
   it "cannot read the JWT denylist or unrelated gap-response metadata" do
     create(:job_gap_response)
 
-    expect { select_as_ai_reader("SELECT id FROM interview_clarifications") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("SELECT explanation FROM interview_clarifications") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT updated_at FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
@@ -78,6 +78,15 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("SELECT provider_id FROM job_board_listings") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("UPDATE job_board_listings SET payload = '{}' RETURNING id") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM job_board_search_pages") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "reads confirmed preference sources and receipts without drafts or write access" do
+    expect(select_as_ai_reader("SELECT id, user_id, confirmed_revision, confirmed_criteria, screened_criteria_sha256 FROM job_preference_profiles")).to eq([])
+    expect(select_as_ai_reader("SELECT screened_sha256 FROM job_board_listings")).to eq([])
+    %w[draft_criteria version].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM job_preference_profiles") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+    expect { select_as_ai_reader("UPDATE job_preference_profiles SET confirmed_criteria = '[]'") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
   it "reads only the task command and identity columns" do
@@ -110,8 +119,7 @@ RSpec.describe AiReaderAccess do
   it "reads interview execution inputs but hides private history, legacy sources and media" do
     expect(select_as_ai_reader("SELECT id, preparation_kind FROM interview_sessions")).to eq([])
     expect(select_as_ai_reader("SELECT attempt_id, claim_generation FROM interview_session_operations")).to eq([])
-    { "interview_sessions" => %w[frozen_context], "interview_session_questions" => %w[model_history],
-      "interview_session_operations" => %w[accepted_result result_fingerprint],
+    { "interview_session_operations" => %w[accepted_result result_fingerprint],
       "interview_session_media" => %w[staging_key sealed_key] }.each do |table, columns|
       columns.each do |column|
         expect { select_as_ai_reader("SELECT #{column} FROM #{table}") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
@@ -133,6 +141,17 @@ RSpec.describe AiReaderAccess do
     %w[interview_provider_attempts interview_execution_attempts chat_provider_attempts
        chat_execution_attempts ai_usage_attempts ai_usage_reconciliations].each do |table|
       expect { select_as_ai_reader("SELECT id FROM #{table}") }
+        .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+  end
+
+  it "reads auxiliary claim fences without exposing saved coaching or reference results" do
+    %w[interview_clarifications interview_career_references interview_session_feedbacks].each do |table|
+      expect(select_as_ai_reader("SELECT id, ai_task_id, claimed_at, deadline FROM #{table}")).to eq([])
+    end
+    { "interview_clarifications" => "explanation", "interview_career_references" => "references",
+      "interview_session_feedbacks" => "content" }.each do |table, column|
+      expect { select_as_ai_reader("SELECT #{ActiveRecord::Base.connection.quote_column_name(column)} FROM #{table}") }
         .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     end
   end

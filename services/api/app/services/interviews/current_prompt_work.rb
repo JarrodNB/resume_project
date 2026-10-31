@@ -110,7 +110,10 @@ module Interviews
 
     def available?(interview, record, task)
       record.deadline > Time.current && ClarificationPrompt.current?(interview, record.message) &&
-        task.input["question_text"] == record.message.content
+        task.subject_type == "InterviewSession" && task.user_id == interview.user_id &&
+        task.input[task.interview_clarification? ? "clarification_id" : "reference_id"] == record.id &&
+        (task.input["message_id"].nil? || task.input["message_id"] == record.message_id) &&
+        (task.input["question_digest"].nil? || task.input["question_digest"] == Digest::SHA256.hexdigest(record.message.content))
     end
 
     def preparation_admission(interview, task: nil)

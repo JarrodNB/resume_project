@@ -26,7 +26,8 @@ RSpec.describe "Internal interview feedback", type: :request do
     post path, params: { user_id: SecureRandom.uuid, questions: [] }, headers: { "Authorization" => "Bearer feedback-test" }, as: :json
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body).to include("allowed" => true)
-    expect(response.parsed_body.dig("questions", 0, "dialogue", 0, "content")).to eq("I built a scheduler.")
+    expect(response.parsed_body.keys).to match_array(%w[allowed interview_id record_id claimed_at])
+    expect(response.body).not_to include("I built a scheduler.")
     post path, headers: { "Authorization" => "Bearer feedback-test" }, as: :json
     expect(response.parsed_body).to eq("allowed" => false)
   end

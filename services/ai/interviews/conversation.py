@@ -135,13 +135,10 @@ def system_context(context: dict, role: dict | None = None) -> str:
 def conversation_history(payload, context: str):
     """Rebuild canonical history; never forward private tool receipts or old envelopes.
 
-    The owner-fenced database reader supplies accepted public utterances, including for
-    legacy sessions. A nonempty old history without that source cannot be restored safely.
+    The owner-fenced database reader supplies accepted public utterances.
     """
     dialogue = payload.current_dialogue
     if dialogue is None:
-        if payload.model_history:
-            raise ValueError('Accepted dialogue is required to restore conversation')
         dialogue = []
     kinds = [message.kind for message in dialogue]
     if kinds and (kinds[0] != 'opening' or len(kinds) % 2 != 1 or any(

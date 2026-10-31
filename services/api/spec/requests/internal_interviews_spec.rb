@@ -91,7 +91,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
   it "recovers a lost acceptance reply through identical replay and canonical status" do
     post "#{path}/claim", headers: headers, as: :json
     claim = response.parsed_body.slice("attempt_id", "claim_generation")
-    payload = claim.merge(transcript: "I helped my team.", acknowledgement: "You helped your team.", decision: "advance", history_version: 1, model_history: [])
+    payload = claim.merge(transcript: "I helped my team.", acknowledgement: "You helped your team.", decision: "advance")
     2.times do
       post "#{path}/accept", params: payload, headers: headers, as: :json
       expect(response).to have_http_status(:ok)
@@ -115,11 +115,8 @@ RSpec.describe "Internal interview callbacks", type: :request do
     expect(interview.reload.revision).to eq(1)
   end
 
-  it "rejects malformed history and negative or unknown-execution charges" do
+  it "rejects negative or unknown-execution charges" do
     post "#{path}/claim", headers: headers, as: :json
-    claim = response.parsed_body.slice("attempt_id", "claim_generation")
-    post "#{path}/accept", params: claim.merge(transcript: "Answer", decision: "advance", history_version: 1, model_history: "bad"), headers: headers, as: :json
-    expect(response).to have_http_status(:conflict)
     post "#{path}/usage", params: { attempt_id: turn.reload.attempt_id, usage: [ { cost_microdollars: -1 } ] }, headers: headers, as: :json
     expect(response).to have_http_status(:conflict)
     expect(turn.ai_task.cost_microdollars).to eq(0)
@@ -140,7 +137,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
         end
         save.call(*args)
       end
-      post "#{path}/accept", params: claim.merge(transcript: "Answer", decision: "advance", history_version: 1, model_history: []), headers: headers, as: :json
+      post "#{path}/accept", params: claim.merge(transcript: "Answer", decision: "advance"), headers: headers, as: :json
       expect(response).to have_http_status(:conflict)
       expect(interview.reload).to have_attributes(revision: 0, status: "active")
       expect(interview.messages.pluck(:kind)).to eq([ "opening" ])

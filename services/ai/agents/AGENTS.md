@@ -95,7 +95,7 @@ instructions from `prompts/`.
 
 - `spoken_interviewer_agent.py` — fresh single-run structured spoken follow-up with an
   advance-intent tool. The real runtime injects its conversational newest-message guard
-  and readable frozen system context; the fake executor retains its existing guard. Masking
+  and readable prepared context and accepted public dialogue; the fake executor retains its existing guard. Masking
   remains active; its model wrapper registers every concrete dispatch with Rails. This approved
   spoken path intentionally keeps gpt-6-luna without generative model substitution;
   the configured prompt-injection screening fallback remains. Offline eval fixture checks are in

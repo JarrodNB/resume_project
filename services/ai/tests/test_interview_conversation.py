@@ -5,8 +5,8 @@ from tests.test_interview_executor import Client, claim
 from tests.test_real_interview_executor import Models, run
 
 
-def prepared_claim(*, approved=True, dialogue=None, history=None):
-    data = claim(history=history).model_dump()
+def prepared_claim(*, approved=True, dialogue=None):
+    data = claim().model_dump()
     del data['payload']['fixture_context']
     data['payload']['interview_context'] = {
         'version': 1,
@@ -54,15 +54,13 @@ def test_unchecked_fields_do_not_gain_screening_approvals_during_spoken_turns(mo
     screens = [text for name, text in models.prompts if name == 'jev-1.13.0']
     assert screens == []
     models.prompts.clear()
-    run(client, models, prepared_claim(approved=True, history=client.accepted[-1]['model_history'],
+    run(client, models, prepared_claim(approved=True,
         dialogue=[{'kind': 'opening', 'content': 'Describe a project.'},
                   {'kind': 'answer', 'content': 'I shortened the wait.'},
                   {'kind': 'follow_up', 'content': 'How did you measure it?'}]))
     assert not client.failed
     assert not any(name == 'jev-1.13.0' for name, _ in models.prompts)
-    history = client.accepted[-1]['model_history']
-    assert history == []
-    assert 'unique scheduling' not in str(history)
+    assert 'unique scheduling' not in str(client.accepted[-1])
 
 
 def test_spoken_turn_never_requests_a_library_approval_receipt(monkeypatch):
@@ -73,24 +71,6 @@ def test_spoken_turn_never_requests_a_library_approval_receipt(monkeypatch):
     client, models = NoApproval(), Models()
     run(client, models, prepared_claim(approved=False))
     assert client.accepted and not client.failed
-
-
-def test_legacy_private_envelopes_and_acknowledgements_never_reach_jev_or_model(monkeypatch):
-    import json
-
-    from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelRequest, UserPromptPart
-    monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
-    old = json.loads(ModelMessagesTypeAdapter.dump_json([
-        ModelRequest(parts=[UserPromptPart('private old envelope marker')])]))
-    client, models = Client(), Models()
-    run(client, models, prepared_claim(history=old, dialogue=[
-        {'kind': 'opening', 'content': 'Current question'},
-        {'kind': 'answer', 'content': 'Previously accepted answer'},
-        {'kind': 'follow_up', 'content': 'Follow-up question'},
-    ]))
-    assert not client.failed and client.accepted
-    assert all('private old envelope marker' not in text for _, text in models.prompts)
-    assert 'Previously accepted answer' in models.prompts[-1][1]
 
 
 def test_assembled_context_limit_fails_before_screening(monkeypatch):

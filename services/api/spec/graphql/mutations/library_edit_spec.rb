@@ -153,7 +153,7 @@ RSpec.describe "Career library AI editing" do
   end
 
   it "keeps the accepted assessment when an older section snapshot finishes afterward" do
-    snapshot = CareerLibrary::ReviewSnapshot.build(user: user, section: "experience")
+    snapshot = CareerLibrary::ReviewSources.build(user: user, section: "experience")
     review = create(:ai_task, user: user, task_type: "review_library_section", input: snapshot)
     task = AiTask.find(start_edit.dig("aiTask", "id"))
     complete_edit(task)

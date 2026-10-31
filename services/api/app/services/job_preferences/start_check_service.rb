@@ -1,4 +1,4 @@
-# Freeze up to 100 loaded catalogue listings and confirmed preferences into one queued check.
+# Queue identities and fingerprints for up to 100 listings and confirmed preferences.
 # Identical pending checks reuse admission; changed browser sources are rejected before paid work.
 module JobPreferences
   class StartCheckService < ApplicationService
@@ -20,7 +20,7 @@ module JobPreferences
 
     private
 
-    def build_snapshot
+    def build_command
       profile = @user.reload.job_preference_profile
       return failure([ "Confirm your job preferences before checking results." ]) unless profile && profile.confirmed_criteria.present?
       return failure([ "Your confirmed preferences changed. Reload them and check again." ]) unless profile.confirmed_revision == @revision
@@ -32,17 +32,17 @@ module JobPreferences
       return failure([ "Select distinct, valid loaded listings to check." ]) unless ids.uniq.size == ids.size
       by_id = JobBoardListing.where(id: ids).index_by(&:id)
       return failure([ "This listing is no longer available. Refresh your search results." ]) unless by_id.size == ids.size
-      byte_budget = [ TEXT_BUDGET_BYTES / ids.size, JobBoard::PreferenceListingSnapshot::MAX_TEXT_BYTES ].min
+      byte_budget = [ TEXT_BUDGET_BYTES / ids.size, JobBoard::PreferenceListingSources::MAX_TEXT_BYTES ].min
       snapshots = requested.map do |item|
-        source = JobBoard::PreferenceListingSnapshot.new(by_id.fetch(item[:listing_id])).snapshot(max_text_bytes: byte_budget)
+        source = JobBoard::PreferenceListingSources.new(by_id.fetch(item[:listing_id])).projection(max_text_bytes: byte_budget)
         return failure([ "This listing changed. Refresh your search results before checking." ]) unless source["source_digest"] == item[:expected_digest]
         return failure([ "A listing has no usable posting text. Refresh or narrow your search." ]) if source["passages"].empty?
-        source.merge("screened" => by_id.fetch(item[:listing_id]).screened_sha256 ==
+        source.except("passages").merge("passages_sha256" =>
           Screening::RecordApprovalsService.field_fingerprint(source["passages"].pluck("text")))
       end
       Screening::RecordApprovalsService.import_legacy_preference_checks(user: @user, profile: profile)
       criteria = profile.confirmed_criteria.map do |criterion|
-        criterion.merge("trusted_generated" => generated_criterion?(criterion), "screened" => profile.screened_criteria_sha256.include?(Screening::RecordApprovalsService.field_fingerprint(criterion["text"])))
+        criterion.slice("id", "priority").merge("text_sha256" => Screening::RecordApprovalsService.field_fingerprint(criterion["text"]))
       end
       @input = { "profile_id" => profile.id, "confirmed_revision" => profile.confirmed_revision,
         "criteria" => criteria, "listings" => snapshots }
@@ -60,15 +60,8 @@ module JobPreferences
       JSON.generate({ "confirmed_revision" => @revision, "listings" => listings }).bytesize
     end
 
-    # Retired conversations cannot run again, but retained exact owner-text provenance
-    # still prevents re-screening previously generated or successfully screened criteria.
-    def generated_criterion?(criterion)
-      @user.ai_tasks.where(task_type: "elicit_job_preferences", status: "completed")
-        .where("result @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
-    end
-
     def resolve_existing
-      result = build_snapshot
+      result = build_command
       return result unless result.success?
       task = @user.ai_tasks.where(task_type: "check_job_preferences", status: "queued", input: @input,
         created_at: AiUsage::CheckAiTaskAllowanceService::IN_FLIGHT_WINDOW.ago..).order(created_at: :desc).first

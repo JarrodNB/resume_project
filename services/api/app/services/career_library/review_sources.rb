@@ -2,14 +2,14 @@
 # Reviews and individual edits persist only identities and digests. Context digests
 # stale grades and proposals after edits or moved highlights.
 module CareerLibrary
-  class ReviewSnapshot
+  class ReviewSources
     SECTIONS = %w[experience summary projects career_contexts].freeze
     MAX_TARGETS = 250
     MAX_SOURCE_BYTES = 80_000
 
     def self.build(user:, section:, experience_id: nil, record_id: nil)
       raise ArgumentError, "Choose a supported library section" unless SECTIONS.include?(section)
-      return narrative_snapshot(user: user, section: section, record_id: record_id) unless section == "experience"
+      return narrative_sources(user: user, section: section, record_id: record_id) unless section == "experience"
 
       roles = user.experiences.includes(:highlights)
       roles = roles.where(id: experience_id) if experience_id
@@ -35,7 +35,7 @@ module CareerLibrary
     end
 
     # These cases intentionally allow only the narrative field in each supported section.
-    def self.narrative_snapshot(user:, section:, record_id:)
+    def self.narrative_sources(user:, section:, record_id:)
       targets = []
       # Fresh relations avoid reusing associations loaded before a saved edit.
       library = case section

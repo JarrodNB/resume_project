@@ -32,7 +32,8 @@ class AiTaskMessage(BaseModel):
     """A validated delivery identity, hydrated with the durable input before dispatch.
 
     Version is a wire-only discriminator. Internal serialization retains the legacy
-    command shape for existing handlers and fixtures during the staged migration.
+    command shape for handlers after owned database hydration. Retained unversioned
+    notifications remain readable until deployed queue drainage is established.
     """
 
     schema_version: Literal[1] | None = Field(default=None, exclude=True)
@@ -56,7 +57,7 @@ class AiTaskMessage(BaseModel):
     @field_validator("input", mode="before")
     @classmethod
     def read_queued_legacy_context(cls, value):
-        """Already-published queue bodies must match migrated Rails snapshots."""
+        """Normalize retained identities without trusting queued source copies."""
         return normalize_legacy_career_context(value)
 
 

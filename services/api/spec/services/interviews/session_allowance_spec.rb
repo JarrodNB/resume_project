@@ -107,7 +107,7 @@ RSpec.describe "Prepared interview allowances" do
       record_provider(operation, "interviewer", "openai", "gpt-6-luna")
       expect(Interviews::AcceptTurnService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, transcript: "I calibrated the instrument.", decision: "continue",
-        reply: "Which checks did you use?", history_version: 1, model_history: [])).to be_success
+        reply: "Which checks did you use?")).to be_success
       complete_speech(session.reload)
     end
     expect(session.reload).to be_completed

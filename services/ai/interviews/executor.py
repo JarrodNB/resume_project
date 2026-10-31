@@ -8,20 +8,24 @@ accounted providers. Speech uses saved text and never runs interviewer reasoning
 import asyncio
 import base64
 import hashlib
-import json
 from contextlib import asynccontextmanager
-from types import SimpleNamespace
 from uuid import uuid4
 
 from psycopg import OperationalError
-from pydantic_ai.messages import ModelRequest, UserPromptPart
 from pydantic_ai.usage import RunUsage, UsageLimits
 from pydantic_ai_harness import InputBlocked
 
 from agents.user_text_screen_agent import UserTextScreenRun
-from interviews.client import RailsTransportError
+from interviews.client import RailsTransportError, ReferencePayload
+from interviews.conversation import (
+    ContextLimitExceeded,
+    conversation_history,
+    data_block,
+    earlier_context,
+    enforce_context_limit,
+    system_context,
+)
 from interviews.fake import SCENARIOS, TRANSCRIPT, make_agent, speech_bytes
-from interviews.history import compact_turn_history, restore_history, serialize_history
 from interviews.media import MediaError, download_audio, upload_audio
 from interviews.timing import stage_timing
 from privacy.contact_mask import contact_scope, covered_prompt_length, mask_outbound
@@ -68,17 +72,21 @@ class InterviewExecutor:
             # Fake execution cannot incur provider charges, even when local work fails.
             await self.client.usage(claim, [{"cost_microdollars": 0}], observation_id=identity)
 
+    async def _load_inputs(self, claim):
+        """Expand an identity-only claim from the read-only database; other claims pass through."""
+        if not isinstance(claim.payload, ReferencePayload):
+            return claim
+        if self.input_reader is None:
+            from database.interview_inputs import build_interview_input_reader
+            from settings import AISettings
+            self.input_reader = build_interview_input_reader(AISettings())
+        return await asyncio.to_thread(self.input_reader, claim)
+
     async def execute(self, claim, *, deadline_managed=False):
         """Run one operation; fail safe domain errors, leaving transport loss recoverable."""
         finished = False
         try:
-            from interviews.client import ReferencePayload
-            if isinstance(claim.payload, ReferencePayload):
-                if self.input_reader is None:
-                    from database.interview_inputs import build_interview_input_reader
-                    from settings import AISettings
-                    self.input_reader = build_interview_input_reader(AISettings())
-                claim = await asyncio.to_thread(self.input_reader, claim)
+            claim = await self._load_inputs(claim)
 
             if claim.kind == "turn":
                 await self._turn(claim)
@@ -88,6 +96,9 @@ class InterviewExecutor:
                 await self._preparation(claim)
             else:
                 await self._speech(claim)
+            finished = True
+        except ContextLimitExceeded:
+            await self.client.fail(claim, "context_limit", False)
             finished = True
         except OperationalError:
             await self.client.fail(claim, "dependency_unavailable", True)
@@ -163,7 +174,6 @@ class InterviewExecutor:
             size = sum(len(message.content) for group in payload.earlier_dialogue.groups for message in group.messages)
             if size > payload.earlier_dialogue.character_budget:
                 raise ScreeningRejected("context_limit")
-        history = restore_history(payload.history_version, payload.model_history)
         transcript = payload.candidate_transcript
         if payload.transcription_mode != "typed":
             with stage_timing(claim, "recording_download"):
@@ -181,14 +191,17 @@ class InterviewExecutor:
             key: payload.personal_evidence().get(key, []) for key in ("names", "emails", "phones")
         })
         with contact_scope(contact), screening_session(120):
-            source = mask_outbound(json.dumps({"question": payload.question,
-                **payload.context_input(), "transcript": transcript}, sort_keys=True))
-            context = {key: value for key, value in json.loads(source).items() if key != "transcript"}
-            history = compact_turn_history(history, context)
-            input_texts = prompt_input_texts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
-            if sum(covered_prompt_length(text) for text in input_texts) + len(input_texts) * 2 > MAX_PROMPT_TEXT:
-                raise ScreeningRejected("context_limit")
+            formatted = system_context(payload.personal_evidence())
+            previous = earlier_context(payload)
+            if previous:
+                formatted += "\n\n" + previous
+            history = conversation_history(payload, formatted)
+            source = data_block("candidate_answer", mask_outbound(transcript))
+            enforce_context_limit(history, source)
+            # Fixtures use the normal guard, but accepted dialogue comes only from
+            # the owned reader, never saved provider envelopes or tool messages.
             with stage_timing(claim, "screening"):
+                await self._screen(claim, formatted)
                 await self._screen(claim, source)
             prompt = bind_screened_prompt([source], lambda sources: sources[0])
 
@@ -206,10 +219,9 @@ class InterviewExecutor:
             with stage_timing(claim, "interviewer"):
                 result = await agent.run(prompt, message_history=history,
                                          usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
-            saved = serialize_history(compact_turn_history(result.all_messages(), context))
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
-                                            reply=result.output.reply, history_version=1, model_history=saved)
+                                            reply=result.output.reply)
         with stage_timing(claim, "acceptance"):
             await self._reconcile(claim, accept)
 

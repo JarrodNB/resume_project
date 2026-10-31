@@ -6,7 +6,7 @@ RSpec.describe "Career library review answers" do
   let!(:role) { create(:experience, user: user, description: "Built services") }
   let!(:highlight) { create(:experience_highlight, experience: role, content: "Helped migrate services", position: 0) }
   let(:queue) { double("queue", send_message: nil) }
-  let(:snapshot) { CareerLibrary::ReviewSnapshot.build(user: user, section: "experience") }
+  let(:snapshot) { CareerLibrary::ReviewSources.build(user: user, section: "experience") }
   let!(:review) do
     create(:ai_task, user: user, task_type: "review_library_section", status: "completed", input: snapshot,
       result: { "assessments" => snapshot["targets"].map { |target| target.except("label").merge("color" => "yellow", "reason" => "Explain your contribution.", "question" => "Which part did you migrate?") } })
@@ -134,7 +134,7 @@ RSpec.describe "Career library review answers" do
     context = create(:career_context, user: user, requirement: "Inventory", response: "I maintained stock records")
     [["user", user, "summary", "summary"], ["experience", role, "experience", "description"],
       ["project", project, "projects", "description"], ["career_context", context, "career_contexts", "response"]].each do |kind, record, section, field|
-      source = CareerLibrary::ReviewSnapshot.build(user: user, section: section)
+      source = CareerLibrary::ReviewSources.build(user: user, section: section)
       grades = source["targets"].map { |target| target.except("label").merge("color" => "yellow", "reason" => "Add detail", "question" => "What did you personally do?") }
       origin = create(:ai_task, user: user, task_type: "review_library_section", input: source, status: "completed", result: { "assessments" => grades })
       payload = answer_review("I updated the count sheet", review_id: origin.id, record_id: record.id, kind: kind)

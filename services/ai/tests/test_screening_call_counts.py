@@ -124,8 +124,7 @@ def library_calls(classifier_calls) -> list[str]:
 
 def tailor_task() -> AiTaskMessage:
     return AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume", input={
-        "job_id": str(uuid4()), "gap_responses": [],
-        "contact": {"full_name": "Synthetic Candidate", "email": "candidate@example.com", "links": []}})
+        "source_version": 1, "job_id": str(uuid4()), "include_summary": True})
 
 
 def tailoring_generation():
@@ -153,7 +152,9 @@ def run_like_the_worker(task, dependencies):
 
 
 def run_tailoring(dependencies, context):
-    dependencies = replace(dependencies, read_gap_analysis_context=lambda *_: context)
+    from database.tailoring_sources import TailoringSources
+    dependencies = replace(dependencies, read_tailoring_sources=lambda *_: TailoringSources(
+        context, {"full_name": "Synthetic Candidate", "email": "candidate@example.com", "links": []}, None, []))
     with resume_tailoring_agent.override(model=tailoring_generation()):
         return run_like_the_worker(tailor_task(), dependencies)
 
@@ -213,9 +214,13 @@ def test_summary_generation_screens_fresh_facts(task_dependencies, classifier_ca
     sources += [{"label": f"EXPERIENCES_{i}_DESCRIPTION", "text": f"Built system {i}.", "screened": False,
                  "record_id": str(uuid4())}
                 for i in range(5)]
-    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_summary", input={
-        "target_kind": "profile", "target_id": str(uuid4()), "source_digest": "a" * 64,
-        "sources": sources})
+    from schemas.summary_generation import SummaryGenerationInput
+    owner = uuid4()
+    hydrated = SummaryGenerationInput(target_kind="profile", target_id=str(owner), source_digest="a" * 64, sources=sources)
+    task_dependencies = replace(task_dependencies, read_summary_sources=lambda *_: hydrated)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=owner, task_type="generate_summary", input={
+        "command_version": 1, "target_kind": "profile", "target_id": str(owner), "source_digest": "a" * 64,
+        "source_references": []})
     with summary_generation_agent.override(model=TestModel(custom_output_args={
             "text": "Builds systems.", "source_labels": ["EXPERIENCES_0_DESCRIPTION"]})):
         result, approvals = run_like_the_worker(task, task_dependencies)
@@ -237,11 +242,12 @@ def test_job_preference_check_does_not_screen_criteria_or_listings(task_dependen
               "listings": [listing(n) for n in range(3)]}
 
     def assess(messages, info):
-        args = {f"c{i}_{side}": value for i in range(3)
-                for side, value in (("support", "P1"), ("contradiction", "none"))}
+        args = {f"p{i + 1}": 0.9 for i in range(3)}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)],
                              model_name="jev-1.13.0", usage=RequestUsage(input_tokens=100, output_tokens=5))
 
+    from dataclasses import replace
+    task_dependencies = replace(task_dependencies, read_preference_input=lambda task: task.input)
     task = SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values)
     with job_preference_agent.override(model=FunctionModel(assess, model_name="jev-1.13.0")):
         result = handle_ai_task(task, task_dependencies)

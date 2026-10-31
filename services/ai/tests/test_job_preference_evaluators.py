@@ -55,3 +55,18 @@ def test_eval_gate_fails_for_missing_nan_or_nonpassing_score(value):
     report = SimpleNamespace(cases=[SimpleNamespace(evaluator_failures=[], scores=scores)], failures=[])
     with pytest.raises(RuntimeError):
         _check_report(report, ("probability_valid",))
+
+
+def test_synthetic_runner_uses_explicit_hydration_without_database_or_provider(monkeypatch):
+    from types import SimpleNamespace
+
+    from agents.job_preference_agent import job_preference_agent
+    from evals import run_job_preference_evals as runner
+    from tests.test_job_preference_check import model
+    monkeypatch.setattr(runner, "load_settings", lambda: SimpleNamespace())
+    costs = []
+    with job_preference_agent.override(model=model()):
+        result = runner._execute(runner._task([("Fully remote", "must_have")], [["Remote role"]]), costs)
+    assert result.status == "completed"
+    assert result.result["listings"][0]["criteria"][0]["probability"] == 0.93
+    assert len(costs) == 1

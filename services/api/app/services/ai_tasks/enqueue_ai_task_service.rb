@@ -1,7 +1,7 @@
 # Description: Creates a queued AiTask and publishes it to the ai_tasks SQS queue for the AI worker,
 # unless the user has reached an AI usage limit (AiUsage::CheckAiTaskAllowanceService).
 # Index:
-#   - call: saves the task and publishes {ai_task_id, user_id, task_type, input}; returns the task
+#   - call: saves the task and publishes {schema_version, ai_task_id, user_id, task_type}; returns the task
 module AiTasks
   class EnqueueAiTaskService < ApplicationService
     QUEUE_ERRORS = PublishTaskToQueueService::QUEUE_ERRORS

@@ -74,8 +74,6 @@ class TurnPayload(BaseModel):
     recording_id: str | None
     expected_revision: int
     question: str
-    model_history: list[dict[str, Any]]
-    history_version: int
     earlier_dialogue: EarlierDialogue | None = None
     current_dialogue: list[PublicMessage] | None = Field(default=None, max_length=7)
     fixture_context: dict[str, Any] | None = None
@@ -96,13 +94,6 @@ class TurnPayload(BaseModel):
         """Return contact/provenance input without treating a fictional role as facts."""
         return self.interview_context.personal_evidence if self.interview_context else self.fixture_context
 
-    def context_input(self) -> dict[str, Any]:
-        """Preserve the versioned prepared source or the legacy fixture envelope."""
-        context = ({"interview_context": self.interview_context.model_dump()} if self.interview_context
-                   else {"fixture_context": self.fixture_context})
-        if self.earlier_dialogue is not None:
-            context["earlier_dialogue"] = self.earlier_dialogue.model_dump()
-        return context
 
 
 class TranscriptionPayload(BaseModel):
@@ -362,8 +353,6 @@ class RailsInterviewClient:
         transcript: str,
         decision: str,
         reply: str | None,
-        history_version: int,
-        model_history: list[dict[str, Any]],
         acknowledgement: str | None = None,
     ):
         return await self._callback(
@@ -372,8 +361,6 @@ class RailsInterviewClient:
             transcript=transcript,
             decision=decision,
             reply=reply,
-            history_version=history_version,
-            model_history=model_history,
             **({"acknowledgement": acknowledgement} if acknowledgement is not None else {}),
         )
 

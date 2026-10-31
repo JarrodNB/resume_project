@@ -20,7 +20,7 @@ RSpec.describe "Typed interview answers" do
     expect(claim.value.fetch(:payload)).to include(interview_id: interview.id, user_id: interview.user_id)
     expect(operation.reload).to have_attributes(candidate_transcript: text, recording_id: nil, transcription_mode: "typed")
     accepted = { operation: operation, **claim.value.slice(:attempt_id, :claim_generation), transcript: text,
-      decision: "continue", reply: "How did you verify that?", history_version: 1, model_history: [] }
+      decision: "continue", reply: "How did you verify that?" }
     2.times { expect(Interviews::AcceptTurnService.call(**accepted)).to be_success }
     expect(interview.reload.revision).to eq(1)
     expect(interview.messages.where(kind: "answer").pluck(:content)).to eq([ text ])
@@ -57,7 +57,7 @@ RSpec.describe "Typed interview answers" do
     operation = Interviews::SubmitTurnService.call(**input).value
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     expect(Interviews::AcceptTurnService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
-      transcript: "Provider rewrote the user's answer.", decision: "advance", history_version: 1, model_history: [])).not_to be_success
+      transcript: "Provider rewrote the user's answer.", decision: "advance")).not_to be_success
     expect(interview.reload.revision).to eq(0)
     expect(interview.messages.where(kind: "answer")).to be_empty
   end
@@ -69,7 +69,7 @@ RSpec.describe "Typed interview answers" do
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     travel 2.seconds
     expect(Interviews::AcceptTurnService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
-      transcript: text, decision: "advance", history_version: 1, model_history: [])).not_to be_success
+      transcript: text, decision: "advance")).not_to be_success
     expect(interview.reload.revision).to eq(0)
   end
 

@@ -1,4 +1,4 @@
-"""Private frozen preference-check inputs; IDs and exact passages come from Rails."""
+"""Transient preference-check sources hydrated from current owned database records."""
 import json
 from typing import Literal
 from uuid import UUID

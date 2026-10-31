@@ -1,4 +1,4 @@
-"""Assess a bounded frozen search batch against its owner's confirmed preferences.
+"""Assess a bounded current search batch against its owner's confirmed preferences.
 
 Rails owns identity and persistence. The worker returns independent probabilities and bounds
 all decision calls; preference checks do not classify inputs for prompt injection.
@@ -43,7 +43,11 @@ async def assess_listings(criteria, listings):
 def handle_job_preference_check_task(task, dependencies):
     """Return complete preference probabilities or an explicit failure."""
     try:
-        snapshot = PreferenceCheckInput.model_validate(task.input)
+        loaded = dependencies.read_preference_input(task) if dependencies.read_preference_input else None
+        if loaded is None:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+                error_message="Preferences or listing content changed. Refresh and check again.")
+        snapshot = PreferenceCheckInput.model_validate(loaded)
     except ValidationError:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
             error_message="Checking preferences needs 1–100 current listings and up to ten confirmed criteria.")

@@ -7,6 +7,11 @@ this folder only reads what an AI task needs.
 
 ## Contents
 
+- `job_preferences.py` — reads an owned queued preference command, its current confirmed
+  profile and selected catalogue sources in one repeatable read. Revision/fingerprint changes
+  fail closed; exact generated provenance comes from `ai_generated_preference_criteria`,
+  while profile drafts and unrelated task results remain unreadable.
+
 - `job_listing_reranking.py` — verifies an owned queued command before reading selected
   shared public catalogue IDs/payloads. Catalogue rows have no private owner; selection
   and every career-library read remain owner-scoped.
@@ -88,3 +93,7 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   saved summary checkpoints/plans in one repeatable-read transaction. It loads only
   pending input, uncovered accepted dialogue and rolling summary; profile contact is
   privacy-only. Private acceptance receipts, feedback and account secrets are not granted.
+
+- `interview_auxiliary.py` verifies once-only claimed task/record/owner/current-prompt fences and
+  reads canonical clarification prompts, bounded reference queries and completed feedback dialogue.
+  Rails claim responses contain identities and timestamps, never these sources.

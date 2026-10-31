@@ -174,20 +174,30 @@ confirmedRevision:)` queues one assessment for 1–100 loaded listings in their 
 missing confirmation and stale profile revisions before enqueueing. The browser
 never supplies trusted posting text. Checks create no private Job.
 
-`check_job_preferences` freezes the owner profile/revision, criterion identities and
-priorities, source digest, truncation flag and labeled exact passages. The source
+`check_job_preferences` stores the owner profile/revision, criterion identities, priorities
+and text fingerprints, plus listing identities, source/passage fingerprints and truncation
+flags. It stores no criteria text or listing passages. Python mirrors Rails' established
+HTML4 entity decoding, HTML structure and whitespace before checking exact source digests;
+HTML5-only names stay literal; raw-text/RCDATA containers retain Rails' parsed child
+markup behavior. Python reads the owned queued command,
+current confirmed profile and selected shared catalogue rows in one repeatable read; changed
+revisions or fingerprints fail before model work. Retained legacy copies are comparison
+fences only, never source authority. The transient source
 excerpt is at most 8,000 UTF-8 bytes per listing and shares a 100,000-byte source
 budget across the batch. Each passage is at most 500 characters, with at most 64
 passages per listing; smaller per-listing budgets also reduce the passage count so
 short-line metadata stays bounded. Omitted bytes or passages set the truncation flag.
-The complete input must fit 180,000 UTF-8 bytes. A conservative result-size preflight
+The hydrated input must fit 180,000 UTF-8 bytes. A conservative result-size preflight
 bounds identity/probability result size before paid work, even below the 100-listing limit. A normal
-20-listing page with all ten criteria is covered by a boundary regression. The worker has no catalogue
-or preference-profile database grant. Shared pages contain no private results.
+20-listing page with all ten criteria is covered by a boundary regression. The worker has column grants for catalogue ID/payload/screening receipts and confirmed
+profile identity/revision/criteria/receipts; drafts, provider IDs, search pages and writes
+remain denied. A nonmaterialized security-barrier view exposes only owner/text pairs from
+completed historical generated criteria; command flags cannot establish provenance.
+Shared pages contain no private results.
 
 The JEV preference agent builds one dynamic Pydantic output field per confirmed
 preference, from one to ten: `p1` through `p10`, each a finite float bounded to `[0, 1]`.
-Fields map back to the frozen criterion UUIDs in code. Pydantic AI maps bounded floats
+Fields map back to the selected criterion UUIDs in code. Pydantic AI maps bounded floats
 to Jev's native `Noul` probability primitive, returning raw probabilities rather than
 thresholding booleans or converting confidence margins. These are independent questions:
 several preferences may all score highly and their values need not sum to one. Neither

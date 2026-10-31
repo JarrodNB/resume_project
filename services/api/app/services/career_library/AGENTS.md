@@ -51,7 +51,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Section review
 
-- `ReviewSnapshot` builds a temporary projection of the requested Summary, Experience, Projects,
+- `ReviewSources` builds a temporary projection of the requested Summary, Experience, Projects,
   or Career context section. `ReviewCommand` keeps only section, target IDs/context digests and
   per-field fingerprints on review tasks. Python reads the selected owned section directly and
   rejects changed target digests before generation. Only narrative fields become targets.

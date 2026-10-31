@@ -14,8 +14,7 @@ RSpec.describe "Basic Interview acceptance" do
   let(:input) do
     { operation: operation, attempt_id: operation.attempt_id, claim_generation: operation.claim_generation,
       transcript: "I paired with a teammate to fix our scheduler.", decision: "continue",
-      reply: "What changed after that?", history_version: 1,
-      model_history: [ { "kind" => "request", "parts" => [ { "part_kind" => "user-prompt", "content" => "screened transcript" } ] } ] }
+      reply: "What changed after that?" }
   end
 
   it "saves acknowledgement separately and speaks it before the accepted follow-up" do
@@ -99,11 +98,11 @@ RSpec.describe "Basic Interview acceptance" do
       .not_to change { interview.operations.speech.count }
   end
 
-  it "accepts an answer, saved follow-up and history together, incrementing only once" do
+  it "accepts an answer and saved follow-up together, incrementing only once" do
     result = Interviews::AcceptTurnService.call(**input)
     expect(result).to be_success
     expect(interview.messages.pluck(:kind)).to eq(%w[opening answer follow_up])
-    expect(question.reload).to have_attributes(accepted_answer_count: 1, history_version: 1, model_history: input[:model_history])
+    expect(question.reload).to have_attributes(accepted_answer_count: 1)
     expect(interview.reload).to have_attributes(revision: 1, status: "active")
     expect(interview.operations.speech.count).to eq(2)
     expect(operation.reload).to have_attributes(status: "accepted", accepted_result: result.value)
@@ -188,12 +187,11 @@ RSpec.describe "Basic Interview acceptance" do
     interview.update!(revision: 1)
     expect(Interviews::AcceptTurnService.call(**identities)).not_to be_success
     expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
-    expect(question.reload).to have_attributes(accepted_answer_count: 0, model_history: [])
+    expect(question.reload).to have_attributes(accepted_answer_count: 0)
   end
 
-  it "rejects unsupported or oversized history and invalid transcript/decision without writes" do
-    [ { history_version: 2 }, { model_history: {} }, { model_history: [ "not a message" ] },
-      { model_history: [ { "content" => "x" * 262_144 } ] }, { transcript: " " },
+  it "rejects an invalid transcript or decision without writes" do
+    [ { transcript: " " },
       { transcript: "x" * (TextLimits::PROSE + 1) }, { decision: "skip" }, { reply: nil } ].each do |change|
       expect(Interviews::AcceptTurnService.call(**input.merge(change))).not_to be_success
     end
@@ -201,7 +199,7 @@ RSpec.describe "Basic Interview acceptance" do
     expect(operation.reload.status).to eq("running")
   end
 
-  it "rolls back dialogue, history, counts, and advancement if speech creation fails" do
+  it "rolls back dialogue, counts, and advancement if speech creation fails" do
     interview.questions.create!(position: 1, content: "What did you learn?", question_type: "behavioral")
     acceptance = input
     allow_any_instance_of(InterviewSessionOperation).to receive(:save!).and_wrap_original do |save, *args|
@@ -215,23 +213,10 @@ RSpec.describe "Basic Interview acceptance" do
     result = Interviews::AcceptTurnService.call(**acceptance.merge(decision: "advance", reply: nil))
     expect(result).not_to be_success
     expect(interview.reload).to have_attributes(status: "active", revision: 0, completed_at: nil)
-    expect(question.reload).to have_attributes(accepted_answer_count: 0, model_history: [])
+    expect(question.reload).to have_attributes(accepted_answer_count: 0)
     expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
     expect(operation.reload.status).to eq("running")
   end
-  it "reports excessively nested history as invalid instead of raising" do
-    nested = 110.times.reduce("text") { |value, _| [ value ] }
-    result = Interviews::AcceptTurnService.call(**input.merge(model_history: [ { "parts" => nested } ]))
-    expect(result).not_to be_success
-    expect(interview.messages.count).to eq(1)
-  end
-
-  it "ignores JSON object key ordering when resolving an accepted receipt" do
-    first = Interviews::AcceptTurnService.call(**input)
-    reordered = input[:model_history].map { |message| message.to_a.reverse.to_h }
-    expect(Interviews::AcceptTurnService.call(**input.merge(model_history: reordered)).value).to eq(first.value)
-  end
-
   it "refuses acceptance after interview expiry without consuming an answer" do
     accepted_input = input
     interview.update!(expires_at: 1.second.ago)

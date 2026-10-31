@@ -209,8 +209,7 @@ RSpec.describe "Interview private media" do
       recording_id: media.id, expected_revision: 0, submission_key: "accepted-audio").value
     Interviews::ClaimOperationService.call(operation: turn)
     identity = { operation: turn, attempt_id: turn.attempt_id, claim_generation: turn.claim_generation }
-    expect(Interviews::AcceptTurnService.call(**identity, transcript: "A synthetic answer", decision: "advance",
-      history_version: 1, model_history: [])).to be_success
+    expect(Interviews::AcceptTurnService.call(**identity, transcript: "A synthetic answer", decision: "advance")).to be_success
     expect(media.reload.expires_at).to be <= Time.current
     expect(Interviews::CleanupService.call(storage: storage)).to be_success
     expect(storage.objects).not_to have_key(media.sealed_key)
@@ -224,8 +223,7 @@ RSpec.describe "Interview private media" do
     Interviews::ClaimOperationService.call(operation: turn)
     travel 11.seconds
     result = Interviews::AcceptTurnService.call(operation: turn, attempt_id: turn.attempt_id,
-      claim_generation: turn.claim_generation, transcript: "A synthetic answer", decision: "advance",
-      history_version: 1, model_history: [])
+      claim_generation: turn.claim_generation, transcript: "A synthetic answer", decision: "advance")
     expect(result).not_to be_success
     expect(interview.reload.revision).to eq(0)
     expect(interview.messages.count).to eq(1)

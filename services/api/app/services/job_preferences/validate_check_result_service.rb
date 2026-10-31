@@ -17,10 +17,13 @@ module JobPreferences
       profile = @task.user.reload.job_preference_profile
       return false unless profile && profile.id == @task.input["profile_id"] &&
         profile.confirmed_revision == @task.input["confirmed_revision"] &&
-        profile.confirmed_criteria == @task.input["criteria"].map { |c| c.slice("id", "text", "priority") }
+        @task.input["criteria"].is_a?(Array) && profile.confirmed_criteria.size == @task.input["criteria"].size &&
+        @task.input["criteria"].zip(profile.confirmed_criteria).all? { |reference, current| CheckSources.criterion_matches?(reference, current) }
+      return false unless @task.input["listings"].is_a?(Array) && @task.input["listings"].size.between?(1, StartCheckService::MAX_LISTINGS)
       @task.input["listings"].all? do |item|
+        next false unless item.is_a?(Hash)
         listing = JobBoardListing.find_by(id: item["id"])
-        listing && JobBoard::PreferenceListingSnapshot.new(listing).digest == item["source_digest"]
+        listing && CheckSources.listing_matches?(item, CheckSources.listing_source(listing, @task.input["listings"].size))
       end
     end
 

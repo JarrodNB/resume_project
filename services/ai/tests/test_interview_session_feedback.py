@@ -3,6 +3,7 @@ from dataclasses import replace
 from uuid import uuid4
 
 import httpx
+import pytest
 from pydantic_ai.models.test import TestModel
 
 from worker.queue_messages import AiTaskMessage
@@ -170,3 +171,9 @@ def test_known_contact_is_masked_and_output_restored(task_dependencies):
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert "Avery Sample" in result.result["interview_session_feedback"]["questions"][0]["example_answer"]
+
+
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    # Unit tests isolate canonical reads; DB tests exercise the production adapter.
+    return replace(task_dependencies, read_interview_auxiliary=lambda task, grant: grant)

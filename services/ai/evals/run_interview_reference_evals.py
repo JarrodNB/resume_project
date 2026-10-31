@@ -3,6 +3,7 @@
 Default execution is offline: vector distances are fixture inputs, not measured
 semantic similarity. Optional --paid embeds synthetic evidence and queries through
 the existing traced/accounted embedding helper; it does not call a dialogue model.
+Index-state and exact-distance fixtures run only offline; paid reports name skipped cases.
 Reports print to stdout; only --output saves a file. Neither mode changes admission.
 """
 import argparse
@@ -17,15 +18,16 @@ from interviews.references import (
 )
 from schemas.gap_analysis_context import CareerLibrary
 from schemas.library_search_match import LibrarySearchMatch
+from settings import DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY, load_settings
 
 DATASET = Path(__file__).parent / "datasets" / "interview_reference_cases.json"
 
 
-def evaluate_case(case, *, matches=None):
+def evaluate_case(case, *, matches=None, min_similarity=DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY):
     """Evaluate observable source selection, preserving outputs on failed labels."""
     library = CareerLibrary.model_validate(case["library"])
     ranked = [LibrarySearchMatch.model_validate(match) for match in case.get("matches", [])] if matches is None else matches
-    selected = select_references(library, case["query"], ranked)
+    selected = select_references(library, case["query"], ranked, min_similarity=min_similarity)
     ids = [str(reference.source_id) for reference in selected]
     expected = case["expected_ids"]
     return {"name": case["name"], "selected_ids": ids, "expected_ids": expected,
@@ -65,25 +67,32 @@ def paid_matches(case, settings):
 
 def run_evaluation(*, paid=False):
     """Keep fixture agreement and real-embedding label metrics explicitly separate."""
+    settings = load_settings()
+    min_similarity = settings.interview_reference_min_similarity
     cases = json.loads(DATASET.read_text())
+    skipped_cases = [{"name": case["name"], "reason": case["offline_only_reason"]}
+                     for case in cases if paid and case.get("offline_only_reason")]
+    if paid:
+        cases = [case for case in cases if not case.get("offline_only_reason")]
     results = []
     usage = None
     if paid:
         from evals.telemetry import eval_run, record_score
         from llm.usage import collect_task_usage
-        from settings import load_settings
         from telemetry.tracing import configure_tracing
 
-        settings = load_settings()
         configure_tracing()
-        with eval_run("evals.interview_references", metadata={"mode": "real_embeddings", "model": settings.embedding_model},
+        with eval_run("evals.interview_references", metadata={"mode": "real_embeddings", "model": settings.embedding_model, "min_similarity": min_similarity},
                       version=SELECTION_POLICY_VERSION), collect_task_usage() as usage:
             for case in cases:
-                results.append(evaluate_case(case, matches=paid_matches(case, settings)))
+                results.append(evaluate_case(case, matches=paid_matches(case, settings), min_similarity=min_similarity))
             record_score("exact_label_agreement", sum(case["passed"] for case in results) / len(results))
     else:
-        results = [evaluate_case(case) for case in cases]
+        results = [evaluate_case(case, min_similarity=min_similarity) for case in cases]
     return {"mode": "real_embeddings" if paid else "offline_policy", "policy_version": SELECTION_POLICY_VERSION,
+            "min_similarity": min_similarity,
+            "skipped_cases": skipped_cases,
+            "skipped_case_count": len(skipped_cases),
             "provider_requests": sum(1 for _ in usage.entries) if usage else 0,
             "usage_incomplete": usage.incomplete if usage else False,
             "usage": [entry.model_dump(mode="json") for entry in usage.entries] if usage else [],

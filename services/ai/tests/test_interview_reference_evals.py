@@ -33,8 +33,8 @@ def test_paid_mode_reports_embedding_usage_and_label_metrics_at_fake_provider_se
     from llm.usage import current_task_usage
     from memory.embed_search_query import QueryEmbedding
 
-    monkeypatch.setattr("worker.settings.load_settings", lambda: SimpleNamespace(
-        embedding_model="openai:text-embedding-3-small", embedding_dimensions=2))
+    monkeypatch.setattr("evals.run_interview_reference_evals.load_settings", lambda: SimpleNamespace(
+        embedding_model="openai:text-embedding-3-small", embedding_dimensions=2, interview_reference_min_similarity=.65))
     monkeypatch.setattr("telemetry.tracing.configure_tracing", lambda: None)
     monkeypatch.setattr("evals.telemetry.eval_run", lambda *args, **kwargs: nullcontext())
     monkeypatch.setattr("evals.telemetry.record_score", lambda *args: None)
@@ -71,3 +71,48 @@ def test_paid_corpus_uses_current_production_index_prose(monkeypatch):
     matches = paid_matches(case, SimpleNamespace(embedding_model="synthetic", embedding_dimensions=2))
     assert matches[0].content == "Project: Release tooling (Maintainer): Built release checks."
     assert evaluate_case(case, matches=matches)["passed"]
+
+
+def test_offline_evaluation_uses_and_reports_environment_similarity(monkeypatch):
+    monkeypatch.setenv("INTERVIEW_REFERENCE_MIN_SIMILARITY", "0.99")
+    report = run_evaluation()
+    assert report["min_similarity"] == .99
+    assert all(case["selected_ids"] == [] for case in report["cases"])
+
+
+def test_paid_run_skips_fixture_index_conditions_but_offline_keeps_them(monkeypatch):
+    import json
+    from contextlib import nullcontext
+
+    from evals.run_interview_reference_evals import DATASET
+
+    offline_names = {
+        'keyword overlap without embedding rejected',
+        'keyword overlap cannot bypass distant vector',
+        'keyword overlap cannot bypass stale vector',
+        'minimum similarity boundary qualifies',
+        'stale Kubernetes vector cannot select current finance fact',
+    }
+    offline = run_evaluation()
+    assert offline_names <= {case['name'] for case in offline['cases']}
+    assert all(case['passed'] for case in offline['cases'])
+    invoked = []
+
+    def fake_matches(case, settings):
+        invoked.append(case['name'])
+        assert case['name'] not in offline_names
+        return []
+
+    monkeypatch.setattr('evals.run_interview_reference_evals.paid_matches', fake_matches)
+    monkeypatch.setattr('telemetry.tracing.configure_tracing', lambda: None)
+    monkeypatch.setattr('evals.telemetry.eval_run', lambda *args, **kwargs: nullcontext())
+    monkeypatch.setattr('evals.telemetry.record_score', lambda *args: None)
+    paid = run_evaluation(paid=True)
+    assert offline['skipped_cases'] == []
+    assert offline['skipped_case_count'] == 0
+    skipped = {case['name'] for case in paid['skipped_cases']}
+    assert skipped == offline_names
+    assert paid['skipped_case_count'] == len(offline_names)
+    assert all(case['reason'] for case in paid['skipped_cases'])
+    assert len(invoked) + paid['skipped_case_count'] == len(json.loads(DATASET.read_text()))
+    assert {case['name'] for case in paid['cases']} == set(invoked)

@@ -10,6 +10,8 @@ from pydantic_settings import BaseSettings
 
 from llm.model_prices import MODEL_PRICES
 
+DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY = 0.65
+
 SCREEN_LLM_OPTION = "llm"
 DEFAULT_SCREEN_LLM_MODEL = "openai:gpt-5-nano"
 # The pinned Jev release: the queued default and the fixed chat/interview screen.
@@ -93,6 +95,10 @@ class AISettings(BaseSettings):
     # a search only matches rows embedded with this model.
     embedding_model: str = "openai:text-embedding-3-small"
     embedding_dimensions: int = 1536
+    # Minimum cosine similarity for candidate-facing mock interview career references.
+    interview_reference_min_similarity: float = Field(
+        default=DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY, ge=0, le=1, allow_inf_nan=False
+    )
     job_page_fetch_timeout_seconds: float = 20
     # Read-only ai_reader role (see infra/postgres and services/api/lib/ai_reader_access.rb).
     db_host: str = "localhost"

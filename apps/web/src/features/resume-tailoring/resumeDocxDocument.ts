@@ -2,7 +2,7 @@
  * Native paragraphs, headings, bullets and links flow across Letter pages.
  * This runs locally; Word may paginate differently or substitute Helvetica.
  */
-import { BorderStyle, Document, ExternalHyperlink, HeadingLevel, Packer, Paragraph, TabStopType, TextRun } from 'docx'
+import { AlignmentType, BorderStyle, Document, ExternalHyperlink, HeadingLevel, Packer, Paragraph, TabStopType, TextRun } from 'docx'
 import type { ResumePdfModel } from './resumePdfModel'
 
 /** Produce an editable document from a captured saved resume. No upload or storage. */
@@ -10,17 +10,20 @@ export function generateResumeDocx(model: ResumePdfModel): Promise<Blob> {
   const children: Paragraph[] = []
   if (model.name) {
     children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: model.name, bold: true, size: 36 })],
       spacing: { after: 80 },
     }))
   }
   if (model.contactLine) {
     children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: model.contactLine, size: 18, color: '333333' })],
     }))
   }
   if (model.links.length) {
     children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
       children: model.links.flatMap((link, index) => [
         ...(index ? [new TextRun(' · ')] : []),
         new ExternalHyperlink({

@@ -43,12 +43,11 @@ module ResumeTailoring
       raw = @sections.nil? ? @ai_task.result&.dig("sections") : @sections
       return [] unless raw.is_a?(Array)
 
-      raw.select { |section| section.is_a?(Hash) && saveable?(section) }
-    end
-
-    # True when the section type is one the resume model stores.
-    def saveable?(section)
-      ResumeSection::SECTION_TYPES.include?(section["section_type"]) && section["content"].is_a?(Hash)
+      raw.select do |section|
+        section.is_a?(Hash) &&
+          ResumeSection::SECTION_TYPES.include?(section["section_type"]) &&
+          section["content"].is_a?(Hash)
+      end
     end
 
     # One resume and its sections, in the order given.

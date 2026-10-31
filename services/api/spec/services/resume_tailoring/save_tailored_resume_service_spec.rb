@@ -69,6 +69,16 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(ai_task.reload.result["sections"]).to eq(sections)
   end
 
+  it "skips malformed and unsupported sections while keeping valid sections in order" do
+    chosen = [ nil, sections[1], { "section_type" => "unknown", "content" => {} },
+      { "section_type" => "skills", "content" => [] }, sections[0] ]
+
+    result = described_class.call(ai_task: ai_task, sections: chosen)
+
+    expect(result).to be_success
+    expect(result.value.sections.order(:position).pluck(:section_type)).to eq(%w[summary contact])
+  end
+
   it "keeps the resume when the job is deleted" do
     described_class.call(ai_task: ai_task, sections: sections)
     resume = user.resumes.first

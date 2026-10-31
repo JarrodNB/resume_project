@@ -116,3 +116,17 @@ def test_paid_run_skips_fixture_index_conditions_but_offline_keeps_them(monkeypa
     assert all(case['reason'] for case in paid['skipped_cases'])
     assert len(invoked) + paid['skipped_case_count'] == len(json.loads(DATASET.read_text()))
     assert {case['name'] for case in paid['cases']} == set(invoked)
+
+
+def test_paid_corpus_excludes_bare_skills_without_embedding_them(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from evals.run_interview_reference_evals import paid_matches
+
+    embed = Mock(side_effect=AssertionError("must not embed bare skills"))
+    monkeypatch.setattr("memory.embed_search_query.embed_search_query", embed)
+    case = {"query": "Kubernetes", "library": {"skills": [{
+        "id": "00000000-0000-0000-0000-000000000006", "name": "Kubernetes"}]}}
+    assert paid_matches(case, SimpleNamespace()) == []
+    embed.assert_not_called()

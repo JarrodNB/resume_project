@@ -925,8 +925,13 @@ transcripts and acknowledgement text are excluded. Query embeddings use existing
 masking and accounted/traced Pydantic AI embedding helpers; there is no dialogue-model call.
 The AI worker reads owned library records and the existing hybrid vector/keyword index.
 
-Selection policy `interview-references-v4` keeps at most three distinct source groups
-and prefers narrative evidence to bare skills. Every displayed reference must meet
+Selection policy `interview-references-v5` keeps at most three distinct source groups
+and prefers narrative evidence to role descriptions. It searches experience, highlights,
+projects, education, certifications and saved career context, excluding bare Skill records
+from both the search and cards. Saved narrative text mentioning a skill remains eligible.
+A skills-only library returns no references without a query embedding request. This
+exclusion is specific to interview references; the shared library index and interviewer
+preparation retain their existing source policies. Every displayed reference must meet
 `INTERVIEW_REFERENCE_MIN_SIMILARITY` in the AI worker environment (default 0.65, finite
 range 0 through 1, inclusive). The default equals cosine distance at most 0.35; this
 is an initial heuristic, not calibrated confidence. Hybrid keyword ranking may order

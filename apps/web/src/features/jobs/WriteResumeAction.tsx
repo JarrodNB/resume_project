@@ -24,7 +24,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
 
   if (resumeId) {
     return (
-      <Button asChild size="sm">
+      <Button asChild>
         <Link to={`/jobs/${jobId}/resume`}>
           Open resume
         </Link>
@@ -34,7 +34,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
 
   if (comparisonFinished && !comparisonBusy) {
     return (
-      <Button asChild size="sm">
+      <Button asChild>
         <Link to={`/jobs/${jobId}/resume/write`}>Write resume</Link>
       </Button>
     )
@@ -42,7 +42,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
 
   return (
     <>
-      <Button size="sm" disabled={comparisonBusy} onClick={() => setConfirming(true)}>
+      <Button disabled={comparisonBusy} onClick={() => setConfirming(true)}>
         Write resume
       </Button>
       <ConfirmWriteResumeDialog

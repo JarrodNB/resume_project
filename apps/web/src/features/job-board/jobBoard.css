@@ -176,6 +176,7 @@
 .preference-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .preference-select:disabled { opacity: 0.5; }
 .preference-text input, .preference-remove { min-height: 44px; }
+.preference-remove { min-width: 44px; }
 .preference-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; padding-top: 1rem; }
 .preference-confirmed { display: grid; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .preference-confirmed li { overflow-wrap: anywhere; }

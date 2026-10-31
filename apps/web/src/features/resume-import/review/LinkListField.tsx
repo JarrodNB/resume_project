@@ -41,7 +41,7 @@ export function LinkListField({ links, onChange, maxLength }: LinkListFieldProps
             value={link.url}
             onChange={(event) => replaceAt(index, 'url', event.target.value)}
           />
-          <Button type="button" variant="ghost" size="icon" aria-label={'Remove link ' + (index + 1)} onClick={() => removeAt(index)}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={'Remove link ' + (index + 1)} onClick={() => removeAt(index)}>
             <X />
           </Button>
         </div>

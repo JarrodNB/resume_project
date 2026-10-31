@@ -171,3 +171,5 @@ unknown expiration within partially stated periods.
 - `test_summary_generation.py` and `test_summary_generation_evaluators.py` — reference-based dispatch, screening reuse/rejection, citation repairs, failure usage, contact masking and synthetic evaluator failures.
 
 - `test_summary_source_reader.py` — actual ai_reader ownership, currentness and exact owned accepted-prose trust; `test_summary_references.py` verifies source loading and legacy rejection before paid work.
+
+- `test_mcp_saved_jobs.py` — real HTTP list auth, owner scope, references, screened rendering, fail-closed checks and caps. `test_saved_jobs_reader.py` verifies active owner filtering and ordering under reader grants. Chat execution tests cover accounted saved-job listing.

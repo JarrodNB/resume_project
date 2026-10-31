@@ -29,3 +29,5 @@ if model-facing text changes.
 - `summary_generation.py` — readable labeled career fact blocks; source selection and screening stay outside the renderer.
 
 - `career_library.py` — readable labeled sections, one per screened library entry, for the chat library tool; no IDs or JSON.
+
+- `saved_jobs.py` — readable title, company and selection-reference labels for screened active saved jobs.

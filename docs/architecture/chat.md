@@ -188,3 +188,22 @@ attributes, never names or templates. Export masks content, logs and exceptions 
 preserving instrumentation keys and model/provider/tool identifiers, including nested
 metric dimensions. Detector discovery only receives source content, never telemetry
 or model configuration. A detected word matching a model identifier must not rename it.
+
+### Active saved-job list
+
+`list_saved_jobs()` reads only the token owner's active jobs, newest saved first with
+an ID tie-breaker. Chat receives readable titles, companies and selection references,
+without posting facts, raw IDs, analyses or notes. The list is complete or fails: more
+than 500 jobs or 40,000 rendered characters produces a limit error. Empty lists are
+explicit. Database failures return only an unavailable outcome.
+
+Saved title/company approvals are reused; unchecked used fields are checked together
+with the chat operation's accounted screen. Blocked, unavailable or oversize checks fail
+the whole operation without sharing partial text. New exact field receipts return with
+chat acceptance. The existing per-run cache avoids repeating reads and screening.
+
+Selection references are 45-character signed identities, bound to the token's user and
+operation and expiring with the token (at most ten minutes). All replicas share the signing
+secret; references contain no source snapshots and need no in-memory registry. Later
+detail resolution must still filter by current owner and active status. The existing
+two-tool-call limit is unchanged.

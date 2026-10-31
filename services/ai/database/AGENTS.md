@@ -97,3 +97,5 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `interview_auxiliary.py` verifies once-only claimed task/record/owner/current-prompt fences and
   reads canonical clarification prompts, bounded reference queries and completed feedback dialogue.
   Rails claim responses contain identities and timestamps, never these sources.
+
+- `saved_jobs.py` — reads only current owned active job titles, companies and saved checks, newest first with ID tie-breaker; one extra row detects overflow.

@@ -18,12 +18,14 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.toolsets import AbstractToolset, WrapperToolset
 
 from mcp_tools.career_library import READ_CAREER_LIBRARY, render_career_library_result
+from mcp_tools.saved_jobs import LIST_SAVED_JOBS, render_saved_jobs_result
 from mcp_tools.tokens import mint_tool_token, tool_token_secret
 from settings import AISettings
 
 # Server tools the model may see, each with its client half: (call_tool, tool_args, screen) -> text.
 # A server tool missing here stays hidden, because nothing would screen and render its result.
 TOOL_RENDERERS = {
+    LIST_SAVED_JOBS: render_saved_jobs_result,
     READ_CAREER_LIBRARY: render_career_library_result,
 }
 

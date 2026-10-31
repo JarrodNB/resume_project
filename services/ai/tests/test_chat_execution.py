@@ -581,7 +581,7 @@ async def test_reply_reads_the_owners_library_from_the_tool_server_and_keeps_its
     library = CareerLibrary.model_validate({"skills": [{"id": "s1", "name": "Ruby", "screened_fields": ["name"]}]})
 
     async def stream(messages, info):
-        assert [tool.name for tool in info.function_tools] == ['read_career_library']
+        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs'}
         returns = tool_returns(messages)
         if not returns:
             # GPT models often write a short preamble before calling a tool.
@@ -720,3 +720,45 @@ async def test_http_claim_refuses_inline_source_even_when_authenticated():
             lambda _: httpx.Response(200, json=current.model_dump(mode='json')))) as client:
         with pytest.raises(RailsTransportError, match='Invalid chat claim'):
             await client.claim(current.operation_id)
+
+
+@pytest.mark.anyio
+async def test_reply_lists_saved_jobs_over_http_with_accounted_checks():
+    from uuid import uuid4
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from mcp_tools.client import ToolServerConnection
+    from mcp_tools.local_server import serve_in_background
+    from mcp_tools.server import create_mcp_server
+    from schemas.gap_analysis_context import CareerLibrary
+    from screening.screen_user_text import ScreenOutcome
+
+    owner, sink, reads = Owner(), Sink(), []
+    job_id = str(uuid4())
+    def read(user):
+        reads.append(user)
+        return [{"id": job_id, "title": "Platform Engineer", "company": "Acme", "screened_fields": []}]
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            yield {0: DeltaToolCall(name="list_saved_jobs", json_args="{}", tool_call_id="list-1")}
+        else:
+            text = returns[0].content
+            assert "Title: Platform Engineer" in text and "Company: Acme" in text
+            assert "Reference: J-" in text and job_id not in text
+            yield "You saved Platform Engineer at Acme."
+    secret = "saved-chat-secret-0123456789abcdefghij"
+    app = create_mcp_server(secret=secret, read_library=lambda _: CareerLibrary(), read_jobs=read).http_app(
+        path="/mcp", stateless_http=True)
+    with serve_in_background(app) as url:
+        adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=ToolServerConnection(url=url, secret=secret))
+        adapter._screen = AsyncMock()
+        adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(True))
+        await asyncio.wait_for(adapter.execute(claim(), sink), 10)
+    assert not owner.failed and reads == ["user-1"]
+    assert owner.accepted[0]["reply"] == "You saved Platform Engineer at Acme."
+    adapter._screen_decision.assert_awaited_once()
+    report = owner.accepted[0]["record_screening"][0]
+    assert report["record_type"] == "job" and report["record_id"] == job_id
+    assert set(report["fingerprints"]) == {"title", "company"}

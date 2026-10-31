@@ -237,7 +237,7 @@ class ChatExecutionAdapter:
         # Each tool round trip is another accounted model request, on top of retries and fallback.
         async with agent.iter(turn.prompt, message_history=history, model=self._model(claim, "reply"),
                 model_settings={"thinking": False, "max_tokens": 2400}, usage=usage,
-                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=2, total_tokens_limit=128000)) as run:
+                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=3, total_tokens_limit=128000)) as run:
             async for node in run:
                 if not Agent.is_model_request_node(node):
                     continue
@@ -283,7 +283,10 @@ class ChatExecutionAdapter:
             values = {"reply": reply, "screened_message_sha256": digest}
             session = current_session()
             if session and session.record_screening:
-                values["record_screening"] = [report.model_dump() for report in session.record_screening]
+                # These are optional future screening approvals, not the sources used
+                # for this reply. Keep Rails' acceptance bound when tools read
+                # distinct collections; every source above was still screened.
+                values["record_screening"] = [report.model_dump() for report in session.record_screening[:500]]
             if summary_update is not None:
                 values["summary_update"] = summary_update
             await self.client.accept(claim, **values)

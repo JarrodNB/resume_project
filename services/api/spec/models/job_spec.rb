@@ -29,6 +29,6 @@ RSpec.describe Job do
     job.location = "London"
     job.discard_changed_screened_fields
     job.save!
-    expect(job.reload.screened_fields).to eq(["title"])
+    expect(job.reload.screened_fields).to eq([ "title" ])
   end
 end

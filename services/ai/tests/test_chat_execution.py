@@ -772,3 +772,60 @@ async def test_reply_lists_saved_jobs_then_reads_summary_with_accounted_checks()
     report = owner.accepted[0]["record_screening"][0]
     assert report["record_type"] == "job" and report["record_id"] == job_id
     assert set(report["fingerprints"]) == {"title", "company", "location", "requirements"}
+
+
+@pytest.mark.anyio
+async def test_job_and_background_advice_screens_all_sources_with_bounded_approval_receipts():
+    """All three reads fit one reply; optional approval receipts cannot reject it."""
+    import json
+    from uuid import uuid4
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from mcp_tools.client import ToolServerConnection
+    from mcp_tools.local_server import serve_in_background
+    from mcp_tools.server import create_mcp_server
+    from schemas.gap_analysis_context import CareerLibrary
+    from screening.screen_user_text import ScreenOutcome
+
+    owner, sink, screened = Owner(), Sink(), []
+    jobs = [{"id": str(uuid4()), "title": "E", "company": "C", "screened_fields": []}
+            for _ in range(400)]
+    library = CareerLibrary(skills=[{"id": str(uuid4()), "name": f"Python skill {i}"}
+                                   for i in range(101)])
+    async def screen(text):
+        screened.append(text)
+        return ScreenOutcome(True)
+    def detail(user, selected):
+        assert user == "user-1" and selected == jobs[0]["id"]
+        return {**jobs[0], "location": "Remote", "requirements": ["Python"],
+                "responsibilities": [], "nice_to_haves": []}
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            yield {0: DeltaToolCall(name="list_saved_jobs", json_args="{}", tool_call_id="list")}
+        elif len(returns) == 1:
+            reference = returns[0].content.split("Reference: ")[1].splitlines()[0]
+            yield {0: DeltaToolCall(name="read_job_summary", json_args=json.dumps({"job_reference": reference}), tool_call_id="summary")}
+        elif len(returns) == 2:
+            yield {0: DeltaToolCall(name="read_career_library", json_args="{}", tool_call_id="library")}
+        else:
+            assert "Python" in returns[1].content
+            assert "Python skill 100" in returns[2].content
+            yield "Your saved Python skills relate to the role's Python requirement."
+    secret = "combined-tools-test-secret-0123456789abcdef"
+    app = create_mcp_server(secret=secret, read_library=lambda _: library,
+                            read_jobs=lambda _: jobs, read_job_summary=detail).http_app(
+                                path="/mcp", stateless_http=True)
+    with serve_in_background(app) as url:
+        adapter = ChatExecutionAdapter(owner, Models(stream),
+            tool_server=ToolServerConnection(url=url, secret=secret))
+        adapter._screen = AsyncMock()
+        async def accounted_screen(*args):
+            return await screen(args[-1])
+        adapter._screen_decision = AsyncMock(side_effect=accounted_screen)
+        await asyncio.wait_for(adapter.execute(claim(), sink), 15)
+    assert not owner.failed
+    assert owner.accepted[0]["reply"].startswith("Your saved Python skills")
+    assert len(owner.accepted[0]["record_screening"]) == 500
+    assert any("Python skill 100" in text for text in screened)

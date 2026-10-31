@@ -45,7 +45,7 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   the library is unavailable. An empty library returns a plain sentence.
 - **No sampling.** The toolset never lets the server call a model.
 
-A reply run allows two tool calls and 12 model requests (each tool round trip is
+A reply run allows three tool calls and 12 model requests (each tool round trip is
 another request). Text written before a tool call is kept: the saved reply joins the
 text of every model response in the run, so it always matches what was streamed.
 Repeated calls with the same arguments in one run reuse the first result.
@@ -206,7 +206,7 @@ chat acceptance. The existing per-run cache avoids repeating reads and screening
 Selection references are 45-character signed identities, bound to the token's user and
 operation and expiring with the token (at most ten minutes). All replicas share the signing
 secret; references contain no source snapshots and need no in-memory registry. Detail resolution still filters by current owner and active status. The existing
-two-tool-call limit is unchanged.
+three-tool-call limit supports listing, detail, and career-library advice together.
 
 ### Selected saved-job summary
 
@@ -219,8 +219,13 @@ Missing/deleted/archived selections are unavailable. Invalid references and data
 failures expose no database details. The complete summary must fit 40,000 characters.
 Saved approvals are reused; unchecked used fields pass through the caller's accounted
 screen and exact receipts return through fenced chat acceptance. Location edits discard
-saved location approvals. List then summary fits the existing two-tool reply limit.
+saved location approvals. List, summary, and career-library reads fit the three-tool reply limit.
 The eval runner serves synthetic jobs locally and never falls back to database reads.
 Receipts for the same record and revision merge checked field fingerprints, keeping the
 latest checked value. Listing 500 jobs then reading one summary stays within the existing
 500-record acceptance bound without dropping receipts.
+
+Chat acceptance sends at most 500 optional approval receipts across all tools. All
+used fields are screened before the model sees them, including fields whose receipts
+do not fit. Excess receipts are omitted from persistence only; those fields may need
+screening again on a later turn. The reply and its source facts remain complete.

@@ -1,5 +1,5 @@
 /** Exercise Job Board through its form and GraphQL boundary, without provider traffic. */
-import { act, fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
@@ -96,28 +96,99 @@ it('submits multiple experience levels and preserves them on pagination despite 
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Entry level, Senior')
   await toggleFilterOption(user, 'Experience level', 'Mid level')
   expect(screen.getByText(/For “engineer”/)).not.toHaveTextContent('Mid level')
-  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
   await screen.findByRole('heading', { name: 'Second role' })
 })
 
-it('shows loaded roles as numbered pages and fetches the next batch from the last page', async () => {
+it('shows the next unloaded page number and fetches it only when selected', async () => {
   const user = userEvent.setup()
   const batch = (prefix: string) => Array.from({ length: 20 }, (_, index) => listing(`${prefix}${index}`, `${prefix} role ${index}`))
+  const next = vi.fn(() => ({ data: { jobBoardSearch: page(batch('b')) } }))
   renderBoard([
     queryMock(searchVariables(), page(batch('a'), { nextCursor: 'next' })),
-    queryMock(searchVariables('engineer', false, 'next'), page(batch('b'))),
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, 'next') }, result: next, delay: 0 },
   ])
   await search(user)
   await screen.findByRole('heading', { name: 'a role 0' })
   expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
-  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  expect(screen.getByRole('button', { name: 'Page 2' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'Page 3' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'b role 0' })).not.toBeInTheDocument()
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+  expect(next).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
   expect(await screen.findByRole('heading', { name: 'b role 0' })).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'a role 0' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Page 1' }))
   expect(screen.getByRole('heading', { name: 'a role 0' })).toBeInTheDocument()
+})
+
+it('loads an unloaded numbered page from an earlier page and keeps loaded navigation usable while fetching', async () => {
+  const user = userEvent.setup()
+  const batch = (prefix: string) => Array.from({ length: 20 }, (_, index) => listing(`${prefix}${index}`, `${prefix} role ${index}`))
+  const third = vi.fn(() => ({ data: { jobBoardSearch: page(batch('c')) } }))
+  renderBoard([
+    queryMock(searchVariables(), page(batch('a'), { nextCursor: 'second' })),
+    queryMock(searchVariables('engineer', false, 'second'), page(batch('b'), { nextCursor: 'third' })),
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, 'third') }, result: third, delay: 700 },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'a role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'b role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 1' }))
+  expect(third).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Page 3' }))
+  expect(screen.getByRole('button', { name: 'Page 3' })).toBeDisabled()
+  expect(screen.getByRole('heading', { name: 'b role 0' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Page 3' }))
+  await user.click(screen.getByRole('button', { name: 'Page 1' }))
+  expect(screen.getByRole('heading', { name: 'a role 0' })).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Page 3' })).toBeEnabled())
+  await user.click(screen.getByRole('button', { name: 'Page 3' }))
+  expect(screen.getByRole('heading', { name: 'c role 0' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Page 4' })).not.toBeInTheDocument()
+  expect(third).toHaveBeenCalledTimes(1)
+})
+
+it('fetches only one short batch per numbered action and keeps the last nonempty display page', async () => {
+  const user = userEvent.setup()
+  const last = vi.fn(() => ({ data: { jobBoardSearch: page([listing('two', 'Second role')]) } }))
+  renderBoard([
+    queryMock(searchVariables(), page([listing('one', 'First role')], { nextCursor: 'duplicates' })),
+    queryMock(searchVariables('engineer', false, 'duplicates'), page([listing('one', 'First role')], { nextCursor: 'last' })),
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, 'last') }, result: last, delay: 0 },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'First role' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await waitFor(() => expect(screen.getAllByRole('time')).toHaveLength(2))
+  expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('heading', { name: 'First role' })).toBeInTheDocument()
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+  expect(last).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'Second role' })
+  expect(screen.queryByRole('navigation', { name: 'Results pages' })).not.toBeInTheDocument()
+  expect(last).toHaveBeenCalledTimes(1)
+})
+
+it('removes the unloaded page number when the provider repeats a consumed cursor', async () => {
+  const user = userEvent.setup()
+  const batch = (prefix: string) => Array.from({ length: 20 }, (_, index) => listing(`${prefix}${index}`, `${prefix} role ${index}`))
+  renderBoard([
+    queryMock(searchVariables(), page(batch('a'), { nextCursor: 'repeat' })),
+    queryMock(searchVariables('engineer', false, 'repeat'), page(batch('b'), { nextCursor: 'repeat' })),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'a role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'b role 0' })
+  expect(screen.queryByRole('button', { name: 'Page 3' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
 })
 
 it('retries selected experience levels after the draft selection changes', async () => {
@@ -246,7 +317,7 @@ it('keeps earlier pages on pagination failure and retries only the failed cursor
   ])
   await search(user)
   await screen.findByRole('heading', { name: 'First role' })
-  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
   await screen.findByText('Could not load jobs. Please try again.')
   expect(screen.getByRole('heading', { name: 'First role' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Try again' }))
@@ -491,7 +562,7 @@ it('hides only owned saved results while preserving pagination and an accurate e
   expect(screen.queryByRole('heading', { name: 'Saved role' })).not.toBeInTheDocument()
   expect(screen.getByRole('status')).toHaveTextContent('All loaded roles are already saved.')
   expect(screen.getByText('0 shown · 1 loaded · 1 saved hidden')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
   await screen.findByRole('heading', { name: 'New role' })
   await user.click(screen.getByRole('checkbox', { name: 'Hide already saved' }))
   expect(screen.getByRole('heading', { name: 'Saved role' })).toBeInTheDocument()

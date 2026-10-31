@@ -1,7 +1,9 @@
 /** Keeps one submitted job search usable across navigation and late async completions.
  * The visit owns request ordering, loaded pages, ranking, saving and display choices.
  * Callers read its state and invoke actions; request locks and ranking records stay private.
- * Rails still owns provider freshness and private Job persistence.
+ * Numbered navigation can request one unloaded batch; short batches keep the last valid
+ * display page without following more cursors automatically. Rails still owns provider
+ * freshness and private Job persistence.
  */
 import type { ApolloClient } from '@apollo/client'
 import type { AiTaskStatusEnum, JobBoardSearchQuery } from '@/graphql/generated/graphql'
@@ -215,7 +217,7 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
   }
   function goToPage(page: number, listings: BoardListing[]) {
     const current = getResults(listings)
-    if (page > current.page && current.page >= current.totalPages - 1) loadMore()
+    if (page >= current.totalPages) loadMore()
     update({ pageChoice: { search: state.snapshot.submitted, order: state.ordering, page } })
   }
   return {

@@ -14,15 +14,24 @@ const skills = [
   { __typename: 'Skill' as const, id: 's2', name: 'Java', position: 1 },
 ]
 
-it('shows only saved skills in library order with counts and not-mentioned labels', async () => {
+it('shows only mentioned saved skills in library order with counts', async () => {
   renderPage({ path: '/', url: '/', element: <SkillMatches description="Python and PYTHON. JavaScript and Rust." />, mocks: [{
     request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills } },
   }] })
   const list = await screen.findByRole('list', { name: 'Saved skill mentions' })
-  expect(within(list).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Python2 mentions', 'JavaNot mentioned'])
+  expect(within(list).getAllByRole('listitem').map(item => item.textContent)).toEqual(['Python2 mentions'])
   expect(screen.queryByText('Rust')).not.toBeInTheDocument()
+  expect(screen.queryByText('Java')).not.toBeInTheDocument()
+  expect(screen.queryByText('Not mentioned')).not.toBeInTheDocument()
 })
 
+it('says so when no saved skill is mentioned', async () => {
+  renderPage({ path: '/', url: '/', element: <SkillMatches description="Rust only" />, mocks: [{
+    request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills } },
+  }] })
+  expect(await screen.findByText('None of your saved skills are mentioned in this job description.')).toBeVisible()
+  expect(screen.queryByRole('list', { name: 'Saved skill mentions' })).not.toBeInTheDocument()
+})
 
 it.each([null, '', '   '])('explains missing description %j without presenting zero counts', async description => {
   renderPage({ path: '/', url: '/', element: <SkillMatches description={description} /> })
@@ -65,7 +74,7 @@ it('refreshes saved skills on mount and recomputes when description or cached li
   rerender(view('Rust and RUST'))
   expect(screen.getByText('2 mentions')).toBeVisible()
   act(() => cache.writeQuery({ query: SKILL_MATCHES_QUERY, data: { skills } }))
-  expect(await screen.findByText('Python')).toBeVisible()
-  expect(screen.getAllByText('Not mentioned')).toHaveLength(2)
+  expect(await screen.findByText('None of your saved skills are mentioned in this job description.')).toBeVisible()
+  expect(screen.queryByText('Python')).not.toBeInTheDocument()
   expect(screen.queryByText('Rust')).not.toBeInTheDocument()
 })

@@ -19,8 +19,8 @@ module JobPreferences
     end
 
     def listing_source(listing, count)
-      budget = [ StartCheckService::TEXT_BUDGET_BYTES / count, JobBoard::PreferenceListingSnapshot::MAX_TEXT_BYTES ].min
-      JobBoard::PreferenceListingSnapshot.new(listing).snapshot(max_text_bytes: budget)
+      budget = [ StartCheckService::TEXT_BUDGET_BYTES / count, JobBoard::PreferenceListingSources::MAX_TEXT_BYTES ].min
+      JobBoard::PreferenceListingSources.new(listing).projection(max_text_bytes: budget)
     end
   end
 end

@@ -144,7 +144,7 @@ when "contracts"
   answer = interview.messages.find_by!(semantic_key: "turn:#{turn.id}:answer")
   payload = { attempt_id: turn.attempt_id, claim_generation: turn.claim_generation,
     transcript: answer.content, decision: "continue", reply: "What changed for the team after you introduced the tool?",
-    history_version: turn.question.history_version, model_history: turn.question.model_history }
+    history_version: 1, model_history: [] }
   response = internal_request(turn, "accept", payload)
   assert_check(response.code == "200", "Identical acceptance replay did not return its saved receipt")
   assert_check(interview.messages.answer.count == 2, "Acceptance replay added an answer")
@@ -187,7 +187,7 @@ when "speech-retry"
   claim = JSON.parse(internal_request(speech, "claim").body).slice("attempt_id", "claim_generation")
   assert_check(internal_request(speech, "fail", claim.merge(code: "speech_failed", retryable: false)).code == "200", "Speech failure not saved")
   assert_check(internal_request(speech, "retry").code == "200", "Saved speech cannot retry")
-  puts "HISTORY_SHA=#{Digest::SHA256.hexdigest(JSON.generate(turn.question.model_history))}"
+  puts "HISTORY_SHA=#{Digest::SHA256.hexdigest(JSON.generate(turn.interview_session.messages.order(:position).pluck(:id, :kind, :content, :acknowledgement)))}"
   puts "OPERATION_ID=#{speech.id}"
 when "verify-speech"
   turn = InterviewSessionOperation.joins(:interview_session).where(interview_sessions: { user_id: user.id }).find_by!(submission_key: "lost-receipt")
@@ -195,8 +195,8 @@ when "verify-speech"
   assert_check(speech.accepted? && speech.execution_count == 2, "Speech retry did not finish independently")
   assert_check(turn.execution_count == 1 && turn.question.accepted_answer_count == 1 && turn.interview_session.messages.answer.count == 1,
     "Speech retry changed accepted dialogue or reasoning count")
-  assert_check(Digest::SHA256.hexdigest(JSON.generate(turn.question.model_history)) == ENV.fetch("CHECK_HISTORY_SHA"), "Speech retry changed model history")
-  puts "PASS speech-only explicit retry preserved dialogue/history/counts"
+  assert_check(Digest::SHA256.hexdigest(JSON.generate(turn.interview_session.messages.order(:position).pluck(:id, :kind, :content, :acknowledgement))) == ENV.fetch("CHECK_HISTORY_SHA"), "Speech retry changed accepted dialogue")
+  puts "PASS speech-only explicit retry preserved dialogue/counts"
 when "verify-storage"
   media = InterviewSessionMedia.where(interview_session: interview).where(kind: "speech", status: "ready").first
   assert_check(media.present?, "Missing saved artifact")
@@ -223,7 +223,7 @@ when "retention"
   usage_count = user.ai_tasks.joins(:ai_usage_attempts).count
   interview.update!(expires_at: 1.second.ago)
   checked(Interviews::CleanupService.call(limit: 100))
-  assert_check(interview.reload.content_purged_at && interview.fixture_context.empty? && interview.questions.first.model_history.empty?, "Expired content/history remains")
+  assert_check(interview.reload.content_purged_at && interview.fixture_context.empty? && interview.questions.pluck(:content).all? { |content| content == "[expired]" }, "Expired content/history remains")
   assert_check(user.ai_tasks.joins(:ai_usage_attempts).count == usage_count, "Cleanup lost accounting facts")
   puts "PASS real storage deletion, expired playback/work and dialogue scrub preserve accounting facts"
 when "cleanup"

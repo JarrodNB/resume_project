@@ -21,6 +21,12 @@ from worker.task_handlers import handle_ai_task
 pytestmark = pytest.mark.real_guardrail
 
 
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    """Supply the owned-reader seam while these tests count actual classification."""
+    return replace(task_dependencies, read_interview_question_sources=lambda request: dict(request.input))
+
+
 def screened_answer(request):
     """The written answer as record screening labels it."""
     return "Entry 1\nAnswer text:\n" + request.input["answer_text"]

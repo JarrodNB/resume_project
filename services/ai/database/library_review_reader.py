@@ -25,7 +25,7 @@ from schemas.library_review import LibraryReviewInput
 
 
 def _digest(value):
-    """Match ReviewSnapshot's compact ActiveSupport JSON, including HTML escaping."""
+    """Match ReviewSources's compact ActiveSupport JSON, including HTML escaping."""
     text = json.dumps(value, ensure_ascii=False, separators=(",", ":"),
                       default=lambda item: item.isoformat() if isinstance(item, date) else str(item))
     for character in ("<", ">", "&"):

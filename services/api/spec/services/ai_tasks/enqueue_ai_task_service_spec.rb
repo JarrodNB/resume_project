@@ -8,7 +8,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
   before { allow(Shoryuken::Client).to receive(:queues).with(AI_TASKS_QUEUE_NAME).and_return(queue) }
 
   it "creates a queued task and publishes its message" do
-    result = described_class.call(user: user, task_type: "analyze_gaps", input: { "job_id" => "abc" })
+    result = described_class.call(user: user, task_type: "analyze_gaps", input: { "job_id" => "abc", "legacy_source" => "PRIVATE SAVED SOURCE", "history" => [ "PRIVATE HISTORY" ] })
 
     expect(result).to be_success
     ai_task = result.value

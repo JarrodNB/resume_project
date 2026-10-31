@@ -16,13 +16,16 @@ RSpec.describe RenameLibraryFactsToCareerContexts do
     context = create(:career_context, user: user, response: 'Facts and library_fact are my exact words.', screened_fields: %w[response])
     answer = create(:job_gap_response, job: create(:job, user: user), career_context: context)
     embedding = create(:library_embedding, user: user, source_type: "CareerContext", source_id: context.id)
-    interview = user.interview_sessions.create!(expires_at: 1.day.from_now,
-      frozen_context: { "sources" => [ { "type" => "career_contexts", "id" => context.id,
-        "field" => "response", "text" => context.response, "screened" => true } ] })
+    # Exercise the historical schema explicitly; current models ignore this column.
+    connection.add_column :interview_sessions, :frozen_context, :jsonb, default: {}, null: false
+    interview = user.interview_sessions.create!(expires_at: 1.day.from_now)
+    old_source = { "sources" => [ { "type" => "career_contexts", "id" => context.id,
+      "field" => "response", "text" => context.response, "screened" => true } ] }
+    connection.execute("UPDATE interview_sessions SET frozen_context = #{connection.quote(old_source.to_json)} WHERE id = '#{interview.id}'")
     original_vector = connection.select_value("SELECT embedding::text FROM library_embeddings WHERE id = '#{embedding.id}'")
     migrate(:down)
     expect(connection.table_exists?(:library_facts)).to be(true)
-    expect(interview.reload.frozen_context.dig("sources", 0, "type")).to eq("library_facts")
+    expect(JSON.parse(connection.select_value("SELECT frozen_context FROM interview_sessions WHERE id = '#{interview.id}'")).dig("sources", 0, "type")).to eq("library_facts")
     expect(connection.select_value("SELECT library_fact_id FROM job_gap_responses WHERE id = '#{answer.id}'")).to eq(context.id)
     legacy_input = {
       "section" => "facts", "library" => { "facts" => [ { "id" => context.id, "response" => context.response } ] },
@@ -37,7 +40,7 @@ RSpec.describe RenameLibraryFactsToCareerContexts do
     expect(context.reload.response).to eq('Facts and library_fact are my exact words.')
     expect(context.screened_fields).to eq(%w[response])
     expect(answer.reload.career_context_id).to eq(context.id)
-    source = interview.reload.frozen_context.fetch("sources").first
+    source = JSON.parse(connection.select_value("SELECT frozen_context FROM interview_sessions WHERE id = '#{interview.id}'")).fetch("sources").first
     expect(source).to include("type" => "career_contexts", "id" => context.id,
       "text" => context.response, "screened" => true)
     expect(embedding.reload.source_type).to eq("CareerContext")

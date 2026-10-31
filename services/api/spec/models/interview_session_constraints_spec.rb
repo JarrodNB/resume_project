@@ -47,11 +47,9 @@ RSpec.describe "Basic Interview database invariants" do
     expect_constraint(ActiveRecord::RecordNotUnique) { interview.operations.sole.dup.save!(validate: false) }
   end
 
-  it "rejects negative or excessive counters and non-array accepted history" do
+  it "rejects negative or excessive counters" do
     expect_constraint { question.update_columns(accepted_answer_count: 4) }
     expect_constraint { question.update_columns(accepted_answer_count: -1) }
-    expect_constraint { question.update_columns(model_history: {}) }
-    expect_constraint { question.update_columns(history_version: 0) }
     expect_constraint { interview.update_columns(answer_cap: 4) }
     expect_constraint { interview.update_columns(revision: -1) }
   end

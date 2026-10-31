@@ -10,11 +10,11 @@ RSpec.describe "Job preference checks" do
     JobPreferences::UpdateProfileService.call(user: user, expected_version: 1, action: :confirm)
   end
   def request(revision: 2, id: listing.id, owner: user)
-    execute_graphql(mutation, user: owner, variables: { id: id, revision: revision, digest: JobBoard::PreferenceListingSnapshot.new(listing).digest })
+    execute_graphql(mutation, user: owner, variables: { id: id, revision: revision, digest: JobBoard::PreferenceListingSources.new(listing).digest })
   end
 
   def request_batch(listings, revision: 2)
-    execute_graphql(<<~GQL, user: user, variables: { listings: listings.map { |item| { listingId: item.id, expectedDigest: JobBoard::PreferenceListingSnapshot.new(item).digest } }, revision: revision })
+    execute_graphql(<<~GQL, user: user, variables: { listings: listings.map { |item| { listingId: item.id, expectedDigest: JobBoard::PreferenceListingSources.new(item).digest } }, revision: revision })
       mutation($listings: [JobPreferenceListingInput!]!, $revision: Int!) {
         checkJobBoardPreferenceResults(input: {listings: $listings, confirmedRevision: $revision}) { aiTask { id status input } errors }
       }
@@ -40,7 +40,7 @@ RSpec.describe "Job preference checks" do
   end
 
   it "canonicalizes uppercase UUIDs and rejects case variants of the same listing" do
-    digest = JobBoard::PreferenceListingSnapshot.new(listing).digest
+    digest = JobBoard::PreferenceListingSources.new(listing).digest
     expect(request(id: listing.id.upcase).dig("data", "checkJobBoardPreferenceResults", "errors")).to eq([])
     service = JobPreferences::StartCheckService.call(user: user, confirmed_revision: 2,
       listings: [ { listing_id: listing.id.upcase, expected_digest: digest }, { listing_id: listing.id, expected_digest: digest } ])
@@ -95,7 +95,7 @@ RSpec.describe "Job preference checks" do
   it "does not reuse a partial batch screening check to approve previously unseen text" do
     listing.update!(payload: { title: "Engineer", description: "First part. " * 900 })
     profile = user.job_preference_profile
-    short = JobBoard::PreferenceListingSnapshot.new(listing).snapshot(max_text_bytes: 1200)
+    short = JobBoard::PreferenceListingSources.new(listing).projection(max_text_bytes: 1200)
     user.ai_tasks.create!(task_type: "check_job_preferences", status: "completed", input: { listings: [ short ], criteria: profile.confirmed_criteria })
     request
     expect(user.ai_tasks.order(created_at: :desc).first.input["listings"].first).not_to have_key("screened")
@@ -264,7 +264,7 @@ RSpec.describe "Job preference checks" do
     item = user.ai_tasks.where(task_type: "check_job_preferences").order(created_at: :desc).first.input["listings"].first
     expect(JobPreferences::CheckSources.listing_source(listing, 1)["passages"].size).to eq(64)
     expect(item["truncated"]).to be(true)
-    expect(item["source_digest"]).to eq(JobBoard::PreferenceListingSnapshot.new(listing).digest)
+    expect(item["source_digest"]).to eq(JobBoard::PreferenceListingSources.new(listing).digest)
   end
 
   it "reuses exact text screening when only a criterion's priority changes" do

@@ -14,7 +14,7 @@ RSpec.describe "Job preference screening approvals" do
 
   def start(owner = user)
     JobPreferences::StartCheckService.call(user: owner, confirmed_revision: 2, listings: [ {
-      listing_id: listing.id, expected_digest: JobBoard::PreferenceListingSnapshot.new(listing).digest
+      listing_id: listing.id, expected_digest: JobBoard::PreferenceListingSources.new(listing).digest
     } ]).value
   end
 
@@ -80,7 +80,7 @@ RSpec.describe "Job preference screening approvals" do
 
   it "does not let a shorter excerpt approve passages it never screened" do
     task = start
-    short = JobBoard::PreferenceListingSnapshot.new(listing).snapshot(max_text_bytes: 1200)
+    short = JobBoard::PreferenceListingSources.new(listing).projection(max_text_bytes: 1200)
     task.update!(input: task.input.merge("listings" => [ short ]))
     receipts = reports(task)
     receipts.last["fingerprints"]["passages"] = fingerprint(short["passages"].pluck("text"))

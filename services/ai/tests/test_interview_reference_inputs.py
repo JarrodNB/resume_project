@@ -119,3 +119,46 @@ def test_real_turn_does_not_return_saved_dialogue_as_model_history():
     assert "Previously saved question marker?" in models.prompts[-1][1]
     assert client.accepted[0]["history_version"] == 1
     assert client.accepted[0]["model_history"] == []
+
+
+def test_fixture_turn_returns_only_new_output_and_uses_public_dialogue():
+    from tests.test_interview_executor import Client, claim, execute
+
+    request = claim()
+    request.payload.current_dialogue = []
+    client = Client()
+    execute(client, request)
+    assert not client.failed
+    assert client.accepted[0]["model_history"] == []
+
+
+def test_fixture_ignores_private_history_when_owned_public_dialogue_is_present(monkeypatch):
+    from types import SimpleNamespace
+
+    from interviews.client import PublicMessage
+    from interviews.executor import InterviewExecutor
+    from tests.test_interview_executor import Client, claim, execute
+
+    captured = []
+    original = InterviewExecutor._interviewer
+    def interviewer(self, request, guard):
+        agent, options = original(self, request, guard)
+        async def run(prompt, **kwargs):
+            captured.append((prompt, kwargs["message_history"]))
+            return await agent.run(prompt, **kwargs)
+        return SimpleNamespace(run=run), options
+    monkeypatch.setattr(InterviewExecutor, "_interviewer", interviewer)
+    request = claim(history=[{"private": "never use this copied source"}])
+    request.payload.current_dialogue = [PublicMessage(kind=kind, content=text) for kind, text in [
+        ("opening", "Saved opening?"), ("answer", "The exact earlier answer."), ("follow_up", "Saved follow-up?")]]
+    client = Client()
+    execute(client, request)
+    assert not client.failed
+    assert client.accepted[0]["model_history"] == []
+
+    prompt, history = captured[0]
+    assert "The exact earlier answer." in str(history)
+    assert "Saved follow-up?" in str(history)
+    assert "never use this copied source" not in str(history)
+    assert '"fixture_context"' not in str(history)
+    assert prompt.startswith("<candidate_answer>")

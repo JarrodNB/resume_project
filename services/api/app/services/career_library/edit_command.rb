@@ -17,9 +17,9 @@ module CareerLibrary
       end
       snapshot = if section == "experience"
         role_id = kind == "experience" ? record.id : record.experience_id
-        ReviewSnapshot.build(user: user, section: section, experience_id: role_id)
+        ReviewSources.build(user: user, section: section, experience_id: role_id)
       else
-        ReviewSnapshot.build(user: user, section: section, record_id: record.id)
+        ReviewSources.build(user: user, section: section, record_id: record.id)
       end
       target = snapshot["targets"].find { |item| item["kind"] == kind && item["record_id"] == record.id }
       raise ActiveRecord::RecordNotFound unless target

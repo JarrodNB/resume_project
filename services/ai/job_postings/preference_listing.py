@@ -1,7 +1,7 @@
 """Render the same bounded preference passages as Rails' catalogue projection.
 
 This is an ephemeral read projection. UTF-8 truncation, paragraph labels and
-fingerprints must match PreferenceListingSnapshot before a queued check can run.
+fingerprints must match PreferenceListingSources before a queued check can run.
 """
 import hashlib
 import json

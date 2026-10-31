@@ -96,13 +96,6 @@ class TurnPayload(BaseModel):
         """Return contact/provenance input without treating a fictional role as facts."""
         return self.interview_context.personal_evidence if self.interview_context else self.fixture_context
 
-    def context_input(self) -> dict[str, Any]:
-        """Preserve the versioned prepared source or the legacy fixture envelope."""
-        context = ({"interview_context": self.interview_context.model_dump()} if self.interview_context
-                   else {"fixture_context": self.fixture_context})
-        if self.earlier_dialogue is not None:
-            context["earlier_dialogue"] = self.earlier_dialogue.model_dump()
-        return context
 
 
 class TranscriptionPayload(BaseModel):

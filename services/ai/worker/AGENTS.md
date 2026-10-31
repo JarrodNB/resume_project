@@ -68,7 +68,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `task_dependencies.py` — `TaskDependencies` (settings + file storage + `httpx.Client` for job
   sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
-- `contact_context.py` — loads the queue task's owned profile and tailoring snapshot,
+- `contact_context.py` — loads the queue task's owned profile for contact masking,
   then enters shared `privacy/` masking; imports select the existing local PII session.
 - `task_tracing.py` — adds queue task identity, contact-safe input and incomplete-cost
   state around shared `telemetry/` instrumentation and bounded final flushing.
@@ -118,7 +118,7 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   answer checks before model use, trusts the Rails-owned generated question, screens library
   notes and career context requirement context, and reports coaching plus usage without writes.
   Requirement context clarifies a response but cannot support personal claims or evidence quotes.
-  Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.
+  Knowledge inputs allow corrected subject examples while preserving the original answer and source-only optional evidence.
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 
 - `library_review_handler.py` — screens only unchecked fields of a Rails-owned selected-section

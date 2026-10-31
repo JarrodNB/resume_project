@@ -38,7 +38,7 @@ RSpec.describe "Interview abandonment" do
     expect(Interviews::AbandonService.call(interview: interview)).to be_success
     interview.update!(expires_at: 1.second.ago)
     expect(Interviews::CleanupService.call.value[:purged_sessions]).to eq(1)
-    expect(interview.reload).to have_attributes(status: "abandoned", frozen_context: {}, prepared_role: {})
+    expect(interview.reload).to have_attributes(status: "abandoned", prepared_role: {})
     expect(interview.messages.pluck(:content)).to all(eq("[expired]"))
   end
 

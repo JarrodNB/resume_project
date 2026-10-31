@@ -21,3 +21,22 @@ def test_only_owned_active_labels_are_read_in_stable_newest_order(admin_connecti
     rows = read_saved_jobs(connection, owner)
     assert [row["id"] for row in rows] == [*sorted(map(str, ids[1:]), reverse=True), str(ids[0])]
     assert all(set(row) == {"id", "title", "company", "screened_fields"} for row in rows)
+
+
+def test_summary_reads_current_owned_active_facts_only(admin_connection):  # noqa: F811
+    from psycopg.types.json import Jsonb
+
+    from database.saved_jobs import read_job_summary
+    connection = admin_connection
+    owner, other = _insert_user(connection), _insert_user(connection)
+    selected = _insert(connection, 'jobs', user_id=owner, title='Engineer', company='Acme', location='Remote',
+                       requirements=Jsonb(['Python']), responsibilities=Jsonb(['Build']), nice_to_haves=Jsonb(['SQL']), notes='PRIVATE')
+    archived = _insert(connection, 'jobs', user_id=owner, title='Engineer', archived_at=datetime.now(UTC))
+    connection.execute('SET LOCAL ROLE ai_reader')
+    row = read_job_summary(connection, owner, selected)
+    assert row['location'] == 'Remote' and row['requirements'] == ['Python']
+    assert set(row) == {'id', 'title', 'company', 'location', 'requirements', 'responsibilities', 'nice_to_haves', 'screened_fields'}
+    assert read_job_summary(connection, other, selected) is None
+    assert read_job_summary(connection, owner, archived) is None
+    from uuid import uuid4
+    assert read_job_summary(connection, owner, uuid4()) is None

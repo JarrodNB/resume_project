@@ -2,7 +2,7 @@
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
-read-only tools for the career library and active saved-job labels. Attachments, other saved app data and app
+read-only tools for the career library and active saved-job postings. Attachments, other saved app data and app
 actions are not available.
 
 ## Tools (MCP)
@@ -205,6 +205,22 @@ chat acceptance. The existing per-run cache avoids repeating reads and screening
 
 Selection references are 45-character signed identities, bound to the token's user and
 operation and expiring with the token (at most ten minutes). All replicas share the signing
-secret; references contain no source snapshots and need no in-memory registry. Later
-detail resolution must still filter by current owner and active status. The existing
+secret; references contain no source snapshots and need no in-memory registry. Detail resolution still filters by current owner and active status. The existing
 two-tool-call limit is unchanged.
+
+### Selected saved-job summary
+
+`read_job_summary(job_reference)` resolves a list-issued reference bound to the owner,
+operation and expiry, then independently reads the current owned active job. It returns
+only title, company, location, requirements, responsibilities and nice-to-haves as labeled
+text, with absent fields stated explicitly. Notes and generated analyses stay private.
+Identical titles retain distinct references; chat asks which job when selection is unclear.
+Missing/deleted/archived selections are unavailable. Invalid references and database
+failures expose no database details. The complete summary must fit 40,000 characters.
+Saved approvals are reused; unchecked used fields pass through the caller's accounted
+screen and exact receipts return through fenced chat acceptance. Location edits discard
+saved location approvals. List then summary fits the existing two-tool reply limit.
+The eval runner serves synthetic jobs locally and never falls back to database reads.
+Receipts for the same record and revision merge checked field fingerprints, keeping the
+latest checked value. Listing 500 jobs then reading one summary stays within the existing
+500-record acceptance bound without dropping receipts.

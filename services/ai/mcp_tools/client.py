@@ -18,7 +18,12 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.toolsets import AbstractToolset, WrapperToolset
 
 from mcp_tools.career_library import READ_CAREER_LIBRARY, render_career_library_result
-from mcp_tools.saved_jobs import LIST_SAVED_JOBS, render_saved_jobs_result
+from mcp_tools.saved_jobs import (
+    LIST_SAVED_JOBS,
+    READ_JOB_SUMMARY,
+    render_job_summary_result,
+    render_saved_jobs_result,
+)
 from mcp_tools.tokens import mint_tool_token, tool_token_secret
 from settings import AISettings
 
@@ -26,6 +31,7 @@ from settings import AISettings
 # A server tool missing here stays hidden, because nothing would screen and render its result.
 TOOL_RENDERERS = {
     LIST_SAVED_JOBS: render_saved_jobs_result,
+    READ_JOB_SUMMARY: render_job_summary_result,
     READ_CAREER_LIBRARY: render_career_library_result,
 }
 

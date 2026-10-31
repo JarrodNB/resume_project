@@ -69,7 +69,9 @@ async def execute_chat_case(case, *, models=None):
     async def execute(model_pool):
         # Evals never read the database: a local tool server serves the case's synthetic library.
         secret = secrets.token_urlsafe(48)
-        server = create_mcp_server(secret=secret, read_library=lambda user_id: case.career_library)
+        server = create_mcp_server(secret=secret, read_library=lambda user_id: case.career_library,
+            read_jobs=lambda user_id: case.saved_jobs,
+            read_job_summary=lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None))
         with serve_in_background(server.http_app(path="/mcp", stateless_http=True)) as url:
             await ChatExecutionAdapter(owner, model_pool,
                 tool_server=ToolServerConnection(url=url, secret=secret)).execute(current, None)

@@ -99,3 +99,4 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   Rails claim responses contain identities and timestamps, never these sources.
 
 - `saved_jobs.py` — reads only current owned active job titles, companies and saved checks, newest first with ID tie-breaker; one extra row detects overflow.
+- `saved_jobs.py` also reads one selected job's current posting facts, scoped by owner and active state.

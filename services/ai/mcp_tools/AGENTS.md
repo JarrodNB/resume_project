@@ -42,3 +42,4 @@ call it. See docs/architecture/chat.md#tools-mcp for the design.
 - Tests run the real HTTP app through `local_server.py`; never call a running `ai-mcp`.
 
 - `saved_jobs.py` — active saved-job list server/client halves and compact signed owner/operation-bound references; references expire with the issuing token and require no replica-local state.
+- `saved_jobs.py` also implements `read_job_summary`, validating selection references before independently owned active reads and caller screening.

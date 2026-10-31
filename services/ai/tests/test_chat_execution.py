@@ -581,7 +581,7 @@ async def test_reply_reads_the_owners_library_from_the_tool_server_and_keeps_its
     library = CareerLibrary.model_validate({"skills": [{"id": "s1", "name": "Ruby", "screened_fields": ["name"]}]})
 
     async def stream(messages, info):
-        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs'}
+        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs', 'read_job_summary'}
         returns = tool_returns(messages)
         if not returns:
             # GPT models often write a short preamble before calling a tool.
@@ -723,7 +723,7 @@ async def test_http_claim_refuses_inline_source_even_when_authenticated():
 
 
 @pytest.mark.anyio
-async def test_reply_lists_saved_jobs_over_http_with_accounted_checks():
+async def test_reply_lists_saved_jobs_then_reads_summary_with_accounted_checks():
     from uuid import uuid4
 
     from pydantic_ai.models.function import DeltaToolCall
@@ -739,6 +739,10 @@ async def test_reply_lists_saved_jobs_over_http_with_accounted_checks():
     def read(user):
         reads.append(user)
         return [{"id": job_id, "title": "Platform Engineer", "company": "Acme", "screened_fields": []}]
+    def detail(user, selected):
+        assert user == "user-1" and selected == job_id
+        return {"id": job_id, "title": "Platform Engineer", "company": "Acme", "location": "Remote",
+                    "requirements": ["Python"], "responsibilities": [], "nice_to_haves": [], "screened_fields": []}
     async def stream(messages, info):
         returns = tool_returns(messages)
         if not returns:
@@ -747,9 +751,15 @@ async def test_reply_lists_saved_jobs_over_http_with_accounted_checks():
             text = returns[0].content
             assert "Title: Platform Engineer" in text and "Company: Acme" in text
             assert "Reference: J-" in text and job_id not in text
-            yield "You saved Platform Engineer at Acme."
+            if len(returns) == 1:
+                import json
+                reference = text.split("Reference: ")[1].splitlines()[0]
+                yield {0: DeltaToolCall(name="read_job_summary", json_args=json.dumps({"job_reference": reference}), tool_call_id="summary-1")}
+            else:
+                assert "Location: Remote" in returns[1].content
+                yield "You saved Platform Engineer at Acme, a remote Python role."
     secret = "saved-chat-secret-0123456789abcdefghij"
-    app = create_mcp_server(secret=secret, read_library=lambda _: CareerLibrary(), read_jobs=read).http_app(
+    app = create_mcp_server(secret=secret, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=detail).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=ToolServerConnection(url=url, secret=secret))
@@ -757,8 +767,8 @@ async def test_reply_lists_saved_jobs_over_http_with_accounted_checks():
         adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(True))
         await asyncio.wait_for(adapter.execute(claim(), sink), 10)
     assert not owner.failed and reads == ["user-1"]
-    assert owner.accepted[0]["reply"] == "You saved Platform Engineer at Acme."
-    adapter._screen_decision.assert_awaited_once()
+    assert owner.accepted[0]["reply"] == "You saved Platform Engineer at Acme, a remote Python role."
+    assert adapter._screen_decision.await_count == 2
     report = owner.accepted[0]["record_screening"][0]
     assert report["record_type"] == "job" and report["record_id"] == job_id
-    assert set(report["fingerprints"]) == {"title", "company"}
+    assert set(report["fingerprints"]) == {"title", "company", "location", "requirements"}

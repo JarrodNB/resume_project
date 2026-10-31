@@ -199,3 +199,140 @@ def test_selection_references_bind_owner_operation_and_expiry_across_instances()
                                              expires_at=int(time.time()) - 1))]:
         with pytest.raises(ValueError, match="invalid job reference"):
             resolve_job_reference(SECRET, candidate, user_id=user, operation_id=operation)
+
+@pytest.mark.anyio
+async def test_selected_summary_reads_owned_reference_over_http():
+    from uuid import uuid4
+
+    from mcp_tools.client import _ResultHandler
+    reads = []
+    job_id = str(uuid4())
+    row = {"id": job_id, "title": 'Engineer', "company": 'Acme', "location": 'Remote',
+               "requirements": ['Python'], "responsibilities": ['Build things'], "nice_to_haves": [],
+               "screened_fields": ['title', 'company', 'location', 'requirements', 'responsibilities']}
+    def detail(owner, selected):
+        reads.append((owner, selected))
+        return row
+    async def screen(_):
+        pytest.fail('Saved checks must be reused')
+    server = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(),
+                              read_jobs=lambda _: [row], read_job_summary=detail)
+    with serve_in_background(server.http_app(path='/mcp', stateless_http=True)) as url:
+        async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id='owner', operation_id='op'))) as client:
+            async def call(name, args):
+                return (await client.call_tool(name, args)).structured_content
+            handler = _ResultHandler(screen)
+            listing = await handler(None, call, 'list_saved_jobs', {})
+            reference = listing.split('Reference: ')[1].splitlines()[0]
+            args = {'job_reference': reference}
+            summary = await handler(None, call, 'read_job_summary', args)
+            assert summary == await handler(None, call, 'read_job_summary', args)
+    assert reads == [('owner', job_id)]
+    assert 'Location: Remote' in summary and 'Python' in summary and 'Build things' in summary
+    assert 'Nice to haves: Not provided' in summary
+    assert job_id not in summary and '{' not in summary
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('kind', ['tampered', 'expired', 'owner', 'operation', 'missing', 'database'])
+async def test_summary_selection_fails_safely(kind):
+    import time
+    from uuid import uuid4
+
+    import psycopg
+
+    from mcp_tools.saved_jobs import issue_job_reference
+    reads = []
+    def read(user, selected):
+        reads.append((user, selected))
+        if kind == 'database':
+            raise psycopg.OperationalError('secret database details')
+    reference = issue_job_reference(SECRET, job_id=str(uuid4()),
+        user_id='other' if kind == 'owner' else 'owner',
+        operation_id='other' if kind == 'operation' else 'op',
+        expires_at=time.time() + (-1 if kind == 'expired' else 60))
+    if kind == 'tampered':
+        reference = reference[:-1] + ('A' if reference[-1] != 'A' else 'B')
+    server = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [], read_job_summary=read)
+    with serve_in_background(server.http_app(path='/mcp', stateless_http=True)) as url:
+        async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id='owner', operation_id='op'))) as client:
+            result = await client.call_tool('read_job_summary', {'job_reference': reference}, raise_on_error=False)
+    if kind == 'missing':
+        assert result.structured_content['job'] is None
+    else:
+        assert result.is_error and 'secret database' not in str(result.content)
+    assert len(reads) == int(kind in ('missing', 'database'))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('allowed,unchecked,long,code', [(True, False, False, None), (False, False, False, 'screening_blocked'),
+    (False, True, False, 'screening_unavailable'), (False, False, True, 'context_limit')])
+async def test_summary_unchecked_fields_are_accounted_and_fail_closed(allowed, unchecked, long, code):
+    from mcp_tools.saved_jobs import render_job_summary_result
+    from screening.library_inputs import LibraryScreeningError
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import current_session, screening_session
+    seen = []
+    async def call(*_):
+        return {'job': {"id": 'internal', "title": 'Engineer', "company": 'Acme', "location": 'Remote', "requirements": ['Python'],
+                            "responsibilities": [], "nice_to_haves": [], "screened_fields": ['title', 'company']}}
+    async def screen(text):
+        seen.append(text)
+        return ScreenOutcome(allowed, unchecked=unchecked, too_long=long)
+    with screening_session():
+        if code:
+            with pytest.raises(LibraryScreeningError, match=code):
+                await render_job_summary_result(call, {}, screen)
+            assert not current_session().record_screening
+        else:
+            assert 'Requirements:\n- Python' in await render_job_summary_result(call, {}, screen)
+            assert set(current_session().record_screening[0].fingerprints) == {'location', 'requirements'}
+    assert len(seen) == 1 and 'Remote' in seen[0] and 'Engineer' not in seen[0]
+
+@pytest.mark.anyio
+async def test_list_then_summary_keeps_one_receipt_per_job_at_acceptance_limit():
+    from mcp_tools.saved_jobs import render_job_summary_result, render_saved_jobs_result
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import current_session, screening_session
+    async def screen(_):
+        return ScreenOutcome(True)
+    async def listing(*_):
+        return {'jobs': [{"id": str(i), "title": 'E', "company": '', "reference": 'J-x', "screened_fields": []} for i in range(500)]}
+    async def detail(*_):
+        return {'job': {"id": '0', "title": 'E', "company": '', "location": 'Remote', "requirements": [], "responsibilities": [], "nice_to_haves": [], "screened_fields": []}}
+    with screening_session():
+        await render_saved_jobs_result(listing, {}, screen)
+        await render_job_summary_result(detail, {}, screen)
+        receipts = current_session().record_screening
+        assert len(receipts) == 500
+        assert set(receipts[0].fingerprints) == {'title', 'location'}
+
+@pytest.mark.anyio
+async def test_receipt_merge_keeps_latest_checked_values_and_separate_revisions():
+    from screening.records import ScreenableRecord, field_fingerprint, screen_records
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import current_session, screening_session
+    async def screen(_):
+        return ScreenOutcome(True)
+    with screening_session():
+        for title, revision in [('Old', 1), ('Current', 1), ('Next', 2)]:
+            await screen_records([ScreenableRecord(record_type='job', record_id='job', fields={'title': title},
+                display_title='Job', revision={'version': revision})], screen=screen)
+        receipts = current_session().record_screening
+        assert len(receipts) == 2
+        assert receipts[0].fingerprints == {'title': field_fingerprint('Current')}
+        assert receipts[1].revision == {'version': 2}
+
+@pytest.mark.anyio
+async def test_summary_overflow_is_rejected_before_screening_and_missing_is_explicit():
+    from mcp_tools.saved_jobs import render_job_summary_result
+    from screening.library_inputs import LibraryScreeningError
+    async def oversized(*_):
+        return {'job': {'id': 'job', 'title': 'x' * 40001, 'company': '', 'location': '', 'requirements': [],
+                        'responsibilities': [], 'nice_to_haves': [], 'screened_fields': ['title']}}
+    async def missing(*_):
+        return {'job': None}
+    async def screen(_):
+        pytest.fail('Overflow must fail before screening')
+    with pytest.raises(LibraryScreeningError, match='context_limit'):
+        await render_job_summary_result(oversized, {}, screen)
+    assert 'no longer available' in await render_job_summary_result(missing, {}, screen)

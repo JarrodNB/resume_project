@@ -14,6 +14,14 @@ from worker.task_handlers import handle_ai_task
 pytestmark = pytest.mark.real_guardrail
 
 
+@pytest.fixture(autouse=True)
+def owned_context_reader(monkeypatch):
+    """Most handler fixtures stand in for execution-local DB projections."""
+    from schemas.library_edit import LibraryEditInput
+    monkeypatch.setattr("worker.library_edit_handler.build_database_edit_reader",
+                        lambda _settings: lambda task: LibraryEditInput.model_validate(task.input))
+
+
 def patch_edit_screen(monkeypatch, screen):
     """Library edits screen saved records through screening.records and notes directly."""
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
@@ -22,7 +30,7 @@ def patch_edit_screen(monkeypatch, screen):
 
 def edit_input():
     payload = review_input()
-    payload.update(target=payload["targets"][1], original_text="Helped with migration", feedback="Make this clearer", history=[], root_id=str(uuid4()), turn=1, skip=False)
+    payload.update(target=payload["targets"][1], feedback="Make this clearer", turns=[], root_id=str(uuid4()), turn=1, skip=False)
     return payload
 
 
@@ -97,13 +105,24 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     with library_edit_agent.override(model=FunctionModel(question)):
         paused = handle_ai_task(first, task_dependencies)
     assert paused.status == "needs_user_input"
+    SOURCE_CONTEXT_MARKER = "[Careergrind: reload this edit's owned source context]"
+    serialized = str(paused.message_history)
+    assert SOURCE_CONTEXT_MARKER not in serialized
+    assert all(message["kind"] == "response" for message in paused.message_history)
+    assert "Helped with migration" not in serialized
+    assert "career_records" not in serialized
     assert paused.pending_questions == [{"id": "question-1", "question": "Which part did you handle?"}]
 
-    followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
+    followup = {**first.input, "turns": [{"feedback": first.input["feedback"], "history": paused.message_history}],
+                "previous_task_id": str(first.ai_task_id), "turn": 2,
                 "question_id": "question-1", "feedback": "I migrated the billing API; I did not lead the team."}
     def proposal(messages, info):
         rendered = str(messages)
         assert "I did not lead the team" in rendered
+        assert "Helped with migration" in rendered
+        assert SOURCE_CONTEXT_MARKER not in rendered
+        assert "FORGED retained source snapshot" not in rendered
+        assert "Make this clearer" in rendered
         answer = next(part.content for message in messages for part in message.parts
                       if isinstance(part, ToolReturnPart) and part.tool_name == "ask_user")
         assert answer == "<user_answer>\nI migrated the billing API; I did not lead the team.\n</user_answer>"
@@ -117,7 +136,8 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     assert screened == ["Make this clearer", "I migrated the billing API; I did not lead the team."]
 
     # A normal feedback turn after a completed draft also reuses its saved history.
-    followup.update(history=completed.message_history, previous_task_id=str(uuid4()), turn=3,
+    followup["turns"].append({"feedback": followup["feedback"], "question_id": "question-1", "history": completed.message_history})
+    followup.update(previous_task_id=str(uuid4()), turn=3,
                     question_id=None, feedback="Keep the technical detail")
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
         "text": "Migrated the billing API with the platform team.", "color": "yellow", "reason": "Outcome remains unknown.",
@@ -149,7 +169,7 @@ def test_skipping_a_saved_question_does_not_screen_generated_question_or_skip_no
     first = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
     with library_edit_agent.override(model=FunctionModel(question)):
         paused = handle_ai_task(first, task_dependencies)
-    followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
+    followup = {**first.input, "turns": [{"feedback": first.input["feedback"], "history": paused.message_history}], "previous_task_id": str(first.ai_task_id), "turn": 2,
                 "question_id": "q-skip", "feedback": "", "skip": True}
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
         "text": "Contributed to the service migration.", "color": "yellow", "reason": "Outcome is not known.",
@@ -291,7 +311,7 @@ def test_review_batch_followup_reuses_checked_history_and_screens_only_new_feedb
     with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={"text": "Migrated billing endpoints for easier reconciliation.", "color": "green", "reason": "Concrete action and result."})):
         first = handle_ai_task(AiTaskMessage(ai_task_id=first_id, user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
     assert first.status == "completed"
-    payload.update(previous_task_id=str(first_id), history=first.message_history, turn=2, feedback="Keep both facts concise.")
+    payload.update(previous_task_id=str(first_id), turns=[{"feedback": "", "history": first.message_history}], turn=2, feedback="Keep both facts concise.")
     def revised(messages, info):
         assert "I migrated billing endpoints." in str(messages)
         assert "Reconciliation became easier." in str(messages)
@@ -330,3 +350,42 @@ def test_malformed_saved_review_batches_are_rejected(answers):
     payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": answers})
     with pytest.raises(ValidationError):
         LibraryEditInput.model_validate(payload)
+
+
+def test_reference_only_command_uses_owned_database_projection(task_dependencies, monkeypatch):
+    from dataclasses import replace
+
+    from agents.library_edit_agent import library_edit_agent
+    from schemas.library_edit import LibraryEditInput
+    from screening.screen_user_text import ScreenOutcome
+
+    source = edit_input()
+    calls = []
+    def read(task):
+        calls.append(task.ai_task_id)
+        assert not (task.input.keys() & {"library", "history", "original_text"})
+        return LibraryEditInput.model_validate(source)
+    dependencies = replace(task_dependencies, read_library_edit=read)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry",
+                         input={"command_version": 1, "target": source["target"], "root_id": source["root_id"],
+                                "section": "experience", "turn": 1, "feedback": source["feedback"], "skip": False})
+    patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(True))
+    with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
+        "text": "Contributed to the service migration.", "color": "yellow", "reason": "Add outcome.",
+    })):
+        result = handle_ai_task(task, dependencies)
+    assert calls == [task.ai_task_id]
+    assert result.status == "completed"
+
+
+def test_unavailable_owned_source_fails_before_screening_or_generation(task_dependencies, monkeypatch):
+    from dataclasses import replace
+    def unavailable(_task):
+        raise ValueError("Foreign or changed source")
+    def unexpected(*_args, **_kwargs):
+        raise AssertionError("No provider work for unavailable sources")
+    patch_edit_screen(monkeypatch, unexpected)
+    monkeypatch.setattr("worker.library_edit_handler.improve_library_entry", unexpected)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input={"command_version": 1})
+    result = handle_ai_task(task, replace(task_dependencies, read_library_edit=unavailable))
+    assert result.status == "failed" and result.usage == []

@@ -13,8 +13,8 @@ module SummaryGeneration
       else
         raise ActiveRecord::RecordNotFound
       end
-      task = Snapshot.latest(user: @user, target_kind: @kind, target_id: target_id)
-      success({ ai_task: task, stale: !!task && !task.accepted? && Snapshot.stale?(user: @user, task: task) })
+      task = SourceReferences.latest(user: @user, target_kind: @kind, target_id: target_id)
+      success({ ai_task: task, stale: !!task && !task.accepted? && SourceReferences.stale?(user: @user, task: task) })
     rescue ActiveRecord::RecordNotFound
       failure([ "Record not found" ])
     end

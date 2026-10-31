@@ -22,6 +22,7 @@ os.environ["MCP_TOOLS_URL"] = "http://127.0.0.1:9/mcp"
 import pytest
 from pydantic_ai import models
 
+from database.tailoring_sources import TailoringSources
 from tests.fakes import FakeFileStorage, FakeGapAnalysisContextReader, FakeJobSite
 from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
@@ -129,4 +130,8 @@ def task_dependencies(
         file_storage=fake_file_storage,
         http_client=fake_job_site.build_client(),
         read_gap_analysis_context=fake_context_reader,
+        read_task_command=lambda task: task,
+        read_tailoring_sources=lambda task, user, job, analysis: (
+            TailoringSources(context, {}, None, [])
+            if (context := fake_context_reader(user, job)) is not None else None),
     )

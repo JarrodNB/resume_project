@@ -3,6 +3,7 @@
 No provider client is constructed until service enablement and credentials pass.
 Readiness exposes stable setup reasons, never credentials or exception contents.
 """
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
@@ -50,6 +51,11 @@ def create_app():
         if configured is None:
             yield
             return
+        from database.chat_inputs import build_chat_input_reader
+        from database.interview_inputs import build_interview_input_reader
+        from settings import AISettings
+        database_settings = AISettings()
+        app.state.database_settings = database_settings
         from chat.client import RailsChatClient
         from chat.models import ChatModels
         from interviews.audio_providers import AudioProviders
@@ -71,9 +77,11 @@ def create_app():
             app.state.capture_owner = CaptureOwner(rails)
             with httpx.Client(trust_env=False, timeout=15, follow_redirects=False) as storage:
                 executor = RealInterviewExecutor(rails, audio=audio, models=models,
+                    input_reader=build_interview_input_reader(database_settings),
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
                 runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(rails, executor),
-                                          "chat": ChatExecutionAdapter(chat_rails, chat_models)})
+                                          "chat": ChatExecutionAdapter(chat_rails, chat_models,
+                                              input_reader=build_chat_input_reader(database_settings))})
                 app.state.execution_runner = runner
                 async with optional_streaming(app, runner,
                         enabled=os.getenv("AI_STREAMING_ENABLED") == "true",
@@ -107,6 +115,14 @@ def create_app():
         runner = getattr(app.state, "execution_runner", None)
         is_ready = bool(runner and runner.ready)
         reason = getattr(app.state, "reason", "runtime_disabled") or "execution_unavailable"
+        if is_ready:
+            from database.chat_inputs import chat_database_ready
+            from database.interview_inputs import interview_database_ready
+            is_ready = await asyncio.to_thread(interview_database_ready, app.state.database_settings)
+            if is_ready:
+                is_ready = await asyncio.to_thread(chat_database_ready, app.state.database_settings)
+            if not is_ready:
+                reason = "database_unavailable"
         return JSONResponse({"ready": is_ready, **({} if is_ready else {"reason": reason})},
                             status_code=200 if is_ready else 503)
 

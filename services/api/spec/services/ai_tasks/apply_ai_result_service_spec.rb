@@ -35,6 +35,28 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(other.reload.screened_fields).to eq([])
   end
 
+  it "persists exact live gap-response receipts for reference-only tailoring, including failed generation" do
+    job = create(:job)
+    task = create(:ai_task, user: job.user, subject: job, task_type: "tailor_resume",
+      input: { "job_id" => job.id, "analysis_task_id" => nil, "include_summary" => true })
+    fresh = create(:job_gap_response, job: job, requirement: "Python", body: "Built services")
+    stale = create(:job_gap_response, job: job, requirement: "Ruby", body: "Old answer")
+    other_job = create(:job_gap_response, job: create(:job, user: job.user))
+    foreign = create(:job_gap_response)
+    reports = [fresh, stale, other_job, foreign].map do |response|
+      { "record_type" => "gap_response", "record_id" => response.id,
+        "fingerprints" => { "body" => fingerprint(response.body) } }
+    end
+    stale.update!(body: "Edited after screening")
+    message = { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Writer failed",
+      "record_screening" => reports }
+
+    2.times { expect(described_class.call(message: message)).to be_success }
+
+    expect(fresh.reload.screened_fields).to eq(["body"])
+    [stale, other_job, foreign].each { |response| expect(response.reload.screened_fields).to eq([]) }
+  end
+
   it "does not approve older-format library reports without a matching fingerprint" do
     project = create(:project, user: ai_task.user)
     reports = [ { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] },

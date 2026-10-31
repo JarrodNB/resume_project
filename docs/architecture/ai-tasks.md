@@ -23,27 +23,35 @@ Task execution and the contracts between Rails and Python workers.
 6. When the user answers, Rails publishes a distinct follow-up task with the owned stored
    message history and newest answer. The worker resumes with `DeferredToolResults`.
 
-Missing-summary generation uses `generate_summary`. The user explicitly requests a profile
-or saved-resume summary; Rails freezes owned labeled career fields under its enqueue owner lock and stores
-a substantive source digest. Career-context requirements are context, not qualification
-evidence, so only responses are supplied. Before any provider call, the worker checks the
-fully rendered, privacy-masked generation prompt against the 120,000-character prompt cap.
-Each library source carries its record id; the label names the record type and field. Ids
-stay out of the digest and the 180,000-byte input cap (1000 ids still fit one SQS message). Unknown
-fields go through the shared `screen_records` batching within the existing 80,000-character
-per-call cap, counting privacy expansion. A later batch rejection or outage prevents
-generation and retains usage from all attempted batches. Length failures are reported as
-limits rather than unsafe content. The worker reuses exact saved approvals, renders readable
-source blocks, and returns cited text as a proposal. New library checks come back as
-`record_screening` receipts; Rails saves one only when its fingerprint matches both the
-frozen snapshot value and the live value, so changed live fields are never approved.
-Saved-resume copies have no record id and are never approved. Generation does not write
-profile or resume text.
+Missing-summary generation uses `generate_summary`. Rails saves a versioned command with
+owned target IDs, citation labels, source row/section identities and exact field fingerprints.
+It stores no source text. The worker reads the current owned profile library or saved-resume
+sections through `ai_reader`, in a consistent transaction, and requires the identities and
+hashes to match before any provider work. Career-context requirements are context, not
+qualification evidence, so only responses are supplied. Identity replacement and source edits
+make old work stale even when labels remain the same.
+
+Evidence is bounded to 1000 labeled fields and 180,000 bytes of transient label/text data.
+Before classification, the worker checks the fully rendered, privacy-masked generation prompt
+against the 120,000-character cap. Unknown fields use shared `screen_records` batching within
+the 80,000-character per-call cap, counting privacy expansion. A later rejection/outage prevents
+generation and retains attempted usage. Exact saved field approvals are reused. New library
+checks return as `record_screening` receipts; Rails checks the referenced identity/fingerprint
+and locks the current owned row before approving it. Resume fields never produce library
+approvals. Generation returns a cited proposal and never writes profile or resume text.
+
 Saved-resume evidence comes only from its own non-contact, non-summary career sections,
-independent of the current library and any deleted job. Only exact generated highlights
-and project prose in owned accepted tailoring results skip screening; copied fields and
-unknown or edited text remain subject to screening. SQL selects matching generated values
-without loading historical task bodies into application memory.
+independent of the current library or deleted job. Only exact generated experience highlights
+and project descriptions in owned, completed, accepted tailoring results skip screening.
+The non-materialized `ai_accepted_resume_prose` view exposes only owner ID and those generated
+strings, without granting task results or history to the worker. Copied education, identities,
+skills and changed prose remain untrusted.
+
+Old retained copied-source commands are stale and cannot be executed or accepted under the
+new contract. The worker rejects them before classification/generation. The user can discard
+an old draft or explicitly start a fresh request; nothing automatically replays paid work.
+Previously accepted summaries remain unchanged. Deploy the summary-capable worker and
+`db:grant_ai_reader_access` grants before deploying the new summary producer.
 
 `summaryGeneration` restores the latest task and freshness. Start reuses matching pending
 work or unaccepted proposals; failed/discarded/stale work can start anew. Accept/discard are
@@ -60,22 +68,39 @@ screening provenance. Inclusion preferences do not change source freshness and a
 changed by generation or acceptance. Existing task allowance, post-commit queue publication,
 subscriptions, terminal-result fencing and independently deduplicated late usage apply.
 
-Individual library editing uses `improve_library_entry`. Input captures one owned summary, role description/highlight, project description, or fact-response target,
-its role context and digest, feedback, root/previous task IDs, turn, and private saved history.
+Individual library editing uses `improve_library_entry`. Its command retains one owned summary,
+role description/highlight, project description, or fact-response target identity, context digest,
+field fingerprints, feedback, root/previous task IDs and turn. Python reads source context and
+private saved history directly.
 The browser sends only target/previous IDs and new feedback or a skip; it cannot supply history.
-Results are either one pending question plus history, or `{text, color, reason}` plus history.
+Results are either one pending question or `{text, color, reason}`, plus only this turn's new
+generated fragment. Source/user requests and previous dialogue never return in callbacks.
 Rails validates bounded output; accepting updates only the exact target when source/context
 still match, marks `accepted_at`, and adds an assessment for the accepted content digest.
 Completed/paused editing tasks cannot be reopened or replaced by late results; follow-ups
 get their own IDs and normal usage accounting. Exchanges allow at most eight turns and
-180,000 input bytes; saved history is capped at 100,000 bytes. Other task contracts are unchanged.
+180,000 input bytes; generated state across the owned chain is capped at 100,000 bytes.
+Other task contracts are unchanged.
 
 ## Queue Messages
 
 Both are JSON. The Python side validates them with Pydantic (`services/ai/worker/queue_messages.py`).
 
 - `ai_tasks` (published by `AiTasks::EnqueueAiTaskService`):
-  `{ai_task_id, user_id, task_type, input}`
+  `{schema_version: 1, ai_task_id, user_id, task_type}`. No source text, saved history or
+  model fields are carried on the execution queue. Before tracing, accounting or handler
+  execution Python reads the durable command from `ai_tasks` through `ai_reader`, matching
+  task ID, owner, type and `queued` status. Missing, foreign, mismatched and terminal
+  deliveries are acknowledged without publishing outcomes or usage. Database failures
+  leave messages for retry. Handler inputs remain compatible during the staged migration;
+  later feature changes remove their stored source copies in favor of owned record IDs.
+  Legacy unversioned envelopes are accepted, but their input is ignored in favor of the
+  database command. Unknown versions and versioned envelopes with input are rejected.
+
+  Deploy the new readers and grants **before** deploying the identity-only Rails publisher.
+  Drain/replace every old worker first: old workers default missing input to an empty object
+  and cannot consume the new format safely. New readers support old producers, but new
+  producers with old readers are unsupported. Roll back Rails producers before workers.
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
   message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, record_screening}`.
@@ -97,7 +122,8 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   (Ruby `JSON.generate`, Python `ensure_ascii=False`, compact separators). Rails checks
   the current value under a row lock and the frozen task value where applicable.
   Unknown types, foreign rows, stale or missing fingerprints and malformed receipts are ignored.
-  Summary and library review/edit receipts must match their frozen source snapshots.
+  Library review/edit receipts must match admission field fingerprints and current owned fields.
+  Summary receipts retain their workflow-specific source checks.
   Successful checks survive later generation failure; usage-only and finished-task
   redelivery cannot restore an edited field's approval. All result writes lock the owner
   before the task and domain rows. Text edits reload under their row lock and use the
@@ -121,13 +147,16 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
 
 Per task type:
 
-- `rerank_job_listings`: input `{keyword, listings: [{id, text}]}` is a Rails-owned snapshot
-  of 1–100 shared catalogue listings, bounded to 200,000 UTF-8 JSON bytes. The worker embeds
-  listing excerpts and uses only this owner's model-matched career-library embeddings for
-  semantic order, fused equally with submitted-keyword BM25 (RRF k=60). The completed
-  result is `{ranked_listing_ids: [...]}`; Rails rejects anything except an exact permutation
-  of the snapshot IDs. Existing task budgets, attempt costs, subscriptions and duplicate
-  completion handling apply. No catalogue-table grant or generative model is introduced.
+- `rerank_job_listings`: durable input `{keyword, listing_ids: [...]}` selects 1–100
+  shared catalogue listings. The worker verifies the queued task's owner and type, then
+  reads only catalogue `id`/`payload` columns and builds current readable excerpts locally:
+  at most 6,000 UTF-8 bytes each and 140,000 total, with a 200,000-byte serialized cap.
+  Legacy commands retain their selected IDs; copied text is ignored. Missing listings fail
+  before embedding. The worker uses only this owner's model-matched career-library vectors
+  for semantic order, fused equally with submitted-keyword BM25 (RRF k=60).
+  Results contain only `{ranked_listing_ids: [...]}`; Rails accepts an exact permutation
+  of the selected IDs. Budgets, attempt costs, subscriptions and duplicate completion
+  handling remain unchanged. No generative model is used.
 
 - `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
   Active Storage blob key in the S3 uploads bucket. The completed result is
@@ -227,14 +256,14 @@ Per task type:
   resume blocks new generation; after deletion, an explicit start creates a fresh task. See
   [tailoring decisions](career-library.md#decisions) for preparation and failure behavior.
 
-- `generate_interview_questions`: input `{question_set_id, set_number, set_type, avoided_questions, recent_questions}`; the subject is an
+- `generate_interview_questions`: input `{source_version: 1, question_set_id, set_number, set_type}`; the subject is an
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
   `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
-  Rails snapshots at most 20 recent owned same-type question texts, newest set first and
-  then slot order, as `recent_questions`. This optional field defaults to empty for older
-  tasks. The worker renders it as soft variety guidance, separate from hard exclusions
-  (`avoided_questions` and replacement siblings) and career evidence. History overlap adds
-  no validation or retries. Answers and feedback never enter this snapshot.
+  Python validates the queued task/subject/owner and reads at most 20 recent active owned
+  same-type questions, newest set first and then slot order, plus current owned avoidance
+  preferences. Recent questions are soft variety guidance, separate from hard exclusions
+  and career evidence. History overlap adds no validation or retries. Answers and feedback
+  are not read. Retained commands also use database sources, ignoring copied history.
   Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
   `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and
   `initiative_judgment` for general sets,
@@ -252,16 +281,27 @@ Per task type:
   Deploy the compatible Rails consumer before the updated AI worker, since older Rails
   rejects the new categories. For rollback, restore the older worker before removing Rails
   compatibility. Existing saved questions and answers need no migration or rewrite.
-- `regenerate_interview_question`: input `{question_set_id, question_id, question_text,
-  answer_text, question_revision, answer_revision, other_questions, set_type}`; the subject is the
-  selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
-  The worker uses the current library and returns the same question result shape with one
-  draft, excluding both the old question and the other four.
+- `regenerate_interview_question`: input `{source_version: 1, question_set_id, question_id,
+  question_revision, answer_revision, peer_revisions, set_type}`; the subject is the
+  selected `InterviewQuestion`. `peer_revisions` maps the other four active question IDs to
+  their question revisions. Python reads current owned slots, preferences and library,
+  returning the same question result shape with one draft, excluding all five saved
+  questions. Changed target/peer revisions fail before generation and during application.
+  Retained commands validate current target/peer wording/revisions without using their
+  copied sources in prompts. Deploy readers/grants before reference-only producers.
   General replacements use behavioral themes, not another introduction or role motivation,
   even in old saved sets; the worker retries an introduction category. Older in-flight single
   replacements with legacy categories remain accepted. Other saved slots are untouched.
-- `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
-  question_revision, answer_revision, set_type}`; the subject is the selected `InterviewQuestion`.
+- `review_interview_answer`: input `{source_version: 1, question_set_id, question_id,
+  question_revision, answer_revision, set_type, normalized_answer_sha256}`; the subject is
+  the selected `InterviewQuestion`. Python reads that owned active question's saved answer
+  and current approvals. Changes before the read fail before paid work; edits after the
+  read preserve feedback attribution to the commanded revisions without overwriting the
+  current answer. The digest preserves formatting-only freshness without a text copy.
+  Retained commands must match current owned text/revisions; their source copies never
+  become model input. Deploy readers/grants and the compatible result consumer before
+  reference-only producers. Exact current fingerprint/revision receipts persist for the
+  selected answer on success or failure; stale/foreign/unselected receipts are ignored.
   The result is `{interview_feedback: {strengths, improvements, example_answer,
   evidence_quotes}, warnings: [...]}`. Strengths and improvements are lists of coaching
   statements; personal examples use square-bracket placeholders for missing facts. Knowledge
@@ -353,21 +393,40 @@ edit. Blank fields are omitted; nonblank answers are stored in question order fo
 The scalar `answer:` argument remains supported for older clients and means question index zero;
 it cannot be combined with `answers:`.
 
-A batch input adds `review_question: {review_task_id, answers: [{question_index, question, answer}]}`
-to the existing edit contract. Each answer has its own prose cap; they are not flattened into the
-standalone `feedback` field. Its 4,000-character cap and the 180,000-byte task input cap remain.
-Legacy tasks with `review_question: {review_task_id, question}` and their answer in `feedback`
-still work. Browser input never supplies generated question text or model history. Without saved
-history, the worker screens each answered field and renders labeled question/answer pairs;
-with owned saved history, only new feedback needs screening. Generated questions are trusted
-context, not evidence that a premise happened. Omitted questions never become unknown-outcome
-claims. This mode disables deferred questions on every linked turn; Rails rejects paused results.
+Review answers store `review_question: {review_task_id, answers: [{question_index, answer}]}`
+only on the root edit task. Python resolves generated question text from that owned completed
+review. Single legacy browser answers normalize to the same indexed command. Children carry
+root/previous task IDs, latest feedback/skip and deferred tool identity; they never copy root
+answers, source context or prior model history. Each owned chain has at most eight turns.
+
+Python loads only the selected owned record context and rejects changed context digests before
+provider work. It reads prior successful/paused model history through the read-only
+`ai_library_exchanges` security-barrier view, which exposes only necessary fields for library
+review/edit tasks. General task outputs, authentication and accounting columns remain hidden.
+Each task stores only its own new generated provider messages and necessary application
+retry/output acknowledgements. Result callbacks never contain previous conversation, source
+prompts, user feedback, deferred user answers, or reconstruction markers. Python rebuilds
+provider dialogue in order from the bounded owned parent tasks, canonical command feedback
+and generated fragments. Failed attempts supply no accepted dialogue. Current source fields
+are rendered directly as readable labeled text, after the context digest fence.
+Retained cumulative legacy histories discard all copied user/source requests and subtract the
+exact already-owned generated prefix; inconsistent prefixes fail safely before provider work.
+Rails rejects source/user-request callback fragments instead of persisting copied history.
+`library-edit-v10` records this generated-fragment reconstruction path.
+Saved generated questions/history retain exact trusted provenance; only new unchecked user
+sources need screening. Review-answer mode disables further questions on all linked turns.
 
 Canonical equivalent batches reuse the latest turn for that origin; different answers and unrelated
 active drafts conflict. Failed batches can retry with empty new feedback using their owned saved
 pairs, without claiming that the user skipped a question. Ordinary continuations still need feedback
-or an explicit skip. Later editing feedback preserves the batch and uses existing private history.
-Acceptance/discard retain normal closed-task and late-result protections.
+or an explicit skip. Acceptance retains owner/record/task locks, unchanged context digests, exact
+field receipts, closed-task protections and replay-safe embedding synchronization.
+
+Deploy the library-exchange view/grants before updated workers, then roll all workers before
+new edit producers. Retained legacy commands still resolve current owned source data and saved
+owned history through the reader; copied source/history fields in old inputs are ignored, not
+replayed or trusted as the execution source. Changed/deleted/foreign context fails safely without
+provider work. Existing finished drafts remain acceptable only with their original digest fence.
 
 `libraryReview` assessment `reviewTaskId` identifies the completed source review independently
 of the latest section task. Accepted or discarded review-answer questions are retired; old
@@ -420,3 +479,16 @@ cursor, not task contents. Without usable storage or Web Locks, live notices con
 but reload recovery or cross-tab duplicate prevention depends on the facilities still
 available. Online and visibility events retry recovery without polling. Signing out
 or replacing the account stops its feed and discards its mounted notice state.
+
+### Resume tailoring sources
+
+New `tailor_resume` commands contain `job_id`, optional `analysis_task_id`, and
+`include_summary`. Python reads current owned job/library, profile contact and gap responses
+in one consistent transaction. A selected comparison must be completed gap-analysis output
+for the same owner and job; its narrow nonmaterialized view exposes no other task results.
+Gap-response screening receipts keep exact saved identity/value fingerprints. Existing draft,
+save, summary visibility and one-resume locking behavior is unchanged.
+
+Retained queued commands may still contain old contact/comparison/answer copies. The worker
+ignores those fields and reads current owned sources; without a comparison ID it omits the
+optional historical comparison. It never reopens completed/accepted tasks or replays paid work.

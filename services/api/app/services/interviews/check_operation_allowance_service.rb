@@ -32,7 +32,7 @@ module Interviews
             task.subject == interview && task.task_type == "interview_#{@operation.kind}" &&
             task.hourly_admission_task_id == root.id && task.input["operation_id"] == @operation.id
         end
-      elsif preparation || interview.frozen_context.present? || @operation.ai_task&.hourly_admission_task_id
+      elsif preparation || @operation.ai_task&.hourly_admission_task_id
         return failure("Interview admission is invalid")
       end
       AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task, interview: true)

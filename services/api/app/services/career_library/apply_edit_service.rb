@@ -14,12 +14,30 @@ module CareerLibrary
         result["reason"].strip.present? && result["reason"].length <= 240
     end
 
+    # Each callback carries only this turn's new generated state. Canonical source,
+    # feedback and deferred answers stay in owned records/commands and are rebuilt.
+    def self.generated_history?(history)
+      history.is_a?(Array) && history.all? do |message|
+        next false unless message.is_a?(Hash) && message["parts"].is_a?(Array)
+        if message["kind"] == "response"
+          message["parts"].all? { |part| part.is_a?(Hash) && part["part_kind"] != "user-prompt" }
+        elsif message["kind"] == "request"
+          !message.key?("instructions") && message["parts"].any? && message["parts"].all? do |part|
+            part.is_a?(Hash) && (part["part_kind"] == "retry-prompt" ||
+              part["part_kind"] == "tool-return" && part["tool_name"] != "ask_user")
+          end
+        else
+          false
+        end
+      end
+    end
+
     def call
       if @task.input["review_question"] && @message["status"] != "completed"
         return failure([ "The review answer did not produce a proposal. Please try again." ])
       end
       history = @message["message_history"]
-      valid = history.is_a?(Array) && history.to_json.bytesize <= 100_000
+      valid = self.class.generated_history?(history) && history.to_json.bytesize <= 100_000
       if @message["status"] == "completed"
         valid &&= self.class.valid_proposal?(@message["result"], @task.input.fetch("target"))
       else

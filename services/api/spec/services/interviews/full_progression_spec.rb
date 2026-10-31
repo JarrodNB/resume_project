@@ -76,49 +76,6 @@ RSpec.describe "Complete prepared interview" do
     expect(legacy.questions.first.accepted_answer_count).to eq(2)
   end
 
-  it "claims only earlier accepted public dialogue in chronological question groups" do
-    session = interview
-    answer(session)
-    answer(session, decision: "advance")
-    first = session.questions.first
-    first.update!(model_history: [ { "secret_tool_trace" => "never public" } ])
-    question = session.questions.find_by!(position: 1)
-    operation = Interviews::SubmitTurnService.call(interview: session, question_id: question.id,
-      recording_id: ready_interview_recording(session, question: question).id,
-      expected_revision: session.revision, submission_key: "earlier").value
-    result = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
-    dialogue = result.value.fetch(:payload).fetch(:earlier_dialogue)
-    expect(dialogue.fetch(:version)).to eq(1)
-    expect(dialogue.fetch(:omitted_question_positions)).to eq([])
-    expect(dialogue.fetch(:groups)).to eq([ { question_position: 0, messages: [
-      { kind: "opening", content: first.content },
-      { kind: "answer", content: "I checked the instrument." },
-      { kind: "follow_up", content: "How did you check it?" },
-      { kind: "answer", content: "I checked the instrument." }
-    ] } ])
-    expect(result.value.fetch(:payload).fetch(:model_history)).to eq([])
-  end
-
-  it "omits whole oversized groups and prioritizes recent groups under the exact character cap" do
-    session = interview
-    4.times { answer(session, decision: "advance") }
-    old = session.questions.find_by!(position: 0)
-    middle = session.questions.find_by!(position: 1)
-    recent = session.questions.find_by!(position: 3)
-    session.messages.find_by!(question: old, kind: "answer").update!(content: "x" * 12000)
-    session.messages.find_by!(question: middle, kind: "answer").update!(content: "x" * 11900)
-    session.messages.find_by!(question: recent, kind: "answer").update!(content: "x" * (12000 - recent.content.length))
-    question = session.questions.find_by!(position: 4)
-    operation = Interviews::SubmitTurnService.call(interview: session, question_id: question.id,
-      recording_id: ready_interview_recording(session, question: question).id,
-      expected_revision: session.revision, submission_key: "bounded").value
-    result = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
-    context = result.value.fetch(:payload).fetch(:earlier_dialogue)
-    expect(context.fetch(:groups).pluck(:question_position)).to eq([ 3 ])
-    expect(context.fetch(:omitted_question_positions)).to eq([ 0, 1, 2 ])
-    expect(context.fetch(:groups).flat_map { |group| group[:messages] }.sum { |message| message[:content].length }).to eq(12000)
-  end
-
   context "with twelve configured main questions" do
     let(:question_count) { 12 }
 
@@ -131,7 +88,8 @@ RSpec.describe "Complete prepared interview" do
         expected_revision: session.revision, submission_key: "last-of-twelve").value
       claim = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
       expect(claim).to be_success
-      expect(claim.value.dig(:payload, :earlier_dialogue, :groups).size).to eq(11)
+      expect(session.messages.answer.count).to eq(11)
+      expect(claim.value.fetch(:payload)).not_to have_key(:earlier_dialogue)
       result = Interviews::AcceptTurnService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, transcript: "I maintained instruments.",
         decision: "advance", reply: nil, history_version: 1, model_history: [])
@@ -141,16 +99,14 @@ RSpec.describe "Complete prepared interview" do
     end
   end
 
-  it "claims prepared context with separate personal and fictional provenance" do
+  it "claims only identities and choices for prepared turns" do
     session = interview
     question = session.questions.first
     operation = Interviews::SubmitTurnService.call(interview: session, question_id: question.id,
       recording_id: ready_interview_recording(session).id, expected_revision: session.revision, submission_key: "context").value
     result = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
     expect(result).to be_success
-    context = result.value.fetch(:payload).fetch(:interview_context)
-    expect(context.fetch(:personal_evidence)).to eq(session.frozen_context)
-    expect(context.fetch(:fictional_role)).to eq(session.prepared_role)
-    expect(result.value.fetch(:payload)).not_to have_key(:fixture_context)
+    expect(result.value.fetch(:payload)).to include(interview_id: session.id, user_id: session.user_id)
+    expect(result.value.fetch(:payload).keys).to match_array([ :version, :interview_id, :user_id, :setup ])
   end
 end

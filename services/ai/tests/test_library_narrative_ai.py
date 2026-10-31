@@ -1,11 +1,14 @@
 """Review and improve each new narrative target through the real offline task interface."""
 
+from dataclasses import replace
 from uuid import uuid4
 
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from schemas.library_edit import LibraryEditInput
 from screening.screen_user_text import ScreenOutcome
+from tests.test_library_review_handler import handle_loaded_review
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -52,7 +55,7 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Clarify the specific contribution."},
     ]})):
-        reviewed = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
+        reviewed = handle_loaded_review(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
             task_type="review_library_section", input=payload), task_dependencies)
     assert reviewed.status == "completed"
     assert reviewed.result["assessments"][0]["record_id"] == payload["target"]["record_id"]
@@ -61,7 +64,8 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
         "text": "Clearer wording using only the supplied facts.", "color": "yellow", "reason": "Add the outcome if known.",
     })):
         edited = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
-            task_type="improve_library_entry", input=payload), task_dependencies)
+            task_type="improve_library_entry", input=payload),
+            replace(task_dependencies, read_library_edit=lambda task: LibraryEditInput.model_validate(task.input)))
     assert edited.status == "completed"
     assert screened == [payload["feedback"]]
 
@@ -71,5 +75,5 @@ def test_other_sections_cannot_hitchhike_into_narrative_review(section, task_dep
     payload = narrative_input(section)
     payload["library"]["skills"] = [{"id": "skill-1", "name": "Unrelated text"}]
     with pytest.raises(ValueError, match="selected section"):
-        handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
+        handle_loaded_review(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
             task_type="review_library_section", input=payload), task_dependencies)

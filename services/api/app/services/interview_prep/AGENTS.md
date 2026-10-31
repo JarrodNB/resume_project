@@ -6,15 +6,15 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 
 ## Contents
 
-- `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks, snapshotting up to 20 recent same-type generated question texts as soft variety guidance.
-- `record_screening_service.rb` — accepts exact owned target/sibling snapshot reports and
+- `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks, using only set identity/type/number. Python reads up to 20 recent same-type generated questions as soft variety guidance.
+- `record_screening_service.rb` — delegates exact owned target/sibling receipt reports and
   records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when text changes.
-- `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues revision snapshots.
+- `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues replacement/feedback identity/revision commands.
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.
 - `apply_questions_service.rb` — validates generation/replacement drafts and task identity/revisions, then persists atomically inside the owner/task transaction, retiring an answered copy on replacement.
 - `apply_feedback_service.rb` — validates task ownership/identity and coaching shape; stores reviewed revisions while preserving answers.
-- `feedback_outdated_service.rb` — checks revision freshness against completed task snapshots, ignoring capitalization and whitespace edits.
+- `feedback_outdated_service.rb` — checks revisions and normalized answer digests against completed feedback, ignoring capitalization and whitespace edits.
 - `sync_question_embedding_service.rb` — embeds one owned saved Q&A, masks outbound contact, serializes duplicates, and rejects changed/deleted sources after provider work.
 
 ## Local Rules
@@ -39,9 +39,13 @@ User-owned interview practice business logic. Follow parent Rails/service instru
   screens user-written answers and trusts Rails-owned generated question text when reused,
   including during feedback and regeneration. Answer checks depend on both revisions; actual
   answer edits clear them. Successful replacement clears checks for both fields.
-- Queue snapshots keep legacy source strings and add primary checks/aligned sibling snapshots.
-  These are Rails-owned generated questions; the worker trusts them as generated context even
-  when old sibling metadata is absent. Failed final generation still records successful answer
-  and library source checks.
+- Generation/replacement/feedback commands carry only IDs, type/number, target/peer revisions
+  and (for feedback) a normalized answer digest.
+  Python reads saved generated sources and preferences directly. Retained replacement
+  copies validate current sources but never become model input. The shared recorder accepts
+  receipts only for selected owned IDs with current fingerprints/revisions; answers are
+  never approved by replacement tasks. Feedback reads the owned saved answer and current
+  approvals at its commanded revisions; later edits keep coaching attributed to the old
+  revisions without changing the saved answer.
 
-- `avoid_question_service.rb` saves the selected question revision as a shared account preference without changing answers. Generation/replacement snapshot all avoided questions under the owner lock; result application rejects exact repeats against that snapshot.
+- `avoid_question_service.rb` saves the selected question revision as a shared account preference without changing answers. Python reads all owned avoided questions; result application rejects exact repeats against current preferences.

@@ -107,9 +107,9 @@ RSpec.describe Interviews::CleanupService do
     interview.questions.first.update!(model_history: [ { "text" => "secret" } ])
     interview.messages.first.update!(acknowledgement: "You described a private answer detail.")
     interview.update!(expires_at: 1.second.ago,
-      frozen_context: { "career_focus" => "Private focus", "screened_career_focus_sha256" => "a" * 64 })
+      career_focus: "Private focus")
     expect(described_class.call(storage: storage).value[:purged_sessions]).to eq(1)
-    expect(interview.reload).to have_attributes(status: "expired", fixture_context: {}, frozen_context: {})
+    expect(interview.reload).to have_attributes(status: "expired", fixture_context: {}, career_focus: "")
     expect(interview.content_purged_at).to be_present
     expect(interview.messages.pluck(:content).uniq).to eq([ "[expired]" ])
     expect(interview.messages.pluck(:acknowledgement).compact).to be_empty

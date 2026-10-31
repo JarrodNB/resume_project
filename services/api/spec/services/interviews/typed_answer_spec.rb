@@ -17,7 +17,8 @@ RSpec.describe "Typed interview answers" do
     expect(operation.reload.delivery_job_id).to be_present
     claim = Interviews::ClaimOperationService.call(operation: operation)
     expect(claim).to be_success
-    expect(claim.value.fetch(:payload)).to include(candidate_transcript: text, recording_id: nil, transcription_mode: "typed")
+    expect(claim.value.fetch(:payload)).to include(interview_id: interview.id, user_id: interview.user_id)
+    expect(operation.reload).to have_attributes(candidate_transcript: text, recording_id: nil, transcription_mode: "typed")
     accepted = { operation: operation, **claim.value.slice(:attempt_id, :claim_generation), transcript: text,
       decision: "continue", reply: "How did you verify that?", history_version: 1, model_history: [] }
     2.times { expect(Interviews::AcceptTurnService.call(**accepted)).to be_success }

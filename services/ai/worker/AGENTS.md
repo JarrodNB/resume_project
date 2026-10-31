@@ -25,6 +25,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   visibility expires. Repeated stop signals do not interrupt cleanup. Local Compose allows
   30 seconds for shutdown. SIGKILL and native code that delays Python signal handling can
   still leave pending spans; flushing cannot close a span whose context never unwinds.
+- `../database/task_commands.py` loads an owned queued durable command before capture,
+  usage or dispatch; both legacy and v1 notifications use database input.
 - `queue_messages.py` — Pydantic models for `ai_tasks` and `ai_results` messages (keep them in
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types
@@ -108,9 +110,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 
 - `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Rails-owned generated question text is trusted when reused as exclusions. Saved career context includes screened requirement context to clarify responses. Only responses receive evidence IDs or quote coverage; requirements cannot establish personal qualifications.
-  Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
-  Replacement exclusions come from the Rails-owned question-set snapshot; legacy sibling
-  metadata is retained for compatibility but is not needed to trust generated question text.
+  Commands carry set IDs/type and replacement target/peer revisions. The injected
+  `database/interview_questions.py` reader checks queued task/owner/subject and loads current
+  generated sources. Retained copies are freshness checks only, never prompt sources.
 
 - `interview_feedback_handler.py` — reuses saved question/answer checks or screens pending
   answer checks before model use, trusts the Rails-owned generated question, screens library
@@ -120,9 +122,12 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 
 - `library_review_handler.py` — screens only unchecked fields of a Rails-owned selected-section
-  snapshot (Summary, Experience, Projects, or Career context), renders plain labeled records, maps assessment labels back to target identities,
+  section (Summary, Experience, Projects, or Career context) read directly through
+  `database/library_review_reader.py`. Reference commands contain IDs and digests only;
+  changed sources fail before model work. It renders plain labeled records, maps assessment labels back to target identities,
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
-- `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
+- `library_edit_handler.py` — loads its owned execution context through `database/library_edit_reader.py`,
+  screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
   are not classified. A Rails-owned `review_question` adds generated guidance to a new
   answer task or a paired-answer batch and disables further deferred questions, including on
@@ -130,12 +135,12 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   questions are not. Saved history restores coverage so later feedback does not rescreen old pairs.
   Source/input/history/turn caps bound every exchange.
 
-- Written question tasks accept `avoided_questions` and replacement questions as Rails-owned generated text. Reuse trusted-generated-source coverage for these exact task snapshot values, including legacy sibling strings without identity metadata; never screen our own generated questions or drop exclusions at the prompt cap.
-  Full-set tasks also accept optional Rails-owned `recent_questions` as prompt-only variety
-  guidance. Trust that generated text, keep it separate from exclusions/evidence, and never
-  add overlap validation or retries.
+- Written question generation/replacement reads owned saved preferences and generated
+  active slots directly. Trust those exact database values without rescreening generated
+  text. Recent same-type questions are bounded soft context, separate from hard exclusions
+  and career evidence; never add overlap retries or drop exclusions at the prompt cap.
 
-- `study_guide_handler.py` — validates a frozen description and returns bounded guide material without injection classification without reading career-library data or reusing saved-job approvals.
+- `study_guide_handler.py` — loads current owned job text and successful prior question prompts by durable task identity; returns bounded guide material and a source fingerprint without injection classification, source copies, or career-library reads.
 
 - `rerank_job_listings_handler.py` — optional loaded-listing reranking. Embeds the bounded
   Rails-owned excerpt batch once through Pydantic AI, reuses the owner/model-scoped
@@ -150,4 +155,4 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   before the database rename. User prose, history strings and source digests remain exact;
   ordinary handlers and schemas use only canonical career-context names.
 
-- `summary_generation_handler.py` — frozen owned facts, exact saved screening reuse, batched unknown-field checks, readable prompts and cited proposals; no domain writes.
+- `summary_generation_handler.py` — resolves reference-only commands through the owned database reader, verifies source hashes before paid work, reuses exact saved approvals, screens unchecked fields and returns cited proposals; no domain writes. Old copied-source commands fail safely.

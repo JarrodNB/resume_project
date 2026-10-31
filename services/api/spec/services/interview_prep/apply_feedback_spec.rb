@@ -68,6 +68,60 @@ RSpec.describe "Applying interview answer feedback" do
     end
   end
 
+  context "with reference-only feedback commands" do
+    let(:task) do
+      legacy = feedback_task
+      legacy.update!(input: legacy.input.except("question_text", "answer_text").merge(
+        "source_version" => 1, "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text)))
+      legacy
+    end
+
+    it "stores feedback once against the requested revisions without source copies" do
+      2.times { apply }
+      expect(task.reload).to have_attributes(status: "completed", cost_microdollars: 30)
+      expect(question.reload).to have_attributes(answer_text: "I organized a workshop.", feedback: feedback,
+        feedback_answer_revision: 2, feedback_question_revision: 1)
+      expect(task.input.keys).not_to include("answer_text", "question_text", "screened_fields")
+    end
+
+    it "keeps a later answer and attributes delayed feedback to the original revision" do
+      message
+      InterviewPrep::SaveAnswerService.call(question: question, answer_text: "New answer")
+      apply
+      expect(task.reload).to be_completed
+      expect(question.reload).to have_attributes(answer_text: "New answer", answer_revision: 3,
+        feedback: feedback, feedback_answer_revision: 2)
+      expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(true)
+    end
+
+    it "recognizes formatting-only edits using a digest rather than a reviewed answer copy" do
+      apply
+      InterviewPrep::SaveAnswerService.call(question: question, answer_text: " I ORGANIZED  a workshop. ")
+      expect(InterviewPrep::FeedbackOutdatedService.call(question: question.reload).value).to be(false)
+    end
+
+    it "rejects malformed or mismatched references while preserving earlier feedback" do
+      message
+      [ { "question_id" => SecureRandom.uuid }, { "question_set_id" => SecureRandom.uuid },
+       { "answer_revision" => 3 }, { "source_version" => 2 } ].each do |change|
+        target = feedback_task
+        target.update!(input: task.input.merge(change))
+        original = question.reload.attributes
+        apply(message.merge("ai_task_id" => target.id))
+        expect(target.reload).to be_failed
+        expect(question.reload.attributes).to eq(original)
+      end
+    end
+
+    it "rejects changed questions" do
+      message
+      question.update!(question_revision: 2)
+      apply
+      expect(task.reload).to be_failed
+      expect(question.reload.feedback).not_to eq(feedback)
+    end
+  end
+
   # Captures the same snapshot as feedback enqueueing.
   def feedback_task
     create(:ai_task, user: user, task_type: "review_interview_answer", subject: question,

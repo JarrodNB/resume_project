@@ -16,7 +16,7 @@ from llm.run_limits import agent_usage_limits
 from llm.usage import current_task_usage
 from memory.rerank_job_listings import hybrid_listing_order
 from privacy.contact_mask import mask_outbound
-from schemas.job_listing_reranking import RankedListings, RerankListingsInput
+from schemas.job_listing_reranking import RankedListings
 from screening.session import remaining_timeout
 from worker.queue_messages import AiResultMessage
 
@@ -48,8 +48,10 @@ async def _embed_listings(texts, settings):
 def handle_rerank_job_listings_task(task, dependencies):
     """Return an exact candidate permutation or a clear unavailable-library failure."""
     try:
-        snapshot = RerankListingsInput.model_validate(task.input)
-    except ValidationError:
+        snapshot = dependencies.read_reranking_input(task) if dependencies.read_reranking_input else None
+        if snapshot is None:
+            raise ValueError("Missing owned command or catalogue listing")
+    except (ValidationError, ValueError):
         return AiResultMessage(
             ai_task_id=task.ai_task_id,
             status="failed",

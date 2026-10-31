@@ -35,7 +35,7 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
         {"target_label": "T2", "color": "red", "reason": "Describe your contribution to the migration.",
          "questions": ["What did you personally do during the migration?", "How did you approach that work?", "What changed afterward, if anything?"]},
     ]})):
-        result = handle_ai_task(task, task_dependencies)
+        result = handle_loaded_review(task, task_dependencies)
 
     assert result.status == "completed"
     assert [(item["record_id"], item["color"]) for item in result.result["assessments"]] == [
@@ -59,6 +59,7 @@ def test_screening_covers_only_unchecked_source_not_generated_output(task_depend
     from agents.user_text_screen_agent import user_text_screen_agent
     from screening.session import screening_session
 
+    monkeypatch.setenv("TYPESAFE_API_KEY", "offline-test-key")
     seen = []
     def classify(messages, info):
         seen.append(messages[-1].parts[-1].content)
@@ -74,7 +75,7 @@ def test_screening_covers_only_unchecked_source_not_generated_output(task_depend
         {"target_label": "T1", "color": "yellow", "reason": "Generated advice one."},
         {"target_label": "T2", "color": "red", "reason": "Generated advice two."},
     ]})):
-        result = handle_ai_task(task, task_dependencies)
+        result = handle_loaded_review(task, task_dependencies)
         assert [(report.record_type, list(report.fingerprints)) for report in session.record_screening] == [
             ("experience_highlight", ["content"])]
     assert result.status == "completed"
@@ -93,7 +94,7 @@ def test_blocked_source_stops_before_generation(task_dependencies, monkeypatch):
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=payload)
     monkeypatch.setattr("screening.records.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False))
     with library_review_agent.override(model=TestModel()):
-        result = handle_ai_task(task, task_dependencies)
+        result = handle_loaded_review(task, task_dependencies)
     assert result.status == "failed"
     # The message names the entry that needs another look.
     assert result.error_message == "We couldn't use: Engineer at Acme. Review those entries and try again."
@@ -110,7 +111,7 @@ def test_too_long_source_is_not_reported_as_unsafe(task_dependencies, monkeypatc
     monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *_args, **_kwargs: ScreenOutcome(False, too_long=True))
     with library_review_agent.override(model=TestModel()):
-        result = handle_ai_task(task, task_dependencies)
+        result = handle_loaded_review(task, task_dependencies)
     assert result.status == "failed"
     assert result.error_message == TOO_LONG_MESSAGE
 
@@ -126,7 +127,7 @@ def test_rejects_malformed_generated_questions(task_dependencies, question):
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "question": question},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
     ]})), pytest.raises(UnexpectedModelBehavior):
-        handle_ai_task(task, task_dependencies)
+        handle_loaded_review(task, task_dependencies)
 
 
 @pytest.mark.parametrize("questions", [
@@ -143,7 +144,7 @@ def test_rejects_malformed_or_repeated_question_sets(task_dependencies, question
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "questions": questions},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
     ]})), pytest.raises(UnexpectedModelBehavior):
-        handle_ai_task(task, task_dependencies)
+        handle_loaded_review(task, task_dependencies)
 
 
 def test_legacy_single_question_remains_a_one_item_set(task_dependencies):
@@ -154,7 +155,7 @@ def test_legacy_single_question_remains_a_one_item_set(task_dependencies):
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "question": "Which services?"},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
     ]})):
-        result = handle_ai_task(task, task_dependencies)
+        result = handle_loaded_review(task, task_dependencies)
     assert result.result["assessments"][0]["questions"] == ["Which services?"]
     assert result.result["assessments"][1]["questions"] == []
 
@@ -169,7 +170,7 @@ def test_rejects_disagreeing_scalar_and_array_questions(task_dependencies):
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "questions": ["Which services?"], "question": "Another question?"},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
     ]})), pytest.raises(UnexpectedModelBehavior):
-        handle_ai_task(task, task_dependencies)
+        handle_loaded_review(task, task_dependencies)
 
 
 def test_oversized_section_fails_without_model_or_screen_calls(task_dependencies, monkeypatch):
@@ -179,5 +180,65 @@ def test_oversized_section_fails_without_model_or_screen_calls(task_dependencies
     def unexpected(*args, **kwargs):
         raise AssertionError("Oversized section must fail before model work")
     monkeypatch.setattr("screening.records.screen_user_text", unexpected)
-    result = handle_ai_task(task, task_dependencies)
+    result = handle_loaded_review(task, task_dependencies)
     assert result.status == "failed" and "too long" in result.error_message
+
+
+
+def handle_loaded_review(task, dependencies):
+    """Existing synthetic sources stand in for DB reads, never for command transport."""
+    from dataclasses import replace
+
+    from schemas.library_review import LibraryReviewInput
+    source = LibraryReviewInput.model_validate(task.input)
+    command = {"command_version": 1, "section": source.section,
+               "targets": [target.model_dump() for target in source.targets]}
+    return handle_ai_task(task.model_copy(update={"input": command}),
+                          replace(dependencies, read_library_review=lambda *_: source))
+
+def test_reference_command_loads_owned_section(task_dependencies):
+    from dataclasses import replace
+
+    from agents.library_review_agent import library_review_agent
+    from schemas.library_review import LibraryReviewInput
+    loaded = LibraryReviewInput.model_validate(review_input())
+    seen = []
+    def read(user_id, section):
+        seen.append((user_id, section))
+        return loaded
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input={
+        "command_version": 1, "section": "experience", "targets": review_input()["targets"],
+    })
+    dependencies = replace(task_dependencies, read_library_review=read)
+    with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
+        {"target_label": "T1", "color": "yellow", "reason": "Clarify services."},
+        {"target_label": "T2", "color": "red", "reason": "Clarify migration."},
+    ]})):
+        result = handle_ai_task(task, dependencies)
+    assert result.status == "completed"
+    assert seen == [(task.user_id, "experience")]
+
+
+def test_changed_or_foreign_command_targets_fail_before_model_work(task_dependencies, monkeypatch):
+    from dataclasses import replace
+
+    from schemas.library_review import LibraryReviewInput
+    loaded = LibraryReviewInput.model_validate(review_input())
+    command = {"command_version": 1, "section": "experience", "targets": review_input()["targets"]}
+    command["targets"][0]["record_id"] = "foreign-or-deleted-role"
+    def unexpected(*args, **kwargs):
+        raise AssertionError("Changed sources must fail before screening or generation")
+    monkeypatch.setattr("worker.library_review_handler.review_library_section", unexpected)
+    monkeypatch.setattr("screening.records.screen_user_text", unexpected)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=command)
+    result = handle_ai_task(task, replace(task_dependencies, read_library_review=lambda *_: loaded))
+    assert result.status == "failed"
+    assert "changed" in result.error_message
+
+
+def test_rejects_source_copies_in_reference_command(task_dependencies):
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input={
+        "command_version": 1, **review_input(),
+    })
+    with pytest.raises(ValueError, match="Extra inputs"):
+        handle_ai_task(task, task_dependencies)

@@ -1,4 +1,6 @@
-"""Generate from the bounded frozen description without screening or reading career data."""
+"""Generate from current owned job text and saved questions without classification."""
+from hashlib import sha256
+
 from pydantic import ValidationError
 from pydantic_ai import capture_run_messages
 from pydantic_ai.exceptions import UnexpectedModelBehavior
@@ -13,21 +15,25 @@ from worker.queue_messages import AiResultMessage
 
 
 def handle_study_guide_task(task, dependencies):
-    """Use only the enqueue snapshot; existing saved-job field checks do not cover this description."""
+    """Read sources by durable task identity; ignore retained legacy source copies."""
     try:
-        snapshot = StudyGuideInput.model_validate(task.input)
+        sources = dependencies.read_study_guide_sources(task)
+        if sources is None:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+                error_message="This study guide is no longer available. Start a new generation.")
+        sources = StudyGuideInput.model_validate(sources)
     except ValidationError:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
             error_message="Add a usable job description of at most 20,000 characters and try again.")
-    if not snapshot.description.strip():
+    if not sources.description.strip():
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
             error_message="Add a job description before generating a study guide.")
     settings = dependencies.settings
     usage = []
-    # Rails freezes previous questions from owned completed batches, never browser fields.
-    previous = "\n".join(f"{number}. {question}" for number, question in enumerate(snapshot.previous_questions, 1))
+    # Only owned successful batches supply generated variety guidance.
+    previous = "\n".join(f"{number}. {question}" for number, question in enumerate(sources.previous_questions, 1))
     prompt = ("Create study material for this job description (source data):\n\n"
-              + source_block("job_description", snapshot.description))
+              + source_block("job_description", sources.description))
     if previous:
         prompt += ("\n\nPrevious saved study questions (avoid these questions and closely repeated concepts):\n"
                    + source_block("previous_study_questions", previous))
@@ -49,5 +55,6 @@ def handle_study_guide_task(task, dependencies):
             result={"failure_code": "insufficient_description"}, error_message=run.output.cannot_generate_reason,
             usage=[*usage, build_model_usage(model, run.usage)])
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-        result={"study_guide": run.output.model_dump(mode="json")},
+        result={"study_guide": run.output.model_dump(mode="json"),
+                "source_description_fingerprint": sha256(sources.description.encode()).hexdigest()},
         usage=[*usage, build_model_usage(model, run.usage)])

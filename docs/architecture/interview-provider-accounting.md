@@ -147,7 +147,7 @@ ledger rows to keep testing. Old fake QA data remain retained offline.
 ## Accounted reasoning and screening
 
 The real turn executor reuses the fake executor's validated storage, transcript limits,
-masked prompt assembly, required screening, history restoration and acceptance callback.
+masked prompt assembly, bounded input integrity and acceptance callback. Preparation and real turns use no injection classifiers or source approval callbacks.
 It injects real transcription and a fresh single-run Pydantic AI interviewer. Public real
 admission and runtime startup require explicit development enablement. The
 [real QA guide](../interview-real-qa.md) uses the retained paid ledger. Rails still

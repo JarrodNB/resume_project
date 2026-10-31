@@ -1,5 +1,5 @@
 # Rejects malformed learning material and late results for deleted jobs.
-# Source snapshots stay on the task; generated output never changes a job description.
+# Generated output carries only an execution fingerprint, never copied job source text.
 module StudyGuides
   class ValidateResultService < ApplicationService
     def initialize(ai_task:, result:)
@@ -8,7 +8,14 @@ module StudyGuides
 
     def call
       job = @task.user.jobs.lock.find_by(id: @task.subject_id) if @task.subject_type == "Job"
-      return failure([ "This job no longer exists." ]) unless job && @task.input["job_id"] == job.id && @task.input["description"].is_a?(String) && @task.input["description"].present?
+      return failure([ "This job no longer exists." ]) unless job && @task.input["job_id"] == job.id
+      unless @result.is_a?(Hash) && (@result.keys - %w[study_guide source_description_fingerprint]).empty?
+        return failure([ "The AI could not produce a valid study guide. Try again." ])
+      end
+      fingerprint = @result["source_description_fingerprint"]
+      unless fingerprint.is_a?(String) && fingerprint.match?(/\A[0-9a-f]{64}\z/) || @task.input["description"].is_a?(String)
+        return failure([ "The study guide source could not be verified. Try again." ])
+      end
       guide = @result["study_guide"] if @result.is_a?(Hash)
       return failure([ "The AI could not produce a valid study guide. Try again." ]) unless valid_guide?(guide)
       prompts = guide["questions"].map { |question| QuestionCollection.normalize(question["question"]) }

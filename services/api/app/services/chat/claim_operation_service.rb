@@ -1,5 +1,4 @@
-# Reserve a fenced attempt, its unknown-cost marker and watchdog before exposing canonical chat input.
-require "digest"
+# Reserve a fenced attempt, unknown-cost marker and watchdog before returning input references.
 module Chat
   class ClaimOperationService < ApplicationService
     include ExecutionPolicy
@@ -25,14 +24,13 @@ module Chat
           fail_execution("ai_usage_limit_reached", retryable: false)
           next allowance
         end
-        snapshot = ContextSnapshotService.call(conversation: conversation, operation: @operation)
-        unless snapshot.success?
-          code = snapshot.errors.first
+        plan = ContextPlanService.call(conversation: conversation, operation: @operation)
+        unless plan.success?
+          code = plan.errors.first
           fail_execution(code, retryable: false)
           next failure(code == "context_limit" ? "Chat context exceeds the safe input limit" : "Chat history is not approved")
         end
-        context = snapshot.value
-        history = context.fetch(:messages)
+        context = plan.value
         @operation.update!(status: "running", attempt_id: SecureRandom.uuid, claim_generation: @operation.claim_generation + 1,
           execution_count: @operation.execution_count + 1, cycle_execution_count: @operation.cycle_execution_count + 1,
           lease_expires_at: LEASE.from_now, execution_deadline: DEADLINE.from_now, retry_at: nil, failure_code: nil,
@@ -45,11 +43,11 @@ module Chat
         PublishUpdateService.call(conversation: conversation)
         success({ operation_id: @operation.id, attempt_id: @operation.attempt_id, claim_generation: @operation.claim_generation,
           lease_expires_at: @operation.lease_expires_at, execution_deadline: @operation.execution_deadline,
-          payload: { conversation_id: conversation.id, user_id: conversation.user_id, message: @operation.message,
-            max_input_characters: ChatLimits::MAX_INPUT_CHARACTERS, summarize_every_user_messages: ChatLimits::SUMMARIZE_EVERY_USER_MESSAGES,
-            summary: context.fetch(:summary), summary_plan: context[:summary_plan],
-            messages: history.map { |message| message.attributes.slice("role", "content", "position") },
-            contact: { names: [], emails: [], phones: [] } } })
+          payload: { version: 1, conversation_id: conversation.id, user_id: conversation.user_id,
+            expected_position: context.fetch(:expected_position), summary_base_version: context.fetch(:summary_base_version),
+            summary_through_position: context.fetch(:summary_through_position), summary_plan: context[:summary_plan],
+            max_input_characters: ChatLimits::MAX_INPUT_CHARACTERS,
+            summarize_every_user_messages: ChatLimits::SUMMARIZE_EVERY_USER_MESSAGES } })
       end
     end
   end

@@ -31,8 +31,8 @@ RSpec.describe "Career library review answer batches" do
     task = AiTask.find(payload.dig("aiTask", "id"))
     expect(task.input["feedback"]).to eq("")
     expect(task.input["review_question"]).to eq("review_task_id" => review.id, "answers" => [
-      { "question_index" => 1, "question" => questions[1], "answer" => "I updated integration tests." },
-      { "question_index" => 2, "question" => questions[2], "answer" => "Colleagues could find billing records." }
+      { "question_index" => 1, "answer" => "I updated integration tests." },
+      { "question_index" => 2, "answer" => "Colleagues could find billing records." }
     ])
     expect(highlight.reload.content).to eq("Helped migrate services")
     expect(queue).to have_received(:send_message).once
@@ -77,14 +77,14 @@ RSpec.describe "Career library review answer batches" do
     retried = retry_result.value
     expect(retried.input["feedback"]).to eq("")
     expect(retried.input["skip"]).to be(false)
-    expect(retried.input["review_question"]).to eq(root.input["review_question"])
+    expect(retried.input["review_question"]).to eq("review_task_id" => review.id)
     expect(CareerLibrary::StartEditService.call(user: user, previous_task_id: root.id).value.id).to eq(retried.id)
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => retried.id, "status" => "completed", "message_history" => [],
       "result" => { "text" => "Migrated billing endpoints to reduce repeated work.", "color" => "green", "reason" => "Specific contribution." } })
     expect(CareerLibrary::StartEditService.call(user: user, previous_task_id: retried.id)).not_to be_success
     followup = CareerLibrary::StartEditService.call(user: user, previous_task_id: retried.id, feedback: "Keep the outcome")
     expect(followup).to be_success
-    expect(followup.value.input["review_question"]).to eq(root.input["review_question"])
+    expect(followup.value.input["review_question"]).to eq("review_task_id" => review.id)
     expect(queue).to have_received(:send_message).exactly(3).times
   end
 
@@ -94,7 +94,7 @@ RSpec.describe "Career library review answer batches" do
     expect(answer_batch(answer, record_id: create(:experience_highlight).id)["errors"]).to eq(["Record not found"])
     draft = CareerLibrary::StartEditService.call(user: user, kind: "experience_highlight", record_id: highlight.id).value
     expect(answer_batch(answer)["errors"]).not_to be_empty
-    expect(CareerLibrary::EditSnapshot.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(draft.id)
+    expect(CareerLibrary::EditCommand.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(draft.id)
     CareerLibrary::FinishEditService.call(user: user, ai_task_id: draft.id, discard: true)
     highlight.update!(content: "Newer evidence")
     expect(answer_batch(answer)["errors"]).not_to be_empty
@@ -140,7 +140,7 @@ RSpec.describe "Career library review answer batches" do
 
     expect(replay).not_to be_success
     expect(replay.errors).to include("A newer edit exists. Reload to continue.")
-    expect(CareerLibrary::EditSnapshot.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(newer.id)
+    expect(CareerLibrary::EditCommand.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(newer.id)
     expect(queue).to have_received(:send_message).twice
   end
 

@@ -6,7 +6,7 @@ This small calibration check is not evidence of broad career-writing quality.
 """
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -18,6 +18,7 @@ from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset
 from prompts.library_review_instructions import LIBRARY_REVIEW_PROMPT_VERSION
 from schemas.gap_analysis_context import CareerLibrary
+from schemas.library_review import LibraryReviewInput
 from worker.library_review_handler import handle_library_review_task, render_review
 from worker.queue_messages import AiTaskMessage
 from worker.settings import load_settings
@@ -102,10 +103,11 @@ def run_library_review_evals(model_override: str | None = None):
                                     "source_digest": hashlib.sha256(record.model_dump_json().encode()).hexdigest()})
         for index, target in enumerate(targets):
             target["label"] = f"T{index + 1}"
+        source = LibraryReviewInput(section=section, library=library, targets=targets)
         result = handle_library_review_task(AiTaskMessage(
             ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section",
-            input={"section": section, "library": library.model_dump(mode="json"), "targets": targets},
-        ), dependencies)
+            input={"command_version": 1, "section": section, "targets": targets},
+        ), replace(dependencies, read_library_review=lambda *_: source))
         if result.status != "completed":
             raise RuntimeError(result.error_message or "Section review failed")
         return result.result

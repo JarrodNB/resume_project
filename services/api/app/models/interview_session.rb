@@ -6,9 +6,11 @@ class InterviewSession < ApplicationRecord
   before_destroy -> { Interviews::SessionFeedback.new.purge(interview: self, reason: :deleted) }, prepend: true
   STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
-  attr_readonly :execution_mode, :execution_config, :setup_config
+  attr_readonly :execution_mode, :execution_config, :setup_config, :preparation_kind
   validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
   validates :execution_config, inclusion: { in: ->(session) { [ Interviews::ExecutionConfiguration::PRESETS[session.execution_mode] ] } }
+  validates :career_focus, length: { maximum: 200 }
+  validates :preparation_kind, inclusion: { in: %w[saved_job fictional_role] }
   belongs_to :user
   belongs_to :job, optional: true
   has_one :feedback, class_name: "InterviewSessionFeedback", dependent: :destroy

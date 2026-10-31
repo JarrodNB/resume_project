@@ -14,7 +14,7 @@ a set does not reuse its number. Sets can be empty while generation is pending o
 Successful generation validates all drafts and creates positions 1–5 atomically. Only question
 text is persisted on the slots; categories and evidence remain in the AI task result.
 
-Full-set generation snapshots up to 20 saved question texts from the user's most recent
+Python reads up to 20 saved question texts from the user's most recent
 sets of the requested type, ordered by set creation time and ID descending, then slot
 position and question ID ascending. This bounded history is prompt-only guidance to
 prefer fresh focuses. Familiar themes may recur as practice, and general sets retain
@@ -23,7 +23,7 @@ The history is separate from hard avoidance preferences and replacement exclusio
 it is neither career evidence nor proof of personal facts. Only Rails-owned generated
 slots supply history, never browser text, answers, or feedback, so the worker reuses
 trusted-generated-source coverage without screening those questions again. Legacy tasks
-without history continue with empty context.
+load the same current owned history; copied command text is ignored.
 
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
@@ -47,14 +47,14 @@ or feedback operation may run per question; replacement blocks answer saving, wh
 feedback permits edits. Replacing an answered question requires `confirmed: true`.
 
 Result services check ownership, subject/set/question identity, latest task identity, and
-snapshot revisions before writing. Replacement requires unchanged question and answer
+command revisions before writing. Replacement requires unchanged target, peer-question and answer
 revisions and checks distinctness against the current set, including the old question. On
 success it first keeps a nonblank answer as a retired copy (below), then increments both
 revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest
 feedback task, but accepts a newer answer revision: coaching is stored against the reviewed
 revisions, so GraphQL `feedbackOutdated` marks substantive edits outdated. Capitalization and
-whitespace changes remain current when a completed task's matching feedback and reviewed
-answer snapshot verify that only formatting changed. Exact revisions still advance on saves.
+whitespace changes remain current when a completed task's matching feedback and normalized
+answer digest verify that only formatting changed. Exact revisions still advance on saves.
 Generated feedback never writes
 the answer. Deleted, superseded, or invalid targets fail cleanly. The finished-task guard
 prevents duplicate result persistence and usage accounting; failed application still retains
@@ -148,15 +148,32 @@ Duplicate wording (case, spacing, punctuation) saves once, including retries at 
 The store allows 50 questions of at most 2,000 characters each and returns explicit errors
 at either limit rather than clipping or dropping choices. `avoided` restores saved UI state.
 
-New written generation and replacement tasks snapshot the owner's complete saved list as
-`input.avoided_questions`; old tasks without that field use an empty list. Existing tasks
-keep their original snapshots. Replacements also retain their old target/sibling exclusions.
-These saved sources are immutable generated question text, so the AI handler uses its
-existing trusted-generated-source coverage rather than classifying them again. It renders
+New written generation, replacement and feedback commands contain `source_version: 1`,
+set identity and type, with target revisions for replacement/feedback and peer revisions
+for replacement. Feedback also stores a SHA-256 digest of the normalized saved answer for
+formatting-only freshness checks. Python validates the stored queued task, owner and
+subject, then reads the owned sources in one repeatable-read transaction. Feedback loads
+only the selected active question's answer, revisions and current field approvals;
+changed revisions fail before screening or model work. Question generation loads current
+active slots, same-type recent history and saved avoidance preferences. No source text,
+answers, field approvals or sibling copies are persisted in these commands. Narrow column
+grants allow required answer fields while keeping feedback, vectors, provider receipts
+and accounting private.
+
+Retained generation commands also load current owned history/preferences. Retained
+replacement commands must match their target revisions and current target/peer wording;
+retained feedback commands must match their current question/answer wording and revisions.
+Stale or deleted sources fail before generation. No retained command text becomes prompt
+input. During the staged rollout, deploy the new Python readers/grants before new producers;
+old workers cannot read reference-only commands. Existing saved command copies are removed
+by the final migration, without replaying work.
+
+Saved question slots and avoidance preferences are generated question text, so the handler
+uses trusted-generated-source coverage rather than classifying them again. It renders
 readable delimited exclusions separately from career evidence, preserves contact masking,
-and fails explicitly if the combined library/preferences exceed the prompt limit. No
-AI-reader table grant is needed: Rails supplies the snapshot. Both the model validator and
-Rails result consumer reject exact excluded wording; avoiding semantic rewordings is a
+and fails explicitly if combined library/preferences exceed the prompt limit. Both the
+model validator and Rails result consumer reject exact excluded wording; Rails rechecks
+current avoidance preferences at application. Avoiding semantic rewordings remains a
 prompt instruction measured by synthetic quality evaluations. Full sets keep their required
 categories while choosing different concrete focuses within them.
 
@@ -189,7 +206,8 @@ categories while choosing different concrete focuses within them.
 
 - **Feedback freshness ignores capitalization and whitespace.** Revision changes still track
   exact saved edits, but harmless formatting should not force another AI review. Completed
-  task snapshots verify saved-answer equivalence; missing or mismatched evidence stays outdated.
+  task digests verify saved-answer equivalence; retained task copies only verify older
+  feedback. Missing or mismatched evidence stays outdated.
 
 - **One successful feedback request per saved version.** Feedback enqueueing checks completed
   task history for the question/answer revision pair under the owner lock. Queued requests

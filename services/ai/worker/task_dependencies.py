@@ -15,8 +15,13 @@ from uuid import UUID
 
 import httpx
 
+from database.tailoring_sources import TailoringSources
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
+from schemas.library_review import LibraryReviewInput
+from schemas.study_guide import StudyGuideInput
+from schemas.summary_generation import SummaryCommand, SummaryGenerationInput
 from worker.product_name import USER_AGENT
+from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings
 
 GapAnalysisContextReader = Callable[[UUID, UUID], GapAnalysisContext | None]
@@ -39,7 +44,15 @@ class TaskDependencies:
     http_client: httpx.Client
     # Called with (user_id, job_id); production reads Postgres as ai_reader.
     read_gap_analysis_context: GapAnalysisContextReader
+    read_study_guide_sources: Callable[[AiTaskMessage], StudyGuideInput | None] | None = None
+    read_task_command: Callable[[AiTaskMessage], AiTaskMessage | None] | None = None
+    read_tailoring_sources: Callable[[UUID, UUID, UUID, UUID | None], TailoringSources | None] | None = None
+    read_interview_question_sources: Callable[[AiTaskMessage], dict | None] | None = None
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
+    read_summary_sources: Callable[[UUID, SummaryCommand], SummaryGenerationInput | None] | None = None
+    read_library_review: Callable[[UUID, str], LibraryReviewInput] | None = None
+    read_library_edit: Callable[[AiTaskMessage], object] | None = None
+    read_reranking_input: Callable[[AiTaskMessage], object | None] | None = None
     score_job_listings: Callable[[UUID, Sequence[tuple[str, list[float]]], str], list[tuple[str, float]]] | None = None
 
 

@@ -265,17 +265,20 @@ ranking cannot reorder a newer set, and no new ranking starts automatically. Ran
 limited to 100 loaded candidates.
 
 `rerankJobBoardListings(input: {keyword:, listingIds:})` reads only those shared catalogue
-IDs, captures their title/plain-description excerpts, and queues `rerank_job_listings`.
-The user cannot submit arbitrary descriptions. Excerpts use a 140,000-byte combined text
+IDs and queues `rerank_job_listings` with only the IDs and keyword.
+The user cannot submit arbitrary descriptions. Python reads current catalogue text at execution;
+locally formatted excerpts use a 140,000-byte combined text
 budget, at most 6,000 UTF-8 bytes per listing; complete input must fit 200,000 UTF-8 bytes.
 Normal AI admission and cost accounting apply. Identical recent queued work is reused.
 A missing current-model career-library index returns a clear error instead of queueing.
 
-The worker receives `{keyword, listings: [{id, text}]}`, embeds listing text in a batch,
+The worker loads `{keyword, listing_ids: [...]}` from the owned queued task, reads the
+selected shared catalogue payloads, and embeds locally formatted listing text in a batch,
 and compares it with the task owner's existing career-library embeddings. Equal-weight
 reciprocal rank fusion (k=60) combines mean top-three cosine similarity order with BM25
-on the submitted keyword. Only the existing user/model-scoped library index is read;
-the AI role still has no access to catalogue tables. There is no generative LLM call or
+on the submitted keyword. Private library reads remain user/model-scoped. The AI role
+can read only catalogue `id` and `payload` columns, never search pages. Retained legacy
+tasks select their original IDs but ignore copied text; missing listings fail before embedding. There is no generative LLM call or
 qualification percentage. Empty/unavailable evidence or provider failure preserves the
 browser's provider-order fallback with a retryable error.
 

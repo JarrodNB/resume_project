@@ -106,13 +106,10 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 - A validated completed gap-analysis result can be trusted as generated output within one
   tailoring execution. Saved gap-response requirement/body approvals are reused; pending
   fields are screened together once, with fingerprinted reports for every saved answer ID.
-- Spoken answer turns reconstruct prior dialogue from Rails-owned public utterances and
-  deliberately skip injection classification for candidate answers and frozen context.
-  They retain exact-prompt integrity, size limits, contact replacement, and accounted
-  generation; they never grant screening approvals. Preparation still screens sources. Frozen library approvals travel in the private claim;
-  new checks persist through its fenced Rails callback before generation. Preparation also
-  persists an exact frozen career-focus fingerprint there and needs its receipt first,
-  including focus-only checks; retries reuse only matching fingerprints. Ordinary queued
-  Job checks cover title, company, requirements and nice-to-haves; interviews also freeze and
-  check description and responsibilities, sharing that receipt. Saved-job preparation outputs
-  `role: null` so Rails keeps the authoritative job.
+- Spoken preparation and answer turns are explicit no-classifier exceptions. Preparation
+  reads current owned job/library/preferences once, without source approvals or callbacks.
+  Turns reconstruct accepted public dialogue and prepared questions from read-only DB access;
+  original source records are not reread as evidence. Both retain exact-prompt integrity,
+  size limits, contact replacement and accounted generation. Saved-job preparation returns
+  `role: null`; Rails stores no copied saved-job role. Other saved-job workflows retain their
+  existing screening policy.

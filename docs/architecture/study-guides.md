@@ -10,26 +10,34 @@ Old topic-format development guides are unsupported and are not included in this
 ## Generation and input
 
 The mutation authorizes through the current user's jobs. `StartGuideService` uses the
-shared owner lock and locks/reloads the job before capturing the exact description and
-all earlier saved question prompts. It does not use career-library evidence, gaps, or
-other requirement fields. Blank descriptions cannot start a batch. One recent queued
-request per job prevents overlapping generation. Existing AI allowances still apply.
+shared owner lock and locks/reloads the job to validate the request. The durable command
+contains only `{job_id}`. SQS carries task/owner/type identity; no job description or
+saved question text travels in the execution notification. It does not use career-library
+evidence, gaps, or other requirement fields. Blank descriptions cannot start a batch.
+One recent queued request per job prevents overlapping generation. Existing AI allowances apply.
 
-`QuestionCollection` selects only owned, completed question-format results with five
-usable questions. The prior prompts come from these saved generated results, never
-from browser arguments. They are frozen as `previous_questions` alongside `{job_id,
-description}`. The bounded generation context accepts at most 200 prior prompts and
-40,000 total prior-prompt characters; if either limit is exceeded, enqueueing returns a
-clear limit error and keeps all saved questions. It never silently drops older prompts.
+At execution Python binds the durable task ID, owner, type, Job subject and command job ID
+before reading current sources in one repeatable-read transaction. Finished, foreign,
+deleted or older-than-15-minute work stops before provider dispatch. The ordinary read-only
+`ai_study_guide_commands` view exposes only current job text and execution identity;
+`ai_study_guide_questions` exposes only valid completed question prompts, ordered by task
+creation time, task ID and question position. Neither view stores copies or grants access
+to arbitrary task results, histories or accounting data.
+
+`QuestionCollection` and the Python reader select only owned, completed question-format
+results with five usable questions. Prior prompts come from these saved generated results,
+never browser arguments. The generation context accepts at most 200 prior prompts and
+40,000 total prior-prompt characters. Enqueueing and execution both enforce these bounds;
+execution reads at most 201 prompts and fails rather than silently dropping older prompts.
 A final batch may bring the collection above 200 questions; another batch then cannot start.
-These limits bound model context and queue input, not reading of saved material.
+These limits bound model context, not reading of saved material.
 
-The Python worker validates the frozen snapshot and uses a bounded-text input guard,
+The Python worker validates loaded sources and uses a bounded-text input guard,
 contact replacement, tracing, and configured bounded model/fallback execution. Study-guide
 generation does not classify prompt injection and requires no screening credentials.
-It grants no screening approvals to the source or generated output. Saved prompts come
-from the Rails-owned enqueue path. The assembled prompt renders a labeled
-`job_description` block and numbered `previous_study_questions` block without dumping JSON.
+It grants no screening approvals to the source or generated output. The assembled prompt
+renders a labeled `job_description` block and numbered `previous_study_questions` block
+without dumping JSON.
 The versioned instructions request fresh concepts and avoid close paraphrases of earlier questions.
 
 A valid `result.study_guide` version 1 contains a title and exactly five ordered questions.
@@ -42,11 +50,11 @@ another useful batch, can return `StudyGuideUnavailable`; the worker fails the t
 
 Rails accepts results under owner/task/job locks. It validates the batch, rejects duplicate
 prompts within it, and checks against all current saved prompts for that job. Normalization
-uses Unicode NFKC, lowercase, and collapsed non-alphanumeric separators. Thus a stale
-enqueue snapshot cannot bypass exact-repeat rejection. Prompt instructions address semantic
+uses Unicode NFKC, lowercase, and collapsed non-alphanumeric separators. Thus concurrent completion cannot bypass exact-repeat rejection. Prompt instructions address semantic
 repetition; normalization does not claim to detect every close paraphrase. The finished-task
 guard ensures duplicate result delivery cannot append twice. Each successful batch remains
-on its own AI task, preserving source snapshots, usage, and task outcome receipts.
+on its own AI task, preserving an execution-time SHA256 description fingerprint, usage,
+and task outcome receipts. Completed result metadata cannot contain copied source text.
 
 ## Reading and freshness
 
@@ -64,7 +72,13 @@ or revealed answer, including when earlier batches have not yet been loaded. A f
 page retains the current question and retries the same cursor on Next. Switching jobs
 resets collection state, question position, answer visibility, and outstanding UI work.
 
-Each batch exposes its immutable source-description fingerprint. A current-description
+Each batch exposes its execution-time description fingerprint. The worker hashes the exact
+loaded description; it does not return the source text. Existing completed legacy guides
+derive the same fingerprint from their retained old input. Legacy queued task copies are
+ignored by the new reader; an already-running older worker may finish its output without
+a fingerprint using its retained legacy source. No completed or expired work is replayed.
+Deploy the new reader views/grants before the worker and deploy the worker before the
+reference-only study producer. A current-description
 fingerprint lets the reader refresh freshness for every loaded question after one small
 read, including batches not on the first page. Freshness compares exact case and whitespace.
 The selected question's notice reflects its own batch, so new questions do not make old
@@ -90,7 +104,7 @@ job's Study tab, falling back to the jobs list when the job is unavailable.
 ## Verification
 
 Offline checks use worker dispatch, Rails result application and GraphQL collection reads,
-and the rendered React panel. They cover frozen prior prompts, repeat rejection, limits,
+and the rendered React panel. They cover current-source reads, owned prior prompts, repeat rejection, limits,
 source limits, signed cursor scoping and equal-time ordering, page failures, appending
 behind unloaded pages, answer visibility, freshness edits/restoration, and manual retry.
 `python -m evals.run_study_guide_evals` uses seven synthetic cases: inventory, backend

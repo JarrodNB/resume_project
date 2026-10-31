@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from uuid import uuid4
 
+from psycopg import OperationalError
 from pydantic_ai.messages import ModelRequest, UserPromptPart
 from pydantic_ai.usage import RunUsage, UsageLimits
 from pydantic_ai_harness import InputBlocked
@@ -47,7 +48,7 @@ class InterviewExecutor:
     """Execute a canonical claim with scoped storage and replaceable provider stages."""
 
     def __init__(self, client, *, storage_client, allowed_origins: set[str],
-                 allow_http=False, scenario="normal"):
+                 allow_http=False, scenario="normal", input_reader=None):
         if scenario not in SCENARIOS:
             raise ValueError("Unknown fake scenario")
         self.client = client
@@ -55,6 +56,7 @@ class InterviewExecutor:
         self.allowed_origins = allowed_origins
         self.allow_http = allow_http
         self.scenario = scenario
+        self.input_reader = input_reader
 
     @asynccontextmanager
     async def _stage(self, claim, stage):
@@ -70,6 +72,14 @@ class InterviewExecutor:
         """Run one operation; fail safe domain errors, leaving transport loss recoverable."""
         finished = False
         try:
+            from interviews.client import ReferencePayload
+            if isinstance(claim.payload, ReferencePayload):
+                if self.input_reader is None:
+                    from database.interview_inputs import build_interview_input_reader
+                    from settings import AISettings
+                    self.input_reader = build_interview_input_reader(AISettings())
+                claim = await asyncio.to_thread(self.input_reader, claim)
+
             if claim.kind == "turn":
                 await self._turn(claim)
             elif claim.kind == "transcription":
@@ -78,6 +88,9 @@ class InterviewExecutor:
                 await self._preparation(claim)
             else:
                 await self._speech(claim)
+            finished = True
+        except OperationalError:
+            await self.client.fail(claim, "dependency_unavailable", True)
             finished = True
         except ScreeningRejected as error:
             failure = "speech_failed" if claim.kind == "speech" else "execution_failed"
@@ -103,31 +116,7 @@ class InterviewExecutor:
         raise ValueError("Preparation requires explicitly configured real providers")
 
     async def _preparation(self, claim):
-        context = claim.payload.frozen_context
-        contact = KnownContact.from_values(**{
-            key: context.get(key, []) for key in ("names", "emails", "phones")
-        })
-        with contact_scope(contact), screening_session(120):
-            source = mask_outbound(json.dumps(context, sort_keys=True))
-            if covered_prompt_length(source) + 2 > MAX_PROMPT_TEXT:
-                raise ScreeningRejected("context_limit")
-            with stage_timing(claim, "screening"):
-                await self._screen(claim, source)
-            prompt = bind_screened_prompt([source], lambda sources: sources[0])
-
-            async def guard(ctx, final_prompt):
-                for text in prompt_input_texts(ctx, final_prompt):
-                    if not prompt_is_covered(text):
-                        with stage_timing(claim, "screening"):
-                            await self._screen(claim, text)
-                return True
-
-            agent, options = self._preparer(claim, guard)
-            with stage_timing(claim, "preparation"):
-                result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=2), **options)
-            output = result.output.model_dump(mode="json")
-        with stage_timing(claim, "acceptance"):
-            await self._reconcile(claim, lambda: self.client.accept_preparation(claim, **output))
+        raise ValueError("Preparation requires explicitly configured real providers")
 
     async def _screen(self, claim, text):
         async def classify(chunk, model, timeout):

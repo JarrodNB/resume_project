@@ -24,7 +24,13 @@ from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
+from database.interview_questions import build_interview_question_reader
+from database.job_listing_reranking import build_reranking_reader
 from database.job_listing_similarity import build_job_listing_scorer
+from database.study_guide_sources import build_study_guide_reader
+from database.summary_sources import build_summary_source_reader
+from database.tailoring_sources import build_tailoring_sources_reader
+from database.task_commands import build_task_command_reader
 from llm.run_limits import RUN_LIMIT_MESSAGE
 from llm.usage import TaskUsage, collect_task_usage
 from schemas.model_usage import ModelUsage
@@ -59,7 +65,7 @@ def process_task_message(
 ) -> bool:
     """Handles one raw task message and publishes its result.
 
-    Returns True once a final result is published, so the task message can be deleted. Invalid
+    Returns True after publication or rejection of stale/foreign work, allowing deletion. Invalid
     messages publish nothing and stay for the dead-letter queue. A temporary failure before
     the last attempt publishes usage only and returns False so SQS redelivers the task.
     Every valid execution first publishes an unknown-cost marker. A run cap fails
@@ -78,6 +84,18 @@ def process_task_message(
             len(message_body), problems,
         )
         return False
+
+    if dependencies.read_task_command is None:
+        raise RuntimeError("A durable task command reader is required")
+    try:
+        task = dependencies.read_task_command(task)
+    except ValidationError:
+        # Database values are private too; never let validation echo them through polling.
+        logger.error("Invalid durable task command, leaving notification for the dead-letter queue")
+        return False
+    if task is None:
+        # Stale or foreign deliveries must not publish outcomes or accounting markers.
+        return True
 
     guardrail_usage: list[ModelUsage] = []
     task_usage = TaskUsage()
@@ -190,8 +208,14 @@ def run_worker() -> None:
         file_storage=S3FileStorage(settings),
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
+        read_tailoring_sources=build_tailoring_sources_reader(settings),
         read_career_library=build_database_library_reader(settings),
+        read_summary_sources=build_summary_source_reader(settings),
+        read_reranking_input=build_reranking_reader(settings),
         score_job_listings=build_job_listing_scorer(settings),
+        read_task_command=build_task_command_reader(settings),
+        read_study_guide_sources=build_study_guide_reader(settings),
+        read_interview_question_sources=build_interview_question_reader(settings),
     )
 
     stop_requested = False

@@ -1,10 +1,6 @@
-"""Screen a frozen owned snapshot and return a proposal; Rails accepts it separately.
+"""Load owned summary evidence, screen unchecked facts and return a cited proposal.
 
-Library facts are screened together through `screen_records_sync`, skipping fields Rails
-already approved. New checks of library rows are returned as `record_screening` receipts;
-Rails saves them only when they match both this frozen snapshot and the live value.
-Saved-resume copies are screened but never reported. Any rejected fact fails the whole
-request rather than letting uncited or unscreened material into the prompt.
+Old copied-source commands fail before classifiers or generation; no automatic paid replay.
 """
 import json
 
@@ -18,7 +14,7 @@ from agents.summary_generation_agent import generate_summary
 from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.summary_generation import render_summary_sources
 from privacy.contact_mask import mask_outbound
-from schemas.summary_generation import SummaryGenerationInput
+from schemas.summary_generation import SummaryCommand
 from screening.record_adapters import summary_source_records
 from screening.records import record_failure_message, screen_records_sync
 from screening.session import bind_screened_prompt, within_screening_session
@@ -32,13 +28,17 @@ def handle_summary_generation_task(task, dependencies):
     def failed(message):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=message, usage=usage)
     try:
-        # Compact JSON like Rails, so a snapshot Rails accepted is not rejected here.
-        if len(json.dumps(_without_record_ids(task.input), ensure_ascii=False, separators=(",", ":")).encode()) > 180_000:
+        command = SummaryCommand.model_validate(task.input)
+        if dependencies.read_summary_sources is None:
+            return failed("This summary request is invalid. Start a new request.")
+        evidence = dependencies.read_summary_sources(task.user_id, command)
+        if evidence is None:
+            return failed("Your career information changed. Generate a new summary.")
+        if len(json.dumps([{ "label": source.label, "text": source.text } for source in evidence.sources], ensure_ascii=False, separators=(",", ":")).encode()) > 180_000:
             return failed("This career evidence is too large to summarize. Reduce its text and try again.")
-        snapshot = SummaryGenerationInput.model_validate(task.input)
-    except ValidationError:
+    except (ValidationError, ValueError):
         return failed("This summary request is invalid. Start a new request.")
-    sources = [source for source in snapshot.sources if source.text.strip()]
+    sources = [source for source in evidence.sources if source.text.strip()]
     if not sources:
         return failed("Add career information before generating a summary.")
     # Measure the actual outbound rendering, including labels, data-block delimiters,
@@ -74,15 +74,6 @@ def handle_summary_generation_task(task, dependencies):
     model = reported_model_name(run.response.model_name or settings.library_edit_model, settings.library_edit_model)
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result=run.output.model_dump(),
         usage=[*usage, build_model_usage(model, run.usage)])
-
-
-def _without_record_ids(task_input):
-    """Measure the size cap as Rails does: record ids are bookkeeping, not career text."""
-    if not isinstance(task_input, dict) or not isinstance(task_input.get("sources"), list):
-        return task_input
-    return {**task_input, "sources": [
-        {key: value for key, value in source.items() if key != "record_id"} if isinstance(source, dict) else source
-        for source in task_input["sources"]]}
 
 
 def _masked_rendering(sources):

@@ -11,14 +11,14 @@ All business logic, as service objects grouped by domain folder.
 - `job_preferences/` — owner-scoped reusable next-job preference reads and version-fenced draft/confirm/clear writes. No catalogue changes.
 - `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing snapshots, queued JEV checks, source-digest currentness and finite probability/result acceptance.
 
-- `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
+- `chat/` — private saved chat pagination and durable execution policy. `ContextPlanService` checks uncovered accepted dialogue without copying sources into claims and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
 
 - `screening/record_approvals_service.rb` — one recorder for unified `record_screening` receipts
   (career library, job, gap response, interview question and job preferences). Its `RECORD_TYPES` registry owns each
   type's screened fields, owner/task scope and extra checks; a field is approved only when its
   fingerprint matches the locked current value (and the task snapshot where one exists).
-  `record_interview_sources` is the spoken-interview entry point (library records plus the
-  interview's own job, fingerprinted from frozen values). Preference criteria use text
+  The legacy `record_interview_sources` helper is unused by spoken preparation or turns
+  and remains only until migration cleanup. Preference criteria use text
   fingerprints on their owner profile; shared catalogue listings use exact passage fingerprints.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
@@ -110,8 +110,8 @@ All business logic, as service objects grouped by domain folder.
   task already in progress or an unsaved draft with at least one browser-supported,
   non-omitted section whose content is an object; checks saved resumes and resumable work
   under the enqueue user lock before allowance checks. Accepted tasks without a saved resume
-  allow fresh work; snapshots contact, a finished comparison when one exists, and gap responses
-  into the task input
+  allow fresh work; stores only job ID, optional completed comparison ID and summary setting;
+  Python reads the current owned contact, library and gap responses
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
   (`accepted_at`), under owner-then-task locks, blocking another saved resume for the job;
   uses the supplied edited sections in order and persists summary inclusion independently so hidden summary text can be retained. An explicit empty
@@ -159,7 +159,7 @@ All business logic, as service objects grouped by domain folder.
 
 - `certifications/` — create/update credentials and enqueue embedding synchronization.
 
-- `interview_prep/` — numbered set generation, explicit answer saving, revision-snapshotted question tasks, and set deletion. Preparation uses `EnqueueAiTaskService`'s optional `prepare_task` callback under the user lock after allowance checks; publication follows commit.
+- `interview_prep/` — numbered set generation, explicit answer saving, revision-fenced question tasks, and set deletion. Preparation uses `EnqueueAiTaskService`'s optional `prepare_task` callback under the user lock after allowance checks; publication follows commit.
 
 - Interview question result application uses `interview_prep/apply_questions_service.rb` under owner-then-task locks in `ApplyAiResultService`. Five-slot generation is atomic; replacements check task identity/revisions and current-set distinctness, then clear only that slot’s answer and feedback. Failed/obsolete results preserve content and retain usage once.
 
@@ -167,8 +167,7 @@ All business logic, as service objects grouped by domain folder.
 
 - `interviews/` — spoken interview lifecycle, private media reservations/sealing,
   library-informed preparation and atomic ready-state role/question acceptance,
-  exact-value frozen library/focus screening reuse and fenced `screen_library` approval callbacks
-  (focus checks require current preparation and matching locked-value fingerprints),
+  reference-only execution claims, scalar preparation choices and no preparation screening,
   claim-bound speech, transactional delivery for every operation/retry, exact-lease
   watchdogs, explicit startup adoption of legacy work, and bounded scheduled cleanup. Lock owner, interview, ordered questions,
   then operation/task/media; perform object/provider I/O outside locks and recheck
@@ -188,11 +187,11 @@ All business logic, as service objects grouped by domain folder.
 
 - `interviews/avoid_prompt_service.rb` saves the current opening/follow-up as a shared
   avoided-question preference under owner/session locks. It never changes progress or dialogue.
-  `StartPreparationService` freezes the shared list for preparation and later follow-ups;
-  old sessions default to no exclusions, and newer saves do not rewrite frozen sessions.
+  Python reads the current shared list only during preparation; turns use prepared questions
+  and accepted dialogue without reloading source preferences.
 
 - `study_guides/` — snapshots an owned job description under owner/job locks, queues guide generation, validates completed learning material before persistence, and pages successful guide summaries with signed job-bound keyset cursors.
 
 - `interviews/session_feedback.rb` — explicit completed-session coaching admission, one-time queue claims and validated result acceptance. Like `CurrentPromptWork`, exposes a cohesive request/claim/apply interface shared by thin GraphQL/internal/result adapters; the queue carries identities, not dialogue.
 
-- `summary_generation/` — explicit missing-summary snapshots, enqueue/recovery, cited-result validation and replay-safe reviewed acceptance/discard. Frozen screening checks stay execution-local.
+- `summary_generation/` — reference-only missing-summary commands, source identity/hash freshness, cited-result validation and replay-safe reviewed acceptance/discard. Python reads owned evidence directly; no source text is stored in task input.

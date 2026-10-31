@@ -28,21 +28,21 @@ RSpec.describe "Avoided interview questions" do
     question_set.destroy!
     expect(user.avoided_interview_questions.count).to eq(1)
   end
-  it "snapshots only this user's saved questions into new generation and replacement tasks" do
+  it "keeps saved preferences out of generation and replacement commands" do
     expect(avoid.dig("data", "avoidInterviewQuestion", "saved")).to be(true)
     create(:user).avoided_interview_questions.create!(question_text: "Someone else's question", text_digest: "other")
     allow(Shoryuken::Client).to receive(:queues).and_return(instance_double(Shoryuken::Queue, send_message: nil))
     generation = execute_graphql("mutation { generateInterviewQuestionSet(input: {}) { aiTask { input } errors } }", user: user)
     input = generation.dig("data", "generateInterviewQuestionSet", "aiTask", "input")
-    expect(input["avoided_questions"]).to eq([ question.question_text ])
+    expect(input.keys).to match_array(%w[source_version question_set_id set_number set_type])
     question_set.destroy!
-    expect(user.ai_tasks.find_by!(task_type: "generate_interview_questions").input["avoided_questions"]).to eq([ "Describe a challenge." ])
+    expect(user.avoided_interview_questions.pluck(:question_text)).to eq([ "Describe a challenge." ])
     next_set = user.interview_question_sets.order(:number).last
     next_question = next_set.questions.create!(position: 1, question_text: "What did you learn?")
     replacement = execute_graphql(<<~GQL, user: user, variables: { set: next_set.id, question: next_question.id })
       mutation($set: ID!, $question: ID!) { regenerateInterviewQuestion(input: {questionSetId: $set, questionId: $question}) { aiTask { input } errors } }
     GQL
-    expect(replacement.dig("data", "regenerateInterviewQuestion", "aiTask", "input", "avoided_questions")).to eq([ "Describe a challenge." ])
+    expect(replacement.dig("data", "regenerateInterviewQuestion", "aiTask", "input").keys).not_to include("avoided_questions", "question_text", "answer_text")
   end
 
   it "rejects another user's question without revealing it or saving a preference" do

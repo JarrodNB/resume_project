@@ -84,8 +84,8 @@ RSpec.describe "Recognized interview answers" do
     expect(result.value.candidate_transcript).to eq("I reduced response time.")
     expect(Interviews::SubmitTurnService.call(**input.merge(candidate_transcript: "Changed answer"))).not_to be_success
     claim = Interviews::ClaimOperationService.call(operation: result.value)
-    expect(claim.value.fetch(:payload).fetch(:candidate_transcript)).to eq("I reduced response time.")
-    expect(claim.value.fetch(:payload).fetch(:transcription_mode)).to eq("browser")
+    expect(claim.value.fetch(:payload)).not_to have_key(:candidate_transcript)
+    expect(result.value.reload.transcription_mode).to eq("browser")
   end
 end
 

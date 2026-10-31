@@ -1,5 +1,5 @@
-# Starts replacement or feedback tasks with exact text, revision and saved-check snapshots.
-# Replacement keeps legacy sibling strings alongside aligned saved identities for safe reuse.
+# Starts written practice work with owned references and revision fences.
+# Source text stays on the saved question; feedback saves typed answers before admission.
 # Index:
 #   - call: validates the request and queues an operation without replacing existing content
 module InterviewPrep
@@ -29,7 +29,7 @@ module InterviewPrep
 
     private
 
-    # Rechecks state under the owner lock and snapshots context before task persistence.
+    # Rechecks state under the owner lock before persisting reference commands.
     def prepare_task(task)
       @question.reload
       if @question.ai_tasks.where(task_type: TASK_TYPES, status: "queued").exists?
@@ -49,21 +49,15 @@ module InterviewPrep
         return failure([ "Feedback has already been requested for this answer version. Save a changed answer first." ])
       end
       task.input = {
-        "set_type" => @question.interview_question_set.set_type,
+        "source_version" => 1, "set_type" => @question.interview_question_set.set_type,
         "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
-        "question_text" => @question.question_text, "answer_text" => @question.answer_text,
-        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision,
-        "screened_fields" => @question.screened_fields
+        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision
       }
       if @task_type == "regenerate_interview_question"
-        task.input["avoided_questions"] = InterviewPreferences::AvoidedQuestions.snapshot(@user)
-        peers = @question.interview_question_set.questions.where.not(id: @question.id).to_a
-        task.input["other_questions"] = peers.map(&:question_text)
-        task.input["other_question_snapshots"] = peers.map do |peer|
-          { "question_id" => peer.id, "question_set_id" => peer.interview_question_set_id,
-            "question_text" => peer.question_text, "question_revision" => peer.question_revision,
-            "screened_fields" => peer.screened_fields }
-        end
+        task.input["peer_revisions"] = @question.interview_question_set.questions.where.not(id: @question.id)
+          .to_h { |peer| [ peer.id, peer.question_revision ] }
+      else
+        task.input["normalized_answer_sha256"] = FeedbackOutdatedService.answer_fingerprint(@question.answer_text)
       end
       success(task)
     end

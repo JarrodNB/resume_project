@@ -53,7 +53,8 @@ RSpec.describe "Chat streamed turns" do
   it "uses canonical owned history, a durable lease and general admission" do
     operation = start
     saved = claim(operation)
-    expect(saved.fetch(:payload).slice(:conversation_id, :user_id, :message)).to eq(conversation_id: chat.id, user_id: user.id, message: "Career question")
+    expect(saved.fetch(:payload).slice(:conversation_id, :user_id, :expected_position)).to eq(conversation_id: chat.id, user_id: user.id, expected_position: 0)
+    expect(saved.fetch(:payload)).not_to have_key(:message)
     expect(operation.reload.recovery_job_id).to be_present
     expect(operation.execution_attempts.count).to eq(1)
     expect(operation.ai_task.ai_usage_attempts.find_by(attempt_id: saved[:attempt_id])).to be_incomplete
@@ -75,7 +76,8 @@ RSpec.describe "Chat streamed turns" do
     expect(chat.messages.count).to eq(2)
     expect(operation.ai_task.reload).to be_completed
     subsequent = start("Next question")
-    expect(claim(subsequent).dig(:payload, :messages).map { |m| m.fetch("content") }).to eq(["Career question", "Practise concise examples."])
+    expect(claim(subsequent).dig(:payload, :expected_position)).to eq(2)
+    expect(subsequent.ai_task.input).to eq("operation_id" => subsequent.id)
   end
 
   it "rejects unapproved historical user messages instead of treating arbitrary saved text as trusted" do

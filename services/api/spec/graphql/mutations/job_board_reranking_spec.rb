@@ -8,7 +8,7 @@ RSpec.describe "Job Board reranking" do
 
   before { allow(Shoryuken::Client).to receive_message_chain(:queues, :send_message) }
 
-  def request(ids: [listing.id], keyword: "Ruby engineer")
+  def request(ids: [ listing.id ], keyword: "Ruby engineer")
     execute_graphql(mutation, user: user, variables: { keyword: keyword, ids: ids })
   end
 
@@ -18,13 +18,13 @@ RSpec.describe "Job Board reranking" do
       embedding: Array.new(CareerLibraryEmbeddings::DIMENSIONS, 0.01))
   end
 
-  it "queues bounded provider snapshots for the current user rather than browser text" do
+  it "queues only selected catalogue IDs and the search keyword" do
     add_embeddings
     response = request
     expect(response.dig("data", "rerankJobBoardListings", "errors")).to eq([])
     task = user.ai_tasks.last
     expect(task.task_type).to eq("rerank_job_listings")
-    expect(task.input).to eq("keyword" => "Ruby engineer", "listings" => [ { "id" => listing.id, "text" => "Job: Ruby engineer\nDescription:\nBuild APIs." } ])
+    expect(task.input).to eq("keyword" => "Ruby engineer", "listing_ids" => [ listing.id ])
     expect(Job.count).to eq(0)
   end
 
@@ -36,7 +36,7 @@ RSpec.describe "Job Board reranking" do
   end
   it "rejects invalid candidate sets before queueing" do
     add_embeddings
-    [ [], ["not-a-uuid"], [SecureRandom.uuid], [listing.id, listing.id], Array.new(101) { SecureRandom.uuid } ].each do |ids|
+    [ [], [ "not-a-uuid" ], [ SecureRandom.uuid ], [ listing.id, listing.id ], Array.new(101) { SecureRandom.uuid } ].each do |ids|
       expect(request(ids: ids).dig("data", "rerankJobBoardListings", "errors")).not_to be_empty
     end
     expect(request(keyword: " ").dig("data", "rerankJobBoardListings", "errors")).not_to be_empty
@@ -61,16 +61,11 @@ RSpec.describe "Job Board reranking" do
     expect(Shoryuken::Client).not_to have_received(:queues)
   end
 
-  it "caps multibyte listing snapshots and keeps the queued text immutable" do
+  it "keeps only IDs even when the selected catalogue contains large multibyte text" do
     add_embeddings
-    ids = 100.times.map { create(:job_board_listing, payload: { title: "開発者", description: "<p>#{'資料' * 4000}</p>" }).id }
-    response = request(ids: ids)
-    expect(response.dig("data", "rerankJobBoardListings", "errors")).to eq([])
-    task = user.ai_tasks.last
-    expect(JSON.generate(task.input).bytesize).to be <= 200_000
-    expect(task.input["listings"].all? { |row| row["text"].valid_encoding? && row["text"].bytesize <= 1400 }).to be(true)
-    JobBoardListing.find(ids.first).update!(payload: { title: "Changed" })
-    expect(task.reload.input["listings"].first["text"]).to start_with("Job: 開発者")
+    ids = 100.times.map { create(:job_board_listing, payload: { title: "開発者", description: "資料" * 4000 }).id }
+    expect(request(ids: ids).dig("data", "rerankJobBoardListings", "errors")).to eq([])
+    expect(user.ai_tasks.last.input).to eq("keyword" => "Ruby engineer", "listing_ids" => ids)
   end
 
   it "accepts only exact candidate permutations and keeps finished results under duplicate delivery" do
@@ -94,7 +89,7 @@ RSpec.describe "Job Board reranking" do
     add_embeddings
     other = create(:job_board_listing)
     allow(ApiSchema.subscriptions).to receive(:trigger)
-    [ [], [listing.id, listing.id], [listing.id, SecureRandom.uuid], [listing.id, 4], nil ].each do |ids|
+    [ [], [ listing.id, listing.id ], [ listing.id, SecureRandom.uuid ], [ listing.id, 4 ], nil ].each do |ids|
       request(ids: [ listing.id, other.id ])
       task = user.ai_tasks.last
       AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "ranked_listing_ids" => ids } })
@@ -117,12 +112,17 @@ RSpec.describe "Job Board reranking" do
     expect(other.value.id).not_to eq(first.id)
   end
 
-  it "rejects snapshots whose escaped JSON exceeds the queue-input byte budget" do
+  it "does not charge escaped catalogue text against the command budget" do
     add_embeddings
     ids = 40.times.map { create(:job_board_listing, payload: { title: "\u0001" * 4000 }).id }
-    response = request(ids: ids)
-    expect(response.dig("data", "rerankJobBoardListings", "errors")).to include(/too large/)
-    expect(user.ai_tasks.reload).to be_empty
+    expect(request(ids: ids).dig("data", "rerankJobBoardListings", "errors")).to eq([])
+    expect(user.ai_tasks.last.input.keys).to contain_exactly("keyword", "listing_ids")
   end
-
+  it "accepts retained legacy task IDs without depending on copied text" do
+    task = create(:ai_task, user: user, task_type: "rerank_job_listings",
+      input: { "keyword" => "Ruby", "listings" => [ { "id" => listing.id, "text" => "Old copied source" } ] })
+    result = JobBoard::ValidateRerankingResultService.call(ai_task: task,
+      result: { "ranked_listing_ids" => [ listing.id ] })
+    expect(result).to be_success
+  end
 end

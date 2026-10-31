@@ -73,10 +73,18 @@ Configuration must work in Docker development and production. Preserve owned dat
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `lib/ai_reader_access.rb` + `lib/tasks/ai_reader_access.rake` — `db:grant_ai_reader_access`
   grants the AI worker's read-only `ai_reader` role SELECT on the job and career library tables
-  and `library_embeddings` (of `users`, `id`, `summary`, `screened_fields`, `name`, `contact_email`, and `phone`;
+  and `library_embeddings` (of `users`, `id`, `summary`, `screened_fields`, `name`, `contact_email`, `phone`, `location`, and `links`;
   the sign-in email and password stay hidden). It runs after `db:prepare`, `db:migrate`, and
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
-  the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.
+  the AI worker must read needs to be added there; tailoring has narrow gap-response columns and a completed-analysis-only output view.
+  `ai_tasks` grants only `id`, `user_id`, `task_type`, `status`, `input`, `subject_id` and `subject_type` for owned queued
+  command loading; direct task result/history and accounting columns remain hidden.
+  Summary reads grant only resumes(id,user_id), resume_sections(id,resume_id,section_type,content,position),
+  and the nonmaterialized ai_accepted_resume_prose(user_id,prose) projection.
+  Library review/edit exchanges use the narrowly scoped ai_library_exchanges view
+  for generated results/history and owned chain reconstruction.
+  Study guides read owned current job sources and validated generated prompts through
+  the ai_study_guide_commands / ai_study_guide_questions ordinary views.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see
 - `graphql_schema/schema.graphql` — GraphQL SDL dump read by `apps/web` codegen (in its own
   folder so the web container mounts the folder and always sees the latest dump). Regenerate after any

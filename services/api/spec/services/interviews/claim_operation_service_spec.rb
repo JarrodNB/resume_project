@@ -9,7 +9,7 @@ RSpec.describe Interviews::ClaimOperationService do
     result = described_class.call(operation: operation)
     expect(result).to be_success
     expect(operation.reload).to have_attributes(status: "running", claim_generation: 1)
-    expect(result.value.fetch(:payload).fetch(:text)).to eq(interview.messages.first.content)
+    expect(result.value.fetch(:payload)).to include(interview_id: interview.id, user_id: interview.user_id)
     expect(operation.ai_task.ai_usage_attempts.first).to have_attributes(attempt_id: operation.attempt_id, finalized: false, incomplete: true)
     expect(described_class.call(operation: operation)).not_to be_success
   end

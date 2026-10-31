@@ -121,8 +121,9 @@ def test_append_evaluation_passes_prior_prompts_to_production_without_expected_l
                                  expects_unusable=True)
     seen = []
 
-    def handle(task, _dependencies):
-        seen.append(task.input)
+    def handle(task, dependencies):
+        assert set(task.input) == {"job_id"}
+        seen.append(dependencies.read_study_guide_sources(task))
         return SimpleNamespace(status="failed", result={"failure_code": "insufficient_description"})
 
     def evaluate(_load_dataset, task, **_kwargs):

@@ -264,15 +264,21 @@ questions become one-item lists; the scalar `question` remains the first questio
 Each question is bounded at 500 characters. Repeated questions, including casing/whitespace variants,
 are rejected rather than offered as separate gaps. Accepted/discarded answers retire the whole set.
 Contact details, credentials, skill names, and career context requirement labels stay outside AI edits.
-Snapshots and results live on the existing `review_library_section` AI task; there is no
-separate assessment table. Only the selected section reaches screening and generation.
-The snapshot includes existing field checks, and unchecked used fields are screened before
-plain labeled text reaches the model. Generated assessments are not screened.
+Review commands and results live on the existing `review_library_section` AI task; there is no
+separate assessment table. Commands retain only the section, target identities/context digests,
+and field fingerprints. Python reads only the selected owned section using its read-only database
+role, computes target labels and digests, and rejects changed sources before generation. Existing
+field checks are read directly; unchecked used fields are screened before plain labeled text
+reaches the model. Generated assessments and questions are not screened. The temporary Rails
+projection remains shared with individual editing until that workflow migrates separately.
+Previously queued source-copy commands are rejected before screening or generation; start a new
+section review after the failed task to recover. Existing completed reviews remain readable.
+Result acceptance requires a nonempty target manifest, including for retained legacy results.
 
 Per-record source/context digests mark old grades as needing review when text changes, highlights
 move, or entries merge. Deleted targets disappear from current assessments. Result application
 validates exact target coverage, and late screening reports can only approve fields whose saved
-values still match the snapshot under a record lock. Live progress uses existing task subscriptions.
+values match both the command fingerprints and current owned records under a record lock. Live progress uses existing task subscriptions.
 
 Individual edits use only the selected record context. Accepting a project or career context revision
 queues the existing embedding sync; the profile summary is read live and needs no embedding job.

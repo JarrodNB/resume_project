@@ -25,10 +25,11 @@ RSpec.describe "Career library review answers" do
     expect(result["errors"]).to eq([])
     task = AiTask.find(result.dig("aiTask", "id"))
     expect(task.task_type).to eq("improve_library_entry")
-    expect(task.input["review_question"]).to eq("review_task_id" => review.id, "question" => "Which part did you migrate?")
-    expect(task.input["feedback"]).to eq("I migrated the billing endpoints")
+    expect(task.input["review_question"]).to eq("review_task_id" => review.id, "answers" => [{ "question_index" => 0, "answer" => "I migrated the billing endpoints" }])
+    expect(task.input["feedback"]).to eq("")
     expect(task.input.dig("target", "record_id")).to eq(highlight.id)
-    expect(task.input.dig("library", "experiences").map { |item| item["id"] }).to eq([role.id])
+    expect(task.input.keys & %w[library history original_text]).to be_empty
+    expect(task.input.to_json).not_to include("Which part did you migrate?")
     expect(highlight.reload.content).to eq("Helped migrate services")
     expect(queue).to have_received(:send_message).once
   end
@@ -48,7 +49,7 @@ RSpec.describe "Career library review answers" do
     task.update!(status: "failed", error_message: "Temporary provider failure")
     retry_result = CareerLibrary::StartEditService.call(user: user, previous_task_id: task.id, feedback: "I migrated billing and updated tests")
     expect(retry_result).to be_success
-    expect(retry_result.value.input["review_question"]).to eq(task.input["review_question"])
+    expect(retry_result.value.input["review_question"]).to eq("review_task_id" => review.id)
     expect(answer_review.dig("aiTask", "id")).to eq(retry_result.value.id)
     expect(queue).to have_received(:send_message).twice
   end
@@ -86,7 +87,7 @@ RSpec.describe "Career library review answers" do
   it "does not silently replace an independent active draft" do
     draft = CareerLibrary::StartEditService.call(user: user, kind: "experience_highlight", record_id: highlight.id).value
     expect(answer_review["errors"]).to include("An existing draft is open for this detail. Finish or discard it before answering the review question.")
-    expect(CareerLibrary::EditSnapshot.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(draft.id)
+    expect(CareerLibrary::EditCommand.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(draft.id)
     expect(queue).to have_received(:send_message).once
   end
 

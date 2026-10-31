@@ -19,7 +19,7 @@ module ResumeTailoring
         input: task_input,
         subject: @job,
         resolve_existing: method(:resolve_existing),
-        prepare_task: method(:snapshot_summary_inclusion)
+        prepare_task: method(:set_summary_inclusion)
       )
     end
 
@@ -27,7 +27,7 @@ module ResumeTailoring
 
     # Enqueue has reloaded and locked the owner, so concurrent preference changes cannot
     # leave a new task with the stale default from a previously loaded User instance.
-    def snapshot_summary_inclusion(task)
+    def set_summary_inclusion(task)
       task.input = task.input.merge("include_summary" => @user.include_summary)
       success(task)
     end
@@ -59,22 +59,9 @@ module ResumeTailoring
       @job.ai_tasks.analyze_gaps.completed.order(created_at: :desc).first
     end
 
-    # Profile contact, the comparison, and answers. The worker reads name, contact email, and
-    # phone so it can mask them; location and links still come from this snapshot.
+    # Keep only the selected comparison identity. Python reads current owned sources.
     def task_input
-      analysis = latest_completed_analysis
-      {
-        "job_id" => @job.id,
-        "contact" => {
-          "full_name" => @user.name,
-          "email" => @user.contact_email,
-          "phone" => @user.phone,
-          "location" => @user.location,
-          "links" => @user.links
-        },
-        "gap_analysis" => analysis&.result&.dig("gap_analysis"),
-        "gap_responses" => @job.gap_responses.map { |response| response.attributes.slice("id", "requirement", "body", "screened_fields") }
-      }
+      { "job_id" => @job.id, "analysis_task_id" => latest_completed_analysis&.id }
     end
   end
 end

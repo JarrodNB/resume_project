@@ -35,10 +35,10 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     result = execute_graphql('mutation($id: ID!) { archiveJob(input: { id: $id }) { errors } }', user: user, variables: { id: job.id })
     expect(result.dig("data", "archiveJob", "errors")).to eq([])
     expect(interview.reload.job_id).to eq(job.id)
-    expect(interview.frozen_context.dig("job", "description")).to eq("Maintain instruments.")
+    expect(interview.frozen_context).to eq({})
   end
 
-  it "retains frozen history after edits and publishes detached navigation when the job is deleted" do
+  it "shows live labels after edits and publishes detached navigation when the job is deleted" do
     interview = Interviews::StartPreparationService.call(user: user, job: job).value
     preparation = interview.operations.preparation.first
     identity = Interviews::ClaimOperationService.call(operation: preparation, execution_mode: "real").value.slice(:attempt_id, :claim_generation)
@@ -52,7 +52,7 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     query = '{ recentInterviewSessions { id jobContext { id title company } } }'
     job.update!(title: "Renamed vacancy", company: "Changed company")
     saved = execute_graphql(query, user: user).dig("data", "recentInterviewSessions", 0, "jobContext")
-    expect(saved).to eq("id" => job.id, "title" => "Laboratory technician", "company" => nil)
+    expect(saved).to eq("id" => job.id, "title" => "Renamed vacancy", "company" => "Changed company")
     expect(execute_graphql(query, user: create(:user)).dig("data", "recentInterviewSessions")).to eq([])
 
     allow(Interviews::PublishSnapshotService).to receive(:call).and_call_original
@@ -60,13 +60,13 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     expect(deleted).to be_success
     expect(Interviews::PublishSnapshotService).to have_received(:call).with(interview_id: interview.id)
     saved = execute_graphql(query, user: user).dig("data", "recentInterviewSessions", 0, "jobContext")
-    expect(saved).to eq("id" => nil, "title" => "Laboratory technician", "company" => nil)
-    expect(interview.reload.frozen_context.dig("job", "description")).to eq("Maintain instruments.")
+    expect(saved).to be_nil
+    expect(interview.reload.frozen_context).to eq({})
     expect(interview.revision).to eq(revision)
     expect(interview.messages.first.content).to eq(questions.first.fetch("content"))
     claimed = Interviews::ClaimOperationService.call(operation: turn, execution_mode: "real")
     expect(claimed).to be_success
-    expect(claimed.value.dig(:payload, :candidate_transcript)).to eq("I checked the calibration records.")
+    expect(claimed.value.fetch(:payload)).not_to have_key(:candidate_transcript)
   end
 
   it "removes expired job context from public history and purges it with the saved text" do

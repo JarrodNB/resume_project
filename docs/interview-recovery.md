@@ -146,3 +146,15 @@ checks, the repaired real-provider failure callback and the live-test limitation
 The first paid opening-speech attempt left an unknown charge; paid verification stopped.
 The former fake QA database is retained offline. Real browser QA uses the original paid
 verification ledger; see the [current QA guide](interview-real-qa.md).
+
+### Read-only interview inputs
+
+Both fixture and real HTTP execution now need `DB_HOST`, `DB_NAME`, `DB_USERNAME`
+and `DB_PASSWORD` for the restricted `ai_reader` connection. The recovery stack runs
+`reader-setup` before Rails so retained fixture volumes acquire the role without
+resetting their data or provider ledger; Rails still owns all table grants.
+The real-QA environment override explicitly retains these settings. `/ready` checks
+the database connection and essential reader grants without selecting user data,
+returns `database_unavailable` during an outage, and recovers when reads work again.
+Native development already supplies the same reader credentials. Review apps inherit
+the base Compose connection; no Kubernetes manifests are currently maintained here.

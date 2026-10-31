@@ -26,7 +26,7 @@ from worker.task_dependencies import TaskDependencies
 
 
 class InterviewQuestionsInput(BaseModel):
-    """Generation metadata or the immutable replacement snapshot from Rails."""
+    """Current owned question sources selected by the database reader."""
 
     avoided_questions: list[Annotated[str, Field(min_length=1, max_length=2000)]] = Field(default_factory=list, max_length=50)
     question_set_id: UUID
@@ -37,8 +37,6 @@ class InterviewQuestionsInput(BaseModel):
     recent_questions: list[str] = Field(default_factory=list)
     question_revision: int | None = None
     answer_revision: int | None = None
-    screened_fields: list[str] = Field(default_factory=list, exclude=True)
-    other_question_snapshots: list[dict] = Field(default_factory=list, exclude=True)
 
 
 @within_screening_session
@@ -46,7 +44,13 @@ def handle_interview_questions_task(
     task: AiTaskMessage, dependencies: TaskDependencies,
 ) -> AiResultMessage:
     """Returns drafts only; Rails will apply these atomically in the persistence task."""
-    snapshot = InterviewQuestionsInput.model_validate(task.input)
+    if dependencies.read_interview_question_sources is None:
+        raise RuntimeError("Interview question reader is not configured")
+    sources = dependencies.read_interview_question_sources(task)
+    if sources is None:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+            error_message="These questions are out of date. Request generation again.")
+    snapshot = InterviewQuestionsInput.model_validate(sources)
     replacement = task.task_type == "regenerate_interview_question"
     if replacement and (not snapshot.question_id or not snapshot.question_text.strip()
                         or len(snapshot.other_questions) != 4):
@@ -84,12 +88,10 @@ def handle_interview_questions_task(
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
     excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
-    # Every excluded question arrives in this internal task from Rails-owned generated slots.
-    # Legacy snapshots may lack aligned sibling metadata, but that does not make our own
-    # generated question text user-authored or a reason to screen it again.
+    # The owned database reader selects generated active slots, never browser text.
     for question in excluded:
         trust_generated_source(question)
-    # This immutable Rails field comes only from preferences saved using owned, generated
+    # Preferences come only from preferences saved using owned, generated
     # question/message records. It never accepts arbitrary browser text or user edits.
     for question in snapshot.avoided_questions:
         trust_generated_source(question)

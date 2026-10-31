@@ -28,8 +28,7 @@ module Interviews
         success(record)
       end
       if publish
-        Shoryuken::Client.queues(AI_TASKS_QUEUE_NAME).send_message(message_body: {
-          ai_task_id: publish.id, user_id: publish.user_id, task_type: publish.task_type, input: publish.input }.to_json)
+        AiTasks::PublishTaskToQueueService.call(ai_task: publish)
       end
       result
     rescue *AiTasks::EnqueueAiTaskService::QUEUE_ERRORS
@@ -60,7 +59,7 @@ module Interviews
           { question_id: question.id, question: question.content,
             dialogue: interview.messages.where(question: question, kind: %w[answer follow_up]).order(:position).map { |message| { kind: message.kind, content: message.content } } }
         end
-        success(allowed: true, questions: questions, role: interview.frozen_context["job"] || interview.prepared_role,
+        success(allowed: true, questions: questions, role: interview.prepared_role,
           setup: SetupConfiguration.for(interview))
       end
       # A rejected claim produces no final worker result, so publish its saved failure here.
@@ -125,7 +124,7 @@ module Interviews
     def preparation_admission(interview, task: nil)
       preparation = interview.operations.preparation.first
       root = preparation&.ai_task
-      if preparation || interview.frozen_context.present? || task&.hourly_admission_task_id
+      if preparation || task&.hourly_admission_task_id
         valid = root && root.user_id == interview.user_id && root.subject == interview && root.interview_preparation? &&
           root.hourly_admission_task_id.nil? && root.input["operation_id"] == preparation.id
         valid &&= task.hourly_admission_task_id == root.id if task

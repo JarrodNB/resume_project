@@ -7,11 +7,17 @@ this folder only reads what an AI task needs.
 
 ## Contents
 
+- `job_listing_reranking.py` — verifies an owned queued command before reading selected
+  shared public catalogue IDs/payloads. Catalogue rows have no private owner; selection
+  and every career-library read remain owner-scoped.
+- `task_commands.py` — loads only the ID/owner/type-matched queued task input.
+  Rails grants only task identity, status and input columns. The separate library exchange
+  view exposes generated outputs/history only for the two library workflows.
 - `open_read_only_connection.py` — `open_read_only_connection(settings)`: psycopg connection
   with `default_transaction_read_only=on` and dict rows
 - `career_library_reader.py` — `read_gap_analysis_context(connection, user_id, job_id)`: the job
   and the user's career library, including certifications and career context entries, in one REPEATABLE READ transaction
-  (None when the job isn't the user's). Job-only gap responses are not read.
+  (None when the job isn't the user's). Job-only gap responses are read separately by tailoring.
   `build_database_context_reader(settings)`: the per-task reader handlers call (one
   connection per task)
 - `library_embedding_search.py` — `search_career_library(connection, user_id, query_embedding,
@@ -26,7 +32,7 @@ this folder only reads what an AI task needs.
 
 ## Local Rules
 
-- All SQL lives here. Every query filters by the task message's `user_id` (child rows through
+- All SQL lives here. Private queries filter by the task message's `user_id` (child rows through
   their parent's `user_id`).
 - `ai_reader` can only read the tables granted in Rails `lib/ai_reader_access.rb` (of `users`,
   `id`, `summary`, `name`, `contact_email`, and `phone`). Add a grant there before reading a
@@ -44,8 +50,41 @@ Credential dates retain `year`, `month`, or `day` precision. Exact expiration wi
 definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
-- `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped snapshots; gap analysis shares the same row reader.
+- `library_review_reader.py` reads only the requested owned section and its owned highlights,
+  computing labels/context digests in one read transaction. Digests match Rails admission,
+  including dates, nulls and HTML escaping. No source data is persisted in review commands.
+
+- `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped reads; gap analysis shares the same row reader.
 
 - `job_listing_similarity.py` — one read-only lateral query averages each listing vector’s
   three nearest library similarities, scoped by task user and configured model. Its
   production builder bounds connection/statement deadlines; it never reads the catalogue.
+
+- `summary_sources.py` — current owned profile/resume evidence with exact reference hashes; resume prose trust reads only the narrow `ai_accepted_resume_prose` view. No sources are stored in commands.
+- `tailoring_sources.py` reads current owned job/library/contact and job gap responses in one
+  repeatable-read transaction. A queued task/owner/job projection fences the command subject. Optional comparison IDs must match the owner and job in
+  `completed_gap_analysis_sources`, a nonmaterialized completed-analysis-only projection.
+  Gap responses expose only identity, requirement/body, checks and ordering columns.
+  Profile location/links are readable for the copied contact section; authentication fields stay private.
+- `interview_inputs.py` — validates owner/operation/attempt/generation, live lease/deadline,
+  saved mode/settings and session state. Preparation reads current owned job/library/preferences
+  once; turns read prepared questions and accepted public dialogue, with profile contact only
+  for masking. Speech loads its exact saved message. Private model history and media keys
+  remain outside the reader grants. Rails owns every write and media capability.
+- `library_edit_reader.py` loads one owned target/context and its bounded root/previous chain,
+  reads generated review questions from the completed owned review, and validates context digests.
+  `ai_library_exchanges` is a read-only security-barrier view restricted to library review/edit
+  task types and necessary identity/input/output/history fields; accounting and other task results
+  remain hidden. Child commands never copy model history or root user answers. Each task stores
+  only its new generated fragment; Python reconstructs prompts/answers from the canonical owned
+  commands. Retained legacy histories discard user/source requests and subtract the exact owned
+  generated prefix, failing safely if that prefix is inconsistent.
+- `study_guide_sources.py` binds queued task/owner/type/Job identity and expiry before
+  reading current job text and valid completed prompts through narrow ordinary views.
+  It preserves batch/slot order and rejects excess context without dropping history.
+- `interview_questions.py` reads queued task-owned written-practice sources in one repeatable-read transaction. It checks set/subject ownership, target and peer revisions, then selects active generated slots and account-owned preferences. Feedback reads only the selected active question’s answer and current approvals at its commanded revisions. Narrow grants exclude feedback, vectors, provider receipts and accounting; retained source copies are checks only.
+
+- `chat_inputs.py` verifies live owned operation fences, expected message position and
+  saved summary checkpoints/plans in one repeatable-read transaction. It loads only
+  pending input, uncovered accepted dialogue and rolling summary; profile contact is
+  privacy-only. Private acceptance receipts, feedback and account secrets are not granted.

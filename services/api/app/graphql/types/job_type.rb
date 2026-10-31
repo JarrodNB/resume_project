@@ -61,7 +61,7 @@ module Types
     end
 
     def study_guide_description_fingerprint
-      ::StudyGuides::DescriptionSnapshot.fingerprint(object.description)
+      ::StudyGuides::DescriptionFingerprint.fingerprint(object.description)
     end
 
     def latest_study_guide_task

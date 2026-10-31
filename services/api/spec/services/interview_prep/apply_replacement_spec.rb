@@ -73,6 +73,35 @@ RSpec.describe "Applying an interview question replacement" do
     AiTasks::ApplyAiResultService.call(message: payload)
   end
 
+  it "applies an ID-only replacement with exact peer revisions and rejects stale peers" do
+    command = task.input.except("question_text").merge("source_version" => 1,
+      "peer_revisions" => questions.drop(1).to_h { |peer| [peer.id, peer.question_revision] })
+    task.update!(input: command)
+    apply
+    expect(task.reload).to be_completed
+  end
+
+  it "rejects a newly avoided question when an ID-only result arrives" do
+    task.update!(input: task.input.except("question_text").merge("source_version" => 1,
+      "peer_revisions" => questions.drop(1).to_h { |peer| [peer.id, peer.question_revision] }))
+    text = message["result"]["interview_questions"]["questions"][0]["question_text"]
+    user.avoided_interview_questions.create!(question_text: text, text_digest: InterviewPreferences::AvoidedQuestions.digest(text))
+    original = question.attributes
+    apply
+    expect(task.reload).to be_failed
+    expect(question.reload.attributes).to eq(original)
+  end
+
+  it "rejects a peer changed after the ID-only replacement was queued" do
+    task.update!(input: task.input.except("question_text").merge("source_version" => 1,
+      "peer_revisions" => questions.drop(1).to_h { |peer| [peer.id, peer.question_revision] }))
+    questions.last.update!(question_revision: 2)
+    original = question.attributes
+    apply
+    expect(task.reload).to be_failed
+    expect(question.reload.attributes).to eq(original)
+  end
+
   it "replaces only the selected question, clears its answer/feedback, and advances revisions once" do
     InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
       embedding_client: FakeEmbeddingClient.new)

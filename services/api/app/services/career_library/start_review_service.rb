@@ -23,7 +23,7 @@ module CareerLibrary
           elsif snapshot["targets"].length > ReviewSnapshot::MAX_TARGETS || snapshot.to_json.bytesize > ReviewSnapshot::MAX_SOURCE_BYTES
             failure([ "This section is too large to review. Shorten it and try again." ])
           else
-            task.input = snapshot
+            task.input = ReviewCommand.from_projection(snapshot)
             success(task)
           end
         }

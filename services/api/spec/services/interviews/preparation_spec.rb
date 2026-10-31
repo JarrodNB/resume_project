@@ -1,4 +1,4 @@
-# Verifies preparation freezes owned evidence and accepts a complete interview before speech.
+# Verifies reference-only preparation and complete acceptance before speech.
 require "rails_helper"
 
 RSpec.describe "Spoken interview preparation" do
@@ -8,14 +8,14 @@ RSpec.describe "Spoken interview preparation" do
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
   end
 
-  it "snapshots shared avoided questions once for preparation and later claims" do
+  it "keeps saved preferences out of execution claims" do
     InterviewPreferences::SaveAvoidedQuestionService.call(user: user, question_text: "Describe an old challenge.")
     interview = Interviews::StartPreparationService.call(user: user).value
     InterviewPreferences::SaveAvoidedQuestionService.call(user: user, question_text: "A later preference?")
     claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
     expect(claim).to be_success
-    expect(claim.value.fetch(:payload).fetch(:frozen_context).fetch("avoided_questions")).to eq([ "Describe an old challenge." ])
-    expect(interview.reload.frozen_context.fetch("avoided_questions")).to eq([ "Describe an old challenge." ])
+    expect(claim.value.fetch(:payload)).not_to have_key(:frozen_context)
+    expect(interview.reload.frozen_context).to eq({})
   end
 
   it "starts durable preparation instead of a fixture question and never starts speech" do
@@ -27,7 +27,7 @@ RSpec.describe "Spoken interview preparation" do
     expect(interview.messages).to be_empty
     expect(interview.operations.pluck(:kind)).to eq([ "preparation" ])
     user.update!(summary: "Changed later")
-    expect(interview.reload.frozen_context.fetch("sources").first.fetch("text")).to include("laboratory")
+    expect(interview.reload.frozen_context).to eq({})
   end
 end
 
@@ -42,12 +42,13 @@ RSpec.describe "Preparation execution" do
   def claim
     Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
   end
-  it "discovers and claims frozen preparation without a question or recording" do
+  it "discovers and claims preparation by identity without a question or recording" do
     operation
     expect(operation.reload.delivery_job_id).to be_present
     result = claim
     expect(result).to be_success
-    expect(result.value.fetch(:payload).fetch(:frozen_context).fetch("career_focus")).to eq("laboratory")
+    expect(result.value.fetch(:payload)).to include(interview_id: interview.id, user_id: user.id)
+    expect(interview.career_focus).to eq("laboratory")
     expect(operation.reload.ai_task.task_type).to eq("interview_preparation")
   end
 end
@@ -83,7 +84,7 @@ RSpec.describe "Atomic preparation acceptance" do
     expect(interview.reload).to be_preparing
     expect(interview.questions).to be_empty
   end
-  it "rejects an expired claim and recovers the same frozen preparation after restart" do
+  it "rejects an expired claim and recovers the same preparation operation after restart" do
     travel 31.seconds
     expect(accept).not_to be_success
     expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).not_to be_success
@@ -103,17 +104,13 @@ RSpec.describe "Preparation evidence and retention" do
     result = Interviews::StartPreparationService.call(user: owner)
     expect(result).to be_success
     text = result.value.frozen_context.to_json
-    expect(text).to include("Technician", "Maintained equipment")
+    expect(text).to eq("{}")
     expect(text).not_to include(other.summary, "Lead a hospital department")
   end
 
-  it "rejects empty libraries, long focus and oversize context without creating work" do
-    owner = create(:user)
-    expect(Interviews::StartPreparationService.call(user: owner).errors.join).to include("career library is empty")
-    owner.update!(summary: "Career evidence")
+  it "rejects long focus without creating work; source bounds belong to Python" do
+    owner = create(:user, summary: "Career evidence")
     expect(Interviews::StartPreparationService.call(user: owner, career_focus: "x" * 201)).not_to be_success
-    stub_const("Interviews::StartPreparationService::MAX_CONTEXT_BYTES", 10)
-    expect(Interviews::StartPreparationService.call(user: owner)).not_to be_success
     expect(owner.interview_sessions).to be_empty
   end
 

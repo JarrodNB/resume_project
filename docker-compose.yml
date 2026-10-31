@@ -232,6 +232,10 @@ services:
       - path: ./services/ai/.env
         required: false
     environment:
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
       AI_HTTP_ENABLED: ${AI_HTTP_ENABLED:-true}
       AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-true}
       AI_STREAM_REDIS_URL: ${AI_STREAM_REDIS_URL:-redis://redis:6379/0}

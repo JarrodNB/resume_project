@@ -8,6 +8,7 @@ import hashlib
 from datetime import UTC, datetime
 
 import logfire
+from psycopg import Error as DatabaseError
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import (
     FallbackExceptionGroup,
@@ -29,6 +30,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 
 from agents.chat_agent import make_chat_agent
 from agents.chat_summary_agent import make_chat_summary_agent
+from chat.client import ChatReferencePayload
 from interviews.client import RailsTransportError
 from mcp_tools.client import ToolServerConnection
 from model_inputs.blocks import source_block
@@ -60,8 +62,9 @@ class ChatRejected(RuntimeError):
 class ChatExecutionAdapter:
     stream_output = True
 
-    def __init__(self, client, models, *, model=None, fallback_model=None, tool_server=None):
+    def __init__(self, client, models, *, model=None, fallback_model=None, tool_server=None, input_reader=None):
         self.client, self.models = client, models
+        self.input_reader = input_reader
         settings = load_settings()
         # The separate MCP tool server (ai-mcp); a missing token secret fails startup loudly.
         self.tool_server = tool_server or ToolServerConnection.from_environment(settings)
@@ -88,6 +91,19 @@ class ChatExecutionAdapter:
             text, 30, lambda model: self.models.accounted(self.client, claim, "screening", model))
 
     async def execute(self, claim, output):
+        if isinstance(claim.payload, ChatReferencePayload):
+            if self.input_reader is None:
+                from database.chat_inputs import build_chat_input_reader
+                self.input_reader = build_chat_input_reader(load_settings())
+            try:
+                claim = await asyncio.to_thread(self.input_reader, claim)
+            except (DatabaseError, ValueError) as error:
+                await self.client.fail(claim, "dependency_unavailable" if isinstance(error, DatabaseError)
+                                       else "execution_failed", isinstance(error, DatabaseError))
+                await self.client.usage(claim, [], incomplete=False)
+                if output:
+                    await output.emit("failed")
+                return
         # Bound local detection too; oversized source text never reaches expensive NLP.
         source_characters = sum(len(m.content) for m in claim.payload.messages) + len(claim.payload.message) + len(claim.payload.summary.text)
         early = claim.payload.summary_plan and not claim.payload.summary_plan.scheduled

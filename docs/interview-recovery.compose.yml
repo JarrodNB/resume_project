@@ -16,6 +16,19 @@ services:
       timeout: 3s
       retries: 30
 
+  reader-setup:
+    image: pgvector/pgvector:pg17
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: interview-local-only
+    command: [psql, -v, ON_ERROR_STOP=1, -f, /reader.sql]
+    volumes:
+      - ../infra/postgres/ensure_interview_reader.sql:/reader.sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
   s3:
     image: adobe/s3mock
     environment:
@@ -51,6 +64,8 @@ services:
       - ../services/api:/rails
       - interview_bootsnap:/bootsnap
     depends_on:
+      reader-setup:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       s3:
@@ -125,6 +140,10 @@ services:
     command: uvicorn interviews.fixture_app:app --host 0.0.0.0 --port 8000
     init: true
     environment:
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
       INTERVIEW_FAKE_RUNTIME_ENABLED: "true"
       INTERVIEW_PROVIDER_MODE: fake
       INTERVIEW_RAILS_ORIGIN: http://api:3000

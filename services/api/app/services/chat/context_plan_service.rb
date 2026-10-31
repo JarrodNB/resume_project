@@ -1,11 +1,10 @@
-# Selects only uncovered accepted dialogue and fixes the exact summary source checkpoint.
+# Checks uncovered accepted dialogue and plans summary checkpoints without copying sources.
 # Called under the chat lock. The model never chooses which saved messages it may replace.
 require "digest"
 module Chat
-  class ContextSnapshotService < ApplicationService
+  class ContextPlanService < ApplicationService
     MAX_SOURCE_CHARACTERS = 200_000
     MAX_SOURCE_MESSAGES = 1000
-    MAX_SOURCE_BYTES = 1_000_000 # Leaves metadata room under the shared transport's 1 MiB ceiling.
     # Leave room for labels, instructions and masking before Python's exact 120k check.
     CONTEXT_BUDGET = 110_000
     SUMMARY_RESERVE = 8000
@@ -30,10 +29,6 @@ module Chat
         (message.assistant? || message.screened_sha256 == Digest::SHA256.hexdigest(message.content)) }
         return failure("screening_unavailable")
       end
-      encoded_source = { messages: history.map { |message| message.attributes.slice("role", "content", "position") },
-        summary: @conversation.summary_text, message: @operation.message }.to_json
-      return failure("context_limit") if encoded_source.bytesize > MAX_SOURCE_BYTES
-
       scheduled = ((last / 2 + 1) % ChatLimits::SUMMARIZE_EVERY_USER_MESSAGES).zero?
       target = scheduled ? (last / 2 + 1 - 5) * 2 : through
       if count >= 900 || estimated_size(history, @conversation.summary_text.length) > CONTEXT_BUDGET
@@ -44,8 +39,8 @@ module Chat
         return failure("context_limit") if estimated_size(remaining, SUMMARY_RESERVE) > CONTEXT_BUDGET
       end
       plan = target > through ? { through_position: target, scheduled: scheduled } : nil
-      success(messages: history, summary: { text: @conversation.summary_text, version: @conversation.summary_version,
-        through_position: through }, summary_plan: plan)
+      success(expected_position: last, summary_base_version: @conversation.summary_version,
+        summary_through_position: through, summary_plan: plan)
     end
 
     private

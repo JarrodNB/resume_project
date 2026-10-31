@@ -6,10 +6,10 @@ module CareerLibrary
     end
 
     def call
-      EditSnapshot.capture(user: @user, kind: @kind, record_id: @record_id)
-      task = EditSnapshot.latest(user: @user, kind: @kind, record_id: @record_id)
-      task = nil if task && EditSnapshot.discarded?(task)
-      success({ ai_task: task, stale: task ? EditSnapshot.stale?(user: @user, task: task) : false })
+      EditCommand.capture(user: @user, kind: @kind, record_id: @record_id)
+      task = EditCommand.latest(user: @user, kind: @kind, record_id: @record_id)
+      task = nil if task && EditCommand.discarded?(task)
+      success({ ai_task: task, stale: task ? EditCommand.stale?(user: @user, task: task) : false })
     end
   end
 end

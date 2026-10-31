@@ -34,8 +34,9 @@ test support. See docs/architecture/interview-sessions.md.
   See docs/architecture/interview-sessions.md for the boundary and staged implementation.
   The database connection uses the read-only `ai_reader` role (career library and jobs for gap
   analysis; career library embeddings for memory retrieval); never attempt writes. Rails writes
-  the embeddings; the worker embeds search queries and bounded job-listing excerpts for optional reranking. Every query is scoped by the task
-  message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
+  the embeddings; the worker embeds search queries and bounded job-listing excerpts for optional reranking. Private queries are scoped by the task
+  message's `user_id`; shared catalogue reads select only IDs from its owned queued command.
+  SQL lives only in `database/`. Rails grants the role its tables
   (`lib/ai_reader_access.rb`); a new table needs a grant there. Queued-task uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.
 - Interview audio uses Rails-issued capabilities through a separate client with no application
@@ -79,7 +80,7 @@ test support. See docs/architecture/interview-sessions.md.
 - **User-written text is screened for prompt injection before it enters a prompt** (`screening/`),
   including an uploaded resume before it is parsed; a blocked resume fails the import.
   Every generative agent declares an official Harness `InputGuardrail` through `capabilities`,
-  and trusted builders bind exact assembled prompts to approved sources. Spoken answer
+  and trusted builders bind exact assembled prompts to approved sources. Spoken preparation and answer
   turns are an explicit user-authorized exception: no injection classifier runs; exact
   input integrity, context limits, contact replacement and accounting remain. A missing
   `TYPESAFE_API_KEY` prevents Jev calls. Job study-guide generation is a scoped exception:

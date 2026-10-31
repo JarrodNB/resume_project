@@ -1,5 +1,5 @@
-# Captures one owned job description and prior generated prompts to queue five fresh study questions.
-# Owner locking serializes requests; the job lock makes the saved source snapshot exact.
+# Queues an owned job reference for five fresh study questions.
+# Python reads current job text and prior generated prompts when execution starts.
 # Manual retry retires expired queued work while keeping existing guides and usage intact.
 module StudyGuides
   class StartGuideService < ApplicationService
@@ -38,7 +38,7 @@ module StudyGuides
         @expired_tasks << expired
       end
       task.subject = @job
-      task.input = { "job_id" => @job.id, "description" => @job.description, "previous_questions" => previous }
+      task.input = { "job_id" => @job.id }
       success(task)
     rescue ActiveRecord::RecordNotFound
       failure([ "This job no longer exists." ])

@@ -19,7 +19,10 @@ RSpec.describe "Completed interview feedback" do
     expect(record.ai_task.task_type).to eq("interview_session_feedback")
     expect(record.ai_task.input).to eq("feedback_id" => record.id)
     expect(service.request(interview: interview).value.id).to eq(record.id)
-    expect(queue).to have_received(:send_message).once
+    expect(queue).to have_received(:send_message).once do |message_body:|
+      expect(JSON.parse(message_body)).to eq("schema_version" => 1, "ai_task_id" => record.ai_task_id,
+        "user_id" => interview.user_id, "task_type" => "interview_session_feedback")
+    end
   end
 
   def content

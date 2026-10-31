@@ -23,20 +23,20 @@ module CareerLibrary
         @previous = @user.ai_tasks.improve_library_entry.find(@previous_id)
         # A failed review batch can replay its owned saved answers without inventing
         # new feedback. Ordinary edits still need feedback or an explicit skip.
-        replay_batch = @previous.failed? && @previous.input.dig("review_question", "answers").is_a?(Array) && @previous.input.dig("review_question", "answers").any?
+        replay_batch = @previous.failed? && @previous.input["review_question"].present?
         return failure([ "Answer the question, or choose Skip." ]) if @feedback.blank? && !@skip && !replay_batch
         child = @user.ai_tasks.improve_library_entry.where("input ->> 'previous_task_id' = ?", @previous.id).first
         return child.input["feedback"] == @feedback && child.input["skip"] == @skip ? success(child) : failure([ "A newer turn already exists. Reload to continue." ]) if child
         return failure([ "Wait for the current turn to finish." ]) if @previous.queued?
-        return failure([ "This draft is already closed. Start a new edit." ]) if @previous.accepted? || EditSnapshot.discarded?(@previous)
+        return failure([ "This draft is already closed. Start a new edit." ]) if @previous.accepted? || EditCommand.discarded?(@previous)
         target = @previous.input.fetch("target")
-        latest = EditSnapshot.latest(user: @user, kind: target["kind"], record_id: target["record_id"])
+        latest = EditCommand.latest(user: @user, kind: target["kind"], record_id: target["record_id"])
         return failure([ "A newer edit exists. Reload to continue." ]) unless latest&.id == @previous.id
-        return failure([ "This entry changed. Start a new edit from its current text." ]) if EditSnapshot.stale?(user: @user, task: @previous)
+        return failure([ "This entry changed. Start a new edit from its current text." ]) if EditCommand.stale?(user: @user, task: @previous)
       else
-        @snapshot = EditSnapshot.capture(user: @user, kind: @kind, record_id: @record_id)
-        existing = EditSnapshot.latest(user: @user, kind: @kind, record_id: @record_id)
-        if existing && !existing.accepted? && !EditSnapshot.discarded?(existing) && !EditSnapshot.stale?(user: @user, task: existing)
+        @snapshot = EditCommand.capture(user: @user, kind: @kind, record_id: @record_id)
+        existing = EditCommand.latest(user: @user, kind: @kind, record_id: @record_id)
+        if existing && !existing.accepted? && !EditCommand.discarded?(existing) && !EditCommand.stale?(user: @user, task: existing)
           return success(existing) unless existing.failed?
         end
       end
@@ -45,21 +45,25 @@ module CareerLibrary
 
     def prepare(task)
       if @previous
-        return failure([ "This edit has reached its turn limit. Start a new edit." ]) if @previous.input["turn"].to_i >= EditSnapshot::MAX_TURNS
-        task.input = @previous.input.except("feedback", "skip", "question_id", "history", "previous_task_id").merge(
+        return failure([ "This edit has reached its turn limit. Start a new edit." ]) if @previous.input["turn"].to_i >= EditCommand::MAX_TURNS
+        # Only references survive into a child; saved history and root answers stay put.
+        command = EditCommand.capture(user: @user, kind: @previous.input.dig("target", "kind"), record_id: @previous.input.dig("target", "record_id"))
+        task.input = command.merge("root_id" => @previous.input.fetch("root_id"),
           "previous_task_id" => @previous.id, "turn" => @previous.input["turn"].to_i + 1,
-          "history" => @previous.message_history.presence || @previous.input["history"] || [],
           "question_id" => if @previous.needs_user_input?
             @previous.pending_questions.first&.fetch("id", nil)
           elsif @previous.failed?
             @previous.input["question_id"]
           end)
+        if @previous.input["review_question"]
+          task.input["review_question"] = @previous.input["review_question"].slice("review_task_id")
+        end
       else
         task.id = SecureRandom.uuid
-        task.input = @snapshot.merge("root_id" => task.id, "turn" => 1, "history" => [])
+        task.input = @snapshot.merge("root_id" => task.id, "turn" => 1)
       end
       task.input = task.input.merge("feedback" => @feedback, "skip" => @skip)
-      if task.input.to_json.bytesize > EditSnapshot::MAX_INPUT_BYTES
+      if task.input.to_json.bytesize > EditCommand::MAX_INPUT_BYTES
         return failure([ "This edit is too long to continue. Start a new edit with less context." ])
       end
       success(task)

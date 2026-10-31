@@ -1,8 +1,7 @@
-"""
-Description: Reuses saved field checks or screens a saved answer before revision-bound feedback.
-Index:
-    - InterviewFeedbackInput: immutable Rails snapshot
-    - handle_interview_feedback_task: read-only coaching and usage reporting
+"""Coach an owned saved answer after checking its question and answer revisions.
+
+Python reads the source once from its domain row, reuses exact saved approvals and
+returns coaching only. Rails stores feedback against the reviewed revisions.
 """
 from uuid import UUID
 
@@ -28,7 +27,7 @@ from worker.task_dependencies import TaskDependencies
 
 
 class InterviewFeedbackInput(BaseModel):
-    """Question and answer revisions saved before queue publication."""
+    """Owned source fields loaded together at the commanded revisions."""
 
     question_set_id: UUID
     set_type: InterviewSetType = "general"
@@ -43,7 +42,13 @@ class InterviewFeedbackInput(BaseModel):
 @within_screening_session
 def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDependencies) -> AiResultMessage:
     """Screens before model use; never writes the answer or career library."""
-    snapshot = InterviewFeedbackInput.model_validate(task.input)
+    if dependencies.read_interview_question_sources is None:
+        raise RuntimeError("Interview question reader is not configured")
+    sources = dependencies.read_interview_question_sources(task)
+    if sources is None:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+            error_message="This answer is out of date. Request feedback again.")
+    saved = InterviewFeedbackInput.model_validate(sources)
     settings = dependencies.settings
     usage = []
 
@@ -51,19 +56,19 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         """Preserves billed screening and generation usage on expected failures."""
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=message, usage=usage)
 
-    if not snapshot.answer_text.strip():
+    if not saved.answer_text.strip():
         return fail("Write an answer before asking for feedback.")
-    source = snapshot.model_dump(mode="json")
-    source["screened_fields"] = snapshot.screened_fields
-    outcome = screen_records_sync([interview_answer_record(source, "answer_text", snapshot.answer_text)],
-                                  approved_sources=[snapshot.answer_text]).decision
+    source = saved.model_dump(mode="json")
+    source["screened_fields"] = saved.screened_fields
+    outcome = screen_records_sync([interview_answer_record(source, "answer_text", saved.answer_text)],
+                                  approved_sources=[saved.answer_text]).decision
     usage.extend(outcome.model_usages)
     if not outcome.allowed:
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
-    # Rails supplies the immutable question generated for this owned question record.
-    trust_generated_source(snapshot.question_text)
+    # The owned reader selects a saved generated question, never browser-supplied text.
+    trust_generated_source(saved.question_text)
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
@@ -76,12 +81,12 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     library = selected.library
     warnings = list(selected.warnings)
     text = bind_screened_prompt(
-        [snapshot.answer_text, snapshot.question_text, *selected.sources],
-        lambda values: _feedback_prompt_text(values, selected.fields, snapshot.set_type),
+        [saved.answer_text, saved.question_text, *selected.sources],
+        lambda values: _feedback_prompt_text(values, selected.fields, saved.set_type),
     )
     if text_limits.prompt_is_too_long(text):
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
-    context = InterviewFeedbackContext(text, snapshot.answer_text + "\n" + interview_career_evidence(library)[1], snapshot.set_type)
+    context = InterviewFeedbackContext(text, saved.answer_text + "\n" + interview_career_evidence(library)[1], saved.set_type)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_feedback(context, model=settings.interview_feedback_model,

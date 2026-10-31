@@ -4,6 +4,7 @@ This entrypoint never loads worker settings, provider credentials or remote trac
 Health routes inspect process/dependency state without claiming work themselves.
 """
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -70,6 +71,10 @@ def create_app(settings: RuntimeSettings | None = None) -> FastAPI:
         app.state.execution_runner = None
         app.state.service_secret = configured.secret
         if configured.enabled:
+            from database.interview_inputs import build_interview_input_reader
+            from settings import AISettings
+            database_settings = AISettings()
+            app.state.database_settings = database_settings
             from interviews.client import RailsInterviewClient
             from interviews.executor import InterviewExecutor
 
@@ -78,7 +83,7 @@ def create_app(settings: RuntimeSettings | None = None) -> FastAPI:
                     executor = InterviewExecutor(
                         client, storage_client=storage,
                         allowed_origins=set(configured.storage_origins), allow_http=True,
-                        scenario=configured.scenario,
+                        scenario=configured.scenario, input_reader=build_interview_input_reader(database_settings),
                     )
                     runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(client, executor)})
                     app.state.execution_runner = runner
@@ -102,7 +107,13 @@ def create_app(settings: RuntimeSettings | None = None) -> FastAPI:
     async def ready():
         runner = getattr(app.state, "execution_runner", None)
         ready = bool(runner and runner.ready)
-        return JSONResponse({"ready": ready}, status_code=200 if ready else 503)
+        reason = "runtime_disabled"
+        if ready:
+            from database.interview_inputs import interview_database_ready
+            ready = await asyncio.to_thread(interview_database_ready, app.state.database_settings)
+            if not ready:
+                reason = "database_unavailable"
+        return JSONResponse({"ready": ready, **({} if ready else {"reason": reason})}, status_code=200 if ready else 503)
 
     return app
 

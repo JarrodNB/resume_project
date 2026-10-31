@@ -28,8 +28,7 @@ module Types
     end
 
     def job_context
-      context = object.frozen_context["job"]
-      context&.merge("id" => object.job_id)
+      object.user.jobs.find_by(id: object.job_id)&.attributes&.slice("id", "title", "company", "description", "requirements", "responsibilities", "nice_to_haves")
     end
 
     def setup

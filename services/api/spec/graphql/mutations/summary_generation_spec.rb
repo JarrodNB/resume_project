@@ -19,10 +19,10 @@ RSpec.describe "Summary generation mutations" do
   end
   it "accepts edited text explicitly and refuses another user's work" do
     task = SummaryGeneration::StartGenerationService.call(user: user, target_kind: "profile").value
-    AiTasks::ApplyAiResultService.call(message: {"ai_task_id" => task.id, "status" => "completed", "result" => {"text" => "API engineer", "source_labels" => [task.input["sources"].first["label"]]}})
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "text" => "API engineer", "source_labels" => [ task.input["source_references"].first["label"] ] } })
     mutation = %(mutation { acceptSummaryGeneration(input: {aiTaskId: "#{task.id}", text: "My reviewed summary"}) { aiTask { acceptedAt } errors } })
     other = execute_graphql(mutation, user: create(:user))
-    expect(other.dig("data", "acceptSummaryGeneration", "errors")).to eq(["Record not found"])
+    expect(other.dig("data", "acceptSummaryGeneration", "errors")).to eq([ "Record not found" ])
     result = execute_graphql(mutation, user: user)
     expect(result.dig("data", "acceptSummaryGeneration", "errors")).to eq([])
     expect(user.reload.summary).to eq("My reviewed summary")
@@ -37,12 +37,12 @@ RSpec.describe "Summary generation mutations" do
 
   it "generates and accepts an orphan saved resume without modifying the profile" do
     resume = create(:resume, user: user, include_summary: false)
-    create(:resume_section, resume: resume, section_type: "skills", content: {"items" => [{"name" => "Ruby"}]})
+    create(:resume_section, resume: resume, section_type: "skills", content: { "items" => [ { "name" => "Ruby" } ] })
     resume.job.destroy!
     result = execute_graphql(%(mutation { startSummaryGeneration(input: {targetKind: "resume", targetId: "#{resume.id}"}) { aiTask { id } errors } }), user: user)
     expect(result.dig("data", "startSummaryGeneration", "errors")).to eq([])
     task = user.ai_tasks.find(result.dig("data", "startSummaryGeneration", "aiTask", "id"))
-    AiTasks::ApplyAiResultService.call(message: {"ai_task_id" => task.id, "status" => "completed", "result" => {"text" => "Ruby developer", "source_labels" => [task.input["sources"].first["label"]]}})
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "text" => "Ruby developer", "source_labels" => [ task.input["source_references"].first["label"] ] } })
     expect(AiTasks::DescribeTaskOutcomeService.destination_for(task: task, user: user, status: "completed")).to eq("/resumes/#{resume.id}")
     accepted = execute_graphql(%(mutation { acceptSummaryGeneration(input: {aiTaskId: "#{task.id}", text: "Reviewed Ruby developer"}) { aiTask { acceptedAt } errors } }), user: user)
     expect(accepted.dig("data", "acceptSummaryGeneration", "errors")).to eq([])
@@ -58,7 +58,6 @@ RSpec.describe "Summary generation mutations" do
     result = execute_graphql(%({ summaryGeneration(targetKind: "resume", targetId: "#{other.id}") { aiTask { id } stale } }), user: user)
     expect(result.fetch("errors").first.fetch("message")).to eq("Record not found")
     rejected = execute_graphql(%(mutation { startSummaryGeneration(input: {targetKind: "resume", targetId: "#{other.id}"}) { errors } }), user: user)
-    expect(rejected.dig("data", "startSummaryGeneration", "errors")).to eq(["Record not found"])
+    expect(rejected.dig("data", "startSummaryGeneration", "errors")).to eq([ "Record not found" ])
   end
-
 end

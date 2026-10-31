@@ -144,6 +144,7 @@ module Screening
       receipt["fingerprints"].filter_map do |field, fingerprint|
         next unless entry[:fields].include?(field) && fingerprint.is_a?(String) && fingerprint.match?(FINGERPRINT_FORMAT)
         next unless fingerprint == self.class.field_fingerprint(record[field])
+        next if scope[:fingerprints] && scope[:fingerprints].dig(record.id, field) != fingerprint
         next if snapshot && !(snapshot[field].is_a?(String) && fingerprint == self.class.field_fingerprint(snapshot[field]))
         next if entry[:check] && !send(entry[:check], scope: scope, record: record, snapshot: snapshot, receipt: receipt, field: field)
 
@@ -213,7 +214,10 @@ module Screening
       else @user.public_send(record_type.pluralize)
       end
       scope = { records: records }
-      if task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type)
+      if task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type) && @ai_task.input["command_version"] == 1
+        values = Array(@ai_task.input["field_fingerprints"]).select { |item| item.is_a?(Hash) && item["record_type"] == record_type }
+        scope[:fingerprints] = values.to_h { |item| [ item["record_id"], item["fingerprints"] ] }
+      elsif task_for_user? && %w[review_library_section improve_library_entry].include?(@ai_task.task_type)
         library = @ai_task.input.fetch("library", {})
         values = case record_type
         when "user" then [ { "id" => library["summary_record_id"], "summary" => library["summary"] } ]
@@ -240,12 +244,20 @@ module Screening
       { records: @user.jobs.where(id: @interview.job_id) }
     end
 
-    # Only answers on the tailoring task's job that were frozen into the task input.
+    # Reference-only tailoring reads live answers for its owned subject. Exact fingerprints
+    # are compared under each answer lock, so edits after screening cannot gain approval.
+    # Retained commands with copied answers keep their stricter original membership check.
     def gap_response_scope(_record_type)
       return unless task_for_user? && @ai_task.task_type == "tailor_resume" && @ai_task.subject_type == "Job"
 
       job = @user.jobs.find_by(id: @ai_task.subject_id)
       return unless job
+
+      unless @ai_task.input.key?("gap_responses")
+        return unless @ai_task.input["job_id"] == job.id
+
+        return { records: job.gap_responses }
+      end
 
       snapshots = Array(@ai_task.input["gap_responses"]).each_with_object({}) do |item, by_id|
         by_id[item["id"]] ||= item if item.is_a?(Hash) && item["id"].is_a?(String)
@@ -253,7 +265,7 @@ module Screening
       { records: job.gap_responses, snapshots: snapshots }
     end
 
-    # Only the task's question and, for regeneration, the sibling questions it froze.
+    # Only the task’s owned question and selected generation siblings can receive receipts.
     def interview_question_scope(_record_type)
       return unless task_for_user? && @ai_task.subject_type == "InterviewQuestion" &&
         %w[review_interview_answer regenerate_interview_question].include?(@ai_task.task_type)
@@ -265,6 +277,21 @@ module Screening
       target = set.questions.find_by(id: @ai_task.subject_id)
       return unless target && target.id == input["question_id"]
 
+      return unless [ nil, 1 ].include?(input["source_version"])
+      if @ai_task.review_interview_answer? && input["source_version"] == 1
+        return { records: set.questions.where(id: target.id),
+          revisions: { target.id => input.slice("question_revision", "answer_revision") }, target_id: target.id }
+      end
+
+      if @ai_task.regenerate_interview_question? && input["source_version"] == 1
+        peers = input["peer_revisions"]
+        return unless peers.is_a?(Hash) && !peers.key?(target.id) &&
+          peers.all? { |id, revision| id.is_a?(String) && revision.is_a?(Integer) && revision.positive? }
+
+        revisions = peers.transform_values { |revision| { "question_revision" => revision } }
+        revisions[target.id] = input.slice("question_revision", "answer_revision")
+        return { records: set.questions.where(id: revisions.keys), revisions: revisions, target_id: target.id }
+      end
       { records: set.questions, snapshots: interview_sources(set, target, input), target_id: target.id }
     end
 
@@ -286,10 +313,13 @@ module Screening
       sources
     end
 
-    # The question must still be at the frozen revision. An answer is approved only on the
-    # reviewed question itself, during answer review, at the frozen answer revision.
+    # The question must still be at the commanded revision. An answer is approved only on
+    # the reviewed question itself, during answer review, at its exact answer revision.
     def interview_revision_matches?(scope:, record:, snapshot:, receipt:, field:)
       revision = receipt["revision"] || {}
+      snapshot ||= scope.fetch(:revisions, {})[record.id]
+      return false unless snapshot
+
       question_revision = snapshot["question_revision"]
       return false unless question_revision.is_a?(Integer) && revision["question_revision"] == question_revision &&
         record.question_revision == question_revision

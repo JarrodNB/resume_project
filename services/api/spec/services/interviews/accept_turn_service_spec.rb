@@ -26,7 +26,8 @@ RSpec.describe "Basic Interview acceptance" do
     speech = interview.operations.speech.find_by!(message: response)
     claim = Interviews::ClaimOperationService.call(operation: speech)
     expect(claim).to be_success
-    expect(claim.value.dig(:payload, :text)).to eq("#{acknowledgement}\n\n#{input[:reply]}")
+    expect(claim.value.fetch(:payload)).to include(interview_id: interview.id)
+    expect(Interviews::MessageText.spoken_content(speech.message)).to eq("#{acknowledgement}\n\n#{input[:reply]}")
   end
 
   [ [ "advance", false, true ], [ "continue", true, true ],

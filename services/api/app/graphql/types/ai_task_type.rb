@@ -33,7 +33,7 @@ module Types
       return unless object.generate_study_guide? && object.subject_type == "Job"
       job = context[:current_user].jobs.find_by(id: object.subject_id)
       return unless job
-      ::StudyGuides::DescriptionSnapshot.out_of_date?(source: object.input["description"], description: job.description)
+      ::StudyGuides::DescriptionFingerprint.task_out_of_date?(object, description: job.description)
     end
 
     def study_guide_retry_after_seconds

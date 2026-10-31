@@ -168,4 +168,6 @@ unknown expiration within partially stated periods.
 
 - `test_chat_evaluators.py` — offline synthetic dataset labels, evaluator failures and production rolling-adapter routing; quality runs remain separate from deterministic correctness.
 
-- `test_summary_generation.py` and `test_summary_generation_evaluators.py` — frozen-source dispatch, screening reuse/rejection, citation repairs, failure usage, contact masking and synthetic evaluator failures.
+- `test_summary_generation.py` and `test_summary_generation_evaluators.py` — reference-based dispatch, screening reuse/rejection, citation repairs, failure usage, contact masking and synthetic evaluator failures.
+
+- `test_summary_source_reader.py` — actual ai_reader ownership, currentness and exact owned accepted-prose trust; `test_summary_references.py` verifies source loading and legacy rejection before paid work.

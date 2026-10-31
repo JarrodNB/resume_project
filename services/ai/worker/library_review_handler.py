@@ -1,9 +1,10 @@
 """Screen one saved section and return grades and optional questions without changing facts."""
 
 from agents.library_review_agent import review_library_section
+from database.library_review_reader import build_database_review_reader
 from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
-from schemas.library_review import LibraryReviewInput
+from schemas.library_review import LibraryReviewCommand
 from screening.prompt_guardrail import TOO_LONG_MESSAGE
 from screening.record_adapters import library_records
 from screening.records import record_failure_message, screen_records_sync
@@ -12,11 +13,11 @@ from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
 from worker.queue_messages import AiResultMessage
 
 
-def render_review(source: str) -> str:
-    """Render only the selected section snapshot; JSON is an internal transport, never the prompt."""
+def render_review(source) -> str:
+    """Render the execution-local selected section as plain text; never put JSON in the prompt."""
     from schemas.gap_analysis_context import CareerLibrary
 
-    library = CareerLibrary.model_validate_json(source)
+    library = CareerLibrary.model_validate_json(source) if isinstance(source, str) else source
     rows = []
     target = 0
     for role in library.experiences:
@@ -54,13 +55,18 @@ def render_review(source: str) -> str:
 @within_screening_session
 def handle_library_review_task(task, dependencies):
     """Reuse checked saved fields, screen the rest together, and bind the exact plain-text prompt before generation."""
-    snapshot = LibraryReviewInput.model_validate(task.input)
+    command = LibraryReviewCommand.model_validate(task.input)
+    reader = dependencies.read_library_review or build_database_review_reader(dependencies.settings)
+    snapshot = reader(task.user_id, command.section)
+    if snapshot.targets != command.targets:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+                               error_message="Your career library changed. Please start a new review.")
     source = snapshot.library.model_dump_json(exclude_none=True)
     prompt = render_review(source)
     if len(source) > MAX_SCREENED_TEXT or len(prompt) > MAX_PROMPT_TEXT:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=TOO_LONG_MESSAGE)
     usage = []
-    # Rails approves the resulting receipts only when they also match this frozen snapshot.
+    # Rails approves receipts only when admission fingerprints and current fields agree.
     # A snapshot with no text has nothing to approve; the prompt guard checks it instead.
     if records := library_records(snapshot.library):
         outcome = screen_records_sync(records, approved_sources=[source])

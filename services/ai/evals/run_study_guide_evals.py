@@ -87,9 +87,10 @@ def run_study_guide_evals():
 
     def generate(case):
         task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_study_guide",
-                            input={"job_id": str(uuid4()), "description": case.description,
-                                   "previous_questions": case.previous_questions})
-        result = handle_study_guide_task(task, SimpleNamespace(settings=settings))
+                            input={"job_id": str(uuid4())})
+        sources = {"job_id": task.input["job_id"], "description": case.description,
+                   "previous_questions": case.previous_questions}
+        result = handle_study_guide_task(task, SimpleNamespace(settings=settings, read_study_guide_sources=lambda _task: sources))
         failure_code = (result.result or {}).get("failure_code")
         guide = StudyGuide.model_validate(result.result["study_guide"]) if result.status == "completed" else None
         return StudyGuideEvalOutput(status=result.status, guide=guide, failure_code=failure_code)

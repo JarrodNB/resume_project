@@ -13,8 +13,9 @@ Adding it to the career library creates a `CareerContext`; only that context is 
   response still points at it. Queues an embedding sync only when a context is created, its text
   changes, or it is deleted.
 
-- `record_screening_service.rb` — accepts final tailoring field fingerprints for owned
-  task-snapshot answer IDs, matching both snapshot and locked current text. Successful
+- `../screening/record_approvals_service.rb` — accepts final tailoring field fingerprints for answers
+  on the owned task subject matching its command job ID and locked current text. Retained
+  copied-input tasks also require their original answer membership/value. Successful
   checks survive generation failure; edits clear only changed field approvals atomically.
   CareerContext approvals remain independent.
 

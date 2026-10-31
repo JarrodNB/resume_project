@@ -28,7 +28,7 @@ module Interviews
         @questions.each_with_index do |question, position|
           interview.questions.create!(content: question.fetch("content"), question_type: question.fetch("question_type"), position: position)
         end
-        saved_role = interview.frozen_context["job"]&.slice("title", "responsibilities", "requirements") || @role
+        saved_role = interview.preparation_kind == "saved_job" ? {} : @role
         interview.update!(status: "ready", prepared_role: saved_role, revision: interview.revision + 1)
         receipt = { "interview_id" => interview.id, "status" => "ready", "revision" => interview.revision }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)
@@ -43,7 +43,7 @@ module Interviews
 
     def valid_output?
       types = SetupConfiguration.question_types(@operation.interview_session)
-      if @operation.interview_session.frozen_context["job"]
+      if @operation.interview_session.preparation_kind == "saved_job"
         return false unless @role.nil?
       else
         return false unless @role.is_a?(Hash) && @role.keys.sort == %w[requirements responsibilities title] &&

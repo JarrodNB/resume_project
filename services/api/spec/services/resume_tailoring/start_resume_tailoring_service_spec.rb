@@ -17,8 +17,8 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     create(:ai_task, user: user, subject: job, task_type: "analyze_gaps", status: "completed", result: { "gap_analysis" => gap_analysis })
   end
 
-  it "queues a tailor task with the profile, the comparison, and gap responses" do
-    response = create(:job_gap_response, job: job, requirement: "Python", body: "Five years.", screened_fields: [ "requirement" ])
+  it "queues only job/comparison references and the summary option" do
+    create(:job_gap_response, job: job, requirement: "Python", body: "Five years.", screened_fields: [ "requirement" ])
 
     result = described_class.call(user: user, job: job)
 
@@ -26,14 +26,12 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     task = result.value
     expect(task).to be_tailor_resume.and be_queued
     expect(task.subject).to eq(job)
-    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses", "include_summary")
-    expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
-    expect(task.input["gap_analysis"]).to eq(gap_analysis)
-    expect(task.input["gap_responses"]).to eq([ { "id" => response.id, "requirement" => "Python", "body" => "Five years.", "screened_fields" => [ "requirement" ] } ])
+    expect(task.input.keys).to contain_exactly("job_id", "analysis_task_id", "include_summary")
+    expect(task.input["analysis_task_id"]).to eq(job.ai_tasks.analyze_gaps.completed.first.id)
     expect(queue).to have_received(:send_message)
   end
 
-  it "snapshots the library default without changing resumed drafts" do
+  it "captures the scalar library default without changing resumed drafts" do
     User.find(user.id).update!(include_summary: false)
     expect(user.include_summary).to be(true) # The caller may hold a stale account instance.
     task = described_class.call(user: user, job: job).value
@@ -49,7 +47,7 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     result = described_class.call(user: user, job: job)
 
     expect(result).to be_success
-    expect(result.value.input["gap_analysis"]).to be_nil
+    expect(result.value.input["analysis_task_id"]).to be_nil
     expect(queue).to have_received(:send_message)
   end
 

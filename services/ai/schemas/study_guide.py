@@ -1,4 +1,4 @@
-"""Five answered learning questions returned to Rails; source snapshots stay task metadata."""
+"""Five answered learning questions and bounded in-memory database sources."""
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -10,7 +10,7 @@ AnswerText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=
 
 
 class StudyGuideInput(BaseModel):
-    """The exact owned job description captured by Rails at request acceptance."""
+    """Current owned sources read at execution; never persisted as a command."""
     model_config = ConfigDict(extra="forbid")
     job_id: UUID
     description: Annotated[str, StringConstraints(min_length=1, max_length=20_000)]

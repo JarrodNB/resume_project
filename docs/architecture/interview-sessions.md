@@ -16,37 +16,34 @@ no job text is accepted from the browser. Career-library evidence remains requir
 and comparison/resume generation is not a prerequisite. Starting from the tab does not change
 application stage. Library-only starts retain fictional-role preparation.
 
-Rails freezes the job's identity, title, company, description, requirements,
-responsibilities and nice-to-haves in `frozen_context.job`. The same private context's
-`sources` includes separate `jobs` entries with exact typed values, readable text and
-screening flags. These share the existing fenced source-index receipt. Matching saved
-approvals are reused; newly approved frozen values update live job approvals only for
-the interview's own saved job, and only if its locked field still matches. Editing description/responsibilities also clears
-their approvals. Missing job fields stay missing, and required oversize context fails
-without truncation. Notes, gap responses and tailored resumes are excluded.
+Rails saves the owned job ID, scalar `preparation_kind` and optional `career_focus`, plus
+bounded setup choices. It does not copy the job or library into the session or claim.
+Python validates the live operation's owner, attempt, generation, mode, lease and deadline,
+then reads the current owned job, career library and avoided-question preferences in one
+read-only transaction during preparation. Missing required jobs and empty libraries stop
+before provider dispatch. Notes, gap responses and tailored resumes are excluded.
 
-Readable model context renders **Saved job expectations** separately from **Candidate
-career evidence**. Job preparation returns questions with `role: null`; Rails rejects
-model-authored job roles and derives its saved role summary from the authoritative
-snapshot. Generic preparation still requires a valid generated fictional role. The
-unchanged version-one turn envelope carries the full frozen context in its legacy
-`personal_evidence` key, including the separate job branch; the formatter excludes job
-sources from candidate evidence and does not present that key as a personal claim.
-The job snapshot remains the authority for preparation and subsequent follow-ups.
+Preparation runs no injection classifiers and records no source approvals. Contact masking,
+escaped data sections, aggregate prompt bounds, exact-input integrity and provider accounting
+remain. Job expectations are separate from candidate evidence. Saved-job output requires
+`role: null`; Rails stores `prepared_role: {}` and rejects invented replacement roles.
+Fictional-role practice still generates and saves a validated imagined role.
 
-The public `jobContext` field exposes only the session's saved vacancy details, with
-a nullable live job id. Deleting the job nulls the optional association without deleting
-practice; edits do not change frozen details. Normal expiry cleanup purges the copied
-context and prepared role with other session text. Title-only jobs show limited-context
-copy and use broader role questions rather than invented vacancy requirements.
+Turns read prepared questions and canonical accepted public dialogue from the database.
+They do not reload the original job/library/preferences or private model history. Current
+profile contact fields are read only for privacy masking, never as interview evidence.
+Editing/deleting original sources after preparation does not change the questions or break
+retained ready, active or completed sessions. Pending saved-job preparation with no remaining
+job fails safely. Scalar preparation kind survives nullable job deletion; the migration derives
+it and career focus from legacy metadata once, removes copied saved-job roles, and clears
+legacy source packages without changing questions or dialogue.
 
-Recent interviews identify saved-job practice using its frozen title/company. Preparation,
-active sessions and completed reviews retain that identity and offer a return link only
-while the original job exists. Repeating completed practice carries the saved choices to
-the same job's setup; deleted sources instead offer an explicit choice of another job.
-Job deletion detaches live retained sessions through normal snapshot callbacks under the
-existing owner/job locks. This updates live navigation without changing progression revision,
-accepted dialogue or pending answer identity. A rejected deletion rolls back the detachment.
+Public `jobContext` is the current owned job association and becomes null on deletion. It
+is display/navigation data, not turn evidence. Public `preparedRole` remains non-null JSON;
+only fictional practice holds generated role content. The ready screen allows entry with
+an empty role and absent job. Apollo retains a null association when an older response arrives.
+Job deletion detaches retained sessions under the existing owner/job locks without changing
+progression revision, dialogue or pending answer identity. Rejected deletion rolls back detachment.
 
 A user may have several unfinished interviews at once; preparing one never requires resolving
 another. Cost and load stay bounded by the separate monthly spend, hourly start and in-flight
@@ -62,7 +59,7 @@ and turn claims carry the same saved choices. Focus biases questions within the 
 format; it never replaces the format or supplies career evidence. Maya is warm without
 coaching or grading; Priya asks direct, specific follow-ups after submission and never
 interrupts live answers. Personas retain the existing British speech voice, factual
-acknowledgements, screening and answer limits.
+acknowledgements, accounting and answer limits.
 
 The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
 ready, active or completed states. Preparing/ready sessions reopen their saved preparation
@@ -153,15 +150,14 @@ paid verification database and its cumulative ledger, not a new per-QA allowance
 ### Library-informed preparation
 
 Public creation now starts durable preparation instead of creating the fixture opening.
-`StartPreparationService` freezes only owned usable career-library text and its source
-identity, plus an optional career focus of at most 200 characters. Job-derived library-fact
-requirements are excluded. Sparse library content is usable; an empty library or a snapshot
-over 40,000 JSON bytes returns an actionable error without creating work. Later library edits
-cannot change a saved preparation's input. Raw frozen sources remain private.
+`StartPreparationService` persists only the authorized preparation command and bounded choices.
+Python selects current usable career-library fields and excludes job-derived library-fact
+requirements. Source and prompt bounds apply to actual readable content in Python, not to
+serialized duplicate metadata. Retries reread current source records; no source snapshot is retained.
 
 A `preparing` session has one `preparation` operation with no question, recording or message.
 The existing private command, lease, heartbeat, failure, retry and accounting contracts
-apply. The preparation claim contains `frozen_context` and the immutable candidate `setup`;
+apply. The preparation claim contains versioned owner/session IDs and bounded candidate `setup`;
 it requires no storage capability. New starts default to eight main questions and accept only
 5, 8 or 12. Rails saves this separately from provider execution configuration in `setup_config`;
 public snapshots expose the safe setup, so reload and retry preserve the selected length.
@@ -174,7 +170,7 @@ the Basic session type or the saved response cap.
 Existing sessions with empty saved setup keep their nine-question preparation policy. No
 backfill changes their questions, dialogue or progression. Follow-ups are extra; the length's
 10/20/30-minute estimates are approximate rather than session deadlines.
-The real executor screens/masks that source, runs a guarded Pydantic AI preparation agent
+The real executor masks and delimits source text without classifiers or approval callbacks, runs an integrity-guarded Pydantic AI preparation agent
 through the accounted approved Luna model, and posts `accept_preparation` with claim identity,
 `role` and `questions`. Preparation uses the existing interviewer accounting stage, with a
 4,096-output-token cap so the complete question plan fits; dialogue remains capped at 1,024.
@@ -185,7 +181,7 @@ The Python preparation agent validates the same saved count and sequence before 
 atomically saves the entire role and question list, marks the operation accepted and session
 `ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
 changed output or a stale generation cannot replace it. Failure leaves no partial question
-list, and bounded retries reuse the same frozen input. `BeginService` (the owned public `beginInterview` mutation) changes ready to active and saves
+list, and bounded retries reload the current authorized preparation sources. `BeginService` (the owned public `beginInterview` mutation) changes ready to active and saves
 the first opening atomically, plus one speech operation only in provider playback mode. Concurrent/repeated begin returns
 the saved state without duplicate messages or speech. Begin can also replay after progress
 or completion. Expired and not-yet-ready sessions cannot begin; role review alone creates no
@@ -196,7 +192,7 @@ raw personal source snapshots or execution credentials. Question type is persist
 from its position. Existing fixture sessions, their two-answer caps and saved configurations
 are preserved; the fixture service remains available to deterministic tests.
 
-Seven-day expiry retires preparation and scrubs frozen sources and generated role along with
+Seven-day expiry retires preparation and scrubs generated role along with
 dialogue/history, retaining the existing accounting markers. Preparation does not create
 career-career context entries, saved jobs, coaching or assessment. Automated interview-quality
 evaluators remain deferred; offline tests establish contracts rather than generated quality.
@@ -233,15 +229,15 @@ and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rai
 history as a JSON message envelope; Python validates its message/tool structure and
 reconstructs model context from Rails-owned accepted public dialogue.
 
-Prepared turn claims carry versioned `interview_context`: `personal_evidence` is the original
-frozen source snapshot (including provenance/contact masking inputs), while `fictional_role`
-is the imagined vacancy. These sources stay distinct in the prompt so vacancy requirements
-cannot become personal facts. Legacy turn claims retain `fixture_context`; Python accepts
-exactly one of the two sources. Frozen context and current-question private history are
-bounded before dispatch, with contact replacement preserved. Real spoken answer turns
-skip injection classification of both the answer and frozen context; preparation retains
-its source screening. The remaining prompt guard checks exact input integrity only. Earlier-question
-dialogue is not included yet; it belongs to the following context slice.
+Preparation, turn, transcription and speech claims carry a versioned reference payload with
+`interview_id`, `user_id` and bounded `setup`. Python reads only each operation's required
+saved columns after checking its live fences. Speech loads the exact accepted message and
+acknowledgement; turns load the saved reviewed transcript/mode, question and public dialogue.
+Media keys stay unreadable; Rails still grants scoped signed storage capabilities. Real turn
+acceptance returns only new output, with empty legacy `model_history`; provider conversation
+logging remains, and canonical public dialogue is the sole saved conversation authority.
+Real preparation and spoken turns skip injection classifiers. Exact-input guards, escaped data
+sections, contact replacement, aggregate context limits and accounted reasoning remain.
 
 ## Lock order and database invariants
 
@@ -351,7 +347,7 @@ and late-write reaping after domain deletion. No object I/O runs in the destroy 
 This incurs continuing S3 delete requests; provider lifecycle rules or stronger write fencing are deferred options.
 
 After seven days cleanup expires the session (preserving an abandoned terminal status), fails pending/running linked tasks, scrubs
-fixture/frozen context, prepared role, dialogue, private history, accepted payloads and task input/results, and marks
+fixture context, prepared role, dialogue, private history, accepted payloads and task input/results, and marks
 content purged once. Minimal operation identities, fingerprints and billing/usage records
 remain for duplicate callbacks and late accounting. Cleanup does not delete AiTask or usage
 rows. These minimal records are not a retained dialogue archive.
@@ -385,29 +381,12 @@ For `/internal/interviews/operations/:id`:
 
 - `POST /claim` atomically returns `operation_id`, `kind`, `attempt_id`,
   `claim_generation`, `lease_expires_at`, `execution_deadline`, and canonical `payload`.
-  A turn payload contains its recording identity, question, revision, versioned model
-  history and fictional context; speech contains only saved text and its message ID.
-- Frozen career sources include private per-field `screened` metadata. Creation copies
-  existing field approvals; legacy claims reuse a current owned approval only when the
-  exact field value equals the frozen source. Frozen text and source order do not change.
-  A turn claim also carries `current_dialogue`, the Rails-owned opening/answer/follow-up
-  messages for its current question in chronological order, separate from private model history.
-- `POST /screen_library` takes current claim identity and `source_indices`, positions in
-  that immutable source list. After successful screening, it durably approves those frozen
-  values before model generation and returns all `screened_source_indices`. Repeated calls
-  while the claim is current are idempotent. Live records are approved through the shared
-  `Screening::RecordApprovalsService.record_interview_sources`, under the interview operation
-  lock and then each record's row lock, with the fingerprint of the frozen value: the owner
-  must match and the current value must have the same fingerprint, so edits or deletions
-  cannot accidentally approve new text. Record rows lock in the recorder's order (job before
-  library types, ids sorted), which is safe because every multi-record approval path takes the
-  user lock first. Claim-time reuse of live approvals follows the same job rule. Preparation may also submit optional `career_focus_sha256`,
-  the SHA-256 of the exact frozen focus encoded as UTF-8 JSON without ASCII escaping or
-  extra whitespace (Python `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`,
-  Ruby stdlib `JSON.generate`). Rails validates it against the locked nonempty focus before
-  any source writes and stores/returns `screened_career_focus_sha256`. Focus-only requests
-  use `source_indices: []`; turn claims cannot grant focus checks. Source-only requests
-  retain their existing response shape. This callback does not change general AI-result screening.
+  The payload contains only version 1, owned interview/user IDs and bounded setup choices.
+  All saved source text, questions, dialogue, reviewed transcripts and speech text are read
+  from Postgres by Python after validating the same operation fences. No `screen_library`
+  callback exists. Private model history and media keys have no AI reader grants. Both HTTP runtimes
+  require the restricted database credentials; readiness verifies connectivity and essential
+  grants without selecting owner data. Recovery-stack role provisioning supports retained volumes.
 - `POST /heartbeat` takes `attempt_id`, integer `claim_generation`, and an optional
   checkpoint: `recording_validated`, `transcribed`, `screened`, `interviewer_finished`,
   or `speech_started`. It cannot save arbitrary provisional content or extend the deadline.

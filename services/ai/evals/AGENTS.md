@@ -190,7 +190,10 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Checks output shape, spontaneous questions for missing contribution facts, and traffic-light
   calibration when only wording improves. Allowed colors live in evaluation-only metadata.
   The independent faithfulness/usefulness judge sees follow-up facts only if a question was asked.
-  `tests/test_library_edit_evaluators.py` checks those evaluation failure paths offline.
+  Synthetic sources are hydrated through an execution-local reader keyed by task identity;
+  follow-ups reconstruct canonical feedback and generated fragments without database access.
+  `tests/test_library_edit_evaluators.py` checks quality inputs and the real deferred runner
+  roundtrip offline with a stub provider, including source-free callback fragments.
   This bounded sample does not establish broad editing quality. Run `python -m evals.run_library_edit_evals`.
 
 - `run_study_guide_evals.py` / `datasets/study_guide_cases.yaml` — synthetic description-only learning material across occupations, sparse/non-job text, and injected instructions; injected sources are evaluated for relevant study material rather than classifier rejection.
@@ -203,4 +206,4 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 - `run_chat_evals.py` / `chat_evaluators.py` — synthetic career chat and rolling-memory cases through the production guarded adapter. Deterministic continuity/outcome/honesty signals; no Rails writes, actual synthetic provider receipts retained; paid runs are explicit.
 
-- `run_summary_generation_evals.py` / `datasets/summary_generation_cases.yaml` — three synthetic missing-summary cases through production screening/generation; citation contract and independent faithfulness/usefulness judge. Prints results; run with `python -m evals.run_summary_generation_evals`. No broad quality claim from this bounded sample.
+- `run_summary_generation_evals.py` / `datasets/summary_generation_cases.yaml` — three synthetic missing-summary cases through the reference-only handler with execution-local synthetic evidence (no database), retaining production screening/generation; citation contract and independent faithfulness/usefulness judge. Prints results; run with `python -m evals.run_summary_generation_evals`. No broad quality claim from this bounded sample.

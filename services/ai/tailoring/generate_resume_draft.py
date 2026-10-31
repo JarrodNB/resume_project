@@ -10,6 +10,7 @@ from uuid import UUID
 
 import text_limits
 from agents.resume_tailoring_agent import write_resume_section_async
+from database.tailoring_sources import TailoringSources
 from llm.model_prices import build_model_usage
 from schemas.model_usage import ModelUsage
 from screening.session import remaining_timeout, screening_session
@@ -32,7 +33,7 @@ class ResumeDraft:
 
 
 async def generate_resume_draft(
-    user_id: UUID, data: TailorResumeInput, dependencies: TaskDependencies, *, usage: list[ModelUsage],
+    user_id: UUID, data: TailorResumeInput, dependencies: TaskDependencies, *, sources: TailoringSources, usage: list[ModelUsage],
 ) -> ResumeDraft:
     """Prepare once and return an ordered complete draft, or raise without partial results."""
     settings = dependencies.settings
@@ -41,7 +42,7 @@ async def generate_resume_draft(
         async with asyncio.timeout(remaining_timeout(settings.llm_run_timeout_seconds)):
             try:
                 prepared = await prepare_resume_draft(user_id, data.job_id, dependencies,
-                    usage=usage, warnings=warnings, gap_responses=data.gap_responses, gap_analysis=data.gap_analysis)
+                    usage=usage, warnings=warnings, gap_responses=sources.gap_responses, gap_analysis=sources.gap_analysis)
             except ResumePreparationError as error:
                 raise ResumeDraftInputError(str(error)) from error
 
@@ -72,9 +73,9 @@ async def generate_resume_draft(
                         child.cancel()
                 await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-            sections = {"contact": {"full_name": data.contact.get("full_name"),
-                "email": data.contact.get("email"), "phone": data.contact.get("phone"),
-                "location": data.contact.get("location"), "links": list(data.contact.get("links") or [])}}
+            sections = {"contact": {"full_name": sources.contact.get("full_name"),
+                "email": sources.contact.get("email"), "phone": sources.contact.get("phone"),
+                "location": sources.contact.get("location"), "links": list(sources.contact.get("links") or [])}}
             selected_labels: set[str] = set()
             library = prepared.context.career_library
             for section, child in tasks.items():

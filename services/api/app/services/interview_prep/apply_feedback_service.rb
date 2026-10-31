@@ -26,7 +26,7 @@ module InterviewPrep
 
     private
 
-    # Checks ownership, snapshot identity, question freshness, and latest feedback task.
+    # Checks ownership, commanded revisions, question freshness, and latest feedback task.
     def current_question
       question = @task.subject
       return unless question.is_a?(InterviewQuestion)
@@ -34,12 +34,18 @@ module InterviewPrep
       return unless question.interview_question_set.set_type == @task.input.fetch("set_type", "general")
       return unless question.id == @task.input["question_id"] &&
                     question.interview_question_set_id == @task.input["question_set_id"]
-      return unless question.question_revision == @task.input["question_revision"] &&
-                    question.question_text == @task.input["question_text"]
+      return unless [ nil, 1 ].include?(@task.input["source_version"])
+      return unless question.question_revision == @task.input["question_revision"]
+      if @task.input["source_version"].nil?
+        return unless question.question_text == @task.input["question_text"]
+      end
       revision = @task.input["answer_revision"]
       return unless revision.is_a?(Integer) && revision >= 0 && revision <= question.answer_revision
-      return unless @task.input["answer_text"].is_a?(String) && @task.input["answer_text"].present?
-      return if revision == question.answer_revision && @task.input["answer_text"] != question.answer_text
+      if @task.input["source_version"].nil?
+        # Retained command copies can validate old completions but never become new inputs.
+        return unless @task.input["answer_text"].is_a?(String) && @task.input["answer_text"].present?
+        return if revision == question.answer_revision && @task.input["answer_text"] != question.answer_text
+      end
       return unless question.ai_tasks.where(task_type: "review_interview_answer")
                             .order(created_at: :desc, id: :desc).first&.id == @task.id
 

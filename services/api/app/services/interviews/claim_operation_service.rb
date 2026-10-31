@@ -65,28 +65,8 @@ module Interviews
         AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
           message: { "attempt_id" => attempt_id, "attempt_finished" => false })
         @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)
-        if interview.frozen_context.present? && !@operation.speech? && !@operation.transcription?
-          context = FrozenLibraryScreening.hydrate(interview)
-          interview.update!(frozen_context: context) if context != interview.frozen_context
-        end
-        payload = if @operation.speech?
-          { text: MessageText.spoken_content(@operation.message), message_id: @operation.message_id }
-        elsif @operation.transcription?
-          { recording_id: @operation.recording_id }
-        elsif @operation.preparation?
-          { frozen_context: interview.frozen_context, setup: SetupConfiguration.for(interview) }
-        else
-          { setup: SetupConfiguration.for(interview), candidate_transcript: @operation.candidate_transcript, transcription_mode: @operation.transcription_mode,
-            recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
-            question: @operation.question.content, model_history: @operation.question.model_history,
-            history_version: @operation.question.history_version,
-            current_dialogue: interview.messages.where(question: @operation.question, kind: %w[opening answer follow_up])
-              .order(:position).map { |message| { kind: message.kind, content: MessageText.spoken_content(message) } },
-            earlier_dialogue: EarlierDialogue.build(interview, before_position: @operation.question.position) }.merge(
-              interview.frozen_context.present? ?
-                { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :
-                { fixture_context: interview.fixture_context })
-        end
+        payload = { version: 1, interview_id: interview.id, user_id: interview.user_id,
+          setup: SetupConfiguration.for(interview) }
         success({ execution_mode: interview.execution_mode, execution_config: interview.execution_config, operation_id: @operation.id, kind: @operation.kind, attempt_id: attempt_id,
           claim_generation: @operation.claim_generation, lease_expires_at: @operation.lease_expires_at,
           execution_deadline: @operation.execution_deadline, payload: payload })

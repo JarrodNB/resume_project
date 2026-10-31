@@ -1,17 +1,10 @@
-"""Bounded frozen career sources and a cited summary proposal; no destination writes.
-
-Library sources carry the `record_id` of the saved row they came from; the label names
-its record type and field. The worker reports screening receipts for those rows, which
-Rails checks against this frozen copy. Saved-resume copies and older snapshots have no
-record id and are screened without being reported. For resume copies, `screened` means
-the text matches earlier accepted AI output, not a saved screen.
-"""
+"""Text-free summary commands, transient owned evidence and cited proposals."""
 import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-# Same sections and fields as Rails `SummaryGeneration::Snapshot::FIELDS`.
+# Same sections and fields as Rails `SummaryGeneration::SourceReferences::FIELDS`.
 _LIBRARY_FIELDS = {
     "EXPERIENCES": ("experience", {"company", "title", "location", "description"}),
     "PROJECTS": ("project", {"name", "role", "description"}),
@@ -69,3 +62,22 @@ class SummaryGenerationInput(BaseModel):
 class SummaryProposal(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
     source_labels: list[str] = Field(min_length=1, max_length=1000)
+
+
+class SummarySourceReference(BaseModel):
+    """An exact field identity and hash, never its content."""
+    model_config = {"extra": "forbid"}
+    label: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,100}$")
+    fingerprint: str = Field(pattern=r"^[a-f0-9]{64}$")
+    record_id: str | None = None
+    section_id: str | None = None
+
+
+class SummaryCommand(BaseModel):
+    """A versioned request whose sources must be resolved from owned records."""
+    model_config = {"extra": "forbid"}
+    command_version: Literal[1]
+    target_kind: Literal["profile", "resume"]
+    target_id: str
+    source_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_references: list[SummarySourceReference] = Field(max_length=1000)

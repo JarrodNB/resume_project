@@ -250,3 +250,95 @@ def test_successful_record_checks_survive_generation_failure(monkeypatch, task_d
     assert not started["record_screening"]
     assert final["record_screening"] == [{"record_type": kind, "record_id": "saved-record", "revision": revision,
         "fingerprints": {name: field_fingerprint(value) for name, value in fields.items()}}]
+
+
+def test_reference_notification_loads_saved_command(monkeypatch, task_dependencies):
+    """Queue identities select durable commands; source text never comes from the queue."""
+    from dataclasses import replace
+    body = build_task_body(schema_version=1)
+    envelope = json.loads(body)
+    del envelope["input"]
+    seen = []
+    def read_command(task):
+        seen.append(task)
+        return task.model_copy(update={"input": {"job_id": "saved-job"}})
+    dependencies = replace(task_dependencies, read_task_command=read_command)
+    monkeypatch.setattr(main, "handle_ai_task", lambda task, deps: AiResultMessage(
+        ai_task_id=task.ai_task_id, status="completed", result=task.input))
+    queue = FakeResultQueue()
+    assert process_task_message(json.dumps(envelope), 1, queue, dependencies)
+    assert len(seen) == 1
+    assert json.loads(queue.sent_bodies[-1])["result"] == {"job_id": "saved-job"}
+
+
+@pytest.mark.parametrize("version", [2, None, True, "1", 1.0])
+def test_unsupported_notification_version_is_not_executed(version, task_dependencies):
+    queue = FakeResultQueue()
+    body = json.loads(build_task_body())
+    del body["input"]
+    body["schema_version"] = version
+    assert not process_task_message(json.dumps(body), 1, queue, task_dependencies)
+    assert queue.sent_bodies == []
+
+
+def test_versioned_notification_rejects_source_payload(task_dependencies):
+    queue = FakeResultQueue()
+    assert not process_task_message(build_task_body(schema_version=1), 1, queue, task_dependencies)
+    assert queue.sent_bodies == []
+
+
+def test_stale_or_foreign_delivery_has_no_accounting_or_execution(monkeypatch, task_dependencies):
+    from dataclasses import replace
+    dependencies = replace(task_dependencies, read_task_command=lambda task: None)
+    monkeypatch.setattr(main, "handle_ai_task", lambda *args: pytest.fail("Must not execute"))
+    monkeypatch.setattr(main, "conversation_scope", lambda *args: pytest.fail("Must not capture"))
+    queue = FakeResultQueue()
+    assert process_task_message(build_task_body(), 2, queue, dependencies)
+    assert queue.sent_bodies == []
+
+
+def test_legacy_queue_content_is_replaced_before_capture(monkeypatch, task_dependencies):
+    from contextlib import nullcontext
+    from dataclasses import replace
+    def stored_command(task):
+        return task.model_copy(update={"input": {"job_id": "durable"}})
+    dependencies = replace(task_dependencies, read_task_command=stored_command)
+    captured = []
+    def capture(task, *args):
+        captured.append(task.input)
+        return nullcontext()
+    monkeypatch.setattr(main, "conversation_scope", capture)
+    monkeypatch.setattr(main, "handle_ai_task", lambda task, deps: AiResultMessage(
+        ai_task_id=task.ai_task_id, status="completed", result=task.input))
+    queue = FakeResultQueue()
+    assert process_task_message(build_task_body(input={"secret": "untrusted"}), 1, queue, dependencies)
+    assert captured == [{"job_id": "durable"}]
+    assert "untrusted" not in "".join(queue.sent_bodies)
+
+
+def test_command_database_outage_keeps_delivery_without_usage(task_dependencies):
+    from dataclasses import replace
+
+    import psycopg
+    def unavailable(task):
+        raise psycopg.OperationalError("unavailable")
+    queue = FakeResultQueue()
+    dependencies = replace(task_dependencies, read_task_command=unavailable)
+    with pytest.raises(psycopg.OperationalError):
+        process_task_message(build_task_body(), 1, queue, dependencies)
+    assert queue.sent_bodies == []
+
+
+
+def test_invalid_saved_command_does_not_log_source_text(task_dependencies, caplog):
+    from dataclasses import replace
+    def corrupt_command(task):
+        return AiTaskMessage.model_validate({
+            "ai_task_id": task.ai_task_id, "user_id": task.user_id,
+            "task_type": task.task_type, "input": "private-corrupt-source"})
+    dependencies = replace(task_dependencies, read_task_command=corrupt_command)
+    queue = FakeResultQueue()
+    assert not process_task_message(build_task_body(), 1, queue, dependencies)
+    assert queue.sent_bodies == []
+    assert "private-corrupt-source" not in caplog.text
+    assert "Invalid durable task command" in caplog.text

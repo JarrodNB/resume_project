@@ -67,6 +67,23 @@ AI allowance and never consumes the separate spoken-interview allowance.
 `openai:gpt-5-nano`, with the configured `GENERATIVE_FALLBACK_MODEL`. Jev remains
 the fixed primary screening model.
 
+Successful claim responses carry only versioned operation/conversation/user IDs,
+attempt and generation fences, expected message position, summary version/checkpoint,
+compaction plan and bounded settings. Rails validates accepted-history integrity and
+plans compaction under its conversation lock; `ContextPlanService` returns metadata,
+never copied source text. Python reads the pending message, current rolling summary
+and uncovered accepted dialogue through narrow `ai_reader` column grants in one
+repeatable-read transaction, checking ownership, live lease/deadline, running attempt,
+positions, exact user-message screening digests and the saved summary plan. Contact
+fields are read only for privacy masking. Generated replies and new summary text return
+through the existing acceptance callback; source history is never echoed back.
+
+Existing saved conversations and pending/retryable operations need no source migration:
+new claims reconstruct context from their canonical records. Apply reader grants first, drain active executions, then coordinate the Rails/Python
+release. The new HTTP client rejects inline legacy source claims, so mixed old/new
+claim producers and consumers are unsupported; do not replay
+paid operations manually. Readiness checks both chat and interview database grants.
+
 Only one turn may run in a conversation at a time. Stable submission identities and
 current-attempt fences prevent double sends and stale acceptance. A completed turn
 saves the user message, assistant reply, and any summary change atomically. Failed

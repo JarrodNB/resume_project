@@ -22,3 +22,13 @@ RSpec.describe Job do
     expect(CareerContext.exists?(context.id)).to be(true)
   end
 end
+
+RSpec.describe Job do
+  it "invalidates a saved location approval when location changes" do
+    job = create(:job, location: "Remote", screened_fields: %w[title location])
+    job.location = "London"
+    job.discard_changed_screened_fields
+    job.save!
+    expect(job.reload.screened_fields).to eq([ "title" ])
+  end
+end

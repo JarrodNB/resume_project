@@ -73,9 +73,10 @@ module Screening
 
     # @param user [User] owner of every record that may be approved
     # @param reports [Array<Hash>] receipts with record_type, record_id, fingerprints and optional revision
-    # @param ai_task [AiTask, nil] needed for job, gap_response and interview_question receipts
-    def initialize(user:, reports:, ai_task: nil)
-      @user, @reports, @ai_task = user, reports, ai_task
+    # @param ai_task [AiTask, nil] needed for task-bound job, gap_response and interview_question receipts
+    # @param context [Symbol, nil] :chat allows owned active job receipts after chat acceptance fences
+    def initialize(user:, reports:, ai_task: nil, context: nil)
+      @user, @reports, @ai_task, @context = user, reports, ai_task, context
     end
 
     # @return [ServiceResult] always succeeds; receipts that fail a rule are skipped.
@@ -216,8 +217,11 @@ module Screening
       scope
     end
 
-    # Only the owned job a gap analysis or tailoring task is about.
+    # Chat acceptance explicitly opts in after its locked claim fences. Other callers
+    # still need the owned job a gap analysis or tailoring task is about.
     def job_scope(_record_type)
+      return { records: @user.jobs.active } if @context == :chat && @ai_task.nil?
+
       return unless task_for_user? && @ai_task.subject_type == "Job" && %w[analyze_gaps tailor_resume].include?(@ai_task.task_type)
 
       { records: @user.jobs.where(id: @ai_task.subject_id) }

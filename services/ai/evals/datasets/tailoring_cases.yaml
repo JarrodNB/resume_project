@@ -59,7 +59,7 @@ cases:
       - SectionRelevance
       - OmitsWhenAsked
 
-  - name: unrelated_experience_is_omitted
+  - name: unrelated_experience_is_preserved
     inputs:
       section_type: experience
       context:
@@ -80,8 +80,9 @@ cases:
                 - id: hl-1
                   content: Designed a seasonal dessert menu
     metadata:
-      nothing_fits: true
-      job_terms: []
+      nothing_fits: false
+      entry_label: E1
+      job_terms: [Pastry Chef]
     evaluators:
       - SectionRelevance
       - OmitsWhenAsked

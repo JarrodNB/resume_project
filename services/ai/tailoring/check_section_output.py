@@ -1,6 +1,6 @@
 """Check whether a model-written section can become an editable resume section.
 
-Only section shape and supplied labels are checked here. The model writes the prose;
+Section shape, supplied labels, and complete work history are checked here. The model writes the prose;
 the user reviews and edits it before saving.
 """
 
@@ -13,10 +13,20 @@ def find_section_problems(
     section_type: str, draft: TailoredSectionDraft, sources: LabeledSources
 ) -> list[str]:
     """List unusable structure or unknown labels that require a repair response."""
+    coverage_problems = []
+    if section_type == "experience":
+        required = [label for label, record in sources.records.items() if record.kind == "experience"]
+        missing = [label for label in required if label not in {entry.label for entry in draft.entries}]
+        if missing:
+            coverage_problems.append("Include every experience entry; missing labels: " + ", ".join(missing)
+                    + ". Shorten less relevant roles rather than removing them. Set nothing_fits to false.")
+        labels = [entry.label for entry in draft.entries]
+        if len(labels) != len(set(labels)):
+            coverage_problems.append("Include each experience entry exactly once.")
     if draft.nothing_fits:
         if draft.entries or draft.summary:
             return ["nothing_fits is true, so entries and summary must be empty."]
-        return []
+        return coverage_problems
     if section_type == "summary":
         problems = []
         if draft.summary is None or not draft.summary.text.strip():
@@ -40,7 +50,7 @@ def find_section_problems(
             problems.append(f"Unknown {section_type} label: {entry.label}.")
         for prose in entry.prose:
             problems.extend(_unknown_source_labels(prose, sources))
-    return problems
+    return problems + coverage_problems
 
 
 def _unknown_source_labels(prose: CitedProse, sources: LabeledSources) -> list[str]:

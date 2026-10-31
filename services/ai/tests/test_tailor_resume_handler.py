@@ -145,13 +145,15 @@ def test_library_at_limit_keeps_labeled_role(generation) -> None:
         if section == "summary":
             return complete_draft_tests.answer(info, {"nothing_fits": True, "entries": []})
         return complete_draft_tests.answer(info, {"nothing_fits": False,
-            "entries": [{"label": "E1", "prose": []}]})
+            "entries": [{"label": f"E{number}", "prose": []}
+                        for number in range(1, len(descriptions) + 1)]})
 
     with resume_tailoring_agent.override(model=FunctionModel(generate, model_name="gpt-5-mini")):
         result = handle_ai_task(_task(_base_input()), dependencies)
 
     assert result.status == "completed", result.error_message
-    assert any(section["section_type"] == "experience" for section in result.result["sections"])
+    experience = next(section for section in result.result["sections"] if section["section_type"] == "experience")
+    assert len(experience["content"]["items"]) == len(descriptions)
     assert any(section == "experience" and f"[E20] Engineer at Co: {descriptions[-1]}" in prompt
                for section, prompt in seen)
 

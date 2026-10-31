@@ -31,6 +31,7 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
   the worker. No partial draft is published. Empty sections skip generation; nothing-fits
   sections are omitted with an explanation.
 - The checker gives one repair chance for unusable structure or unknown labels.
+  Experience must include every supplied role exactly once, including unrelated roles.
   It accepts empty citation lists and does not inspect prose claims. The user
   reviews and edits generated wording before saving.
 - Reuse saved field checks for each labeled library source and the job context; screen

@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { IMPORT_SUMMARY_NOTICE_MS, ImportSummaryNotice } from './ImportSummaryNotice'
+import { TRANSIENT_ALERT_EXIT_MS } from '@/components/TransientAlert'
 
 const summaryState = { importSummary: { added: 1, merged: 4 } }
 
@@ -38,7 +39,7 @@ it('hides when dismissed', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
 
-  expect(screen.queryByText('Resume imported')).not.toBeInTheDocument()
+  await waitFor(() => expect(screen.queryByText('Resume imported')).not.toBeInTheDocument())
 })
 
 it('hides on its own after a few seconds', async () => {
@@ -48,6 +49,9 @@ it('hides on its own after a few seconds', async () => {
   expect(screen.getByText('Resume imported')).toBeInTheDocument()
   await act(async () => {
     await vi.advanceTimersByTimeAsync(IMPORT_SUMMARY_NOTICE_MS)
+  })
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(TRANSIENT_ALERT_EXIT_MS)
   })
 
   expect(screen.queryByText('Resume imported')).not.toBeInTheDocument()

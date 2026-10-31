@@ -4,6 +4,7 @@
  *   - CollapsibleJobCard: a titled card that stays collapsed until opened
  */
 import type { ReactNode } from 'react'
+import { CollapsePanel } from '@/components/CollapsePanel'
 import { CollapseToggle } from '@/components/CollapseToggle'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,7 +20,7 @@ export function CollapsibleJobCard({ sectionId, title, children }: { sectionId: 
           <CardTitle>{title}</CardTitle>
         </CollapseToggle>
       </CardHeader>
-      {open && <CardContent id={panelId}>{children}</CardContent>}
+      <CollapsePanel open={open} id={panelId}><CardContent>{children}</CardContent></CollapsePanel>
     </Card>
   )
 }

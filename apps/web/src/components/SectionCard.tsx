@@ -9,6 +9,7 @@
 import type { ReactNode } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { CollapsePanel } from './CollapsePanel'
 import { CollapseToggle } from './CollapseToggle'
 import { SECTION_TONES, type SectionTone } from './sectionTones'
 import { useOpenSection } from './useOpenSection'
@@ -70,11 +71,11 @@ function SectionCardFrame({
         )}
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      {open && (
-        <CardContent id={panelId} className={cn('px-5 py-5', contentClassName)}>
+      <CollapsePanel open={open} id={panelId}>
+        <CardContent className={cn('px-5 py-5', contentClassName)}>
           {children}
         </CardContent>
-      )}
+      </CollapsePanel>
     </Card>
   )
 }

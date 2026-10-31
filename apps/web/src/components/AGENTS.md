@@ -23,9 +23,10 @@ Shared UI used by more than one feature.
 - `RedirectToPath.tsx` — route element that keeps old bookmarks working by redirecting to the new
   path, carrying route params along
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
-- `TransientAlert.tsx` — shared dismiss button and eight-second timeout; ErrorAlert opts in with a notification id.
+- `TransientAlert.tsx` — shared dismiss button, eight-second timeout and a short fade in and out; ErrorAlert opts in with a notification id.
 - `ErrorAlert.test.tsx` — task-notification dismissal, timeout, and retry regression coverage.
 - `CollapseToggle.tsx` — header button (chevron, `aria-expanded`) for a collapsible section
+- `CollapsePanel.tsx` — body of a collapsible section: grows open and eases closed, then unmounts; carries the `panelId` the toggle points at. Panels already open on load appear in place
 - `useOpenSection.ts` — open flag for one section id, from `lib/openSections.ts`
 - `SectionCard.tsx` — quiet card for one resume section with a tone-colored icon; pass `sectionId` to
   collapse it until opened

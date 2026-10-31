@@ -1,7 +1,7 @@
 /** Assemble a practice interview from career evidence and deliberate setup choices.
  * Preparation saves the choices before review. Microphone preferences stay local to this account.
  */
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
@@ -11,12 +11,16 @@ import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { difficultyOptions, focusOptions, interviewerOptions, lengthOptions, typeOptions } from './interviewSetupOptions'
 import type { InterviewJob } from './InterviewJobContext'
 
-function Choices({ title, name, options, value, change }: { title: string; name: string; options: { value: string; label: string; description: string }[]; value: string; change: (value: string) => void }) {
-  return <fieldset className="interview-setup-section"><legend>{title}</legend><div className="interview-setup-choices">
-    {options.map((option) => <label className="interview-setup-choice" key={option.value}>
-      <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => change(option.value)} />
-      <span><span className="block font-medium">{option.label}</span><span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{option.description}</span></span>
-    </label>)}
+/** One pick from a short list, drawn as selectable cards. "Name — Role" labels show the role as a small line. */
+function Choices({ title, name, options, value, change, columns = 3 }: { title: string; name: string; options: { value: string; label: string; description: string }[]; value: string; change: (value: string) => void; columns?: number }) {
+  return <fieldset className="interview-setup-section"><legend>{title}</legend><div className="interview-setup-choices" style={{ '--choice-columns': columns } as CSSProperties}>
+    {options.map((option) => {
+      const [heading, role] = option.label.split(' — ')
+      return <label className="interview-setup-choice" key={option.value}>
+        <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => change(option.value)} />
+        <span className="min-w-0"><span className="block font-bold leading-snug">{heading}</span>{role && <span className="interview-choice-eyebrow">{role}</span>}<span className="mt-1.5 block text-sm leading-relaxed text-muted-foreground">{option.description}</span></span>
+      </label>
+    })}
   </div></fieldset>
 }
 
@@ -48,7 +52,7 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
   return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); void prepare() }}>
     <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library.' : 'Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.'}</p></div>
     <fieldset disabled={busy} className="interview-setup-fields">
-      <Choices title="Interview type" name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} />
+      <Choices title="Interview type" name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} columns={2} />
       <Choices title="Difficulty" name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} />
       <Choices title="Your interviewer" name="interviewer" options={interviewerOptions} value={interviewer} change={setInterviewer} />
       <Choices title="Interview length" name="length" options={lengthOptions} value={String(questionCount)} change={(value) => setQuestionCount(Number(value))} />

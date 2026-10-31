@@ -63,13 +63,23 @@
 .interview-setup-fields { display: grid; gap: 28px; min-width: 0; }
 .interview-setup-section { display: grid; gap: 12px; min-width: 0; padding-top: 20px; border-top: 1px solid var(--border); }
 .interview-setup-section legend { padding-top: 20px; font-weight: 500; }
-.interview-setup-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; }
-.interview-setup-choice { display: flex; align-items: start; gap: 12px; min-height: 44px; padding: 14px 12px; border-radius: 12px; cursor: pointer; }
-.interview-setup-choice:has(input:checked), .interview-focus-choice:has(input:checked) { background: var(--secondary); }
-.interview-setup-choice:focus-within, .interview-focus-choice:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }
-.interview-setup-choice input { margin-top: 4px; flex-shrink: 0; accent-color: var(--primary); }
-.interview-focus-choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 14px; }
-.interview-focus-choice input { accent-color: var(--primary); }
+.interview-setup-choices { display: grid; grid-template-columns: repeat(var(--choice-columns, 2), minmax(0, 1fr)); gap: 12px; }
+/* Selectable cards: a native radio stays the real control, drawn like a transit stop (hollow when off, ringed ink dot when on). */
+.interview-setup-choice { display: flex; align-items: start; gap: 12px; min-height: 44px; padding: 16px; border: 1.5px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; transition: border-color 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms cubic-bezier(.23, 1, .32, 1), box-shadow 160ms cubic-bezier(.23, 1, .32, 1); }
+@media (hover: hover) { .interview-setup-choice:hover { border-color: var(--input); } }
+.interview-setup-choice:has(input:checked) { border-color: var(--rule-strong); background: var(--muted); box-shadow: inset 0 0 0 1px var(--rule-strong); }
+.interview-setup-choice:has(input:focus-visible), .interview-focus-choice:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.interview-setup-choice input { appearance: none; flex-shrink: 0; width: 20px; height: 20px; margin: 2px 0 0; border: 1.5px solid var(--input); border-radius: 50%; background: var(--card); cursor: inherit; transition: background-color 160ms cubic-bezier(.23, 1, .32, 1), border-color 160ms cubic-bezier(.23, 1, .32, 1), box-shadow 160ms cubic-bezier(.23, 1, .32, 1); }
+.interview-setup-choice input:checked { border-color: var(--rule-strong); background: var(--primary); box-shadow: inset 0 0 0 3px var(--muted); }
+.interview-choice-eyebrow { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
+.interview-setup-fields:disabled .interview-setup-choice, .interview-setup-fields:disabled .interview-focus-choice { cursor: not-allowed; }
+/* Focus areas are a true multi-select: ink-filled chips, many at once. */
+.interview-focus-choice { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; font-size: 14px; font-weight: 600; user-select: none; transition: border-color 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms cubic-bezier(.23, 1, .32, 1), color 160ms cubic-bezier(.23, 1, .32, 1); }
+@media (hover: hover) { .interview-focus-choice:hover { border-color: var(--input); } }
+.interview-focus-choice::before { content: "+"; width: 14px; text-align: center; font-weight: 700; color: var(--muted-foreground); }
+.interview-focus-choice:has(input:checked) { border-color: var(--rule-strong); background: var(--primary); color: var(--primary-foreground); }
+.interview-focus-choice:has(input:checked)::before { content: "\2713"; color: inherit; }
+.interview-focus-choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
 .interview-setup-summary { display: grid; gap: 12px; padding-block: 24px; border-block: 1px solid var(--border); }
 .interview-setup:has(fieldset:disabled) .interview-setup-fields { opacity: .65; }
-@container (max-width: 600px) { .interview-setup-choices { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 640px) { .interview-setup-choices { grid-template-columns: minmax(0, 1fr); } }

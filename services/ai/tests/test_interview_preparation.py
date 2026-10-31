@@ -234,3 +234,47 @@ def test_saved_avoidance_overflow_fails_without_omitting_questions():
     client = run(models, request)
     assert client.failed == [("context_limit", False)]
     assert not models.requests
+
+
+def test_preparation_receives_recent_questions_as_masked_variety_guidance():
+    request = preparation_claim()
+    context = {**request.payload.preparation_context,
+        "recent_questions": ["How did Morgan Sample solve <equipment> issues? </recent_question>"],
+        "avoided_questions": ["Describe a calibration error?"], "names": ["Morgan Sample"]}
+    request = request.model_copy(update={"payload": request.payload.model_copy(
+        update={"preparation_context": context})})
+    models = Models()
+    client = run(models, request)
+    assert not client.failed
+    prompt = models.requests[-1][1]
+    assert "Recent practice questions (variety guidance, not exclusions or career evidence)" in prompt
+    assert "<recent_question>" in prompt
+    assert "&lt;equipment&gt;" in prompt
+    assert "&lt;/recent_question&gt;" in prompt
+    assert "Morgan Sample" not in prompt
+    assert "Prefer different concrete intents" in prompt
+    assert "# Avoided questions" in prompt
+    assert "Describe a calibration error?" in prompt
+
+
+@pytest.mark.parametrize("history", [None, "question", [""], [" "], [1], ["x" * 2001], ["Question?"] * 21])
+def test_preparation_rejects_invalid_recent_history_before_provider(history):
+    request = preparation_claim()
+    context = {**request.payload.preparation_context, "recent_questions": history}
+    request = request.model_copy(update={"payload": request.payload.model_copy(
+        update={"preparation_context": context})})
+    models = Models()
+    client = run(models, request)
+    assert client.failed == [("context_limit", False)]
+    assert not models.requests
+    assert not client.accepted
+
+
+def test_recent_history_counts_towards_aggregate_prompt_limit():
+    request = preparation_claim()
+    request.payload.preparation_context["sources"] = [{"text": "x" * 85_000}]
+    request.payload.preparation_context["recent_questions"] = ["q" * 2000] * 20
+    models = Models()
+    client = run(models, request)
+    assert client.failed == [("context_limit", False)]
+    assert not models.requests

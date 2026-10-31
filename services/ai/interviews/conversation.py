@@ -1,7 +1,7 @@
 """Build readable interview context and restore only Rails-owned public dialogue.
 
-Preparation formats current owned sources. Real turns ignore legacy private model
-history and use only accepted public dialogue.
+Preparation formats current owned sources and scoped recent-question guidance.
+Real turns ignore legacy private model history and use only accepted public dialogue.
 """
 
 from html import escape
@@ -125,6 +125,15 @@ def system_context(context: dict, role: dict | None = None) -> str:
     if excluded:
         text += '\n\n# Avoided questions\n' + '\n'.join(
             data_block('avoided_question', item) for item in excluded
+        )
+    recent = context.get('recent_questions', [])
+    if not isinstance(recent, list) or len(recent) > 20 or any(
+        not isinstance(item, str) or not item.strip() or len(item) > 2000 for item in recent
+    ):
+        raise ContextLimitExceeded('Invalid recent question context')
+    if recent:
+        text += '\n\n# Recent practice questions (variety guidance, not exclusions or career evidence)\n' + '\n'.join(
+            data_block('recent_question', item) for item in recent
         )
     focus = context.get('career_focus')
     if isinstance(focus, str) and focus:

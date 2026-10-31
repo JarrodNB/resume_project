@@ -54,7 +54,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `interview_knowledge_feedback_instructions.py` — separate subject corrections and direct illustrative answers without personal-experience invention or subject-fact placeholders.
   The feedback agent selects these instructions using trusted deps; general/technical runs receive the personal-fact base policy, with STAR guidance added only for general.
 
-- Spoken preparation reads current owned job/library/preferences once and uses no classifiers
+- Spoken preparation reads current owned job/library/preferences and scoped recent-question variety
+  guidance once and uses no classifiers
   or approval callbacks. Turns use prepared questions and accepted dialogue, without original
   source evidence. Both preserve masking, source delimiters, context bounds and accounting.
 

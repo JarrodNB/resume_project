@@ -1,7 +1,8 @@
 """Load one claimed interview's owned inputs through read-only database access.
 
-Preparation reads current source records once. Later operations read only prepared
-questions and accepted dialogue, never the original job or career library.
+Preparation reads current source records and scoped recent main questions once.
+Later operations read only prepared questions and accepted dialogue, never the
+original job or career library.
 """
 
 from psycopg import Error, IsolationLevel
@@ -100,6 +101,20 @@ def _preparation(cursor, row, params):
         if job is None:
             raise ValueError("Required saved job is unavailable")
         context["job"] = job
+    context["recent_questions"] = [
+        question["content"] for question in cursor.execute(
+            """SELECT q.content FROM interview_session_questions q
+            JOIN interview_sessions s ON s.id = q.interview_session_id
+            WHERE s.user_id = %(user_id)s AND s.id <> %(interview_id)s
+              AND s.preparation_kind = %(preparation_kind)s
+              AND s.execution_mode = %(execution_mode)s AND s.content_purged_at IS NULL
+              AND (%(preparation_kind)s = 'fictional_role' OR s.job_id = %(job_id)s)
+            ORDER BY q.created_at DESC, s.id DESC, q.position, q.id
+            LIMIT 20""",
+            {**params, "preparation_kind": row["preparation_kind"],
+             "execution_mode": row["execution_mode"], "job_id": choices["job_id"]},
+        ).fetchall()
+    ]
     return PreparationPayload(preparation_context=context, setup=params["setup"])
 
 

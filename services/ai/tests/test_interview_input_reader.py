@@ -7,7 +7,7 @@ import pytest
 from psycopg.types.json import Jsonb
 
 from database.interview_inputs import read_interview_input
-from interviews.client import REAL_CONFIGURATION, Claim
+from interviews.client import FAKE_CONFIGURATION, REAL_CONFIGURATION, Claim
 from tests import test_career_library_reader as library_reader_tests
 from tests.test_career_library_reader import _insert, _insert_user
 
@@ -366,3 +366,85 @@ def test_reader_restores_public_groups_for_retained_twelve_question_sessions(
             ).fetchone()["content"]
             == "Skipped unanswered follow-up?"
         )
+
+
+def prior_questions(connection, claim, texts, *, job_id=None, preparation_kind=None, **overrides):
+    """Save another session's prepared main questions without answers or provider work."""
+    values = {
+        "user_id": claim.payload.user_id, "status": "ready", "execution_mode": "real",
+        "execution_config": Jsonb(REAL_CONFIGURATION.model_dump()),
+        "preparation_kind": preparation_kind or ("saved_job" if job_id else "fictional_role"),
+        "job_id": job_id, "expires_at": datetime.now(UTC) + timedelta(days=1),
+    }
+    values.update(overrides)
+    session = _insert(connection, "interview_sessions", **values)
+    questions = [_insert(connection, "interview_session_questions", interview_session_id=session,
+        position=index, content=text) for index, text in enumerate(texts)]
+    return session, questions
+
+
+def test_preparation_receives_earlier_generic_main_questions(admin_connection):
+    claim, _ = seed(admin_connection)
+    prior_questions(admin_connection, claim, ["Earlier generic question?"])
+    context = read_as_reader(admin_connection, claim).payload.preparation_context
+    assert context["recent_questions"] == ["Earlier generic question?"]
+
+
+@pytest.mark.parametrize("saved_job", [False, True])
+def test_recent_history_is_owned_and_scoped_by_preparation_kind_and_exact_job(
+    admin_connection, saved_job
+):
+    claim, job = seed(admin_connection, saved_job=saved_job)
+    prior_questions(admin_connection, claim, ["In scope?"], job_id=job,
+        career_focus="A different focus", setup_config=Jsonb({"question_format": "screening"}))
+    other_owner = _insert_user(admin_connection)
+    prior_questions(admin_connection, claim, ["Other user?"], job_id=job, user_id=other_owner)
+    other_job = _insert(admin_connection, "jobs", user_id=claim.payload.user_id, title="Other job")
+    prior_questions(admin_connection, claim, ["Other job?"], job_id=other_job)
+    # A deleted saved job leaves job_id null but must not become generic history.
+    prior_questions(admin_connection, claim, ["Deleted job?"], preparation_kind="saved_job")
+    if saved_job:
+        prior_questions(admin_connection, claim, ["Generic question?"])
+    else:
+        prior_questions(admin_connection, claim, ["Saved-job question?"], job_id=other_job)
+    _insert(admin_connection, "interview_session_questions",
+        interview_session_id=claim.payload.interview_id, position=0, content="Current session?")
+    prior_questions(admin_connection, claim, ["Purged content?"], job_id=job,
+        content_purged_at=datetime.now(UTC))
+    prior_questions(admin_connection, claim, ["Fixture content?"], job_id=job,
+        execution_mode="fake", execution_config=Jsonb(FAKE_CONFIGURATION.model_dump()))
+    assert read_as_reader(admin_connection, claim).payload.preparation_context["recent_questions"] == [
+        "In scope?"
+    ]
+
+
+def test_recent_history_limits_questions_and_orders_by_creation_with_stable_ties(admin_connection):
+    claim, _ = seed(admin_connection)
+    # Explicit ages order question batches; cap questions, not sessions.
+    _, older = prior_questions(admin_connection, claim, [f"Old {i}?" for i in range(12)])
+    _, newer = prior_questions(admin_connection, claim, [f"Recent {i}?" for i in range(12)])
+    for ids, age in [(older, 2), (newer, 1)]:
+        admin_connection.execute(
+            "UPDATE interview_session_questions SET created_at = CURRENT_TIMESTAMP - %s * INTERVAL '1 day' WHERE id = ANY(%s)",
+            (age, ids),
+        )
+    admin_connection.execute(
+        "UPDATE interview_session_questions SET skipped_at=CURRENT_TIMESTAMP WHERE id=%s", (newer[0],)
+    )
+    expected = [f"Recent {i}?" for i in range(12)] + [f"Old {i}?" for i in range(8)]
+    assert read_as_reader(admin_connection, claim).payload.preparation_context["recent_questions"] == expected
+    assert read_as_reader(admin_connection, claim).payload.preparation_context["recent_questions"] == expected
+
+
+def test_recent_history_keeps_expired_but_retained_prepared_questions(admin_connection):
+    claim, _ = seed(admin_connection)
+    prior_questions(admin_connection, claim, ["Still retained?"], status="expired",
+        expires_at=datetime.now(UTC) - timedelta(days=1))
+    assert read_as_reader(admin_connection, claim).payload.preparation_context["recent_questions"] == [
+        "Still retained?"
+    ]
+
+
+def test_recent_history_is_empty_on_first_preparation(admin_connection):
+    claim, _ = seed(admin_connection)
+    assert read_as_reader(admin_connection, claim).payload.preparation_context["recent_questions"] == []

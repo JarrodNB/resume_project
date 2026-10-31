@@ -7,14 +7,15 @@ from interviews.client import ReferencePayload
 from tests.test_interview_preparation import Models, preparation_claim, run
 
 
-def test_reference_payload_rejects_saved_source_text():
+@pytest.mark.parametrize("extra", [{"sources": ["private"]}, {"recent_questions": ["private question?"]}])
+def test_reference_payload_rejects_saved_source_text(extra):
     with pytest.raises(ValidationError):
         ReferencePayload(
             version=1,
             user_id="owner",
             interview_id="interview",
             setup={"question_count": 8},
-            sources=["private"],
+            **extra,
         )
 
 
@@ -76,6 +77,7 @@ def test_reference_preparation_is_loaded_once_before_masked_execution():
     from tests.test_interview_preparation import PreparationClient
 
     hydrated = preparation_claim()
+    hydrated.payload.preparation_context["recent_questions"] = ["Previously prepared main question?"]
     reference = hydrated.model_copy(
         update={
             "payload": ReferencePayload(
@@ -100,6 +102,7 @@ def test_reference_preparation_is_loaded_once_before_masked_execution():
     )
     asyncio.run(executor.execute(reference))
     assert reads == [reference.operation_id]
+    assert "Previously prepared main question?" in models.requests[-1][1]
     assert client.accepted and not client.failed
     assert {item[0] for item in models.requests} == {"gpt-6-luna"}
 

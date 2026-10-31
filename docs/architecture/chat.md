@@ -2,7 +2,7 @@
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
-one read-only tool, `read_career_library`. Attachments, other saved app data and app
+read-only tools for the career library and active saved-job labels. Attachments, other saved app data and app
 actions are not available.
 
 ## Tools (MCP)
@@ -179,7 +179,8 @@ JSON string values per field. Chat returns these in `record_screening` on final
 acceptance.
 Rails accepts them only under the current operation fence and owner lock, then
 `Screening::RecordApprovalsService` compares each fingerprint with the owned record
-under its row lock; with no task, only career-library records can be approved. A stale
+under its row lock. Chat acceptance explicitly enables owned active-job approvals after
+its locked claim fences; other taskless callers can approve only career-library records. A stale
 value earns no approval. Receipts participate in acceptance replay identity. Failed
 or stale operations save no approvals; ordinary edits still clear changed checks.
 

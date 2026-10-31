@@ -44,7 +44,7 @@ def _execute(task, costs):
     started = monotonic()
     with collect_task_usage() as usage:
         try:
-            result = handle_job_preference_check_task(task, SimpleNamespace(settings=load_settings()))
+            result = handle_job_preference_check_task(task, SimpleNamespace(settings=load_settings(), read_preference_input=lambda task: task.input))
         finally:
             costs.append({"elapsed_seconds": round(monotonic() - started, 3), "requests_with_usage": len(usage.entries),
                 "input_tokens": sum(e.input_tokens for e in usage.entries), "output_tokens": sum(e.output_tokens for e in usage.entries),

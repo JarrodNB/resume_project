@@ -67,9 +67,20 @@ module AiReaderAccess
       connection.execute("GRANT SELECT (#{READABLE_SECTION_COLUMNS.join(', ')}) ON resume_sections TO #{role}")
       connection.execute("GRANT USAGE ON SCHEMA public TO #{role}")
       connection.execute("GRANT SELECT ON ai_study_guide_commands, ai_study_guide_questions TO #{role}")
+      connection.execute(<<~SQL)
+        CREATE OR REPLACE VIEW ai_generated_preference_criteria WITH (security_barrier = true) AS
+        SELECT DISTINCT tasks.user_id, criterion.value->>'text' AS text
+        FROM ai_tasks tasks CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(tasks.result->'criteria') = 'array'
+            THEN tasks.result->'criteria' ELSE '[]'::jsonb END) criterion(value)
+        WHERE tasks.task_type = 'elicit_job_preferences' AND tasks.status = 'completed'
+          AND jsonb_typeof(criterion.value->'text') = 'string'
+      SQL
+      connection.execute("GRANT SELECT ON ai_generated_preference_criteria TO #{role}")
       connection.execute("GRANT SELECT ON #{tables} TO #{role}")
       connection.execute("GRANT SELECT (#{user_columns}) ON users TO #{role}")
-      connection.execute("GRANT SELECT (id, payload) ON job_board_listings TO #{role}")
+      connection.execute("GRANT SELECT (id, payload, screened_sha256) ON job_board_listings TO #{role}")
+      connection.execute("GRANT SELECT (id, user_id, confirmed_revision, confirmed_criteria, screened_criteria_sha256) ON job_preference_profiles TO #{role}")
       task_columns = READABLE_TASK_COLUMNS.map { |column| connection.quote_column_name(column) }.join(", ")
       connection.execute("GRANT SELECT (#{task_columns}) ON ai_tasks TO #{role}")
       # A nonmaterialized projection keeps other task outputs/history private.

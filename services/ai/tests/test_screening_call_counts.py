@@ -237,11 +237,12 @@ def test_job_preference_check_does_not_screen_criteria_or_listings(task_dependen
               "listings": [listing(n) for n in range(3)]}
 
     def assess(messages, info):
-        args = {f"c{i}_{side}": value for i in range(3)
-                for side, value in (("support", "P1"), ("contradiction", "none"))}
+        args = {f"p{i + 1}": 0.9 for i in range(3)}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)],
                              model_name="jev-1.13.0", usage=RequestUsage(input_tokens=100, output_tokens=5))
 
+    from dataclasses import replace
+    task_dependencies = replace(task_dependencies, read_preference_input=lambda task: task.input)
     task = SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values)
     with job_preference_agent.override(model=FunctionModel(assess, model_name="jev-1.13.0")):
         result = handle_ai_task(task, task_dependencies)

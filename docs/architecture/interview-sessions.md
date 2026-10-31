@@ -214,7 +214,7 @@ and fingerprint return the original operation even after revision changes. A cha
 conflicts. Different submissions cannot share an active answer slot.
 
 `AcceptTurnService.call(operation:, attempt_id:, claim_generation:, transcript:, decision:,
-reply:, history_version:, model_history:)` commits the complete outcome under locks. It
+reply:)` commits the complete outcome under locks. It
 checks current claim identity, lease, execution deadline, interview expiry and revision.
 An identical accepted payload returns its saved receipt even after its lease expires;
 a changed payload conflicts. Object key order does not affect the payload fingerprint.
@@ -225,17 +225,14 @@ final closing. Rails overrides a continue decision at the answer cap and discard
 filler on advancement. Public dialogue, count, revision and any enabled provider speech work commit together.
 Speech refers to exactly the saved response and its question; it cannot generate dialogue.
 Transcript/reply text uses the existing prose limit. Private provider conversation is not
-stored on questions. Callback `history_version: 1, model_history: []` remains a compatibility
-shape. Nonempty history is rejected for running operations. A bounded original legacy
-payload can still replay an already accepted operation by its unchanged canonical fingerprint;
-it returns the original receipt without restoring private history or writing dialogue.
+stored on questions, and the accept callback carries no history fields.
 
 Preparation, turn, transcription and speech claims carry a versioned reference payload with
 `interview_id`, `user_id` and bounded `setup`. Python reads only each operation's required
 saved columns after checking its live fences. Speech loads the exact accepted message and
 acknowledgement; turns load the saved reviewed transcript/mode, question and public dialogue.
 Media keys stay unreadable; Rails still grants scoped signed storage capabilities. Every turn
-acceptance returns only new output, with empty legacy `model_history`; provider conversation
+acceptance returns only new output; provider conversation
 logging remains, and canonical public dialogue is the sole saved conversation authority.
 Real preparation and spoken turns skip injection classifiers. Exact-input guards, escaped data
 sections, contact replacement, aggregate context limits and accounted reasoning remain.

@@ -87,7 +87,7 @@ when "ready"
   await_saved(interview.operations.preparation.first)
   assert_check(interview.reload.ready? && interview.questions.count == main_count, "Complete preparation missing")
   assert_check(interview.messages.empty? && interview.operations.speech.empty?, "Preparation began speech")
-  assert_check(interview.frozen_context["career_focus"] == "Scheduling coordination", "Focus not frozen")
+  assert_check(interview.career_focus == "Scheduling coordination", "Focus choice not saved")
   puts "PASS frozen owned library/focus prepared atomically; #{main_count} questions ready with no speech"
 when "begin"
   2.times { checked(Interviews::BeginService.call(interview: interview)) }
@@ -140,8 +140,8 @@ when "retry-prepare", "retry-verify"
   speech = interview.operations.speech.order(:created_at).last
   snapshot = lambda do
     Digest::SHA256.hexdigest(JSON.generate([
-      interview.messages.order(:position).pluck(:kind, :content),
-      interview.questions.order(:position).pluck(:accepted_answer_count, :model_history),
+      interview.messages.order(:position).pluck(:id, :kind, :content, :acknowledgement),
+      interview.questions.order(:position).pluck(:accepted_answer_count),
       interview.operations.turn.order(:id).pluck(:id, :execution_count),
       InterviewProviderAttempt.joins(:execution_attempt).where(interview_execution_attempts: {
         operation_id: interview.operations.turn.select(:id) }).order(:id).pluck(:id)

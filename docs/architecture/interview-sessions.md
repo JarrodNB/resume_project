@@ -222,18 +222,19 @@ A stale or failed operation cannot change dialogue.
 
 Acceptance appends the answer and either a follow-up, the saved next opening, or the fixed
 final closing. Rails overrides a continue decision at the answer cap and discards transition
-filler on advancement. Accepted history, count, revision and any enabled provider speech work commit together.
+filler on advancement. Public dialogue, count, revision and any enabled provider speech work commit together.
 Speech refers to exactly the saved response and its question; it cannot generate dialogue.
-History is private, separate from accepted public messages, versioned (currently version 1),
-and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rails treats the
-history as a JSON message envelope; Python validates its message/tool structure and
-reconstructs model context from Rails-owned accepted public dialogue.
+Transcript/reply text uses the existing prose limit. Private provider conversation is not
+stored on questions. Callback `history_version: 1, model_history: []` remains a compatibility
+shape. Nonempty history is rejected for running operations. A bounded original legacy
+payload can still replay an already accepted operation by its unchanged canonical fingerprint;
+it returns the original receipt without restoring private history or writing dialogue.
 
 Preparation, turn, transcription and speech claims carry a versioned reference payload with
 `interview_id`, `user_id` and bounded `setup`. Python reads only each operation's required
 saved columns after checking its live fences. Speech loads the exact accepted message and
 acknowledgement; turns load the saved reviewed transcript/mode, question and public dialogue.
-Media keys stay unreadable; Rails still grants scoped signed storage capabilities. Real turn
+Media keys stay unreadable; Rails still grants scoped signed storage capabilities. Every turn
 acceptance returns only new output, with empty legacy `model_history`; provider conversation
 logging remains, and canonical public dialogue is the sole saved conversation authority.
 Real preparation and spoken turns skip injection classifiers. Exact-input guards, escaped data
@@ -704,15 +705,11 @@ Python validates the version, budget, unique ordered positions, disjoint omissio
 and complete opening/answer/follow-up sequencing, then checks the aggregate content cap.
 Real spoken answer turns do not call injection classifiers. The existing
 120,000-character aggregate context bound, transcript limits, known-contact replacement,
-and per-dispatch model accounting remain enforced. Preparation still screens its inputs.
-Current-question typed version-1 private history preserves accepted transcripts, model output
-and paired tools. Exact copies of the current masked context envelope are replaced by their
-transcript alone, both when restoring older histories and saving new ones. Each execution
-supplies the complete bounded current context; unfamiliar or changed historical
-inputs remain subject to structural and size checks. This avoids multiplying a large library
-and earlier dialogue across all three responses without discarding conversational history.
-Instructions treat prior answers as candidate claims, frozen library evidence as sourced
-facts, and fictional role requirements as imagined requirements, never personal achievements.
+and per-dispatch model accounting remain enforced. Preparation also skips classifiers.
+Both real and fixture turns rebuild their model conversation from canonical accepted public
+dialogue, never private tool messages or copied provider history. The offline fixture keeps
+its local guard and zero-cost stages; it returns only the new output with empty legacy history.
+Instructions distinguish candidate claims and fictional requirements from verified facts.
 
 Offline verification uses canonical Rails claims and the Python executor with fake providers;
 no paid summarization, provider calls, or quality judges are required for this contract.
@@ -770,39 +767,20 @@ navigation, errors or stalled chunks cancel the sequence; stale callbacks cannot
 restart it. Actual voice quality depends on the available browser/OS voices and needs
 human listening checks.
 
-## Conversational screening and readable system context
+## Readable context and canonical dialogue
 
-Real spoken interviews use a separate conversational screening interface. Each turn checks
-only the newest candidate transcript. Accepted prior utterances come from the authenticated
-Rails claim's `current_dialogue` and bounded earlier public question groups; old answers,
-private tool returns, and framework completion acknowledgements are not re-sent to Jev.
-Private saved model history is validated for wire integrity but is rebuilt from those public
-records before the next model run. A legacy claim with nonempty private history but no
-canonical public dialogue fails closed rather than trusting an arbitrary history payload.
-This does not change the generic prompt guard or screening for queued features.
+Preparation reads current owned career/job sources once and renders escaped, contact-masked
+career entries and role expectations. It does not classify sources or create approval receipts.
+Real spoken turns skip classifiers too. They read prepared questions, fictional role where
+applicable, and bounded accepted current/earlier public dialogue from the read-only database;
+they do not reread the career library as turn evidence. Exact-input guards, context limits,
+contact masking and per-provider usage accounting remain. Unchanged accepted answers are
+never reconstructed from private framework messages or tool receipts.
 
-Frozen sources retain field-level `screened` metadata outside model prose. Approved sources
-incur no library classifier calls. Unchecked source text is screened together; its source
-indices are reported through the fenced Rails callback before dependent generation. Failed
-screening or a missing persistence receipt cannot grant usable approval. Preparation also
-screens an optional career focus only when its exact fingerprint lacks a matching
-`screened_career_focus_sha256` in the frozen context. A newly checked focus requires its
-matching callback receipt even when every library source was already approved; missing
-receipts prevent preparation. The approval survives later generation failure and claim
-retries, remains outside model prose, and is purged with frozen context at cleanup.
-Later turns reuse the prepared immutable context. Deploy the expanded Rails callback
-before the AI worker: a new worker fails closed if an older server omits the focus receipt;
-older workers continue source-only callbacks safely.
-
-The model sees readable career entries grouped by source record, with field/source labels
-and escaped data delimiters, plus a separately labeled fictional role. Known contacts are
-masked before escaping. A single canonical system message holds this context in each model
-conversation. New answer messages contain only the newest answer, not a fresh library JSON
-envelope. Reloads and legacy histories rebuild the same public conversation without adding
-copies of the library. Each new question has its own private model conversation and starts
-with that canonical context. This is one logical system context, not provider-side session
-storage: the stateless provider transport still replays the conversation on each request.
-
+Each stateless provider request receives one readable system context plus canonical public
+utterances and the newest answer. No full library JSON or previous provider messages cross
+the internal execution claim or acceptance boundary. Canonical dialogue remains visible and
+editable through its existing lifecycle; expiry and deletion still purge private content.
 
 ### Reviewed typed answers
 
@@ -829,15 +807,18 @@ recovery while keeping payloads, allowances and result validation feature-specif
 
 `requestInterviewClarification` authorizes an owned active real-mode session and its exact latest
 saved opening/follow-up message. It creates one `InterviewClarification` per message.
-Only `message.content` enters its SQS payload, alongside the clarification identity;
+Only the clarification/message identities and a question digest enter its saved task command;
 acknowledgements, spoken text, answers, library and model history are excluded.
 Prepared sessions reuse their immutable preparation hourly admission. Clarification
 spend and concurrency use the spoken-interview allowance, independently of general AI.
 
 Before screening or generation, the queue worker calls the authenticated
 `/internal/interviews/clarifications/:ai_task_id/claim` endpoint. Rails rechecks prompt,
-owner, expiry, admission and once-only execution under locks. This adds no AI database
-grants. The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` (the same
+owner, expiry, admission and once-only execution under locks. The response contains only
+session/record identities and the claim timestamp. Python verifies those fences through
+read-only database access before loading the exact canonical question. Narrow column grants
+cover auxiliary identities, deadlines and claims; generated results and private media remain hidden.
+The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` (the same
 private secret as Rails/the interview runtime); configure these in the queue worker's
 environment before enabling clarification. A blank secret fails without provider calls.
 Deploy the migration/API and compatible queue worker together; schema fields require
@@ -894,10 +875,10 @@ The mutation scopes the session to the signed-in user and rechecks the latest an
 message under owner/session locks. Old prompt identities fail instead of capturing a new
 question. Saved state is exposed on the message and duplicate saves are safe to retry.
 
-New preparations snapshot the shared preference list in frozen context. The same list is
-used for preparation and later follow-ups, so preferences added after a session starts
-apply to future sessions rather than rewriting the prepared conversation. Written practice
-and spoken interviews both save to this list. Legacy contexts without it use an empty list.
+Preparation reads the current shared preference list when claimed. Later follow-ups use
+prepared questions and accepted dialogue, so preferences added afterward apply to future
+preparations rather than rewriting the prepared conversation. Written practice and spoken
+interviews both save to the shared list; no copied preference list is stored on the session.
 
 The AI renders preferences as escaped, masked question data. These exact server-generated
 texts are not screened again or treated as career evidence. Trusted instructions ask the
@@ -911,7 +892,7 @@ save bounds and preparation context limits still apply.
 Optional career references help the candidate recall saved experience while answering.
 They display exact saved wording rather than a generated answer. They are independent
 of interviewer context, speech, answer drafts, question progression and answer allowances.
-The interviewer still receives its existing frozen preparation context.
+The interviewer receives prepared questions and accepted dialogue.
 
 Career references appear automatically for the current opening or follow-up in active
 real-mode interviews. No feature enablement environment setting is required.
@@ -934,7 +915,9 @@ deadline is still live. An earlier prompt's expired attempt does not occupy a sl
 even without worker redelivery. Redelivery checks expiry and prompt availability before
 the once-only claim guard, failing obsolete work while retaining late usage. This adds
 no polling, automatic regeneration or background sweeper. A private authenticated claim rechecks
-availability and returns canonical owner, prompt, reference identity and query text.
+availability and returns session/record identities and the once-only claim timestamp.
+Python validates that claim through read-only owned database access and builds the bounded query
+from canonical messages; task commands retain only identities and source digests.
 Duplicate claims do no paid work. SQS results preserve late or duplicate usage while
 rejecting stale content after follow-up changes, skip, advancement, abandonment or expiry.
 
@@ -1022,7 +1005,8 @@ Rails stores one `InterviewSessionFeedback` per session and owns admission, its 
 claim deadline and validated saved result. `interview_session_feedback` uses the existing SQS
 worker/result path, independent of the active-turn HTTP executor. The queue input contains
 only the feedback record identity. The authenticated internal feedback claim returns retained
-server-owned role/setup context and accepted dialogue once; duplicate claims perform no
+session/feedback identities and the once-only claim timestamp. Python reads canonical accepted
+dialogue and generated fictional-role context through a scoped owned database query; duplicate claims perform no
 provider work. Preparation-backed sessions reuse their root hourly admission and all feedback
 usage belongs to the independent interview allowance.
 
@@ -1054,3 +1038,21 @@ not generate coaching. Choose Generate feedback, reopen the session during gener
 read saved summary and per-question coaching. Confirm unanswered skipped questions are not
 assessed. For a failed attempt, choose Retry feedback and verify progress returns without
 changing the transcript. An all-skipped interview explains why coaching is unavailable.
+
+## Coordinated source-storage cutover
+
+Migration `20261031010000` removes `interview_sessions.frozen_context` and question
+`model_history`/`history_version`. New models ignore these columns before and after removal.
+The migration preserves career focus/preparation kind, prepared questions, canonical messages,
+operation fingerprints/accepted receipts and all execution/provider/accounting records.
+Rolling this migration while old application processes run is unsupported.
+
+For this release, enter maintenance and stop admissions; drain or stop **all old Rails web,
+job and cable processes and all old Python executors before** running the new release's
+`db:prepare` or starting it. The Rails server entrypoint may run `db:prepare` automatically,
+so stopping old processes must precede even the first new Rails start. Then apply migrations
+and restricted-reader grants, start only new Rails/Python processes and reopen admissions.
+No deployment or drainage is inferred from local tests. Do not purge queues or replay
+terminal tasks: retained legacy queue notifications still resolve owned database commands.
+Restoring old application code requires a coordinated schema rollback first; rollback can
+recreate empty compatibility columns, but cannot restore deleted private execution copies.

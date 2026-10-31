@@ -26,15 +26,15 @@ module CareerLibrary
     def call
       targets = @task.input["targets"]
       return failure([ "The review has no valid target manifest. Please start a new review." ]) unless targets.is_a?(Array) && targets.any? &&
-        targets.length <= ReviewSnapshot::MAX_TARGETS && targets.all? { |target| target.is_a?(Hash) }
+        targets.length <= ReviewSources::MAX_TARGETS && targets.all? { |target| target.is_a?(Hash) }
       items = @result.is_a?(Hash) ? @result["assessments"] : nil
       return failure([ "The review did not cover the requested entries. Please try again." ]) unless items.is_a?(Array) && items.length == targets.length
 
-      expected = targets.index_by { |target| ReviewSnapshot.target_key(target) }
+      expected = targets.index_by { |target| ReviewSources.target_key(target) }
       seen = []
       valid = items.all? do |item|
         next false unless item.is_a?(Hash)
-        key = ReviewSnapshot.target_key(item)
+        key = ReviewSources.target_key(item)
         target = expected[key]
         next false unless target && !seen.include?(key) && item["source_digest"] == target["source_digest"]
         seen << key

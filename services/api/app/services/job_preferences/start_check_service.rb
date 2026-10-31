@@ -32,9 +32,9 @@ module JobPreferences
       return failure([ "Select distinct, valid loaded listings to check." ]) unless ids.uniq.size == ids.size
       by_id = JobBoardListing.where(id: ids).index_by(&:id)
       return failure([ "This listing is no longer available. Refresh your search results." ]) unless by_id.size == ids.size
-      byte_budget = [ TEXT_BUDGET_BYTES / ids.size, JobBoard::PreferenceListingSnapshot::MAX_TEXT_BYTES ].min
+      byte_budget = [ TEXT_BUDGET_BYTES / ids.size, JobBoard::PreferenceListingSources::MAX_TEXT_BYTES ].min
       snapshots = requested.map do |item|
-        source = JobBoard::PreferenceListingSnapshot.new(by_id.fetch(item[:listing_id])).snapshot(max_text_bytes: byte_budget)
+        source = JobBoard::PreferenceListingSources.new(by_id.fetch(item[:listing_id])).projection(max_text_bytes: byte_budget)
         return failure([ "This listing changed. Refresh your search results before checking." ]) unless source["source_digest"] == item[:expected_digest]
         return failure([ "A listing has no usable posting text. Refresh or narrow your search." ]) if source["passages"].empty?
         source.except("passages").merge("passages_sha256" =>

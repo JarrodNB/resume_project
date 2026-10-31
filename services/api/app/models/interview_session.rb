@@ -1,6 +1,7 @@
 # Rails-owned spoken interview session. Basic is the first supported interview type. Its services change dialogue and progress together;
 # the existing written practice records remain independent.
 class InterviewSession < ApplicationRecord
+  self.ignored_columns += %w[frozen_context]
   include PublishesInterviewSnapshot
   before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
   before_destroy -> { Interviews::SessionFeedback.new.purge(interview: self, reason: :deleted) }, prepend: true

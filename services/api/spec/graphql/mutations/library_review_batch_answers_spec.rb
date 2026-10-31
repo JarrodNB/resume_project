@@ -8,7 +8,7 @@ RSpec.describe "Career library review answer batches" do
   let(:queue) { double("queue", send_message: nil) }
   let(:questions) { [ "Which part did you migrate?", "How did you check it?", "What changed afterward?" ] }
   let!(:review) do
-    snapshot = CareerLibrary::ReviewSnapshot.build(user: user, section: "experience")
+    snapshot = CareerLibrary::ReviewSources.build(user: user, section: "experience")
     create(:ai_task, user: user, task_type: "review_library_section", status: "completed", input: snapshot,
       result: { "assessments" => snapshot["targets"].map { |target| target.except("label").merge("color" => "yellow", "reason" => "Add evidence.", "questions" => questions, "question" => questions.first) } })
   end

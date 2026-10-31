@@ -14,14 +14,15 @@ Task execution and the contracts between Rails and Python workers.
 3. An AI worker runs the matching Pydantic AI agent, traced in Logfire.
 4. The worker publishes to `ai_results` with one of:
    - `completed` + structured payload (the agent's Pydantic `output_type`)
-   - `needs_user_input` + question(s) + serialized agent message history
+   - `needs_user_input` + question(s) + only the new generated dialogue fragment
      (the agent called the deferred `ask_user` tool; used by individual career-library editing)
    - `failed` + error
 5. Rails consumes the result, updates the `AiTask` and related records (storing the message
    history on the `AiTask`), and pushes the update to the client through a GraphQL
    subscription (e.g. `aiTaskUpdated(id)`).
-6. When the user answers, Rails publishes a distinct follow-up task with the owned stored
-   message history and newest answer. The worker resumes with `DeferredToolResults`.
+6. When the user answers, Rails saves the new feedback once and publishes a distinct
+   follow-up task identity. Python reads the bounded owned chain, rebuilds its conversation
+   and resumes with `DeferredToolResults`; execution notifications contain no saved history.
 
 Missing-summary generation uses `generate_summary`. Rails saves a versioned command with
 owned target IDs, citation labels, source row/section identities and exact field fingerprints.
@@ -92,8 +93,9 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   execution Python reads the durable command from `ai_tasks` through `ai_reader`, matching
   task ID, owner, type and `queued` status. Missing, foreign, mismatched and terminal
   deliveries are acknowledged without publishing outcomes or usage. Database failures
-  leave messages for retry. Handler inputs remain compatible during the staged migration;
-  later feature changes remove their stored source copies in favor of owned record IDs.
+  leave messages for retry. Keep the legacy envelope reader until deployed queue drainage
+  is established: legacy bodies supply identities only, and the owned database command
+  replaces their copied inputs before dispatch. Never replay terminal tasks or purge queues.
   Legacy unversioned envelopes are accepted, but their input is ignored in favor of the
   database command. Unknown versions and versioned envelopes with input are rejected.
 
@@ -130,8 +132,9 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `ScreenedFields` concern to clear only changed field checks atomically with saving.
 
   Jobs use ordered list fingerprints for requirements and nice-to-haves. Gap responses
-  must belong to the task's owned job and appear by id in its input. Legacy snapshots
-  without ids are screened but never persisted. Practice answers also require matching
+  must belong to the task's owned job; reference commands bind that job, while retained
+  legacy commands also require original answer membership. Legacy copies without ids
+  are never used as execution sources or persisted as approvals. Practice answers also require matching
   question and answer revisions; generated questions are trusted without re-screening.
 
   Preference criteria use the owner's `screened_criteria_sha256` array, keyed by exact text.
@@ -238,9 +241,9 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
-- `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
-  Job. Contact and gap fields are immutable request snapshots. The worker reads the owned
-  job and career library, prepares shared screened evidence, and returns one complete draft:
+- `tailor_resume`: input `{source_version: 1, job_id, analysis_task_id?, include_summary}`;
+  the subject is the Job. The worker reads the owned job, library, contact and gap responses
+  in one consistent transaction, prepares shared screened evidence, and returns one complete draft:
   `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
   summary, experience, projects, education, certifications, skills, omitting empty or
   nothing-fits sections. Contact, education, and certifications are copied; independent
@@ -379,14 +382,15 @@ The worker retries through SQS redelivery instead of in-process loops:
 
 ### Career library review
 
-`review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
-section (`summary`, `experience`, `projects`, or `career_contexts`) with saved field-check metadata and short-label target identities/context digests.
+`review_library_section` takes a versioned command with the selected section, target
+identities, context digests and field fingerprints. Python reads the current owned selected
+section (`summary`, `experience`, `projects`, or `career_contexts`) with saved field checks.
 It returns `{assessments: [{kind, record_id, field, source_digest, color, reason, questions, question}]}`.
 The ordered `questions` list contains zero to three distinct, nonblank questions, each at most
 500 characters. `question` mirrors its first item or null for legacy scalar consumers; old results
 with only `question` normalize to a one-item list, and old questionless results normalize to an empty list.
 If both representations are present they must agree. The model emits only target labels, colors,
-reasons, and questions; code copies the identities from the snapshot. Questions are completed
+reasons, and questions; code attaches the verified source identities. Questions are completed
 review output, not deferred calls: users can address each detail independently.
 `answerLibraryReview(reviewTaskId:, kind:, recordId:, answers:)` accepts up to three
 `{questionIndex, answer}` entries, keyed by zero-based index into the immutable saved questions.

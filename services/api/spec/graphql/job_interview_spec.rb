@@ -35,7 +35,7 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     result = execute_graphql('mutation($id: ID!) { archiveJob(input: { id: $id }) { errors } }', user: user, variables: { id: job.id })
     expect(result.dig("data", "archiveJob", "errors")).to eq([])
     expect(interview.reload.job_id).to eq(job.id)
-    expect(interview.frozen_context).to eq({})
+    expect(interview).not_to respond_to(:frozen_context)
   end
 
   it "shows live labels after edits and publishes detached navigation when the job is deleted" do
@@ -61,7 +61,7 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     expect(Interviews::PublishSnapshotService).to have_received(:call).with(interview_id: interview.id)
     saved = execute_graphql(query, user: user).dig("data", "recentInterviewSessions", 0, "jobContext")
     expect(saved).to be_nil
-    expect(interview.reload.frozen_context).to eq({})
+    expect(interview.reload).not_to respond_to(:frozen_context)
     expect(interview.revision).to eq(revision)
     expect(interview.messages.first.content).to eq(questions.first.fetch("content"))
     claimed = Interviews::ClaimOperationService.call(operation: turn, execution_mode: "real")
@@ -75,7 +75,7 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     expect(execute_graphql('{ recentInterviewSessions { id jobContext { title } } }', user: user).dig("data", "recentInterviewSessions")).to eq([])
     expect(execute_graphql("{ interviewSession(id: \"#{interview.id}\") { jobContext { title } } }", user: user).dig("errors", 0, "message")).to eq("Interview expired")
     expect(Interviews::CleanupService.call).to be_success
-    expect(interview.reload.frozen_context).to eq({})
+    expect(interview.reload).not_to respond_to(:frozen_context)
     expect(interview.prepared_role).to eq({})
   end
 

@@ -95,7 +95,7 @@ module Interviews
               error_message: "interview_expired", completed_at: task.completed_at || Time.current })
           end
         end
-        interview.questions.update_all(content: "[expired]", model_history: [])
+        interview.questions.update_all(content: "[expired]")
         interview.messages.update_all(content: "[expired]", acknowledgement: nil)
         interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, career_focus: "", prepared_role: {}, content_purged_at: Time.current)
       end

@@ -3,6 +3,7 @@ from dataclasses import replace
 from uuid import uuid4
 
 import httpx
+import pytest
 from pydantic_ai.models.test import TestModel
 
 from worker.queue_messages import AiTaskMessage
@@ -91,7 +92,6 @@ def test_provider_receives_fixed_instruction_and_exact_question_only(task_depend
 
 
 def test_extra_context_is_rejected_before_claim_or_generation(task_dependencies):
-    import pytest
     from pydantic import ValidationError
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="interview_clarification",
         input={"clarification_id": str(uuid4()), "question_text": "Describe a project.", "answer": "PRIVATE"})
@@ -133,3 +133,9 @@ def test_claimed_provider_failure_requires_explicit_retry(task_dependencies, mon
     final = AiResultMessage.model_validate_json(queue.sent_bodies[-1])
     assert final.status == "failed"
     assert final.attempt_finished is True
+
+
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    # Unit tests isolate canonical reads; DB tests exercise the production adapter.
+    return replace(task_dependencies, read_interview_auxiliary=lambda task, grant: grant)

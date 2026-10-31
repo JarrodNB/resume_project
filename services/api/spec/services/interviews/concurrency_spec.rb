@@ -216,7 +216,7 @@ RSpec.describe "Basic Interview concurrency" do
         operation = @user.interview_sessions.find(@interview.id).operations.find(turn.id)
         Interviews::AcceptTurnService.call(operation: operation, attempt_id: turn.attempt_id, claim_generation: 1,
           transcript: conflict ? "Answer #{index}" : "Same answer", decision: "advance", reply: nil,
-          history_version: 1, model_history: [ { "kind" => "request", "parts" => [] } ])
+          history_version: 1, model_history: [])
       end
       expect(results.count(&:success?)).to eq(conflict ? 1 : 2)
       expect(@interview.reload).to have_attributes(status: "completed", revision: 1)

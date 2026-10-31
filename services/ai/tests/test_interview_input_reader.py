@@ -140,7 +140,6 @@ def test_turn_reads_prepared_question_and_public_dialogue_after_sources_deleted(
         interview_session_id=session,
         position=0,
         content="Prepared question?",
-        model_history=Jsonb([{"private": "never read"}]),
     )
     _insert(
         connection,
@@ -291,7 +290,6 @@ def test_reader_restores_public_groups_for_retained_twelve_question_sessions(
             position=index,
             content=f"Prepared question {index}?",
             skipped_at=datetime.now(UTC) if skipped_followup and index == 0 else None,
-            model_history=Jsonb([{"private": "not dialogue"}]),
         )
         for index in range(12)
     ]

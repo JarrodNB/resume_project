@@ -92,7 +92,7 @@ RSpec.describe "Answering after skipping a follow-up" do
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     expect(Interviews::AcceptTurnService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
       transcript: "I led it.", decision: "continue", reply: "How?", history_version: 1,
-      model_history: [ { "private" => "first question history" } ])).to be_success
+      model_history: [])).to be_success
     expect(Interviews::SkipQuestionService.call(interview: interview, question_id: question.id,
       expected_revision: 1, submission_key: "skip-follow-up")).to be_success
     next_question = interview.questions.last

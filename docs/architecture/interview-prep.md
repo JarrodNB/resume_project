@@ -165,8 +165,9 @@ replacement commands must match their target revisions and current target/peer w
 retained feedback commands must match their current question/answer wording and revisions.
 Stale or deleted sources fail before generation. No retained command text becomes prompt
 input. During the staged rollout, deploy the new Python readers/grants before new producers;
-old workers cannot read reference-only commands. Existing saved command copies are removed
-by the final migration, without replaying work.
+old workers cannot read reference-only commands. Existing saved command copies remain in
+retained task records for compatibility checks; they are not used as prompt input or
+removed by the interview storage migration. No work is automatically replayed.
 
 Saved question slots and avoidance preferences are generated question text, so the handler
 uses trusted-generated-source coverage rather than classifying them again. It renders

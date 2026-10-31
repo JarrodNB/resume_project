@@ -31,9 +31,12 @@ module Interviews
         @operation.ai_task&.lock!
         fingerprint = Digest::SHA256.hexdigest(JSON.generate(canonical_payload))
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
+        # Retained accepted callbacks fingerprint their original bounded legacy payload.
+        # Resolve them before rejecting private history on a new running claim.
         if @operation.accepted?
           next @operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts with its original payload")
         end
+        next failure("Private model history is no longer accepted") unless @model_history.empty?
         next failure("Claim is stale or expired") unless current_claim?
         if @operation.text_only?
           next failure("Reviewed answer expired") unless @operation.created_at + 1.hour > Time.current
@@ -50,8 +53,7 @@ module Interviews
         answer = interview.messages.create!(question: question, kind: "answer", position: message_position,
           semantic_key: "turn:#{@operation.id}:answer", content: @transcript)
         response = save_response(interview, question, message_position + 1)
-        question.update!(accepted_answer_count: question.accepted_answer_count + 1,
-          history_version: @history_version, model_history: @model_history)
+        question.update!(accepted_answer_count: question.accepted_answer_count + 1)
         interview.update!(revision: interview.revision + 1)
         if interview.active? && SpeechPlayback.provider?(interview)
           speech = interview.operations.create!(kind: "speech", question: response.question, message: response)

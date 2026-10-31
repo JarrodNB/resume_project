@@ -1,7 +1,7 @@
 # Model input rendering
 
 A model input is a view of screened domain data for one workflow. Saved career records
-and queue messages remain the canonical data; rendering does not change or approve them.
+and durable commands remain the canonical data; rendering does not change or approve them.
 
 1. The caller chooses the fields and source records the workflow needs.
 2. Screening approves the exact user-authored values. Optional rejected values are
@@ -67,10 +67,10 @@ Jev is a decision classifier: Pydantic AI sends the message to classify in its
 separate data state and the classification questions in `questions`. Local Llama
 Prompt Guard likewise classifies raw input rather than receiving a reasoning
 prompt. Keep that classifier input unchanged. Embeddings and exact-text speech
-have no instruction/source prompt to delimit. The offline interview executor and
-fake provider use internal JSON fixtures and never call a real reasoning model.
+have no instruction/source prompt to delimit. The offline interview executor uses the same readable data sections and canonical public
+dialogue, with a deterministic fake provider that never calls a real reasoning model.
 
-Saved editing history retains its original screened provider messages. New turns
-and deferred answers use source blocks; do not rewrite old history and invalidate
-its exact screening coverage. Tool results use the provider's tool-message
+Library editing stores only each task's new generated fragment. Python reconstructs
+source prompts and user replies from current owned records and canonical commands;
+retained legacy histories never supply copied source/user prompts. Tool results use the provider's tool-message
 boundary and typed return values.

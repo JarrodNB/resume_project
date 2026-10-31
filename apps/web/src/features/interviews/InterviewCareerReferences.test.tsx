@@ -37,6 +37,7 @@ it('automatically retrieves once and leaves the independent answer unchanged', a
   renderReferences(null, [{ ...mock, result, delay: 20 }, taskMock()])
   expect(await screen.findByText(body)).toHaveAttribute('aria-hidden', 'true')
   expect(screen.getByText('Engineer at Acme')).toBeVisible()
+  expect(screen.getByText('Experience')).toBeVisible()
   expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeEnabled()
   fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'Still my answer' } })
   fireEvent.click(screen.getByRole('button', { name: 'Reveal Engineer at Acme' }))

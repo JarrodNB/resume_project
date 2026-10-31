@@ -228,7 +228,6 @@ function OwnedInterview({ id }: { id: string }) {
       {interview.status === 'active' && state.skipPending && !state.busy && <p role="status" className="text-sm text-muted-foreground">The skip response was not confirmed. Retry skip to check the same question safely before answering.</p>}
       {!browserSpeech && (speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
-    {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
@@ -255,6 +254,9 @@ function OwnedInterview({ id }: { id: string }) {
     </div>}
     {state.error && <p role="alert" className="text-destructive">{state.error}</p>}
     </section>
+    {/* Career examples sit beside the answer so they never push it below the fold. */}
+    <div className="interview-side">
+    {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
     <aside className="interview-transcript" aria-label="History">
       <h2 className="mb-4 text-lg font-semibold">History</h2>
       <ol className="interview-exchanges">
@@ -267,6 +269,7 @@ function OwnedInterview({ id }: { id: string }) {
       </ol>
       {!historyMessages.length && <p className="text-sm text-muted-foreground">Your conversation will appear here as the interview progresses.</p>}
     </aside>
+    </div>
     </div>
     {interview.status === 'active' && <InterviewPrivacy />}
   </>

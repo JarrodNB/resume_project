@@ -12,6 +12,7 @@ from psycopg.pq import TransactionStatus
 from database.library_review_reader import read_library_review
 from database.open_read_only_connection import open_read_only_connection
 from schemas.library_edit import LibraryEditInput, generated_edit_messages
+from worker.legacy_career_context import normalize_legacy_career_context
 
 EXCHANGE_QUERY = """
     SELECT id::text, task_type, status, input, result, message_history, pending_questions, accepted_at
@@ -38,9 +39,10 @@ def read_library_edit(connection, task):
             return row
 
         current = exchange(task.ai_task_id, "improve_library_entry")
-        if current["status"] != "queued" or current["input"] != task.input:
+        # task.input was normalized from legacy key spellings; compare like with like.
+        command = normalize_legacy_career_context(current["input"])
+        if current["status"] != "queued" or command != task.input:
             raise ValueError("Editing command is no longer current")
-        command = current["input"]
         target = command["target"]
         kind, identity = target["kind"], target["record_id"]
         section = SECTIONS.get(kind)

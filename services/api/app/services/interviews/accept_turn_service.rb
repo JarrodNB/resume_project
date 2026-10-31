@@ -30,7 +30,7 @@ module Interviews
         fingerprint = Digest::SHA256.hexdigest(JSON.generate(canonical_payload))
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
         if @operation.accepted?
-          next @operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts with its original payload")
+          next replay_matches?(fingerprint) ? success(@operation.accepted_result) : failure("Accepted result conflicts with its original payload")
         end
         next failure("Claim is stale or expired") unless current_claim?
         if @operation.text_only?
@@ -110,7 +110,19 @@ module Interviews
         %w[continue advance].include?(@decision) && valid_reply? && valid_acknowledgement?
     end
 
-    def canonical_payload
+    # Turns accepted before model history was retired saved a fingerprint that included
+    # `history_version: 1` and an empty `model_history`. A retried callback for one of them
+    # must still replay its saved result instead of reporting a conflict.
+    def replay_matches?(fingerprint)
+      saved = @operation.result_fingerprint
+      saved == fingerprint || saved == fingerprint_of(canonical_payload(history_version: 1, model_history: []))
+    end
+
+    def fingerprint_of(payload)
+      Digest::SHA256.hexdigest(JSON.generate(payload))
+    end
+
+    def canonical_payload(legacy_fields = {})
       # JSON object order is irrelevant to identity.
       normalize = ->(value) do
         case value
@@ -120,7 +132,7 @@ module Interviews
         end
       end
       payload = { attempt_id: @attempt_id, claim_generation: @claim_generation, transcript: @transcript,
-        decision: @decision, reply: @reply }
+        decision: @decision, reply: @reply }.merge(legacy_fields)
       # Omitted acknowledgements keep historical fingerprints replayable.
       payload[:acknowledgement] = @acknowledgement unless @acknowledgement.nil?
       normalize.call(payload)

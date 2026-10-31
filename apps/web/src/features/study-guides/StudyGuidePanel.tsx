@@ -11,7 +11,7 @@ export function StudyGuidePanel({ jobId, description }: { jobId: string; descrip
   return <section className="grid gap-5" aria-labelledby={`study-guides-${jobId}`}>
     <div className="grid gap-1">
       <h2 id={`study-guides-${jobId}`} className="text-base font-medium">Study guides</h2>
-      <p className="text-sm text-muted-foreground">Study questions from this job's description, with explained answers and examples.</p>
+      <p className="text-sm text-muted-foreground">Questions from this job's description. Think each one through, then reveal the explanation and worked example.</p>
     </div>
     <StudyGuideContent key={jobId} jobId={jobId} description={description} />
   </section>
@@ -55,10 +55,6 @@ export function StudyGuideView({ guide, totalQuestions = guide.questions.length,
   }
 
   return <article className="grid min-w-0 max-w-prose gap-6 break-words">
-    <header className="grid gap-2">
-      <h3 className="text-xl font-semibold leading-snug">{guide.title}</h3>
-      <p className="text-sm text-muted-foreground">Think through each question, then reveal the explanation and worked example.</p>
-    </header>
     <section className="grid gap-4 border-t-2 border-foreground pt-5">
       <p role="status" className="text-sm tabular-nums text-muted-foreground">Question {index + 1} of {totalQuestions}</p>
       <h4 ref={heading} tabIndex={-1} className="text-xl font-semibold leading-snug focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">{question.question}</h4>

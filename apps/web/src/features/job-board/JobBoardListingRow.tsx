@@ -8,6 +8,9 @@ import { PreferenceAssessment } from './PreferenceAssessment'
 import type { ListingAssessment } from './preferenceAssessments'
 import { Link } from 'react-router'
 import { ArrowUpRight, Check, MapPin, Plus, Radio } from 'lucide-react'
+import { CollapsePanel } from '@/components/CollapsePanel'
+import { CollapseToggle } from '@/components/CollapseToggle'
+import { useOpenSection } from '@/components/useOpenSection'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { FormattedDescription } from '@/components/FormattedDescription'
@@ -28,6 +31,7 @@ interface Props {
 }
 
 export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate, assessment, skills, skillsMessage }: Props) {
+  const skillSection = useOpenSection('job-board:skill-mentions')
   const titleOpener = useRef<HTMLButtonElement | null>(null)
   const previewOpener = useRef<HTMLButtonElement | null>(null)
   const hasDescription = Boolean(listing.description?.trim())
@@ -88,9 +92,11 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
         <ErrorAlert title="Couldn't create this job" messages={errors} />
         {savedHere && savedHere.warnings.length > 0 && <div role="status" className="board-preview-warnings"><p>Saved with a few changes:</p><ul>{savedHere.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div>}
         <div className="board-skill-details">
-          <h3>Skill mentions</h3>
-          {unavailable ? <p>{unavailable}</p> : <><p>Exact mentions of your saved skills, ignoring capitalization.</p>
-          <ul aria-label="Saved skill mentions">{mentions?.map(skill => <li key={skill.id}><span>{skill.name}</span><span>{skill.count === 0 ? 'Not mentioned' : `${skill.count} ${skill.count === 1 ? 'mention' : 'mentions'}`}</span></li>)}</ul></>}
+          <CollapseToggle open={skillSection.open} panelId={skillSection.panelId} onToggle={skillSection.toggle}><h3>Skill mentions</h3></CollapseToggle>
+          <CollapsePanel open={skillSection.open} id={skillSection.panelId}>
+            {unavailable ? <p>{unavailable}</p> : <><p>Exact mentions of your saved skills, ignoring capitalization.</p>
+            {matched?.length ? <ul aria-label="Saved skill mentions">{mentions?.filter(skill => skill.count > 0).map(skill => <li key={skill.id}><span>{skill.name}</span><span>{`${skill.count} ${skill.count === 1 ? 'mention' : 'mentions'}`}</span></li>)}</ul> : <p>No saved skills mentioned.</p>}</>}
+          </CollapsePanel>
         </div>
         <div className="board-preview-description">
           <h3>Description</h3>

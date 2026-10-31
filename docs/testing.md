@@ -6,6 +6,19 @@ runtimes and isolated test settings; see [native development setup](native-devel
 Choose checks for the behavior you touched; documentation-only edits need link and diff
 checks, not the full application suite.
 
+## Docker runs out of networks
+
+Every worktree is its own Compose project with its own network. Docker's default pool only
+holds a few dozen, so many worktrees can end in `all predefined address pools have been
+fully subnetted`. Remove unused networks with `docker network prune -f`. To stop it coming
+back, give Docker smaller subnets in `/etc/docker/daemon.json` and restart Docker:
+
+```json
+{"default-address-pools":[{"base":"10.200.0.0/16","size":24}]}
+```
+
+Pick a base range that does not clash with your VPN or LAN.
+
 ## Reusable development accounts
 
 Create the browser QA accounts in the local development database:

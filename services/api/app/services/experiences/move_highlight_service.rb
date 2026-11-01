@@ -26,18 +26,11 @@ module Experiences
         renumber(@experience, target_order)
         renumber(source_experience, highlights_without_moved(source_experience)) if source_experience.id != @experience.id
       end
-      sync_embeddings_if_role_changed(source_experience)
+      CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@experience.user_id) if source_experience.id != @experience.id
       success(@experience.reload)
     end
 
     private
-
-    # A highlight's embedding text names its role, so moving it to another role re-syncs.
-    def sync_embeddings_if_role_changed(source_experience)
-      return if source_experience.id == @experience.id
-
-      CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@experience.user_id)
-    end
 
     # Returns why the move isn't allowed, or nil.
     def invalid_move_error

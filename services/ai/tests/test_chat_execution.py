@@ -581,7 +581,7 @@ async def test_reply_reads_the_owners_library_from_the_tool_server_and_keeps_its
     library = CareerLibrary.model_validate({"skills": [{"id": "s1", "name": "Ruby", "screened_fields": ["name"]}]})
 
     async def stream(messages, info):
-        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs', 'read_job_summary'}
+        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs', 'read_job_summary', 'save_career_context'}
         returns = tool_returns(messages)
         if not returns:
             # GPT models often write a short preamble before calling a tool.
@@ -645,7 +645,7 @@ async def test_reply_still_answers_without_tools_when_the_tool_server_is_down():
     owner, sink = Owner(), Sink()
 
     async def stream(messages, info):
-        assert not info.function_tools
+        assert {tool.name for tool in info.function_tools} == {'save_career_context'}
         yield 'I can still help from what you tell me.'
 
     down = ToolServerConnection(url='http://127.0.0.1:9/mcp', secret='chat-test-secret-0123456789abcdefghij')
@@ -829,3 +829,177 @@ async def test_job_and_background_advice_screens_all_sources_with_bounded_approv
     assert owner.accepted[0]["reply"].startswith("Your saved Python skills")
     assert len(owner.accepted[0]["record_screening"]) == 500
     assert any("Python skill 100" in text for text in screened)
+
+@pytest.mark.anyio
+async def test_save_tool_stages_restored_owned_context_only_until_acceptance():
+    from pydantic_ai.models.function import DeltaToolCall
+    owner, checks = Owner(), []
+    def check(user_id, requirement, response):
+        checks.append((user_id, requirement, response))
+        assert owner.accepted == []
+        return 'ready'
+
+    async def stream(messages, info):
+        assert 'save_career_context' in {tool.name for tool in info.function_tools}
+        if not tool_returns(messages):
+            yield {0: DeltaToolCall(name='save_career_context', json_args='{"requirement":"Incident leadership","response":"I coordinated recovery."}', tool_call_id='save')}
+        else:
+            assert 'pending' in tool_returns(messages)[-1].content.lower()
+            yield 'Saved your incident example.'
+
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=check)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message='Save my incident example: I coordinated recovery.'), None)
+    assert owner.failed == []
+    assert checks == [('user-1', 'Incident leadership', 'I coordinated recovery.')]
+    assert owner.accepted[0]['career_context'] == {'requirement': 'Incident leadership', 'response': 'I coordinated recovery.'}
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('status,expected', [('conflict', 'different response'), ('full', '100 entries'), ('unavailable', 'unavailable')])
+async def test_rejected_context_save_is_explained_without_a_proposal(status, expected):
+    from pydantic_ai.models.function import DeltaToolCall
+    owner = Owner()
+    async def stream(messages, info):
+        if not tool_returns(messages):
+            yield {0: DeltaToolCall(name='save_career_context', json_args='{"requirement":"Topic","response":"Fact"}', tool_call_id='save')}
+        else:
+            assert expected in tool_returns(messages)[-1].content
+            yield 'I could not save that context.'
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=lambda *_: status)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message='Save that fact.'), None)
+    assert not owner.failed
+    assert 'career_context' not in owner.accepted[0]
+
+
+@pytest.mark.anyio
+async def test_context_save_restores_private_text_and_does_not_leak_between_turns(monkeypatch):
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+    owner, checks = Owner(), []
+    email = 'alex@example.test'
+    def detect(text):
+        start = text.find(email)
+        return [(start, start + len(email), 'EMAIL_ADDRESS')] if start >= 0 else []
+    monkeypatch.setattr('pii._detect_spans', detect)
+    async def stream(messages, info):
+        if len(owner.accepted):
+            yield 'Next turn without saving.'
+        elif not tool_returns(messages):
+            text = '\n'.join(part.content for message in messages for part in message.parts if hasattr(part, 'content') and isinstance(part.content, str))
+            assert email not in text
+            token = text[text.index('«'):text.index('»') + 1]
+            yield {0: DeltaToolCall(name='save_career_context', json_args=json.dumps({'requirement': 'Mentoring', 'response': f'I mentored {token}.'}), tool_call_id='save')}
+        else:
+            yield 'Saved.'
+    def check(*values):
+        checks.append(values)
+        return 'ready'
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=check)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message=f'Save this: I mentored {email}.'), None)
+    await adapter.execute(claim(message='What next?'), None)
+    assert checks == [('user-1', 'Mentoring', f'I mentored {email}.')]
+    assert owner.accepted[0]['career_context']['response'] == f'I mentored {email}.'
+    assert 'career_context' not in owner.accepted[1]
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('second_response,expected', [('Fact', 'pending'), ('Different fact', 'only one distinct')])
+async def test_repeated_save_calls_keep_one_proposal(second_response, expected):
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+    owner, checks = Owner(), []
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if len(returns) < 2:
+            yield {0: DeltaToolCall(name='save_career_context', json_args=json.dumps({'requirement': 'Topic', 'response': 'Fact' if not returns else second_response}), tool_call_id=f'save-{len(returns)}')}
+        else:
+            assert expected in returns[-1].content
+            yield 'Saved the first fact.'
+    def check(*values):
+        checks.append(values)
+        return 'ready'
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=check)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message='Save that fact.'), None)
+    assert len(checks) == 1
+    assert owner.accepted[0]['career_context'] == {'requirement': 'Topic', 'response': 'Fact'}
+
+
+@pytest.mark.anyio
+async def test_cancelled_turn_discards_staged_save():
+    from pydantic_ai.models.function import DeltaToolCall
+    owner, started = Owner(), asyncio.Event()
+    async def stream(messages, info):
+        if not tool_returns(messages):
+            yield {0: DeltaToolCall(name='save_career_context', json_args='{"requirement":"Topic","response":"Fact"}', tool_call_id='save')}
+        else:
+            started.set()
+            await asyncio.Event().wait()
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=lambda *_: 'ready')
+    adapter._screen = AsyncMock()
+    task = asyncio.create_task(adapter.execute(claim(message='Save it.'), None))
+    await asyncio.wait_for(started.wait(), 5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert owner.accepted == []
+
+@pytest.mark.anyio
+@pytest.mark.parametrize('proposal', [{'requirement': '', 'response': 'Fact'}, {'requirement': 'Topic', 'response': 'x' * 4001}])
+async def test_invalid_context_save_never_checks_or_stages(proposal):
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+    owner = Owner()
+    def forbidden(*_):
+        pytest.fail('Invalid proposal must not reach the database')
+    async def stream(messages, info):
+        if not tool_returns(messages):
+            yield {0: DeltaToolCall(name='save_career_context', json_args=json.dumps(proposal), tool_call_id='save')}
+        else:
+            assert 'Not saved:' in tool_returns(messages)[-1].content
+            yield 'Please provide a shorter, nonblank career fact.'
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=forbidden)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message='Save that fact.'), None)
+    assert 'career_context' not in owner.accepted[0]
+
+
+@pytest.mark.anyio
+async def test_unavailable_preflight_database_does_not_fail_ordinary_chat():
+    from pydantic_ai.models.function import DeltaToolCall
+    owner = Owner()
+    def unavailable(*_):
+        raise OperationalError('private connection detail')
+    async def stream(messages, info):
+        if not tool_returns(messages):
+            yield {0: DeltaToolCall(name='save_career_context', json_args='{"requirement":"Topic","response":"Fact"}', tool_call_id='save')}
+        else:
+            assert 'unavailable' in tool_returns(messages)[-1].content
+            assert 'private connection detail' not in tool_returns(messages)[-1].content
+            yield 'I could not save that. We can still discuss your example.'
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=unavailable)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message='Save that fact.'), None)
+    assert owner.failed == []
+    assert 'career_context' not in owner.accepted[0]
+
+@pytest.mark.anyio
+async def test_private_chat_callback_transports_save_proposal_with_attempt_identity():
+    import json
+
+    import httpx
+
+    from chat.client import RailsChatClient
+    observed = []
+    def respond(request):
+        observed.append(json.loads(request.content))
+        return httpx.Response(200, json={'message_ids': ['1', '2']})
+    current = claim()
+    proposal = {'requirement': 'Mentoring', 'response': 'I trained new starters.'}
+    async with RailsChatClient('http://rails.test', 'test-service', transport=httpx.MockTransport(respond)) as client:
+        await client.accept(current, reply='Saved.', screened_message_sha256='digest', career_context=proposal)
+    assert observed == [{**current.identity(), 'reply': 'Saved.', 'screened_message_sha256': 'digest', 'career_context': proposal}]

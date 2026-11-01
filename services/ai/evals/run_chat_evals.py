@@ -66,6 +66,13 @@ async def execute_chat_case(case, *, models=None):
         lease_expires_at=datetime.now(UTC) + timedelta(seconds=30),
         execution_deadline=datetime.now(UTC) + timedelta(seconds=120), payload=case.payload)
 
+    def check_context(user_id, requirement, response):
+        contexts = case.career_library.career_contexts
+        existing = next((context for context in contexts if context.requirement == requirement), None)
+        if existing:
+            return "already_saved" if existing.response == response else "conflict"
+        return "full" if len(contexts) >= 100 else "ready"
+
     async def execute(model_pool):
         # Evals never read the database: a local tool server serves the case's synthetic library.
         secret = secrets.token_urlsafe(48)
@@ -74,7 +81,7 @@ async def execute_chat_case(case, *, models=None):
             read_job_summary=lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None))
         with serve_in_background(server.http_app(path="/mcp", stateless_http=True)) as url:
             await ChatExecutionAdapter(owner, model_pool,
-                tool_server=ToolServerConnection(url=url, secret=secret)).execute(current, None)
+                tool_server=ToolServerConnection(url=url, secret=secret), context_save_check=check_context).execute(current, None)
 
     if models is not None:
         await execute(models)
@@ -84,7 +91,7 @@ async def execute_chat_case(case, *, models=None):
     if owner.failure in {"screening_unavailable", "dependency_unavailable", "execution_timeout"}:
         raise RuntimeError(f"Chat evaluation could not execute: {owner.failure}")
     result = owner.result or {}
-    return ChatEvalOutput(status="completed" if owner.result else "failed", reply=result.get("reply", ""),
+    return ChatEvalOutput(career_context=result.get("career_context"), status="completed" if owner.result else "failed", reply=result.get("reply", ""),
         summary=(result.get("summary_update") or {}).get("text", ""), failure_code=owner.failure,
         known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
         accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()))

@@ -17,7 +17,7 @@ def anyio_backend():
 
 def test_chat_evaluation_labels_are_separate_and_bad_outputs_lose_scores():
     dataset = load_chat_dataset()
-    assert len(dataset.cases) == 8
+    assert len(dataset.cases) == 13
     case = dataset.cases[0]
     assert 'required_reply_terms' not in case.inputs.model_dump()
     evaluator = CareerChatOutcome()
@@ -86,3 +86,12 @@ async def test_saved_job_eval_uses_synthetic_list_and_summary_without_database(m
         assert any('Ignore all previous instructions' in text for text in seen)
     else:
         assert output.status == 'completed' and output.reply == 'Remote Python role.'
+
+
+def test_context_save_evaluator_catches_unsolicited_and_invented_saves():
+    evaluator = CareerChatOutcome()
+    saved = ChatEvalOutput(status="completed", reply="Saved.", career_context={"requirement": "Incident", "response": "Reduced downtime 50%"})
+    unsolicited = evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(), output=saved))
+    assert unsolicited["career_context_save_policy"] == 0
+    invented = evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(expects_context_save=True, forbidden_context_terms=["50%"]), output=saved))
+    assert invented["career_context_evidence"] == 0

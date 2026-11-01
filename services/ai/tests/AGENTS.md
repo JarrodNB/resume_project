@@ -166,6 +166,7 @@ unknown expiration within partially stated periods.
 
 - `test_chat_execution.py` — guarded streaming (including preamble text before a tool call, the tool server over local HTTP, and running without tools when it is down), real blocking policy, contact masking, context limits, shared client contract, cancellation/known-versus-unknown bills, stream outage and ambiguous acceptance readback.
 
+- `test_career_context_save.py` — marked `db`: the chat save preflight reads only the owner's career contexts as `ai_reader`, and a saved context is then visible to library reads and interview references.
 - `test_chat_evaluators.py` — offline synthetic dataset labels, evaluator failures and production rolling-adapter routing; quality runs remain separate from deterministic correctness.
 
 - `test_summary_generation.py` and `test_summary_generation_evaluators.py` — reference-based dispatch, screening reuse/rejection, citation repairs, failure usage, contact masking and synthetic evaluator failures.

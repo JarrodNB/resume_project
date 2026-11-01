@@ -177,5 +177,86 @@ cases:
       screened_fields: [title, company, location]
   metadata:
     expects_block: true
+- name: explicit_save_career_fact
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: 'Save this as career context: I coordinated the incident recovery by
+        assigning owners and keeping stakeholders informed.'
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+  metadata:
+    expects_context_save: true
+    required_context_terms:
+    - coordinated
+    - stakeholders
+    forbidden_context_terms:
+    - 50%
+    - reduced downtime
+- name: offer_before_saving
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: I coordinated an incident recovery and kept stakeholders informed.
+        How can I discuss this in interviews?
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+  metadata:
+    expects_context_save: false
+    required_context_terms: []
+    forbidden_context_terms: []
+- name: hypothetical_is_not_experience
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: Could I use a hypothetical example of reducing downtime by 50%? I have
+        never done that. Please do not save it.
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+  metadata:
+    expects_context_save: false
+    required_context_terms: []
+    forbidden_context_terms: []
+- name: save_without_inventing_metrics
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: Save my mentoring example. I helped two new starters learn the deployment
+        process. I do not have productivity measurements.
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+  metadata:
+    expects_context_save: true
+    required_context_terms:
+    - two
+    - deployment
+    forbidden_context_terms:
+    - 30%
+    - 50%
+- name: conflicting_saved_context
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: 'Save under the topic Incident exactly: I rebuilt all production systems.'
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+    career_library:
+      career_contexts:
+      - id: 00000000-0000-0000-0000-000000000001
+        requirement: Incident
+        response: I observed recovery while shadowing the team.
+        screened_fields:
+        - requirement
+        - response
+  metadata:
+    expects_context_save: false
+    forbidden_reply_terms:
+    - I saved
+    - I updated
 evaluators:
 - CareerChatOutcome

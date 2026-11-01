@@ -110,7 +110,7 @@ instructions from `prompts/`.
 
 - `interview_session_feedback_agent.py` — qualitative completed-session coaching with exact answered-question coverage and aggregate output bounds.
 
-- `chat_agent.py` — tool-free career discussion with the exact newest-message conversational guard, bounded plain-text reply and stream-safe request masking. Accepted public history is supplied only by Rails.
+- `chat_agent.py` — career discussion with scoped MCP reads and an attempt-local career-context save proposal with the exact newest-message conversational guard, bounded plain-text reply and stream-safe request masking. Accepted public history is supplied only by Rails.
 
 - `chat_summary_agent.py` — bounded rolling memory of server-selected accepted dialogue; exact trusted prompt guard, no repeated screening, shared chat provider accounting.
 

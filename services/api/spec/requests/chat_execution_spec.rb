@@ -113,4 +113,89 @@ RSpec.describe "Chat execution callbacks", type: :request do
     expect(response).to have_http_status(:ok)
   end
 
+  it "saves proposed career context atomically and replays without duplicate embedding work" do
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved your example.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      career_context: { requirement: "Leading an incident", response: "I coordinated the recovery." })
+    expect {
+      post path("accept"), params: args, as: :json, headers: headers
+    }.to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).once
+    expect(response).to have_http_status(:ok)
+    expect(user.career_contexts.pluck(:requirement, :response)).to eq([["Leading an incident", "I coordinated the recovery."]])
+    expect(chat.messages.count).to eq(2)
+    expect { post path("accept"), params: args, as: :json, headers: headers }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+    expect(response).to have_http_status(:ok)
+    expect(user.career_contexts.count).to eq(1)
+    post path("accept"), params: args.merge(career_context: { requirement: "Other", response: "Other fact" }), as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+  end
+
+  [
+    { requirement: "", response: "Fact" },
+    { requirement: "Topic", response: "x" * 4001 },
+    { requirement: "Topic", response: "Fact", user_id: "other" },
+    [{ requirement: "Topic", response: "Fact" }]
+  ].each do |proposal|
+    it "rejects malformed save #{proposal.class} without accepting dialogue" do
+      post path("claim"), params: {}, as: :json, headers: headers
+      args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+        screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: proposal)
+      post path("accept"), params: args, as: :json, headers: headers
+      expect(response).to have_http_status(:conflict)
+      expect(user.career_contexts).to be_empty
+      expect(chat.messages).to be_empty
+    end
+  end
+
+  it "does not overwrite an existing topic or accept a stale save" do
+    context = create(:career_context, user: user, requirement: "Topic", response: "Original")
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: { requirement: "Topic", response: "Changed" })
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(context.reload.response).to eq("Original")
+    expect(chat.messages).to be_empty
+    operation.update!(lease_expires_at: 1.minute.ago)
+    args[:career_context] = { requirement: "New", response: "Fact" }
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts.count).to eq(1)
+  end
+
+  it "recognizes an exact existing entry without another embedding job and scopes to the owner" do
+    create(:career_context, requirement: "Topic", response: "Foreign fact")
+    context = create(:career_context, user: user, requirement: "Topic", response: "Owned fact")
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Already saved.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: { requirement: "Topic", response: "Owned fact" })
+    expect { post path("accept"), params: args, as: :json, headers: headers }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+    expect(response).to have_http_status(:ok)
+    expect(user.career_contexts.pluck(:id)).to eq([context.id])
+  end
+
+  it "rolls back the save when accepting dialogue fails" do
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: { requirement: "Topic", response: "Fact" })
+    allow_any_instance_of(ChatMessage).to receive(:save!).and_raise(ActiveRecord::RecordInvalid)
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).not_to have_http_status(:ok)
+    expect(user.career_contexts).to be_empty
+    expect(chat.messages).to be_empty
+  end
+
+  it "does not accept a save after the library fills during generation" do
+    now = Time.current
+    CareerContext.insert_all!((1..100).map { |n| { user_id: user.id, requirement: "Topic #{n}", response: "Fact", created_at: now, updated_at: now } })
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: { requirement: "New", response: "Fact" })
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts.count).to eq(100)
+    expect(chat.messages).to be_empty
+  end
+
 end

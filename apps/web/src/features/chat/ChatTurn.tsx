@@ -3,11 +3,13 @@
  * Temporary reply text is marked as live until it is saved. Which design option draws it
  * (rows, a line of stops, or bubbles) is decided by CSS from the page's layout setting.
  * Assistant replies are drawn as Markdown; the user's own words stay plain text.
+ * Before the first words arrive, a small moving line of stops fills the wait.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SendHorizontal } from 'lucide-react'
 import { ChatMarkdown } from './ChatMarkdown'
 import { ChatReplyFeedback } from './ChatReplyFeedback'
+import { ChatReplyWaiting } from './ChatReplyWaiting'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -67,11 +69,12 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
         {(turn.pending || handingOff) && <li className="chat-message is-live" data-role="assistant" aria-label="Reply in progress">
           <div className="chat-speaker-row">
             <p className="chat-speaker">Careergrind</p>
-            {turn.pending && <p role="status" className="chat-status">
+            {turn.pending && turn.provisional && <p role="status" className="chat-status">
               <span aria-hidden="true" className="chat-writing-dot" />
-              {turn.provisional ? 'Writing reply…' : 'Preparing your reply…'}
+              Writing reply…
             </p>}
           </div>
+          {turn.pending && !turn.provisional && <ChatReplyWaiting />}
           {turn.provisional && <ChatMarkdown content={turn.provisional}>{turn.pending && <span aria-hidden="true" className="chat-writing-cursor" />}</ChatMarkdown>}
         </li>}
       </ol>

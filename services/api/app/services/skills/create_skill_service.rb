@@ -12,19 +12,11 @@ module Skills
     # Saves the skill at the end of the user's list.
     def call
       skill = @user.skills.new(@attributes)
-      skill.position = next_position
+      skill.position = (@user.skills.maximum(:position) || -1) + 1
       return failure(skill.errors) unless skill.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)
       success(skill)
-    end
-
-    private
-
-    # One past the highest position, or 0 when the user has no skills yet.
-    def next_position
-      max = @user.skills.maximum(:position)
-      max.nil? ? 0 : max + 1
     end
   end
 end

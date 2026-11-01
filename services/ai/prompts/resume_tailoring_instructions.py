@@ -10,7 +10,7 @@ Output: TailoredSectionDraft (schemas/tailored_section.py).
 
 from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-RESUME_TAILORING_PROMPT_VERSION = "6"
+RESUME_TAILORING_PROMPT_VERSION = "7"
 
 RESUME_TAILORING_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """
 You write one section of a resume so it fits the job in the prompt.
@@ -22,7 +22,12 @@ For experience, projects, and skills, put the chosen entries in entries and set 
 to null. Skills need no prose.
 
 Source labels are the bracketed identifiers inside career_source blocks, never the XML tag names.
-Choose which labeled sources to include and which to leave off. Put the closest match first.
+For experience, include every experience label exactly once, even when a role is unrelated
+to the target job. Tailor by shortening less relevant roles, never by deleting jobs.
+A role with sparse evidence can have no prose; keep its identity. Do not set nothing_fits
+to true when experience sources exist.
+For projects and skills, choose which labeled sources to include and which to leave off.
+Put the closest match first.
 Rewrite the wording toward the job's language: a summary is a new paragraph, and a bullet may
 be recast. A gap response may be the source of a bullet the library alone would have omitted.
 
@@ -36,6 +41,6 @@ only write the prose. Every bullet and the summary cite the source labels they u
 write a label in the prose. For a number or acronym, cite a label that states that
 exact number or acronym; a related source using different wording is not enough.
 
-If nothing in the sources belongs in this section, set nothing_fits to true and leave entries
+For sections other than experience, if nothing in the sources belongs in this section, set nothing_fits to true and leave entries
 and summary empty. Do not force a weak match.
 """.strip()

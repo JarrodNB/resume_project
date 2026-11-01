@@ -74,3 +74,28 @@ def test_nothing_fits_cannot_contain_written_content() -> None:
     draft = TailoredSectionDraft(nothing_fits=True, entries=[ChosenEntry(label="E1")])
 
     assert find_section_problems("experience", draft, _sources())
+
+
+@pytest.mark.parametrize("nothing_fits", [False, True])
+def test_experience_cannot_drop_a_role(nothing_fits) -> None:
+    from tailoring.labeled_sources import SourceRecord
+
+    sources = _sources()
+    sources.records["E2"] = SourceRecord("E2", "experience", "Earlier unrelated job")
+    draft = TailoredSectionDraft(nothing_fits=nothing_fits,
+        entries=[] if nothing_fits else [ChosenEntry(label="E1")])
+
+    problems = find_section_problems("experience", draft, sources)
+    assert "E2" in problems[0]
+    assert "Include every experience" in problems[0]
+
+
+def test_sparse_roles_can_be_kept_without_bullets() -> None:
+    draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="E1")])
+    assert find_section_problems("experience", draft, _sources()) == []
+
+
+def test_experience_cannot_repeat_a_role() -> None:
+    draft = TailoredSectionDraft(nothing_fits=False,
+        entries=[ChosenEntry(label="E1"), ChosenEntry(label="E1")])
+    assert "exactly once" in find_section_problems("experience", draft, _sources())[0]

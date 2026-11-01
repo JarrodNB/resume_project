@@ -260,15 +260,17 @@ def test_nothing_fits_omits_optional_writers_with_explanations(generation):
     dependencies, _, seen, _ = generation
 
     async def generate(messages, info):
-        seen.append(section_name(messages))
-        return answer(info, {"nothing_fits": True, "entries": []})
+        section = section_name(messages)
+        seen.append(section)
+        return answer(info, selected_output(section) if section == "experience"
+            else {"nothing_fits": True, "entries": []})
 
     with resume_tailoring_agent.override(model=FunctionModel(generate)):
         result = handle_ai_task(task(), dependencies)
     assert result.status == "completed"
-    assert [section["section_type"] for section in result.result["sections"]] == ["contact", "education"]
-    assert len(result.result["warnings"]) == 4
-    for section in ("Experience", "Projects", "Skills", "Summary"):
+    assert [section["section_type"] for section in result.result["sections"]] == ["contact", "experience", "education"]
+    assert len(result.result["warnings"]) == 3
+    for section in ("Projects", "Skills", "Summary"):
         assert any(section in warning and "omitted" in warning for warning in result.result["warnings"])
     assert result.pending_questions == []
 
@@ -503,3 +505,29 @@ def test_rejected_copied_evidence_remains_visible_but_cannot_ground_summary(gene
     assert result.status == "failed"
     assert result.result is None
     assert seen == []
+
+
+def test_missing_job_is_repaired_before_publishing(generation):
+    dependencies, context, _seen, _ = generation
+    earlier = context.career_library.experiences[0].model_copy(
+        update={"id": "earlier-job", "company": "Earlier Co", "highlights": []})
+    context.career_library.experiences.append(earlier)
+    attempts = 0
+
+    async def generate(messages, info):
+        nonlocal attempts
+        section = section_name(messages)
+        output = selected_output(section)
+        if section == "experience":
+            attempts += 1
+            if attempts == 2:
+                output["entries"].append({"label": "E2", "prose": []})
+        return answer(info, output)
+
+    with resume_tailoring_agent.override(model=FunctionModel(generate)):
+        result = handle_ai_task(task(), dependencies)
+    assert result.status == "completed"
+    assert attempts == 2
+    experience = next(section for section in result.result["sections"]
+        if section["section_type"] == "experience")
+    assert [item["company"] for item in experience["content"]["items"]] == ["Now Co", "Earlier Co"]

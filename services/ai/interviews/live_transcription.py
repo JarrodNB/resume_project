@@ -7,6 +7,7 @@ import asyncio
 import base64
 import json
 import math
+import time
 from contextlib import ExitStack, suppress
 from datetime import UTC, datetime
 from decimal import ROUND_CEILING, Decimal
@@ -68,7 +69,14 @@ async def relay_transcription(browser, owner, connect):
     provider = None
     tasks = []
     traces = ExitStack()
-    trace = None
+    trace = traces.enter_context(logfire.span("interview.transcription.stream", provider="openai", model=MODEL))
+    started = time.monotonic()
+    committed_at = None
+    total_bytes = 0
+    ready = False
+    committed = asyncio.Event()
+    outcome = "internal_error"
+    phase = "authorization"
     try:
         async with asyncio.timeout(150):
             async with asyncio.timeout(5):
@@ -78,14 +86,15 @@ async def relay_transcription(browser, owner, connect):
                 raise ValueError("invalid_authorization")
             grant = await owner.request("redeem", {"token": auth["token"]})
             capture_id = grant["capture_id"]
-            trace = traces.enter_context(logfire.span("interview.transcription.stream",
-                capture_id=capture_id, observation_id=grant.get("observation_id"),
-                provider="openai", model=MODEL))
+            trace.set_attribute("capture_id", capture_id)
+            if grant.get("observation_id") is not None:
+                trace.set_attribute("observation_id", grant["observation_id"])
             expiry = datetime.fromisoformat(grant["expires_at"])
             remaining = min(145, (expiry - datetime.now(UTC)).total_seconds())
             if remaining <= 0:
                 raise ValueError("capture_expired")
             async with asyncio.timeout(remaining):
+                phase = "provider_setup"
                 # Admission and its unknown-usage marker are durable before connect().
                 async with asyncio.timeout(10):
                     provider = await connect()
@@ -101,14 +110,15 @@ async def relay_transcription(browser, owner, connect):
                     else:
                         raise ValueError("provider_setup_failed")
                 await browser.send_json({"type": "ready"})
-                committed = asyncio.Event()
+                ready = True
+                trace.set_attribute("provider_ready_seconds", time.monotonic() - started)
+                phase = "streaming"
                 completed = asyncio.Event()
-                total_bytes = 0
                 item_id = None
                 partials = {}
 
                 async def from_browser():
-                    nonlocal total_bytes
+                    nonlocal total_bytes, committed_at
                     while True:
                         frame = await browser.receive()
                         if frame.get("type") == "websocket.disconnect":
@@ -129,6 +139,7 @@ async def relay_transcription(browser, owner, connect):
                         if control.get("type") != "commit" or committed.is_set() or total_bytes < 4_800:
                             raise ValueError("capture_cancelled")
                         committed.set()
+                        committed_at = time.monotonic()
                         await provider.send(json.dumps({"type": "input_audio_buffer.commit"}))
 
                 async def from_provider():
@@ -157,6 +168,8 @@ async def relay_transcription(browser, owner, connect):
                             if (not committed.is_set() or item_id is None or event.get("item_id") != item_id
                                     or not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT):
                                 raise ValueError("invalid_transcript")
+                            if committed_at is not None:
+                                trace.set_attribute("commit_to_transcript_seconds", time.monotonic() - committed_at)
                             await owner.request("finish", {"capture_id": capture_id,
                                 "transcript": text, "usage": usage})
                             persisted = True
@@ -177,24 +190,50 @@ async def relay_transcription(browser, owner, connect):
                 done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     task.result()
-    except Exception:  # noqa: BLE001 - relay failures must leave the saved recording usable
-        if trace is not None:
-            trace.set_attribute("outcome", "unavailable")
+                outcome = "completed" if persisted else "internal_error"
+    except Exception as exc:  # noqa: BLE001 - relay failures must leave the saved recording usable
+        safe_reasons = {
+            "capture_disconnected": "browser_disconnected", "capture_cancelled": "cancelled",
+            "provider_failed": "provider_failed", "provider_setup_failed": "provider_setup_failed",
+            "invalid_session": "provider_setup_failed", "invalid_transcript": "invalid_transcript",
+            "transcript_too_long": "invalid_transcript", "invalid_authorization": "invalid_authorization",
+            "capture_expired": "capture_expired", "invalid_audio_frame": "invalid_audio",
+            "audio_too_long": "invalid_audio", "audio_after_commit": "invalid_audio",
+            "invalid_commit": "invalid_commit",
+        }
+        if isinstance(exc, TimeoutError):
+            outcome = "timeout"
+        elif isinstance(exc, ValueError) and str(exc) in safe_reasons:
+            outcome = safe_reasons[str(exc)]
+        else:
+            outcome = "internal_error"
         # Neither tokens, provider messages nor candidate text enter error diagnostics.
         with suppress(Exception):
             await browser.send_json({"type": "error", "code": "transcription_unavailable"})
     finally:
         # Close without raw exception details: socket reasons may contain private payloads.
-        traces.close()
         for task in tasks:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         if capture_id and not persisted:
             # A failed callback retains Rails' unknown reservation for reconciliation.
-            with suppress(Exception):
+            try:
                 async with asyncio.timeout(25):
                     await owner.request("fail", {"capture_id": capture_id, "usage": usage})
+                trace.set_attribute("failure_callback", "completed")
+            except Exception:  # noqa: BLE001 - preserve unknown reservation for reconciliation
+                trace.set_attribute("failure_callback", "failed")
+        trace.set_attribute("outcome", outcome)
+        trace.set_attribute("phase", phase)
+        trace.set_attribute("provider_ready", ready)
+        trace.set_attribute("audio_committed", committed.is_set())
+        trace.set_attribute("transcript_persisted", persisted)
+        trace.set_attribute("audio_milliseconds", total_bytes * 1000 / 48_000)
+        if usage is not None:
+            trace.set_attribute("provider_audio_milliseconds", usage["audio_milliseconds"])
+            trace.set_attribute("provider_cost_microdollars", usage["cost_microdollars"])
+        traces.close()
         if provider is not None:
             with suppress(Exception):
                 async with asyncio.timeout(3):

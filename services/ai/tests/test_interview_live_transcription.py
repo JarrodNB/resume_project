@@ -7,11 +7,32 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+from interviews import live_transcription
 from interviews.live_transcription import duration_usage, install_streaming, relay_transcription
 
 AUDIO = b"\0\0" * 2400
 AUTH = {"text": '{"type":"authorize","token":"opaque"}'}
 COMMIT = {"text": '{"type":"commit"}'}
+
+
+@pytest.fixture
+def session_trace(monkeypatch):
+    class Trace:
+        def __init__(self):
+            self.attributes = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def set_attribute(self, name, value):
+            self.attributes[name] = value
+
+    trace = Trace()
+    monkeypatch.setattr(live_transcription.logfire, "span", lambda *args, **kwargs: trace)
+    return trace.attributes
 
 
 class Browser:
@@ -97,6 +118,37 @@ def test_live_answer_commits_once_and_saves_before_final():
     assert owner.calls[-1] == ("finish", {"capture_id": "owned", "transcript": "My answer", "usage": {"audio_milliseconds": 100, "cost_microdollars": 29}})
     assert sum(message["type"] == "input_audio_buffer.commit" for message in provider.sent) == 1
     assert provider.closed and browser.closed
+
+
+def test_session_telemetry_records_safe_outcome_and_usage(session_trace):
+    run_relay([AUTH, {"bytes": AUDIO}, COMMIT])
+    assert session_trace["outcome"] == "completed"
+    assert session_trace["provider_ready"] and session_trace["audio_committed"]
+    assert session_trace["transcript_persisted"]
+    assert session_trace["audio_milliseconds"] == 100
+    assert session_trace["provider_audio_milliseconds"] == 100
+    assert session_trace["provider_cost_microdollars"] == 29
+    assert session_trace["provider_ready_seconds"] >= 0
+    assert session_trace["commit_to_transcript_seconds"] >= 0
+    assert "My answer" not in str(session_trace)
+    assert "opaque" not in str(session_trace)
+
+
+def test_session_telemetry_captures_failure_and_unknown_usage(session_trace):
+    run_relay([AUTH, {"bytes": AUDIO}, COMMIT, {"type": "websocket.disconnect"}], hold=True)
+    assert session_trace["outcome"] == "browser_disconnected"
+    assert session_trace["audio_committed"]
+    assert not session_trace["transcript_persisted"]
+    assert session_trace["failure_callback"] == "completed"
+    assert "provider_cost_microdollars" not in session_trace
+
+
+def test_session_telemetry_captures_redemption_failure(session_trace):
+    run_relay([AUTH], deny=True)
+    assert session_trace["outcome"] == "internal_error"
+    assert session_trace["phase"] == "authorization"
+    assert not session_trace["provider_ready"]
+    assert "denied" not in str(session_trace)
 
 
 def test_disconnect_after_commit_cancels_without_accepting_late_text():

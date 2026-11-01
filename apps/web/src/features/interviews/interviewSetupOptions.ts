@@ -1,4 +1,6 @@
-/** User-facing setup choices also label the saved configuration after preparation. */
+/** User-facing setup choices also label the saved configuration after preparation.
+ * An interviewer's sample line is illustrative copy for the setup tile, not a prompt instruction.
+ */
 export const typeOptions = [
   { value: 'mixed', label: 'Mixed Interview', description: 'Behavioural + role questions. Closest to a real loop.' },
   { value: 'behavioral', label: 'Behavioural', description: 'Past experience, teamwork, conflict, leadership. STAR-focused.' },
@@ -11,9 +13,9 @@ export const difficultyOptions = [
   { value: 'stretch', label: 'Stretch', description: 'Probing follow-ups and harder scenarios.' },
 ]
 export const interviewerOptions = [
-  { value: 'maya', label: 'Maya — Friendly Coach', description: 'Warm, encouraging, gives you room to think.' },
-  { value: 'daniel', label: 'Daniel — Professional Hiring Manager', description: 'Neutral and structured, like a real panel member.' },
-  { value: 'priya', label: 'Priya — Tough Interviewer', description: 'Direct, presses for specifics and measurable impact. Probes after you submit your answer.' },
+  { value: 'maya', label: 'Maya — Friendly Coach', description: 'Warm, encouraging, gives you room to think.', sample: 'Take your time. Tell me about a project you’re proud of.' },
+  { value: 'daniel', label: 'Daniel — Professional Hiring Manager', description: 'Neutral and structured, like a real panel member.', sample: 'Walk me through how you handled your last big project.' },
+  { value: 'priya', label: 'Priya — Tough Interviewer', description: 'Direct, presses for specifics and measurable impact. Probes after you submit your answer.', sample: 'What changed because of your work? Give me a number.' },
 ]
 export const lengthOptions = [
   { value: '5', label: 'Short', description: '5 core questions · ~10 min' },

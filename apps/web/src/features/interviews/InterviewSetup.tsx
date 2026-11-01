@@ -1,5 +1,6 @@
 /** Assemble a practice interview from career evidence and deliberate setup choices.
- * Preparation saves the choices before review. Microphone preferences stay local to this account.
+ * Round choices come first, then a settings step for microphone and transcription preferences.
+ * Preparation saves the round choices before review. Settings stay local to this account.
  */
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
@@ -8,6 +9,8 @@ import { useAuth } from '@/features/auth/useAuth'
 import { useStartInterview } from './useInterviewSession'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
+import { InterviewTranscriptionSettings } from './InterviewTranscriptionSettings'
+import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { difficultyOptions, focusOptions, interviewerOptions, lengthOptions, typeOptions } from './interviewSetupOptions'
 import type { InterviewJob } from './InterviewJobContext'
 
@@ -28,7 +31,9 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
   const { start, loading, error } = useStartInterview()
   const { user } = useAuth()
   const microphone = useInterviewMicSettings(user?.id ?? '')
+  const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
   const navigate = useNavigate()
+  const [step, setStep] = useState<'round' | 'settings'>('round')
   const submitting = useRef(false)
   const [pending, setPending] = useState(false)
   const saved = initialSetup && typeof initialSetup === 'object' ? initialSetup as Record<string, unknown> : {}
@@ -49,9 +54,10 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
     } finally { submitting.current = false; setPending(false) }
   }
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
-  return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); void prepare() }}>
+  return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); if (step === 'round') setStep('settings'); else void prepare() }}>
     <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library.' : 'Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.'}</p></div>
     <fieldset disabled={busy} className="interview-setup-fields">
+      {step === 'round' ? <>
       <Choices title="Interview type" name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} columns={2} />
       <Choices title="Difficulty" name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} />
       <Choices title="Your interviewer" name="interviewer" options={interviewerOptions} value={interviewer} change={setInterviewer} />
@@ -59,9 +65,14 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
       <fieldset className="interview-setup-section"><legend>Focus areas <span className="font-normal text-muted-foreground">(optional)</span></legend><p className="text-sm text-muted-foreground">Bias which questions you get. Leave these clear for a balanced round.</p><div className="flex flex-wrap gap-2">
         {Object.entries(focusOptions).map(([value, label]) => <label className="interview-focus-choice" key={value}><input type="checkbox" checked={focusAreas.includes(value)} onChange={(event) => setFocusAreas((previous) => event.target.checked ? [...previous, value] : previous.filter((area) => area !== value))} />{label}</label>)}
       </div></fieldset>
+      </> : <>
       <div className="interview-setup-section"><h3 className="font-medium">Microphone preferences</h3><InterviewMicrophoneSettings microphone={microphone} /><p className="text-sm text-muted-foreground">{canRecord ? 'Microphone recording is supported in this browser. Permission has not been checked.' : 'Microphone recording is unavailable in this browser. You can type every answer.'}</p></div>
+      <div className="interview-setup-section"><h3 className="font-medium">Answer transcription</h3><InterviewTranscriptionSettings mode={transcriptionMode} change={setTranscriptionMode} /></div>
+      </>}
     </fieldset>
-    <div className="interview-setup-summary"><h3 className="font-medium">Your round</h3><p className="text-sm leading-relaxed">{typeOptions.find((item) => item.value === questionFormat)?.label} · {difficultyOptions.find((item) => item.value === difficulty)?.label} · {questionCount} core questions</p><p className="text-sm text-muted-foreground">{interviewerOptions.find((item) => item.value === interviewer)?.label}. Follow-up questions may extend the interview.</p><Button type="submit" className="min-h-11 justify-self-start" disabled={busy} aria-busy={busy}>{busy ? 'Preparing…' : 'Prepare interview'}</Button>{error && <p role="alert" className="text-destructive">{error}</p>}</div>
+    {step === 'round'
+      ? <div className="interview-setup-summary"><Button type="button" className="min-h-11 justify-self-start" onClick={() => setStep('settings')}>Continue to settings</Button></div>
+      : <div className="interview-setup-summary"><h3 className="font-medium">Your round</h3><p className="text-sm leading-relaxed">{typeOptions.find((item) => item.value === questionFormat)?.label} · {difficultyOptions.find((item) => item.value === difficulty)?.label} · {questionCount} core questions</p><p className="text-sm text-muted-foreground">{interviewerOptions.find((item) => item.value === interviewer)?.label}. Follow-up questions may extend the interview.</p><div className="flex flex-wrap gap-3"><Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => setStep('round')}>Back to round</Button><Button type="submit" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Preparing…' : 'Prepare interview'}</Button></div>{error && <p role="alert" className="text-destructive">{error}</p>}</div>}
     <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>
   </form>
 }

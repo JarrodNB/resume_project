@@ -1352,7 +1352,7 @@ describe('choosing who the interview is for', () => {
     { id: 'job-2', title: 'Quality analyst', company: null, stage: 'UNAPPLIED' as const },
     { id: 'job-3', title: 'Rejected role', company: 'Closed Co', stage: 'REJECTED' as const },
   ]
-  it('offers a practice role and every saved job except rejected ones', async () => {
+  it('offers a practice role and saved jobs except rejected ones', async () => {
     renderInterview('/practice/interviews', [], jobsMock(savedJobs))
     const group = screen.getByRole('group', { name: 'Interview for' })
     expect(within(group).getByRole('radio', { name: /A practice role/ })).toBeChecked()
@@ -1389,6 +1389,39 @@ describe('choosing who the interview is for', () => {
     renderInterview('/practice/interviews', [], jobsMock([savedJobs[2]]))
     expect(await screen.findByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
     expect(screen.getAllByRole('radio')).toHaveLength(1)
+  })
+  describe('with many saved jobs', () => {
+    const manyJobs = Array.from({ length: 12 }, (_, index) => ({
+      id: `many-${index + 1}`, title: `Role ${index + 1}`, company: index === 8 ? 'Harbour Clinic' : 'Acme', stage: 'UNAPPLIED' as const,
+    }))
+    it('shows only the newest jobs and says how to find the others', async () => {
+      renderInterview('/practice/interviews', [], jobsMock(manyJobs))
+      expect(await screen.findByText('Showing your 5 newest of 12 saved jobs. Search to find the others.')).toBeVisible()
+      expect(screen.getAllByRole('radio')).toHaveLength(6)
+      expect(screen.getByRole('radio', { name: /^Role 5(?!\d)/ })).toBeVisible()
+      expect(screen.queryByRole('radio', { name: /^Role 6(?!\d)/ })).not.toBeInTheDocument()
+    })
+    it('finds an older job by company and opens its interview tab', async () => {
+      const { router } = renderInterview('/practice/interviews', [], jobsMock(manyJobs))
+      await userEvent.type(await screen.findByRole('searchbox', { name: 'Search saved jobs' }), 'harbour{Enter}')
+      expect(router.state.location.pathname).toBe('/practice/interviews')
+      expect(screen.getByText('1 saved job matches.')).toBeVisible()
+      await userEvent.click(screen.getByRole('radio', { name: /Role 9.*Harbour Clinic/ }))
+      await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+      expect(router.state.location.pathname).toBe('/jobs/many-9/interview')
+    })
+    it('keeps the chosen job in the list while searching', async () => {
+      renderInterview('/practice/interviews', [], jobsMock(manyJobs))
+      await userEvent.click(await screen.findByRole('radio', { name: /^Role 2(?!\d)/ }))
+      await userEvent.type(screen.getByRole('searchbox', { name: 'Search saved jobs' }), 'nothing like this')
+      expect(screen.getByText('No saved jobs match your search.')).toBeVisible()
+      expect(screen.getByRole('radio', { name: /^Role 2(?!\d)/ })).toBeChecked()
+    })
+  })
+  it('does not offer search when every saved job fits', async () => {
+    renderInterview('/practice/interviews', [], jobsMock(savedJobs))
+    await screen.findByRole('radio', { name: /Laboratory technician/ })
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
   })
   it('starts at round setup with the saved choices when practising again', () => {
     renderInterview('/practice/interviews', [], jobsMock(), { practiceSetup: { ...snapshot.setup, difficulty: 'stretch' } })

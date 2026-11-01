@@ -22,7 +22,8 @@ RSpec.describe "Interview provider accounting" do
     expect(Interviews::RecordUsageService.call(**report.merge(observation_id: second))).to be_success
     expect(operation.ai_task.reload.cost_microdollars).to eq(14)
     expect(operation.ai_task.ai_usage_attempts.find_by(attempt_id: operation.attempt_id)).not_to be_finalized
-    expect(operation.ai_task.ai_usage_attempts.find_by(attempt_id: first).usage.first).to include("stage" => "speech", "provider" => "fake", "model" => "scripted-v1")
+    expect(operation.ai_task.ai_usage_attempts.find_by(attempt_id: first).usage_entries.sole)
+      .to have_attributes(stage: "speech", provider: "fake", model: "scripted-v1", characters: 10, cost_microdollars: 7)
     expect(Interviews::RecordUsageService.call(**report.except(:observation_id))).not_to be_success
     expect(Interviews::RecordUsageService.call(operation: operation, attempt_id: operation.attempt_id, usage: [])).to be_success
     expect(operation.ai_task.reload.cost_microdollars).to eq(14)

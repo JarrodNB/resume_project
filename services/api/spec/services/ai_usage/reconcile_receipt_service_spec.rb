@@ -4,8 +4,10 @@ require "rails_helper"
 RSpec.describe AiUsage::ReconcileReceiptService do
   let(:user) { create(:user) }
   let(:task) { create(:ai_task, user: user, status: "completed", cost_microdollars: 35) }
-  let(:report) { task.ai_usage_attempts.create!(attempt_id: SecureRandom.uuid, finalized: true, incomplete: true,
-    usage: [ { "cost_microdollars" => 35 } ]) }
+  let(:report) do
+    task.ai_usage_attempts.create!(attempt_id: SecureRandom.uuid, finalized: true, incomplete: true)
+      .tap { |attempt| AiUsage::AttemptEntries.replace(attempt, [ { "cost_microdollars" => 35 } ]) }
+  end
   let(:params) { { user: user, record_type: "task", attempt_id: report.attempt_id, receipt_reference: "provider-receipt-line-1",
     usage: [ { "cost_microdollars" => 55, "input_tokens" => 100 } ] } }
 
@@ -16,6 +18,7 @@ RSpec.describe AiUsage::ReconcileReceiptService do
     2.times { expect(described_class.call(**params, apply: true)).to be_success }
     expect(task.reload).to have_attributes(cost_microdollars: 55, input_tokens: 100, status: "completed")
     expect(report.reload).to have_attributes(incomplete: false, finalized: true)
+    expect(report.usage_entries.sole).to have_attributes(cost_microdollars: 55, input_tokens: 100, ai_task_id: task.id)
     expect(AiUsageReconciliation.sole.previous_usage).to eq([ { "cost_microdollars" => 35 } ])
     AiTasks::RecordAttemptUsageService.call(ai_task: task, message: { "attempt_id" => report.attempt_id,
       "usage" => [ { "cost_microdollars" => 35 } ] })

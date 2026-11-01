@@ -26,12 +26,10 @@ module AiUsage
           task = @user.ai_tasks.find(report.ai_task_id)
           task.with_lock do
             report.reload.lock!
-            reconcile(report, previous_usage: report.usage) do
-              totals = AiTasks::RecordAttemptUsageService::COLUMNS.index_with do |column|
-                task.public_send(column) - total(report.usage, column) + total(@usage, column)
-              end
-              task.update!(totals)
-              report.update!(usage: @usage, incomplete: false, finalized: true)
+            reconcile(report, previous_usage: AiUsage::AttemptEntries.as_hashes(report)) do
+              change = AiUsage::AttemptEntries.replace(report, @usage)
+              task.update!(AiTasks::RecordAttemptUsageService::COLUMNS.index_with { |column| task.public_send(column) + change[column] })
+              report.update!(incomplete: false, finalized: true)
               reconcile_verification_reservation
             end
           end

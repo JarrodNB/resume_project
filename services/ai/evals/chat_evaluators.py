@@ -20,6 +20,9 @@ class ChatEvalInput(BaseModel):
 
 
 class ChatEvalExpectations(BaseModel):
+    expects_context_save: bool = False
+    required_context_terms: list[str] = Field(default_factory=list)
+    forbidden_context_terms: list[str] = Field(default_factory=list)
     expects_block: bool = False
     required_reply_terms: list[str] = Field(default_factory=list)
     required_summary_terms: list[str] = Field(default_factory=list)
@@ -27,6 +30,7 @@ class ChatEvalExpectations(BaseModel):
 
 
 class ChatEvalOutput(BaseModel):
+    career_context: dict[str, str] | None = None
     status: str
     reply: str = ""
     summary: str = ""
@@ -42,8 +46,11 @@ class CareerChatOutcome(Evaluator[ChatEvalInput, ChatEvalOutput, ChatEvalExpecta
         actual = ctx.output
         if expected.expects_block:
             return {"expected_outcome": float(actual.status == "failed" and actual.failure_code == "screening_blocked")}
+        context = " ".join((actual.career_context or {}).values()).casefold()
         reply, summary = actual.reply.casefold(), actual.summary.casefold()
         return {
+            "career_context_save_policy": float(bool(actual.career_context) == expected.expects_context_save),
+            "career_context_evidence": float(all(term.casefold() in context for term in expected.required_context_terms) and not any(term.casefold() in context for term in expected.forbidden_context_terms)),
             "expected_outcome": float(actual.status == "completed" and bool(reply.strip())),
             "reply_continuity": float(all(term.casefold() in reply for term in expected.required_reply_terms)),
             "summary_continuity": float(all(term.casefold() in summary for term in expected.required_summary_terms)),

@@ -2,8 +2,9 @@
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
-read-only tools for the career library and active saved-job postings. Attachments, other saved app data and app
-actions are not available.
+read-only tools for the career library and active saved-job postings. A chat-local
+`save_career_context` tool stages one user-requested new career context. Attachments
+and other app actions are not available.
 
 ## Tools (MCP)
 
@@ -233,3 +234,35 @@ Chat acceptance sends at most 500 optional approval receipts across all tools. A
 used fields are screened before the model sees them, including fields whose receipts
 do not fit. Excess receipts are omitted from persistence only; those fields may need
 screening again on a later turn. The reply and its source facts remain complete.
+
+### Saving career context
+
+Chat offers `save_career_context(requirement, response)` only for a user request or
+agreement to save real career details. It may offer to save useful facts but must
+wait for agreement. The topic/requirement interprets the response; substantive career
+evidence belongs in the response because interview references display that field.
+The tool cannot update or delete entries or save hypothetical assistant suggestions.
+
+This is a chat-local proposal tool, not an MCP write. Its read-only owner-scoped
+preflight returns status only: ready, already saved, topic conflict or library full.
+No existing text enters the prompt through this check. Database failure produces a
+truthful unavailable result while ordinary chat can continue. Topics are limited to
+1,000 characters, responses to 4,000 and the library to 100 entries. Exact repeated
+calls reuse one proposal; a second distinct save in the same turn is rejected.
+
+The proposal is attempt-local and private placeholders are restored before comparison
+and transport. A successful tool call means pending, not durable. Python returns the
+proposal with final reply acceptance. Rails rechecks ownership, current claim fences,
+limits and uniqueness under the existing owner lock, then saves the new context,
+dialogue and optional summary atomically. Identical existing topic/response is a
+no-op; a different response for the same topic cannot overwrite it. If a concurrent
+edit invalidates a pending save, the entire acceptance fails rather than saving a
+false success reply. Streaming remains provisional until acceptance.
+
+Proposal fields participate in acceptance replay identity. Exact accepted callback
+replay creates neither another context nor another embedding job. Failed, stale,
+cancelled or expired attempts save nothing. New generated fields retain approved
+screening coverage; existing exact entries retain their current checks. The existing
+embedding job makes new context eligible for subsequent interview preparation; already
+frozen interview reference sets do not change. Future cover-letter workflows can read
+the same career library without introducing a separate memory store.

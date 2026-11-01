@@ -11,7 +11,7 @@ All business logic, as service objects grouped by domain folder.
 - `job_preferences/` — owner-scoped reusable next-job preference reads and version-fenced draft/confirm/clear writes. No catalogue changes.
 - `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing references, queued JEV checks, source-digest currentness and finite probability/result acceptance.
 
-- `chat/` — private saved chat pagination and durable execution policy. `ContextPlanService` checks uncovered accepted dialogue without copying sources into claims and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
+- `chat/` — private saved chat pagination and durable execution policy. `ContextPlanService` checks uncovered accepted dialogue without copying sources into claims and fixes rolling-summary checkpoints; summaries, replies and optional career-context save proposals commit atomically. No provider calls occur in Rails.
 
 - `screening/record_approvals_service.rb` — one recorder for unified `record_screening` receipts
   (career library, job, gap response, interview question and job preferences). Its `RECORD_TYPES` registry owns each

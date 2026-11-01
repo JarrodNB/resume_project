@@ -30,6 +30,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 
 from agents.chat_agent import make_chat_agent
 from agents.chat_summary_agent import make_chat_summary_agent
+from chat.career_context import CareerContextProposal
 from chat.client import ChatReferencePayload
 from interviews.client import RailsTransportError
 from mcp_tools.client import ToolServerConnection
@@ -65,8 +66,9 @@ class ChatRejected(RuntimeError):
 class ChatExecutionAdapter:
     stream_output = True
 
-    def __init__(self, client, models, *, model=None, fallback_model=None, tool_server=None, input_reader=None):
+    def __init__(self, client, models, *, model=None, fallback_model=None, tool_server=None, input_reader=None, context_save_check=None):
         self.client, self.models = client, models
+        self.context_save_check = context_save_check
         self.input_reader = input_reader
         settings = load_settings()
         # The separate MCP tool server (ai-mcp); a missing token secret fails startup loudly.
@@ -214,22 +216,26 @@ class ChatExecutionAdapter:
                                else ModelResponse(parts=[TextPart(content)]))
             if rendered_characters > MAX_PROMPT_TEXT:
                 raise ChatRejected("context_limit")
-            reply = await self._reply(claim, output, privacy, turn, history, usage)
+            if self.context_save_check is None:
+                from database.career_context_save import build_context_save_check
+                self.context_save_check = build_context_save_check(load_settings())
+            proposal = CareerContextProposal(payload.user_id, self.context_save_check, privacy.restore)
+            reply = await self._reply(claim, output, privacy, turn, history, usage, proposal)
             # Normal cadence compacts after the answer so the current model still
             # sees all five preceding complete exchanges. Early pressure compacts
             # before answering and leaves those five exchanges intact instead.
             if payload.summary_plan and payload.summary_plan.scheduled:
                 summary_update = await self._summarize(claim, privacy, usage)
-            await self._accept(claim, reply, summary_update)
+            await self._accept(claim, reply, summary_update, proposal.value)
             if output:
                 await output.emit("completed")
 
-    async def _reply(self, claim, output, privacy, turn, history, usage):
+    async def _reply(self, claim, output, privacy, turn, history, usage, proposal):
         # The token names the claim's owner, never a model-chosen user. Tool text is
         # screened here on this claim's accounted screen before the model sees it.
         tools = self.tool_server.toolset(user_id=claim.payload.user_id, operation_id=claim.operation_id,
             expires_at=claim.execution_deadline, screen=lambda text: self._screen_decision(claim, text))
-        agent = make_chat_agent(turn.guard, toolsets=[tools])
+        agent = make_chat_agent(turn.guard, toolsets=[tools], save_career_context=proposal.save_career_context)
         if output:
             await output.emit("started")
         published, last_publish = "", 0.0
@@ -280,10 +286,12 @@ class ChatExecutionAdapter:
         for start in range(0, len(text), 4096):
             await output.emit("delta", text=text[start:start + 4096])
 
-    async def _accept(self, claim, reply, summary_update=None):
+    async def _accept(self, claim, reply, summary_update=None, career_context=None):
         digest = hashlib.sha256(claim.payload.message.encode()).hexdigest()
         try:
             values = {"reply": reply, "screened_message_sha256": digest}
+            if career_context is not None:
+                values["career_context"] = career_context
             session = current_session()
             if session and session.record_screening:
                 # These are optional future screening approvals, not the sources used

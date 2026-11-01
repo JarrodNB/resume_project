@@ -39,7 +39,7 @@ export function StringListField({ label, values, onChange, addLabel, multiline =
           ) : (
             <Input aria-label={`${label} ${index + 1}`} maxLength={maxLength} value={value} onChange={(event) => replaceAt(index, event.target.value)} />
           )}
-          <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${label} ${index + 1}`} onClick={() => removeAt(index)}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={`Remove ${label} ${index + 1}`} onClick={() => removeAt(index)}>
             <X />
           </Button>
         </div>

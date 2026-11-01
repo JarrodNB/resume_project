@@ -297,6 +297,7 @@ Solid and square-shouldered, like a sign you can press.
 - **Shape:** gently squared corners (4px), 1.5px border.
 - **Primary:** ink fill, white text, 14px semibold, 36px tall with 14px side padding. Hover lightens the ink to 85%.
 - **Large:** 44px tall, 2px border, 15px bold, 20px padding. Used for main page actions.
+- **Grouping:** buttons in one row share one size. Icon buttons are square at the matching height (small 32px, default 36px, large 44px), and a field or select beside them matches that height too.
 - **Outline:** white with an ink border; hover fills pale gray.
 - **Ghost:** no border; hover fills pale gray. On the band, ghost buttons are white and hover with a 14% white wash.
 - **Press:** buttons shrink to 97% on press using a fast ease-out (`cubic-bezier(0.23, 1, 0.32, 1)`, 160ms). Menu triggers don't shrink, so their menus stay put.

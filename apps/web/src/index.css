@@ -739,8 +739,11 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .animate-spin { animation-duration: 2.4s !important; }
 }
 
+/* Touch targets grow to 44px together, so a field and the button beside it stay level
+   and icon buttons stay square. */
 @media (max-width: 899px) {
-  .workspace-content [data-slot=button] { min-height: 44px; }
+  .workspace-content :is([data-slot=button], [data-slot=input], select) { min-height: 44px; }
+  .workspace-content [data-slot=button][data-size^=icon] { min-width: 44px; }
 }
 
 /* Career library AI work stays beside the records; mobile gives it a focused screen. */
@@ -786,6 +789,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .question-generate-text h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
 .question-generate-text p, .question-generate-help { margin-top: 4px; max-width: 60ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
 .question-generate-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+/* The type switch matches the 44px "Get 5 questions" button beside it (40px + 2px border). */
+.question-generate .view-switch button { min-height: 40px; }
 .question-generate-help { grid-column: 1 / -1; margin-top: -4px; }
 .question-generate-empty, .question-generate [data-slot=alert] { grid-column: 1 / -1; }
 .question-generate-empty { display: grid; gap: 8px; font-size: 14px; }

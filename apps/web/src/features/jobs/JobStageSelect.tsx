@@ -18,7 +18,7 @@ export function JobStageSelect({ jobId, stage }: { jobId: string; stage: JobStag
       <Label htmlFor={`job-stage-${jobId}`}>Stage</Label>
       <select
         id={`job-stage-${jobId}`}
-        className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+        className="h-9 rounded-[4px] border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
         value={stage}
         disabled={busy}
         onChange={(event) => {

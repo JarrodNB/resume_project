@@ -419,7 +419,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .chat-markdown code { padding: 0.1em 0.3em; border-radius: 4px; background: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
 .chat-markdown pre { overflow-x: auto; padding: 10px 12px; border-radius: 6px; background: var(--muted); }
 .chat-markdown pre code { padding: 0; background: none; }
-.chat-markdown blockquote { padding-left: 12px; border-left: 2px solid var(--border); color: var(--muted-foreground); }
+.chat-markdown blockquote { padding: 8px 12px; border-radius: 6px; background: var(--secondary); color: var(--muted-foreground); }
 .chat-markdown hr { border: 0; border-top: 1px solid var(--border); }
 .chat-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 0.95em; }
 .chat-markdown :is(th, td) { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }

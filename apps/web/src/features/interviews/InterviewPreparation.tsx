@@ -1,8 +1,11 @@
 /** Shows saved preparation progress and the selected job or fictional role before entry.
- * Private career sources and executor history stay on the server.
+ * While questions are prepared, a waiting line shows the work is moving; its captions
+ * describe the steps but do not track them. Private career sources and executor history
+ * stay on the server.
  */
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { difficultyOptions, focusOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
+import { AiWaitingLine } from '@/components/AiWaitingLine'
 import { Button } from '@/components/ui/button'
 import { InterviewJobContext } from './InterviewJobContext'
 import { InterviewJobSource } from './InterviewJobSource'
@@ -23,6 +26,17 @@ function roleData(value: unknown) {
   const record = value as Record<string, unknown>
   if (typeof record.title !== 'string' || !Array.isArray(record.responsibilities) || !Array.isArray(record.requirements)) return null
   return { title: record.title, responsibilities: record.responsibilities.filter((item): item is string => typeof item === 'string'), requirements: record.requirements.filter((item): item is string => typeof item === 'string') }
+}
+
+/** Visible captions for the waiting line; they describe the work, not tracked progress. */
+function preparationCaptions(running: boolean, savedJob: boolean, questionCount: number) {
+  if (!running) return ['Waiting to start', 'Still in line. Preparation starts shortly']
+  return [
+    ...(savedJob ? ['Reading the job', 'Looking through your career library', 'Matching your experience to the role'] : ['Looking through your career library', 'Imagining a role that fits your background', 'Writing the role requirements']),
+    `Drafting ${questionCount} core questions`,
+    'Checking each question',
+    'Still working on it. A full interview can take a minute',
+  ]
 }
 
 export function InterviewPreparation({ interview, busy, error, disconnected, retry, refresh, begin }: Props) {
@@ -55,7 +69,7 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
       {(operation?.status === 'failed' || operation?.status === 'expired') ? <div className="grid gap-3">
         <p role="alert">Preparation unavailable: {operation.failureCode?.replaceAll('_', ' ') || 'preparation failed'}.</p>
         {operation.canRetry ? <Button className="justify-self-start" variant="outline" disabled={busy} onClick={() => void retry(operation.id)}>Retry preparation</Button> : <p className="text-sm">This preparation cannot be retried. Check your career details before preparing a new interview.</p>}
-      </div> : <p role="status" className="text-sm text-muted-foreground">{operation?.checkpoint?.replaceAll('_', ' ') || operation?.status || 'Waiting for saved progress'}…</p>}
+      </div> : <AiWaitingLine key={operation?.status === 'running' ? 'running' : 'waiting'} captions={preparationCaptions(operation?.status === 'running', Boolean(job), interview.setup.questionCount)} statusLabel="Preparing your interview…" captionSeconds={4} />}
     </>}
     {disconnected && <div className="grid gap-2"><p role="alert">Live updates are unavailable.</p><Button className="justify-self-start" variant="outline" disabled={busy} onClick={() => void refresh()}>Check saved status</Button></div>}
     {error && <p role="alert" className="text-destructive">{error}</p>}

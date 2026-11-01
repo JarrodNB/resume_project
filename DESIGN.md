@@ -332,7 +332,7 @@ Solid and square-shouldered, like a sign you can press.
 
 ### Next-Step Signal
 - A 12px signal dot plus a short bold label, like "Review resume draft". It links to the job tab that handles that step. Waiting steps use quiet gray text. A job with an offer shows a green dot and "Offer received"; a rejected job just says "Closed".
-- **AI working** is the only animated element in the app's signal system (chat's waiting line is its one other form): a ring breathes out from the blue dot every 2.4s. With reduced motion turned on, the ring stops and stays as a faint still ring. Dots in the legend never animate.
+- **AI working** is the only animated element in the app's signal system (the AI waiting line is its one other form): a ring breathes out from the blue dot every 2.4s. With reduced motion turned on, the ring stops and stays as a faint still ring. Dots in the legend never animate.
 - Home shows a legend of all four colors once, beside the AI work strip.
 
 ### View Switch
@@ -343,6 +343,9 @@ Solid and square-shouldered, like a sign you can press.
 - The conversation scrolls on its own above a message box that stays pinned; it follows new words unless the reader scrolled up. The box is a 1.5px ink-bordered, 6px-cornered field with the counter and Send inside it.
 - Your messages are right-aligned tiles on `secondary` with a hairline border. Replies are plain text with a small ringed bullet beside "Careergrind"; the bullet turns blue (AI working) while a reply is being written. Until the first words arrive, the reply shows a 9rem line of three gray stops on a hairline track: a blue signal shuttles between them, pausing at each stop as it lights up, above a blue caption that changes every 3.2s ("Reading your message", "Thinking it through", …) and settles on a "still working" line. Screen readers hear only "Preparing your reply…". With reduced motion the signal stays still on the middle stop.
 - Saved chats are a list of stops: a hollow bullet per chat, filled ink for the open one, with the date under the title.
+
+### Interview Preparation
+- While a mock interview is prepared, the page shows the same AI waiting line as chat with captions every 4s. Before the work starts it says "Waiting to start"; once running it walks through the steps (career library, the job or an imagined role, drafting the core questions, checking them) and settles on a "still working" line. Captions describe the work, not tracked progress. Screen readers hear only "Preparing your interview…".
 
 ### Practice Questions
 - The Questions page is a bank, not a list of batches. A 1.5px ink-bordered "Get new questions" box holds the General/Technical/Knowledge view switch, a large primary button, and one line explaining the chosen type.
@@ -363,7 +366,7 @@ The sign-in, sign-up, verification and password pages split the screen. On the l
 - **Do** show "partial" and "could improve" in plain ink.
 - **Do** draw Rejected as a dashed gray branch off the line, never as the stop after Offer.
 - **Do** separate things with ink rules (2px) and hairlines (1px) instead of shadows.
-- **Do** keep looping motion to AI work: the breathing blue ring, and the shuttling signal while a chat reply is being prepared. Turn both off under reduced motion.
+- **Do** keep looping motion to AI work: the breathing blue ring, and the shuttling AI waiting line while a chat reply or an interview is being prepared. Turn both off under reduced motion.
 - **Do** stack the board into a vertical list of stations on phones.
 - **Do** keep Archivo at 700 to 800 for headings and use tabular numbers for counts.
 

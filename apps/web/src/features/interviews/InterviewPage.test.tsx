@@ -12,7 +12,7 @@ import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAY
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
-  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
+  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
@@ -506,7 +506,7 @@ describe('InterviewPage', () => {
   it.each([
     ['recording', 'Your turn — recording'],
     ['requesting', 'Allow microphone access'],
-    ['ready', 'Review your recording'],
+    ['ready', 'Recording paused'],
   ])('makes the next action clear while the recorder is %s', (status, title) => {
     recorder.status = status
     if (status === 'ready') recorder.recording = new Blob(['answer'])
@@ -600,13 +600,13 @@ describe('InterviewPage', () => {
     expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Start a new interview' })).toBeVisible()
   })
-  it('reviews after Stop recording without uploading until explicit Transcribe', async () => {
+  it('reviews after Pause recording without uploading until explicit Transcribe', async () => {
     recorder.status = 'recording'
     renderInterview()
     const answerActions = within(screen.getByRole('group', { name: 'Answer controls' }))
-    expect(answerActions.getByRole('button', { name: 'Stop recording' })).toBeEnabled()
+    expect(answerActions.getByRole('button', { name: 'Pause recording' })).toBeEnabled()
     expect(answerActions.getByRole('button', { name: 'Submit answer' })).toBeDisabled()
-    await userEvent.dblClick(screen.getByRole('button', { name: 'Stop recording' }))
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Pause recording' }))
     expect(state.answer).not.toHaveBeenCalled()
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     act(() => recorder.refresh())
@@ -619,7 +619,16 @@ describe('InterviewPage', () => {
     act(() => recorder.refresh())
     expect(state.transcribeRecording).toHaveBeenCalledOnce()
   })
-  it('never submits a ready blob without explicit Stop recording intent', () => {
+  it('offers continuation and explains transcription when a paused recording has no text', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
+    renderInterview()
+    expect(screen.getByRole('heading', { name: 'Recording paused' })).toBeVisible()
+    expect(screen.getByText('Continue recording to add more, or transcribe your recording to review the words.')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue recording' }))
+    expect(recorder.resume).toHaveBeenCalledOnce()
+    expect(recorder.start).not.toHaveBeenCalled()
+  })
+  it('never submits a ready blob without explicit Pause recording intent', () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     renderInterview()
     expect(state.answer).not.toHaveBeenCalled()
@@ -870,7 +879,7 @@ it.each(['browser', 'streaming'])('reviews %s dictation in the editor and submit
   recorder.transcript = 'Revised interim answer'
   act(() => recorder.refresh())
   expect(editor).toHaveValue('Revised interim answer')
-  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Pause recording' }))
   recorder.status = 'finalizing'
   act(() => recorder.refresh())
   expect(editor).toBeEnabled()
@@ -1236,7 +1245,7 @@ it('guides live transcription recovery through stopping before transcription', (
   recorder.status = 'recording'; recorder.fallbackReason = 'Recognition failed; recording retained.'
   renderInterview()
   fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'My edited answer' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Stop recording to transcribe' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Pause recording' }))
   expect(recorder.stop).toHaveBeenCalledOnce()
   expect(state.transcribeRecording).not.toHaveBeenCalled()
   expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('My edited answer')

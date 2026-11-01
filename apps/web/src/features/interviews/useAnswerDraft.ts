@@ -59,8 +59,8 @@ export function useAnswerDraft(context: string) {
     }
     setDraft({ context, text: value })
   }, [context])
-  const beginCapture = useCallback(() => {
-    const ticket: CaptureTicket = { context, base: text, transcript: '', protectedTranscript: null }
+  const beginCapture = useCallback((protectedTranscript: string | null = null) => {
+    const ticket: CaptureTicket = { context, base: text, transcript: protectedTranscript ?? '', protectedTranscript }
     capture.current = ticket
     return ticket
   }, [context, text])

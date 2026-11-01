@@ -1,4 +1,5 @@
 /** Capture one complete recording for explicit answer submission, with optional live recognition.
+ * Stopping pauses the same audio container; continuing appends audio without joining files.
  * Recording and recognition finish independently; review waits for both. Tracks are released
  * on every exit, including a permission prompt that resolves after the page has gone away.
  * Speech processing and mono capture are preferences; the browser negotiates device support.
@@ -7,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { startBrowserTranscription, type TranscriptionCallbacks, type TranscriptionCapture, type TranscriptionMode } from './transcriptionCapture'
 
 type Status = 'idle' | 'requesting' | 'recording' | 'finalizing' | 'ready'
-type Capture = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; bytes: number; discard: boolean; timer?: ReturnType<typeof setTimeout> }
+type Capture = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; bytes: number; discard: boolean; remaining: number; started: number; checkpoint?: () => void; listen?: () => void; timer?: ReturnType<typeof setTimeout> }
 const MAX_BYTES = 10 * 1024 * 1024
 const FORMATS = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
 const release = (stream: MediaStream) => stream.getTracks().forEach((track) => track.stop())
@@ -48,7 +49,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
   }, [discard, mode])
 
   const start = useCallback(async () => {
-    if (busy.current) return
+    if (busy.current && capture.current?.recorder.state !== 'paused') return
     reset()
     busy.current = true
     const request = generation.current
@@ -68,7 +69,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       } })
       if (generation.current !== request) { release(stream); return }
       const recorder = new MediaRecorder(stream, { mimeType: format, audioBitsPerSecond: 128_000 })
-      const current: Capture = { recorder, stream, chunks: [], bytes: 0, discard: false }
+      const current: Capture = { recorder, stream, chunks: [], bytes: 0, discard: false, remaining: 120_000, started: Date.now() }
       capture.current = current
       const fail = (message: string) => {
         if (capture.current !== current) return
@@ -82,35 +83,45 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
         current.bytes += data.size
         if (current.bytes >= MAX_BYTES) { fail('Recording reached 10 MiB. Please record a shorter answer.'); return }
         if (data.size > 0) current.chunks.push(data)
+        current.checkpoint?.(); current.checkpoint = undefined
       }
       recorder.onerror = () => fail('Recording failed. Please check your microphone and try again.')
-      recorder.onstop = async () => {
-        clearTimeout(current.timer)
-        release(current.stream)
-        if (current.discard || capture.current !== current) return
+      const review = async () => {
         const finalText = finalized.current ? await finalized.current.catch(() => {
-          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Recognition finalization failed. Your recording is kept. Finish recording, then choose Transcribe recording.') }
+          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Recognition finalization failed. Your recording is kept. Choose Transcribe recording.') }
           return null
         }) : null
         if (current.discard || capture.current !== current) return
-        capture.current = null; busy.current = false; transcription.current = null
+        transcription.current = null
         setCandidateTranscript(finalText)
         const blob = new Blob(current.chunks, { type: recorder.mimeType || current.chunks[0]?.type || format })
-        if (blob.size === 0) { setError('The recording is empty. Please try again.'); setStatus('idle'); return }
+        if (blob.size === 0) { discard(); setError('The recording is empty. Please try again.'); setStatus('idle'); return }
         setRecording(blob); setStatus('ready')
       }
+      recorder.onstop = () => { release(current.stream) }
       recorder.start(1000)
       const callbacks: TranscriptionCallbacks = {
         text(text) { if (capture.current === current && !current.discard) setTranscript(text) },
         fallback(reason) { if (capture.current === current && !current.discard) { setEffectiveMode('recorded'); setFallbackReason(reason) } },
       }
-      if (mode === 'browser') transcription.current = startBrowserTranscription(callbacks)
-      if (mode === 'streaming') {
-        if (startStreaming) {
-          try { transcription.current = startStreaming(stream, callbacks) }
-          catch { callbacks.fallback('Streaming could not start. Your recording is kept. Finish recording, then choose Transcribe recording.') }
-        } else callbacks.fallback('Streaming is unavailable. Your recording is kept. Finish recording, then choose Transcribe recording.')
+      current.listen = () => {
+        finalized.current = null
+        setTranscript(''); setCandidateTranscript(null)
+        if (mode === 'browser') transcription.current = startBrowserTranscription(callbacks)
+        if (mode === 'streaming') {
+          if (startStreaming) {
+            try { transcription.current = startStreaming(current.stream, callbacks) }
+            catch { callbacks.fallback('Streaming could not start. Your recording is kept. Finish recording, then choose Transcribe recording.') }
+          } else callbacks.fallback('Streaming is unavailable. Your recording is kept. Finish recording, then choose Transcribe recording.')
+        }
       }
+      current.listen()
+      // requestData flushes a preview while keeping the encoder available for continuation.
+      current.recorder.addEventListener('pause', () => {
+        if (capture.current !== current || current.discard) return
+        current.checkpoint = () => { void review() }
+        current.recorder.requestData()
+      })
       current.timer = setTimeout(() => fail('Recording reached 2 minutes. Please record a shorter answer.'), 120_000)
       setStatus('recording')
     } catch (cause) {
@@ -124,12 +135,27 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
 
   const stop = useCallback(() => {
     const current = capture.current
-    if (!current) return
+    if (!current || current.recorder.state !== 'recording') return
     clearTimeout(current.timer)
+    current.remaining -= Date.now() - current.started
     setStatus('finalizing')
     if (!finalized.current) finalized.current = transcription.current?.finish() ?? null
-    if (current.recorder.state !== 'inactive') current.recorder.stop()
-    release(current.stream)
+    current.stream.getAudioTracks().forEach((track) => { track.enabled = false })
+    current.recorder.pause()
   }, [])
-  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, start, stop, reset }
+
+  const resume = useCallback(() => {
+    const current = capture.current
+    if (!current || current.recorder.state !== 'paused') return
+    setRecording(null)
+    current.stream.getAudioTracks().forEach((track) => { track.enabled = true })
+    current.listen?.()
+    current.recorder.resume()
+    current.started = Date.now()
+    current.timer = setTimeout(() => {
+      discard(); setRecording(null); setError('Recording reached 2 minutes. Please record a shorter answer.'); setStatus('idle')
+    }, Math.max(0, current.remaining))
+    setStatus('recording')
+  }, [discard])
+  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, start, stop, resume, reset }
 }

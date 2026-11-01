@@ -33,6 +33,11 @@ class Recorder {
   mimeType = 'audio/webm'
   ondataavailable: ((event: { data: Blob }) => void) | null = null
   onstop: (() => void) | null = null
+  pauseListener: (() => void) | undefined
+  addEventListener(_event: string, callback: () => void) { this.pauseListener = callback }
+  requestData() { this.ondataavailable?.({ data: new Blob(['audio']) }) }
+  pause() { this.state = 'paused'; this.pauseListener?.() }
+  resume() { this.state = 'recording' }
   start() { Recorder.latest = this; this.state = 'recording' }
   stop = vi.fn(() => { this.state = 'inactive'; this.ondataavailable?.({ data: new Blob(['audio']) }); this.onstop?.() })
 }
@@ -41,7 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.stubGlobal('MediaRecorder', Recorder)
   vi.stubGlobal('SpeechRecognition', Recognition)
-  vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: stopTrack, addEventListener: vi.fn() }] }) } })
+  vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn().mockResolvedValue({ getAudioTracks: () => [], getTracks: () => [{ stop: stopTrack, addEventListener: vi.fn() }] }) } })
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() }))
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -49,7 +54,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 it('keeps the real microphone running while typing and continues filling new words', async () => {
   renderPage({ path: '/practice/interviews/:id', url: '/practice/interviews/session', element: <InterviewPage /> })
   fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
-  await screen.findByRole('button', { name: 'Stop recording' })
+  await screen.findByRole('button', { name: 'Pause recording' })
   act(() => Recognition.latest.words('I built a tool'))
   const editor = screen.getByRole('textbox', { name: 'Your answer' })
   expect(editor).toHaveValue('I built a tool')
@@ -59,8 +64,12 @@ it('keeps the real microphone running while typing and continues filling new wor
   expect(stopTrack).not.toHaveBeenCalled()
   act(() => Recognition.latest.words('I built a tool for the team'))
   expect(editor).toHaveValue('I designed a scheduling tool for the team')
-  expect(screen.getByRole('button', { name: 'Stop recording' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled())
-  expect(Recorder.latest.stop).toHaveBeenCalledOnce()
+  expect(screen.getByRole('button', { name: 'Pause recording' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Pause recording' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Continue recording' })).toBeEnabled())
+  expect(Recorder.latest.stop).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue recording' }))
+  await screen.findByRole('button', { name: 'Pause recording' })
+  act(() => Recognition.latest.words('and saved hours'))
+  expect(editor).toHaveValue('I designed a scheduling tool for the team\n\nand saved hours')
 })

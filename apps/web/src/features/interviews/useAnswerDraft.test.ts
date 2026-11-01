@@ -29,3 +29,12 @@ it('keeps edits and ignores captures belonging to an earlier prompt', () => {
   act(() => result.current.finishCapture(ticket, 'Late final words'))
   expect(result.current.text).toBe('Second answer')
 })
+
+it('adds only new speech when the complete paused recording is transcribed again', () => {
+  const { result } = renderHook(() => useAnswerDraft('question'))
+  act(() => result.current.setText('I designed a scheduling tool'))
+  let ticket!: ReturnType<typeof result.current.beginCapture>
+  act(() => { ticket = result.current.beginCapture('I built a tool') })
+  act(() => result.current.finishCapture(ticket, 'I built a tool for the team'))
+  expect(result.current.text).toBe('I designed a scheduling tool for the team')
+})

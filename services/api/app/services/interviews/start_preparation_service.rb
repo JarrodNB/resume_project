@@ -16,7 +16,7 @@ module Interviews
       @user.with_lock do
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user, interview: true)
         next allowance unless allowance.success?
-        interview = @user.interview_sessions.create!(job: @job, status: "preparing", answer_cap: 3, execution_mode: "real",
+        interview = @user.interview_sessions.create!(job: @job, status: "preparing", answer_cap: SetupConfiguration.answer_cap(@setup), execution_mode: "real",
           execution_config: ExecutionConfiguration::PRESETS.fetch("real"), setup_config: @setup, career_focus: @career_focus, preparation_kind: @job ? "saved_job" : "fictional_role", expires_at: 7.days.from_now)
         operation = interview.operations.create!(kind: "preparation")
         operation.update!(ai_task: @user.ai_tasks.create!(task_type: "interview_preparation", subject: interview,

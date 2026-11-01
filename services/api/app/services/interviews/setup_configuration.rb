@@ -8,6 +8,8 @@ module Interviews
       "technical" => %w[technical knowledge].freeze, "screening" => %w[screening].freeze }.freeze
     QUESTION_FORMATS = QUESTION_TYPE_CYCLES.keys.freeze
     DIFFICULTIES = %w[warm_up realistic stretch].freeze
+    # Accepted answers per question, so Warm-up allows one follow-up and the others two.
+    ANSWER_CAPS = { "warm_up" => 2, "realistic" => 3, "stretch" => 3 }.freeze
     INTERVIEWERS = %w[maya daniel priya].freeze
     FOCUS_AREAS = %w[communication problem_solving leadership teamwork conflict impact_metrics technical_depth adaptability ownership customer_focus].freeze
     STYLE_DEFAULTS = { "difficulty" => "realistic", "interviewer" => "daniel", "focus_areas" => [].freeze }.freeze
@@ -20,6 +22,10 @@ module Interviews
         DIFFICULTIES.include?(value["difficulty"]) && INTERVIEWERS.include?(value["interviewer"]) &&
         value["focus_areas"].is_a?(Array) && value["focus_areas"].uniq == value["focus_areas"] &&
         (value["focus_areas"] - FOCUS_AREAS).empty?
+    end
+
+    def self.answer_cap(setup)
+      ANSWER_CAPS.fetch(setup.fetch("difficulty"))
     end
 
     def self.for(interview)

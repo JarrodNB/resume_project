@@ -6,7 +6,7 @@ export const typeOptions = [
   { value: 'screening', label: 'HR Screening', description: 'Motivation, background, logistics and culture fit.' },
 ]
 export const difficultyOptions = [
-  { value: 'warm_up', label: 'Warm-up', description: 'Supportive pace, foundational questions.' },
+  { value: 'warm_up', label: 'Warm-up', description: 'Foundational questions, at most one follow-up each.' },
   { value: 'realistic', label: 'Realistic', description: 'Matches a typical on-site / video round.' },
   { value: 'stretch', label: 'Stretch', description: 'Probing follow-ups and harder scenarios.' },
 ]

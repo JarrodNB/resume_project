@@ -163,3 +163,12 @@ it('keeps streamed text in the conversation while saved history is loading', asy
     await waitFor(() => expect(screen.queryByText('A streamed reply.')).not.toBeInTheDocument())
   } finally { vi.unstubAllGlobals() }
 })
+
+it('draws saved assistant replies as Markdown and keeps user messages as plain text', () => {
+  renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={10000} onAccepted={vi.fn()} messages={[
+    { id: 'm-1', role: 'user', content: '**not bold**', thumbsDown: false, thumbsUp: false },
+    { id: 'm-2', role: 'assistant', content: '- **First** step', thumbsDown: false, thumbsUp: false },
+  ]} />, mocks: [query(), subscription()] })
+  expect(screen.getByText('**not bold**')).toBeInTheDocument()
+  expect(screen.getByText('First').tagName).toBe('STRONG')
+})

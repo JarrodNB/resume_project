@@ -401,6 +401,29 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .chat-start h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.015em; text-wrap: balance; }
 .chat-start p { margin-top: 10px; color: var(--muted-foreground); line-height: 1.55; }
 .chat-text { max-width: 68ch; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Assistant replies are Markdown; give back the spacing and list markers Tailwind's reset removes. */
+.chat-markdown { white-space: normal; }
+.chat-markdown > * + * { margin-top: 0.75em; }
+.chat-markdown :is(h1, h2, h3, h4, h5, h6) { margin-top: 1.1em; font-weight: 700; line-height: 1.3; }
+.chat-markdown > :first-child { margin-top: 0; }
+.chat-markdown h1 { font-size: 1.25em; }
+.chat-markdown h2 { font-size: 1.15em; }
+.chat-markdown h3 { font-size: 1.05em; }
+.chat-markdown :is(ul, ol) { padding-left: 1.4em; }
+.chat-markdown ul { list-style: disc; }
+.chat-markdown ol { list-style: decimal; }
+.chat-markdown li + li, .chat-markdown li > :is(ul, ol) { margin-top: 0.3em; }
+.chat-markdown li::marker { color: var(--muted-foreground); }
+.chat-markdown a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.chat-markdown strong { font-weight: 700; }
+.chat-markdown code { padding: 0.1em 0.3em; border-radius: 4px; background: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.chat-markdown pre { overflow-x: auto; padding: 10px 12px; border-radius: 6px; background: var(--muted); }
+.chat-markdown pre code { padding: 0; background: none; }
+.chat-markdown blockquote { padding-left: 12px; border-left: 2px solid var(--border); color: var(--muted-foreground); }
+.chat-markdown hr { border: 0; border-top: 1px solid var(--border); }
+.chat-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 0.95em; }
+.chat-markdown :is(th, td) { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.chat-markdown th { font-weight: 700; background: var(--muted); }
 .chat-speaker { font-size: 13px; font-weight: 700; }
 .chat-speaker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .chat-status { display: inline-flex; align-items: center; gap: 8px; color: var(--signal-ai-text); font-size: 13px; }

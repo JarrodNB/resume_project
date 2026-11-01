@@ -2,9 +2,11 @@
  * Shows a chat's messages in a scrolling area with the message box pinned below it.
  * Temporary reply text is marked as live until it is saved. Which design option draws it
  * (rows, a line of stops, or bubbles) is decided by CSS from the page's layout setting.
+ * Assistant replies are drawn as Markdown; the user's own words stay plain text.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SendHorizontal } from 'lucide-react'
+import { ChatMarkdown } from './ChatMarkdown'
 import { ChatReplyFeedback } from './ChatReplyFeedback'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -55,7 +57,7 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
       <ol className="chat-messages">
         {messages.map((message) => <li key={message.id} className="chat-message" data-role={message.role === 'user' ? 'user' : 'assistant'}>
           <p className="chat-speaker">{message.role === 'user' ? 'You' : 'Careergrind'}</p>
-          <p className="chat-text">{message.content}</p>
+          {message.role === 'user' ? <p className="chat-text">{message.content}</p> : <ChatMarkdown content={message.content} />}
           {message.role === 'assistant' && <ChatReplyFeedback conversationId={conversationId} messageId={message.id} thumbsDown={message.thumbsDown} thumbsUp={message.thumbsUp} />}
         </li>)}
         {pendingMessage && <li className="chat-message" data-role="user">
@@ -70,7 +72,7 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
               {turn.provisional ? 'Writing reply…' : 'Preparing your reply…'}
             </p>}
           </div>
-          {turn.provisional && <p className="chat-text">{turn.provisional}{turn.pending && <span aria-hidden="true" className="chat-writing-cursor" />}</p>}
+          {turn.provisional && <ChatMarkdown content={turn.provisional}>{turn.pending && <span aria-hidden="true" className="chat-writing-cursor" />}</ChatMarkdown>}
         </li>}
       </ol>
       {refreshError && <div className="chat-alert">

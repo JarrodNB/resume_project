@@ -101,6 +101,10 @@ Both Rails and FastAPI must enable `AI_STREAMING_ENABLED=true`. Configure the ex
 `AI_STREAM_REDIS_URL` and exact `AI_BROWSER_ORIGINS` for the deployed browser origin.
 See [streaming](ai-streaming.md) for replay, authorization, lease and runtime rules.
 
+Assistant replies are Markdown. The web app renders saved and streamed replies with
+`react-markdown` + GFM (`ChatMarkdown`); raw HTML is dropped and unsafe link targets are
+removed. User messages stay plain text. Saved content is stored as the model wrote it.
+
 ## Context and limits
 
 `CHAT_MAX_INPUT_CHARACTERS` defaults to 10,000 characters per user message.

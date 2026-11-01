@@ -16,11 +16,11 @@ module CareerLibrary
     def call
       experiences = Experience.where(user_id: @user.id).includes(:highlights)
       entries = experiences.flat_map { |experience| experience_entries(experience) }
-      entries += Project.where(user_id: @user.id).map { |project| entry(project, project_text(project)) }
-      entries += Education.where(user_id: @user.id).map { |education| entry(education, education_text(education)) }
-      entries += Certification.where(user_id: @user.id).map { |certification| entry(certification, certification_text(certification)) }
-      entries += Skill.where(user_id: @user.id).map { |skill| entry(skill, skill_text(skill)) }
-      entries += CareerContext.where(user_id: @user.id).order(:created_at).map { |context| entry(context, career_context_text(context)) }
+      entries.concat(Project.where(user_id: @user.id).map { |project| entry(project, project_text(project)) })
+      entries.concat(Education.where(user_id: @user.id).map { |education| entry(education, education_text(education)) })
+      entries.concat(Certification.where(user_id: @user.id).map { |certification| entry(certification, certification_text(certification)) })
+      entries.concat(Skill.where(user_id: @user.id).map { |skill| entry(skill, skill_text(skill)) })
+      entries.concat(CareerContext.where(user_id: @user.id).order(:created_at).map { |context| entry(context, career_context_text(context)) })
       success(entries)
     end
 

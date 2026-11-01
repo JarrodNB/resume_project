@@ -416,7 +416,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .chat-markdown li::marker { color: var(--muted-foreground); }
 .chat-markdown a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
 .chat-markdown strong { font-weight: 700; }
-.chat-markdown code { padding: 0.1em 0.3em; border-radius: 4px; background: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.chat-markdown code { padding: 0.1em 0.3em; border-radius: 4px; background: var(--muted); font-family: var(--font-mono, monospace); font-size: 0.9em; }
 .chat-markdown pre { overflow-x: auto; padding: 10px 12px; border-radius: 6px; background: var(--muted); }
 .chat-markdown pre code { padding: 0; background: none; }
 .chat-markdown blockquote { padding: 8px 12px; border-radius: 6px; background: var(--secondary); color: var(--muted-foreground); }

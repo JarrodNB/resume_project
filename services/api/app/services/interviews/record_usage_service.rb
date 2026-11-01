@@ -30,16 +30,10 @@ module Interviews
         if @observation_id
           report = @operation.ai_task.ai_usage_attempts.find_by!(attempt_id: @observation_id)
           if report.finalized? && !report.incomplete?
-            next @incomplete || report.usage == entries ? success(false) : failure("Provider usage conflicts")
+            next @incomplete || AiUsage::AttemptEntries.matches?(report, entries) ? success(false) : failure("Provider usage conflicts")
           end
-          # Scoped reconciliation: queued-task finalized report semantics stay unchanged.
-          if report.finalized? && report.incomplete? && !@incomplete
-            report.update!(finalized: false)
-            prior = AiTasks::RecordAttemptUsageService::COLUMNS.index_with do |column|
-              @operation.ai_task.public_send(column) - report.usage.sum { |entry| entry.fetch(column, 0) }
-            end
-            @operation.ai_task.update!(prior)
-          end
+          # Scoped reconciliation: reopening lets the recorder replace old rows and move totals by the change.
+          report.update!(finalized: false) if report.finalized? && report.incomplete? && !@incomplete
           if @operation.interview_session.execution_mode == "real" && !@incomplete
             VerificationBudget.reconcile(observation_id: @observation_id, cost: @usage.first.fetch("cost_microdollars"))
           end

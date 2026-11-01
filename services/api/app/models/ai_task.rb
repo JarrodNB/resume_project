@@ -24,6 +24,7 @@ class AiTask < ApplicationRecord
   belongs_to :subject, polymorphic: true, optional: true
   has_one_attached :source_file
   has_many :ai_usage_attempts, dependent: :destroy
+  has_many :ai_usage_entries, dependent: :delete_all
   has_many :ai_task_outcomes, dependent: :delete_all
   belongs_to :hourly_admission_task, class_name: "AiTask", optional: true
   attr_readonly :hourly_admission_task_id

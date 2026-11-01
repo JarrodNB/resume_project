@@ -85,7 +85,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   dialogue and durable turn/speech work. Composite foreign keys keep linked records in
   one interview. Lifecycle policy stays in `Interviews` services. `InterviewExecutionAttempt`
   and `InterviewProviderAttempt` bind durable execution/provider identities to shared
-  AiUsageAttempt ledger entries; missing reports remain incomplete.
+  AiUsageAttempt ledger entries, whose AiUsageEntry rows hold per-response usage;
+  missing reports remain incomplete.
 
 - `interview_session_feedback.rb` — one retained coaching result and latest queue attempt per completed interview, separate from accepted dialogue. Session destruction delegates feedback payload scrubbing before its dependent record disappears.
 

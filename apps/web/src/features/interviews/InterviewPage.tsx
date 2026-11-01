@@ -16,7 +16,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { useFocusMode } from '@/components/useFocusMode'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { ArrowLeft, Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, Mic, Pause, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
@@ -156,6 +156,7 @@ function OwnedInterview({ id }: { id: string }) {
     : recorder.status === 'finalizing' ? 'Finalizing your transcript'
     : recorder.status === 'recording' ? 'Your turn — recording'
     : recorder.status === 'requesting' ? 'Allow microphone access'
+    : recorder.status === 'ready' ? 'Recording paused'
     : draftText || recorder.candidateTranscript ? 'Review your answer'
     : recorder.recording ? 'Review your recording'
     : !hasQuestionText ? 'Waiting for your question'
@@ -193,7 +194,7 @@ function OwnedInterview({ id }: { id: string }) {
               <Button variant="destructive" disabled={transcriptionSettingsLocked} onClick={() => switchTranscriptionMode(pendingTranscriptionMode)}>Discard and switch</Button>
             </div>
           </div>}
-          {transcriptionSettingsLocked && <p className="text-sm text-muted-foreground">Stop recording and wait for processing to finish before changing the mode for your next recording.</p>}
+          {transcriptionSettingsLocked && <p className="text-sm text-muted-foreground">Pause recording and wait for processing to finish before changing the mode for your next recording.</p>}
         </DialogContent>
       </Dialog>}
     </div>
@@ -227,7 +228,7 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
-      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="destructive" onClick={answer.stop}><Square size={20} fill="currentColor" />{recorder.fallbackReason ? 'Stop recording to transcribe' : 'Stop recording'}</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
+      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
         capturing={answer.capturing}
         disabled={!canRecord}
         onSubmit={answer.submit} />
@@ -236,15 +237,16 @@ function OwnedInterview({ id }: { id: string }) {
           <Button variant="outline" disabled={recordingLocked} onClick={answer.discardRecording}>Discard recording</Button>
           <Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button>
       </div>}
-      {recorder.status === 'finalizing' && <p role="status">Finalizing recognition before review…</p>}
+      {recorder.status === 'ready' && <p className="text-sm text-muted-foreground">{answer.review.canTranscribe && !draftText ? 'Continue recording to add more, or transcribe your recording to review the words.' : 'Continue recording to add more, or review and submit your answer.'}</p>}
+      {recorder.status === 'finalizing' && <p role="status">Finishing transcription before review…</p>}
       {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={answer.cancelReview}>Cancel transcription</Button></div>}
       {answer.review.canRestore && <Button variant="outline" onClick={answer.reviewSavedTranscript}>Review saved transcript</Button>}
       {(reviewOperation?.status === 'failed' || reviewOperation?.status === 'expired') && <div className="grid gap-2"><p role="alert">Transcription unavailable. Your recording and any edited text are retained.</p>{reviewOperation.canRetry && <Button variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(reviewOperation.id)}>Retry transcription</Button>}</div>}
       {recorder.recording && <RecordingReview recording={recorder.recording} />}
-      {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
-      {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
-      {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
-      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Stop recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : savingRecording || reviewPending ? 'Transcribing your retained recording. Your edited answer stays under your control.' : answer.review.reviewed ? 'Review and edit your answer before submitting. Your recording is retained.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
+      {recorder.status === 'recording' && <p role="status">Recording… Up to 2 minutes of total recording time.</p>}
+      {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, pause recording and choose Transcribe recording. You can also type your answer.</p></div>}
+      {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Pause recording, then choose Transcribe recording to see the words.</p>}
+      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Pause recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : savingRecording || reviewPending ? 'Transcribing your retained recording. Your edited answer stays under your control.' : answer.review.reviewed ? 'Review and edit your answer before submitting. Your recording is retained.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}

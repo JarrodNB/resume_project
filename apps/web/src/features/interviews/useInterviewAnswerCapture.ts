@@ -34,6 +34,7 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
   const terminal = abandoned || interview?.status === 'abandoned' || interview?.status === 'completed' || interview?.status === 'expired'
   const draft = useAnswerDraft(context)
   const recorder = useInterviewRecorder(recorderOptions)
+  const recordedTranscript = useRef<string | null>(null)
   const captureTicket = useRef<Ticket | null>(null)
   const [lifecycle, setLifecycle] = useState<ReviewLifecycle>({ review: { kind: 'none' }, upload: null })
   // An invalidated upload still holds the upload slot until its receipt arrives.
@@ -67,11 +68,13 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
   }, [recorder.status, recorder.transcript, previewCapture])
   useEffect(() => {
     if (recorder.status !== 'ready' || !recorder.candidateTranscript || !captureTicket.current) return
+    recordedTranscript.current = [recordedTranscript.current, recorder.candidateTranscript].filter(Boolean).join(' ')
     finishCapture(captureTicket.current, recorder.candidateTranscript)
     captureTicket.current = null
   }, [recorder.status, recorder.candidateTranscript, finishCapture])
   useEffect(() => {
     if (selectedReview?.ticket && operation?.status === 'accepted' && operation.reviewTranscript) {
+      recordedTranscript.current = operation.reviewTranscript
       finishCapture(selectedReview.ticket, operation.reviewTranscript)
     }
   }, [selectedReview, operation, finishCapture])
@@ -83,6 +86,7 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
     previousContext.current = context
     if (terminal || changed) {
       captureTicket.current = null
+      recordedTranscript.current = null
       changeReview({ kind: 'none' })
       if (status !== 'idle') reset()
     }
@@ -99,7 +103,17 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
     cancelReview()
     changeReview({ kind: 'none' })
     captureTicket.current = draft.beginCapture()
+    recordedTranscript.current = null
     void recorder.start()
+  }
+  function resume() {
+    cancelReview()
+    changeReview({ kind: 'none' })
+    captureTicket.current = draft.beginCapture()
+    if (recorder.effectiveMode === 'recorded' && recordedTranscript.current) {
+      captureTicket.current = draft.beginCapture(recordedTranscript.current)
+    }
+    recorder.resume()
   }
   function edit(text: string) {
     if (capturing) draft.editCapture(text)
@@ -107,6 +121,7 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
   }
   function discardRecording() { cancelReview(); recorder.reset() }
   function clearDraft() {
+    recordedTranscript.current = null
     draft.setText('')
     recorder.reset()
     changeReview({ kind: 'none' })
@@ -147,7 +162,7 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
   }
   const reviewed = selectedReview !== null || (review.kind === 'dismissed' && review.recording === recorder.recording)
   return {
-    text: draft.text, edit, start, stop: recorder.stop, discardRecording, clear, changeMode, submit, cancelReview, transcribe, reviewSavedTranscript,
+    text: draft.text, edit, start, resume, stop: recorder.stop, discardRecording, clear, changeMode, submit, cancelReview, transcribe, reviewSavedTranscript,
     terminal, capturing,
     recorder: {
       status: recorder.status, recording: recorder.recording, error: recorder.error,

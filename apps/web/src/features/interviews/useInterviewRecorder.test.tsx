@@ -13,6 +13,11 @@ class FakeRecorder {
   onstop: (() => void) | null = null
   onerror: (() => void) | null = null
   constructor(_stream: MediaStream, options?: MediaRecorderOptions) { FakeRecorder.latest = this; FakeRecorder.options = options }
+  pauseListener: (() => void) | undefined
+  addEventListener(_event: string, callback: () => void) { this.pauseListener = callback }
+  pause() { this.state = 'paused'; this.pauseListener?.() }
+  resume() { this.state = 'recording' }
+  requestData() { this.chunk(new Blob([])) }
   start() { this.state = 'recording' }
   stop() { this.state = 'inactive'; this.onstop?.() }
   chunk(data: Blob) { this.ondataavailable?.({ data }) }
@@ -26,7 +31,7 @@ describe('useInterviewRecorder', () => {
     vi.useFakeTimers()
     stopTrack = vi.fn()
     ended = undefined
-    stream = { getTracks: () => [{ stop: stopTrack, addEventListener: (_event: string, callback: () => void) => { ended = callback } }] } as unknown as MediaStream
+    stream = { getAudioTracks: () => [], getTracks: () => [{ stop: stopTrack, addEventListener: (_event: string, callback: () => void) => { ended = callback } }] } as unknown as MediaStream
     vi.stubGlobal('MediaRecorder', FakeRecorder)
     FakeRecorder.isTypeSupported.mockReturnValue(true)
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue(stream) } })
@@ -50,10 +55,33 @@ describe('useInterviewRecorder', () => {
     expect(result.current.status).toBe('ready')
     expect(result.current.recording?.type).toBe('audio/webm;codecs=opus')
     expect(result.current.recording?.size).toBe(6)
-    expect(stopTrack).toHaveBeenCalled()
+    expect(stopTrack).not.toHaveBeenCalled()
     act(() => result.current.reset())
+    expect(stopTrack).toHaveBeenCalled()
     expect(result.current.recording).toBeNull()
     expect(result.current.status).toBe('idle')
+  })
+
+  it.each(['browser', 'streaming', 'recorded'] as const)('continues the same audio container in %s mode without counting paused time', async (mode) => {
+    vi.stubGlobal('SpeechRecognition', undefined)
+    const startStreaming = vi.fn(() => ({ finish: async () => 'spoken words', cancel: vi.fn() }))
+    const { result } = renderHook(() => useInterviewRecorder({ mode, startStreaming }))
+    await act(() => result.current.start())
+    const original = FakeRecorder.latest
+    act(() => { original.chunk(new Blob(['first'])); vi.advanceTimersByTime(60_000) })
+    await act(async () => result.current.stop())
+    expect(result.current.status).toBe('ready')
+    act(() => vi.advanceTimersByTime(180_000))
+    expect(result.current.error).toBeNull()
+    act(() => result.current.resume())
+    expect(FakeRecorder.latest).toBe(original)
+    expect(result.current.recording).toBeNull()
+    act(() => original.chunk(new Blob(['second'])))
+    await act(async () => result.current.stop())
+    expect(result.current.recording?.size).toBe(11)
+    act(() => result.current.resume())
+    act(() => vi.advanceTimersByTime(60_000))
+    expect(result.current.error).toMatch(/2 minutes/)
   })
 
   it('discards recordings at the time and size limits', async () => {
@@ -143,7 +171,7 @@ describe('useInterviewRecorder', () => {
 describe('recording with live transcription', () => {
   it('retains audio and visibly falls back when browser recognition is unsupported', async () => {
     const stopTrack = vi.fn()
-    const stream = { getTracks: () => [{ stop: stopTrack, addEventListener: vi.fn() }] } as unknown as MediaStream
+    const stream = { getAudioTracks: () => [], getTracks: () => [{ stop: stopTrack, addEventListener: vi.fn() }] } as unknown as MediaStream
     vi.stubGlobal('MediaRecorder', FakeRecorder)
     vi.stubGlobal('SpeechRecognition', undefined)
     vi.stubGlobal('webkitSpeechRecognition', undefined)
@@ -160,7 +188,7 @@ describe('recording with live transcription', () => {
     unmount(); vi.unstubAllGlobals()
   })
   it('waits for recognition finalization before review and ignores completion after discard', async () => {
-    const stream = { getTracks: () => [{ stop: vi.fn(), addEventListener: vi.fn() }] } as unknown as MediaStream
+    const stream = { getAudioTracks: () => [], getTracks: () => [{ stop: vi.fn(), addEventListener: vi.fn() }] } as unknown as MediaStream
     vi.stubGlobal('MediaRecorder', FakeRecorder)
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue(stream) } })
     let resolve!: (text: string | null) => void

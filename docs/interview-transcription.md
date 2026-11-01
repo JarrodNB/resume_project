@@ -20,6 +20,14 @@ untrusted candidate input and goes through the same newest-answer screening and 
 turn acceptance as a transcribed recording. Failed recognition does not create a second
 turn. Microphone denial cannot fall back without captured audio.
 
+Pause recording pauses the answer in every input mode. Continue recording resumes the
+same MediaRecorder container and retains earlier audio and edited text. Paused tracks
+are disabled; the device is released on discard, re-record, submission, navigation,
+or session completion. Recognition finishes at each pause and restarts on continuation.
+The two-minute limit counts total active recording time, excluding pauses; the 10 MiB
+limit applies to the complete answer. A paused answer can be previewed, transcribed,
+edited, or submitted without continuing. Continuing waits for pending transcription.
+
 ## Microphone capture
 
 Answer capture requests mono audio with echo cancellation, noise suppression, and

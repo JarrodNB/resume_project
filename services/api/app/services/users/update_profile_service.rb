@@ -28,16 +28,11 @@ module Users
     # Turns blank strings into nil and drops blank links. Omitted keys are left unchanged.
     def normalized_attributes
       @attributes.to_h.symbolize_keys.to_h do |key, value|
-        [ key, normalize(key, value) ]
+        next [ key, compact_links(value) ] if key == :links
+
+        value = value.strip.presence if STRING_FIELDS.include?(key) && value.is_a?(String)
+        [ key, value ]
       end
-    end
-
-    # Clears a blank string field, or drops blank entries from links.
-    def normalize(key, value)
-      return compact_links(value) if key == :links
-      return value.strip.presence if STRING_FIELDS.include?(key) && value.is_a?(String)
-
-      value
     end
 
     # Keeps links with both a label and URL. An empty list clears the column.

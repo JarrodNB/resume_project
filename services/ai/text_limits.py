@@ -9,6 +9,8 @@ Index:
     - MAX_SORT_BULLETS / MAX_SORT_BULLET_TEXT: the requirements sorting agent
     - MAX_SHORT_TEXT / MAX_BULLET_TEXT / MAX_JOB_DESCRIPTION / MAX_REQUIREMENT_ITEMS:
       the same caps Rails uses when it saves a scraped job
+    - MAX_PROSE_TEXT / MAX_CAREER_CONTEXTS: Rails `TextLimits::PROSE` and
+      `TextLimits::MAX_CAREER_CONTEXTS`, checked before chat stages a career context
     - prompt_is_too_long / sorting_input_too_long: the checks
     - RESUME_TOO_LONG_MESSAGE / GAP_PROMPT_TOO_LONG_MESSAGE / TAILOR_PROMPT_TOO_LONG_MESSAGE /
       TAILOR_LIBRARY_TOO_LONG_MESSAGE /
@@ -28,6 +30,8 @@ MAX_JOB_URL = 2048
 MAX_BULLET_TEXT = 1_000
 MAX_JOB_DESCRIPTION = 20_000
 MAX_REQUIREMENT_ITEMS = 80
+MAX_PROSE_TEXT = 4_000
+MAX_CAREER_CONTEXTS = 100
 
 JOB_AD_TOO_LONG_MESSAGE = "This job posting is too long to parse. Paste a shorter ad, or add the job manually."
 

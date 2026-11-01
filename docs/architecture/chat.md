@@ -46,7 +46,7 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   the library is unavailable. An empty library returns a plain sentence.
 - **No sampling.** The toolset never lets the server call a model.
 
-A reply run allows three tool calls and 12 model requests (each tool round trip is
+A reply run allows four tool calls and 12 model requests (each tool round trip is
 another request). Text written before a tool call is kept: the saved reply joins the
 text of every model response in the run, so it always matches what was streamed.
 Repeated calls with the same arguments in one run reuse the first result.
@@ -211,7 +211,7 @@ chat acceptance. The existing per-run cache avoids repeating reads and screening
 Selection references are 45-character signed identities, bound to the token's user and
 operation and expiring with the token (at most ten minutes). All replicas share the signing
 secret; references contain no source snapshots and need no in-memory registry. Detail resolution still filters by current owner and active status. The existing
-three-tool-call limit supports listing, detail, and career-library advice together.
+four-tool-call limit supports listing, detail, career-library advice and one save together.
 
 ### Selected saved-job summary
 
@@ -224,7 +224,7 @@ Missing/deleted/archived selections are unavailable. Invalid references and data
 failures expose no database details. The complete summary must fit 40,000 characters.
 Saved approvals are reused; unchecked used fields pass through the caller's accounted
 screen and exact receipts return through fenced chat acceptance. Location edits discard
-saved location approvals. List, summary, and career-library reads fit the three-tool reply limit.
+saved location approvals. List, summary, and career-library reads fit the four-tool reply limit with room for one save.
 The eval runner serves synthetic jobs locally and never falls back to database reads.
 Receipts for the same record and revision merge checked field fingerprints, keeping the
 latest checked value. Listing 500 jobs then reading one summary stays within the existing
@@ -249,6 +249,8 @@ No existing text enters the prompt through this check. Database failure produces
 truthful unavailable result while ordinary chat can continue. Topics are limited to
 1,000 characters, responses to 4,000 and the library to 100 entries. Exact repeated
 calls reuse one proposal; a second distinct save in the same turn is rejected.
+The topic, response and entry caps come from `text_limits.py`, which mirrors Rails
+`TextLimits`. Its span records only the tool version and outcome.
 
 The proposal is attempt-local and private placeholders are restored before comparison
 and transport. A successful tool call means pending, not durable. Python returns the

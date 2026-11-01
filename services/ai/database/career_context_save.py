@@ -4,6 +4,7 @@ Only a status reaches the model; saved text stays in the database. Rails repeats
 these checks under the owner lock when accepting the reply and proposal.
 """
 from database.open_read_only_connection import open_read_only_connection
+from text_limits import MAX_CAREER_CONTEXTS
 
 
 def check_career_context_save(connection, user_id, requirement, response):
@@ -12,14 +13,15 @@ def check_career_context_save(connection, user_id, requirement, response):
             SELECT EXISTS(SELECT 1 FROM career_contexts WHERE user_id = %(user_id)s
                           AND requirement = %(requirement)s) AS topic_exists,
                    EXISTS(SELECT 1 FROM career_contexts WHERE user_id = %(user_id)s
-                          AND requirement = %(requirement)s AND response = %(response)s) AS exact_exists,
+                          AND requirement = %(requirement)s
+                          AND response = %(response)s) AS exact_exists,
                    (SELECT count(*) FROM career_contexts WHERE user_id = %(user_id)s) AS total
         """, {"user_id": user_id, "requirement": requirement, "response": response}).fetchone()
     if row["exact_exists"]:
         return "already_saved"
     if row["topic_exists"]:
         return "conflict"
-    return "full" if row["total"] >= 100 else "ready"
+    return "full" if row["total"] >= MAX_CAREER_CONTEXTS else "ready"
 
 
 def build_context_save_check(settings):

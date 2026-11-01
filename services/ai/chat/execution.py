@@ -247,7 +247,7 @@ class ChatExecutionAdapter:
         # Each tool round trip is another accounted model request, on top of retries and fallback.
         async with agent.iter(turn.prompt, message_history=history, model=self._model(claim, "reply"),
                 model_settings={"thinking": False, "max_tokens": 2400}, usage=usage,
-                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=3, total_tokens_limit=128000)) as run:
+                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=4, total_tokens_limit=128000)) as run:
             async for node in run:
                 if not Agent.is_model_request_node(node):
                     continue

@@ -21,6 +21,13 @@ it('exports readable ordered content and clickable contact links while omitting 
   ])
   const blob = await generateResumePdf(model)
   expect(blob.type).toBe('application/pdf')
+  const [geometry] = await readPdfGeometry(blob)
+  for (const text of ['Ada Lovelace', 'ada@example.com', 'Portfolio']) {
+    const line = geometry.lines.find((line) => line.text === text)!
+    expect(line).toBeDefined()
+    expect((line.left + line.right) / 2).toBeCloseTo(geometry.width / 2, 0)
+  }
+  expect(geometry.lines.find((line) => line.text === 'Building useful software.')!.left).toBeCloseTo(48, 0)
   const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
   const pdf = await loading.promise
   try {

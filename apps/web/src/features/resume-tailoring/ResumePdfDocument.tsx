@@ -7,8 +7,8 @@ import type { ResumePdfBlock, ResumePdfEntry, ResumePdfModel } from './resumePdf
 
 const styles = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 40, paddingHorizontal: 48, fontFamily: 'Helvetica', fontSize: 10, lineHeight: 1.35, color: '#1a1a1a' },
-  name: { fontFamily: 'Helvetica-Bold', fontSize: 18, marginBottom: 4 },
-  contact: { fontSize: 9, color: '#333333', marginBottom: 2 },
+  name: { fontFamily: 'Helvetica-Bold', fontSize: 18, marginBottom: 4, textAlign: 'center' },
+  contact: { fontSize: 9, color: '#333333', marginBottom: 2, textAlign: 'center' },
   sectionTitle: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 11,

@@ -26,6 +26,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage, UsageLimits
 
 from agents.chat_agent import make_chat_agent
@@ -235,7 +236,7 @@ class ChatExecutionAdapter:
         # screened here on this claim's accounted screen before the model sees it.
         tools = self.tool_server.toolset(user_id=claim.payload.user_id, operation_id=claim.operation_id,
             expires_at=claim.execution_deadline, screen=lambda text: self._screen_decision(claim, text))
-        agent = make_chat_agent(turn.guard, toolsets=[tools], save_career_context=proposal.save_career_context)
+        agent = make_chat_agent(turn.guard, toolsets=[tools, FunctionToolset([proposal.save_career_context])])
         if output:
             await output.emit("started")
         published, last_publish = "", 0.0

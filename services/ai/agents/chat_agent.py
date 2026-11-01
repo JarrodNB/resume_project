@@ -12,14 +12,11 @@ from privacy.contact_mask import _mask_request
 from prompts.chat_instructions import CHAT_INSTRUCTIONS
 
 
-def make_chat_agent(guard, toolsets=(), save_career_context=None):
+def make_chat_agent(guard, toolsets=()):
     agent = Agent(name="career_chat", output_type=str, instructions=CHAT_INSTRUCTIONS,
                   defer_model_check=True, retries=1, toolsets=list(toolsets),
                   capabilities=[ConversationLogging(), Hooks(before_model_request=_mask_request),
                                 InputGuardrail(guard=guard)])
-
-    if save_career_context is not None:
-        agent.tool_plain(save_career_context)
 
     @agent.output_validator
     def bounded_reply(output: str):

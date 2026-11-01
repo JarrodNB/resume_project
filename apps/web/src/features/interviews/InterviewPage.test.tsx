@@ -95,6 +95,23 @@ describe('InterviewPage', () => {
     expect(screen.getByText('Original Labs')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
   })
+  it('shows a waiting line with readable steps instead of raw operation states while preparing', () => {
+    vi.useFakeTimers()
+    try {
+      state.interview = { ...snapshot, status: 'preparing', questions: [], preparedRole: null, jobContext: null,
+        operations: [{ id: 'prep', questionId: null, messageId: null, kind: 'preparation', status: 'pending', failureCode: null, checkpoint: null, submissionKey: null, canRetry: false }] }
+      renderInterview()
+      expect(screen.getByRole('status')).toHaveTextContent('Preparing your interview…')
+      expect(screen.getByText('Waiting to start…')).toBeVisible()
+      expect(screen.queryByText(/pending/)).not.toBeInTheDocument()
+      state.interview = { ...(state.interview as typeof snapshot), operations: [{ ...(state.interview as typeof snapshot).operations[0], status: 'running' }] }
+      act(() => { recorder.refresh() })
+      expect(screen.getByText('Looking through your career library…')).toBeVisible()
+      act(() => { vi.advanceTimersByTime(4000) })
+      expect(screen.getByText('Imagining a role that fits your background…')).toBeVisible()
+      expect(screen.queryByText(/running/)).not.toBeInTheDocument()
+    } finally { vi.useRealTimers() }
+  })
   it('identifies the frozen job and offers return navigation when resuming an active interview', () => {
     state.interview = { ...snapshot, jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
     renderInterview()

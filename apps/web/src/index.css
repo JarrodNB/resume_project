@@ -379,35 +379,35 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 @keyframes chat-writing-pulse { 50% { opacity: 0.35; } }
 
-/* Before the first words: a blue signal shuttles along three stops, pausing at each one,
+/* AI waiting line (chat replies, interview preparation): a blue signal shuttles along three stops, pausing at each one,
    and each stop lights up while the signal sits on it. The runner spans the whole track so
    translateX(100%) carries the signal to the last stop without animating layout. */
-.chat-waiting { display: grid; justify-items: start; gap: 10px; padding-top: 4px; animation: chat-waiting-in 240ms var(--ease-out-strong); }
-.chat-transit { position: relative; display: flex; justify-content: space-between; align-items: center; width: 9rem; height: 14px; }
-.chat-transit::before { content: ""; position: absolute; inset-inline: 5px; top: 50%; height: 2px; margin-top: -1px; background: var(--border); }
-.chat-transit-stop { position: relative; box-sizing: border-box; width: 10px; height: 10px; border: 2px solid var(--stop-closed); border-radius: 50%; background: var(--background); animation: 1.8s ease-in-out infinite alternate; }
-.chat-transit-stop:nth-child(1) { animation-name: chat-transit-stop-first; }
-.chat-transit-stop:nth-child(2) { animation-name: chat-transit-stop-middle; }
-.chat-transit-stop:nth-child(3) { animation-name: chat-transit-stop-last; }
-.chat-transit-runner { position: absolute; inset: 0 10px 0 0; animation: chat-transit-run 1.8s ease-in-out infinite alternate; }
-.chat-transit-signal { position: absolute; left: 0; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--signal-ai); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal-ai) 22%, transparent); }
-@keyframes chat-transit-run {
+.ai-waiting { display: grid; justify-items: start; gap: 10px; padding-top: 4px; animation: ai-waiting-in 240ms var(--ease-out-strong); }
+.ai-transit { position: relative; display: flex; justify-content: space-between; align-items: center; width: 9rem; height: 14px; }
+.ai-transit::before { content: ""; position: absolute; inset-inline: 5px; top: 50%; height: 2px; margin-top: -1px; background: var(--border); }
+.ai-transit-stop { position: relative; box-sizing: border-box; width: 10px; height: 10px; border: 2px solid var(--stop-closed); border-radius: 50%; background: var(--background); animation: 1.8s ease-in-out infinite alternate; }
+.ai-transit-stop:nth-child(1) { animation-name: ai-transit-stop-first; }
+.ai-transit-stop:nth-child(2) { animation-name: ai-transit-stop-middle; }
+.ai-transit-stop:nth-child(3) { animation-name: ai-transit-stop-last; }
+.ai-transit-runner { position: absolute; inset: 0 10px 0 0; animation: ai-transit-run 1.8s ease-in-out infinite alternate; }
+.ai-transit-signal { position: absolute; left: 0; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--signal-ai); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal-ai) 22%, transparent); }
+@keyframes ai-transit-run {
   0%, 12% { transform: translateX(0); }
   42%, 58% { transform: translateX(50%); }
   88%, 100% { transform: translateX(100%); }
 }
-@keyframes chat-transit-stop-first { 0%, 14% { transform: scale(1.3); border-color: var(--signal-ai); } 30%, 100% { transform: none; } }
-@keyframes chat-transit-stop-middle { 0%, 32% { transform: none; } 44%, 56% { transform: scale(1.3); border-color: var(--signal-ai); } 68%, 100% { transform: none; } }
-@keyframes chat-transit-stop-last { 0%, 70% { transform: none; } 86%, 100% { transform: scale(1.3); border-color: var(--signal-ai); } }
-.chat-waiting-caption { color: var(--signal-ai-text); font-size: 13px; }
-.chat-waiting-phrase { display: inline-block; animation: chat-waiting-in 260ms var(--ease-out-strong); }
-@keyframes chat-waiting-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes ai-transit-stop-first { 0%, 14% { transform: scale(1.3); border-color: var(--signal-ai); } 30%, 100% { transform: none; } }
+@keyframes ai-transit-stop-middle { 0%, 32% { transform: none; } 44%, 56% { transform: scale(1.3); border-color: var(--signal-ai); } 68%, 100% { transform: none; } }
+@keyframes ai-transit-stop-last { 0%, 70% { transform: none; } 86%, 100% { transform: scale(1.3); border-color: var(--signal-ai); } }
+.ai-waiting-caption { color: var(--signal-ai-text); font-size: 13px; }
+.ai-waiting-phrase { display: inline-block; animation: ai-waiting-in 260ms var(--ease-out-strong); }
+@keyframes ai-waiting-in { from { opacity: 0; transform: translateY(4px); } }
 
 @media (prefers-reduced-motion: reduce) {
   .chat-writing-dot, .chat-writing-cursor { animation: none; }
   /* Hold the signal still on the middle stop; the changing caption still shows work is happening. */
-  .chat-transit-stop, .chat-transit-runner { animation: none; }
-  .chat-transit-runner { transform: translateX(50%); }
+  .ai-transit-stop, .ai-transit-runner { animation: none; }
+  .ai-transit-runner { transform: translateX(50%); }
 }
 
 /* Chat: saved chats, the conversation with ordinary bubbles, and a plain notes panel side by side. */

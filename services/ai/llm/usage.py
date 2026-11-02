@@ -21,7 +21,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage, RunUsage
 
 from conversation_logging import observe_request
-from llm.model_prices import build_model_usage, reported_model_name
+from llm.model_prices import SHORT_CONTEXT_MODELS, build_model_usage, reported_model_name
 from schemas.model_usage import ModelUsage
 
 
@@ -116,8 +116,8 @@ class AccountedModel(WrapperModel):
         if budget is not None:
             budget.before_request()
         # The pinned SDK retains total cache writes but loses their lifetime split.
-        # Fix Luna to the priced 30-minute lifetime before issuing any request.
-        if reported_model_name(self.wrapped.model_name, self.wrapped.model_id) == "openai:gpt-6-luna":
+        # Fix these models to the priced 30-minute lifetime before issuing any request.
+        if reported_model_name(self.wrapped.model_name, self.wrapped.model_id) in SHORT_CONTEXT_MODELS:
             model_settings = {**(model_settings or {}), "openai_service_tier": "default",
                               "openai_prompt_cache_options": {"mode": "implicit", "ttl": "30m"}}
         try:

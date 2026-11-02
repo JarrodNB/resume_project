@@ -31,7 +31,8 @@ RSpec.describe "Interview verification allowance" do
 
   [ [ "screening", "typesafe", "jev-1.13.0", 10_000 ],
     [ "screening", "openai", "gpt-5-nano", 50_000 ],
-    [ "interviewer", "openai", "gpt-6-luna", 50_000 ] ].each do |stage, provider, model, amount|
+    [ "interviewer", "openai", "gpt-6-luna", 50_000 ],
+    [ "interviewer", "openai", "gpt-6.1-terra", 150_000 ] ].each do |stage, provider, model, amount|
     it "admits the reviewed #{stage}/#{model} policy and retains unknown usage" do
       id = SecureRandom.uuid
       expect(start(id, stage: stage, provider: provider, model: model)).to be_success

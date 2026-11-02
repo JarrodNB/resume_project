@@ -159,11 +159,16 @@ reservation. Known usage is saved before Pydantic validates output. Zero/missing
 an unexpected response model remains unknown and stops processing. Only the exact approved
 model name (optionally provider-prefixed) is priced; unverified snapshot aliases fail closed.
 The existing pure worker price helper normalizes token usage, including cached tokens.
-Library-informed preparation shares the approved Luna interviewer stage and its existing
-US$0.05 reservation estimate; each concrete request still needs its own durable observation.
+Library-informed preparation shares the interviewer stage. `INTERVIEW_PREPARATION_MODEL` picks its
+model from Luna (default, US$0.05 reservation estimate) or Terra (US$0.15, covering the
+120,000-character prompt cap at one token per character plus 4,096 output tokens). Settings
+reject any other value at startup. Dialogue always uses Luna, and
+the saved `execution_config.interviewer_model` still names Luna because it describes dialogue;
+provider observations record the actual model. Each concrete request still needs its own
+durable observation.
 Only preparation reasoning raises the bounded output cap to 4,096 tokens to fit the role
 and all nine questions. Ordinary interview dialogue and Nano screening remain at 1,024.
-No new model or rate is introduced; the cumulative verification allowance is unchanged.
+The cumulative verification allowance is unchanged.
 Actual usage is reconciled as before.
 
 Full prepared sessions share one hourly admission, while preparation, every turn and every
@@ -175,16 +180,16 @@ its actual bills and unknown markers remain intact in the same durable accountin
 for ownership checks, finite submission limits and task-month attribution.
 
 The interview wrapper explicitly requests Standard (`service_tier: "default"`) pricing.
-Luna uses `prompt_cache_options: {"mode": "explicit"}` without breakpoint markers:
+Luna and Terra use `prompt_cache_options: {"mode": "explicit"}` without breakpoint markers:
 [official caching guidance](https://developers.openai.com/api/docs/guides/prompt-caching)
 confirms this creates no cache writes. The pinned Pydantic mapper preserves total write
 tokens but drops the 30-minute/12-hour split, so silently pricing writes as ordinary input
-would undercount. Unexpected Luna write tokens leave usage unknown and stop later paid
+would undercount. Unexpected Luna or Terra write tokens leave usage unknown and stop later paid
 dispatch when verification is enforced. Local unmetered QA retains the unknown record without
 that global stop. Nano retains its older implicit caching behavior; unrelated worker pricing is
 unchanged.
 
-The feature supports Luna's Standard short-context rates only. If reported input exceeds
+The feature supports Luna's and Terra's Standard short-context rates only. If reported input exceeds
 272,000 tokens, its observation remains unknown instead of applying an unsupported rate.
 The [model contract](https://developers.openai.com/api/docs/models/gpt-6-luna) applies
 higher rates above that boundary. The existing character-bound prompt checks are not a
@@ -193,7 +198,8 @@ unknown-cost record (and enforced stop where enabled), rather than promising a p
 
 Verified 21 October 2026: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
 is US$0.10/0.01/0.50 per million input/cached/output tokens; [Nano](https://developers.openai.com/api/docs/models/gpt-5-nano)
-is US$0.05/0.005/0.40. [Jev 1.13](https://docs.typesafe.ai/models) is US$0.042/million
+is US$0.05/0.005/0.40. Verified 2 November 2026: [Terra](https://developers.openai.com/api/docs/models/gpt-6.1-terra)
+is US$1.00/0.05/5.00, with 30-minute cache writes at US$1.25. [Jev 1.13](https://docs.typesafe.ai/models) is US$0.042/million
 input tokens with free output. Standard default service tier is used. The pinned SDK
 source (`typesafe_sdk.AsyncTypeSafeClient`, `pydantic_ai.providers.typesafe`) supports
 `RetryPolicy(max_retries=0)`; OpenAI uses `AsyncOpenAI(max_retries=0)`. Both transports

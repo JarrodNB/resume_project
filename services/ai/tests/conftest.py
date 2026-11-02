@@ -15,6 +15,8 @@ import os
 
 os.environ["LOGFIRE_SEND_TO_LOGFIRE"] = "false"
 os.environ.pop("LOGFIRE_TOKEN", None)
+# Tests assume the default question-writing model, so a developer override must not change them.
+os.environ.pop("INTERVIEW_PREPARATION_MODEL", None)
 # Tests never reach a real ai-mcp service; tool tests start their own local server.
 os.environ["MCP_TOOLS_SECRET"] = "test-only-mcp-tools-secret-0123456789"
 os.environ["MCP_TOOLS_URL"] = "http://127.0.0.1:9/mcp"

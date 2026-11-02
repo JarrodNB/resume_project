@@ -105,6 +105,15 @@ def test_saved_style_reaches_first_and_resumed_turn_without_stale_persona(monkey
     assert "Focus areas: leadership." in prompt
 
 
+def test_spoken_turn_stays_on_luna_when_question_writing_uses_another_model(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    monkeypatch.setenv("INTERVIEW_PREPARATION_MODEL", "openai:gpt-6.1-terra")
+    client, models = Client(), Models()
+    run(client, models)
+    assert client.accepted and not client.failed
+    assert {name for name, _ in models.prompts} == {"gpt-6-luna"}
+
+
 def test_spoken_turn_does_not_call_injection_classifier(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
     client, models = Client(), Models(blocked=True)

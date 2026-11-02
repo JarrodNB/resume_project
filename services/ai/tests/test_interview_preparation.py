@@ -12,6 +12,7 @@ from pydantic_ai.usage import RequestUsage
 from interviews.client import REAL_CONFIGURATION, Claim
 from interviews.models import InterviewModel
 from interviews.real import RealInterviewExecutor
+from settings import load_settings
 from tests.test_interview_executor import Client
 
 pytestmark = pytest.mark.real_guardrail
@@ -118,6 +119,22 @@ def test_preparation_screens_frozen_sources_and_accepts_complete_accounted_plan(
     assert "laboratory" in models.requests[-1][1]
     assert models.requests[-1][2]["max_tokens"] == 4096
     assert len([item for item in client.calls if item[0] == "start"]) == 1
+
+
+def test_preparation_uses_the_configured_approved_model(monkeypatch):
+    monkeypatch.setenv("INTERVIEW_PREPARATION_MODEL", "openai:gpt-6.1-terra")
+    monkeypatch.setenv("INTERVIEW_QUESTIONS_MODEL", "openai:gpt-5")
+    models = Models()
+    client = run(models)
+    assert not client.failed
+    assert client.accepted == [prepared_output()]
+    assert [item[0] for item in models.requests] == ["gpt-6.1-terra"]
+
+
+def test_settings_reject_an_unaccounted_preparation_model(monkeypatch):
+    monkeypatch.setenv("INTERVIEW_PREPARATION_MODEL", "openai:gpt-5")
+    with pytest.raises(ValidationError):
+        load_settings()
 
 
 def test_preparation_masks_known_contacts_and_does_not_reuse_library_as_role_claims():

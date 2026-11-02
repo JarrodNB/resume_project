@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_31_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_01_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -139,13 +139,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_020000) do
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "ai_task_id", null: false
     t.uuid "attempt_id", null: false
-    t.jsonb "usage", default: [], null: false
     t.boolean "incomplete", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "finalized", default: true, null: false
     t.index ["ai_task_id"], name: "index_ai_usage_attempts_on_ai_task_id"
     t.index ["attempt_id"], name: "index_ai_usage_attempts_on_attempt_id", unique: true
+  end
+
+  create_table "ai_usage_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "ai_usage_attempt_id", null: false
+    t.uuid "ai_task_id", null: false
+    t.integer "position", null: false
+    t.string "stage"
+    t.string "provider"
+    t.string "model"
+    t.string "provider_response_id"
+    t.bigint "input_tokens"
+    t.bigint "cached_input_tokens"
+    t.bigint "cache_write_tokens"
+    t.bigint "output_tokens"
+    t.bigint "audio_milliseconds"
+    t.bigint "characters"
+    t.bigint "cost_microdollars"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_ai_usage_entries_on_ai_task_id"
+    t.index ["ai_usage_attempt_id", "position"], name: "index_ai_usage_entries_on_attempt_and_position", unique: true
+    t.check_constraint "(input_tokens IS NULL OR input_tokens >= 0) AND (cached_input_tokens IS NULL OR cached_input_tokens >= 0) AND (cache_write_tokens IS NULL OR cache_write_tokens >= 0) AND (output_tokens IS NULL OR output_tokens >= 0) AND (audio_milliseconds IS NULL OR audio_milliseconds >= 0) AND (characters IS NULL OR characters >= 0) AND (cost_microdollars IS NULL OR cost_microdollars >= 0)", name: "ai_usage_entry_counts_nonnegative"
+    t.check_constraint "\"position\" >= 0", name: "ai_usage_entry_position_nonnegative"
   end
 
   create_table "ai_usage_reconciliations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -982,6 +1004,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_31_020000) do
   add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"
+  add_foreign_key "ai_usage_entries", "ai_tasks", on_delete: :cascade
+  add_foreign_key "ai_usage_entries", "ai_usage_attempts", on_delete: :cascade
   add_foreign_key "avoided_interview_questions", "users"
   add_foreign_key "career_contexts", "users"
   add_foreign_key "certifications", "users"

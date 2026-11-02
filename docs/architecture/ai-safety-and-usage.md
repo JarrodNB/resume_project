@@ -170,6 +170,11 @@ requests get a JSON 429 with `Retry-After`.
   `ai_usage:reconcile` import dry-runs by default, retains prior evidence, and applies each
   verified replacement once. It cannot infer missing user-level charges from account-wide invoices.
   `ai_usage_attempts` records each execution independently of task outcome.
+  `ai_usage_entries` stores one typed row per reported provider response (stage, provider,
+  model, token, audio and character counts, cost), so spend can be grouped in plain SQL.
+  A NULL count was not reported; a NULL cost is an unknown price. Task totals on `ai_tasks`
+  are a cache that always equals the sum of the task's entry rows; `AiUsage::AttemptEntries`
+  is the only writer and returns the total change for the caller to apply.
   Under the task lock, final reports add known totals once, including retries and late or
   out-of-order reports. Finished tasks keep their outcome. Legacy messages without an
   attempt identity assign totals only when their outcome can still apply. Monthly totals still use

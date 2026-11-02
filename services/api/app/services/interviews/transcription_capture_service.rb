@@ -77,7 +77,7 @@ module Interviews
       report = capture.ai_task.ai_usage_attempts.find_by!(attempt_id: capture.observation_id)
       entries = @usage ? [ @usage.merge("stage" => "transcription", "provider" => "openai", "model" => MODEL) ] : []
       if report.finalized? && !report.incomplete?
-        return @usage.nil? || report.usage == entries ? success : failure("Capture usage conflicts")
+        return @usage.nil? || AiUsage::AttemptEntries.matches?(report, entries) ? success : failure("Capture usage conflicts")
       end
       if @usage
         report.update!(finalized: false) if report.finalized?

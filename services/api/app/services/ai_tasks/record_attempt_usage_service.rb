@@ -1,6 +1,7 @@
 # Description: Adds each execution's known costs exactly once, even for finished or stale tasks.
 # Index:
-#   - call: persists an immutable usage report and updates the locked task's known totals
+#   - call: persists an immutable usage report as entry rows and moves the locked task's
+#     known totals by the change, so a reopened incomplete report replaces its old rows
 module AiTasks
   class RecordAttemptUsageService < ApplicationService
     COLUMNS = %w[input_tokens cached_input_tokens output_tokens cost_microdollars].freeze
@@ -21,13 +22,11 @@ module AiTasks
 
       entries = finalized ? Array(@message["usage"]) : []
       report ||= AiUsageAttempt.new(ai_task: @ai_task, attempt_id: attempt_id)
-      report.update!(usage: entries, finalized: finalized,
+      report.update!(finalized: finalized,
                      incomplete: !finalized || @message["usage_incomplete"] == true ||
                        entries.any? { |entry| entry["cost_microdollars"].nil? })
-      totals = COLUMNS.index_with do |column|
-        @ai_task.public_send(column) + entries.sum { |entry| entry.fetch(column, 0).to_i }
-      end
-      @ai_task.update!(totals)
+      change = AiUsage::AttemptEntries.replace(report, entries)
+      @ai_task.update!(COLUMNS.index_with { |column| @ai_task.public_send(column) + change[column] })
       success(true)
     end
   end

@@ -14,6 +14,24 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(task.reload.cost_microdollars).to eq(0)
   end
 
+  it "saves one typed row per entry whose sums match the task totals and ignores duplicate delivery" do
+    task = create(:ai_task)
+    message = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid, "usage" => [
+      { "model" => "openai:gpt-5-mini", "input_tokens" => 100, "cached_input_tokens" => 20, "cache_write_tokens" => 0,
+        "output_tokens" => 5, "cost_microdollars" => 35, "provider_response_id" => "resp_1", "future_field" => 1 },
+      { "model" => "unpriced-model", "input_tokens" => 10, "cost_microdollars" => nil }
+    ] }
+    2.times { described_class.call(message: message) }
+    entries = task.ai_usage_attempts.sole.usage_entries
+    expect(entries.map { |entry| [ entry.position, entry.model, entry.cost_microdollars ] })
+      .to eq([ [ 0, "openai:gpt-5-mini", 35 ], [ 1, "unpriced-model", nil ] ])
+    expect(entries.first).to have_attributes(ai_task_id: task.id, provider_response_id: "resp_1", output_tokens: 5)
+    expect(entries.last).to have_attributes(output_tokens: nil, cached_input_tokens: nil)
+    expect(task.reload).to have_attributes(input_tokens: 110, cached_input_tokens: 20, output_tokens: 5, cost_microdollars: 35)
+    expect(AiUsageEntry.where(ai_task: task).sum(:input_tokens)).to eq(task.input_tokens)
+    expect(task.ai_usage_attempts.sole).to be_incomplete
+  end
+
   it "retains an unfinished execution as unknown and resolves it without double counting" do
     task = create(:ai_task)
     started = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,

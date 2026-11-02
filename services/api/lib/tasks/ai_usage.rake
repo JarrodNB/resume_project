@@ -3,9 +3,9 @@
 namespace :ai_usage do
   desc "List unresolved task attempts and background embedding requests"
   task unresolved: :environment do
-    AiUsageAttempt.where(incomplete: true).includes(:ai_task).find_each do |report|
+    AiUsageAttempt.where(incomplete: true).includes(:ai_task, :usage_entries).find_each do |report|
       puts({ record_type: "task", user_id: report.ai_task.user_id, attempt_id: report.attempt_id,
-        created_at: report.created_at, usage: report.usage }.to_json)
+        created_at: report.created_at, usage: AiUsage::AttemptEntries.as_hashes(report) }.to_json)
     end
     AiEmbeddingRequest.where(incomplete: true).find_each do |request|
       puts({ record_type: "embedding", user_id: request.user_id, attempt_id: request.id,

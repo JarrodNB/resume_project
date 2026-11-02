@@ -25,7 +25,7 @@ module Chat
         end
         identity = @observation_id || @attempt_id
         report = @operation.ai_task.ai_usage_attempts.find_by!(attempt_id: identity)
-        next failure("Provider usage conflicts") if report.finalized? && (report.usage != entries || report.incomplete? != @incomplete)
+        next failure("Provider usage conflicts") if report.finalized? && (!AiUsage::AttemptEntries.matches?(report, entries) ||report.incomplete? != @incomplete)
         result = AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
           message: { "attempt_id" => identity, "usage" => entries, "usage_incomplete" => @incomplete })
         success({ recorded: result.value })

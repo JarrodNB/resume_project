@@ -1,6 +1,7 @@
 /** Copy one accepted answer into the career library after an editable preview.
  * Pair only retained saved dialogue, never drafts or interviewer acknowledgements.
  * The copy has its own lifetime; saving does not change interview state or references.
+ * Once saved, the button goes away so the same answer cannot be saved twice.
  */
 import { useState } from 'react'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
@@ -24,7 +25,7 @@ export function SaveInterviewAnswer({ interview, message, onPreviewOpenChange }:
   }
 
   return <div className="grid justify-items-start gap-1">
-    <Button type="button" variant="outline" size="sm" onClick={() => changeOpen(true)}>Save to Career context</Button>
+    {!saved && <Button type="button" variant="outline" size="sm" onClick={() => changeOpen(true)}>Save to Career context</Button>}
     {saved && <p role="status" className="text-sm text-muted-foreground">Saved to Career context.</p>}
     <CareerContextFormDialog open={open} onOpenChange={changeOpen} context={null}
       initialValues={{ requirement: prompt.content, response: message.content }} onSaved={() => setSaved(true)} />

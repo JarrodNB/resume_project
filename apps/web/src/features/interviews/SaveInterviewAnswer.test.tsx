@@ -36,6 +36,7 @@ describe('SaveInterviewAnswer', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Saved to Career context.')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(saved.result).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Save to Career context' })).not.toBeInTheDocument()
     expect(answer.content).toBe('Reduced processing time.')
   })
   it('cancels without submitting and reopens the original preview', async () => {

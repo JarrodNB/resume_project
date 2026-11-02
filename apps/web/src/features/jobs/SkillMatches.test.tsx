@@ -63,7 +63,7 @@ it('refreshes saved skills on mount and recomputes when description or cached li
   const client = new ApolloClient({ cache, link: new MockLink([{
     request: { query: SKILL_MATCHES_QUERY }, result: { data: { skills: freshSkills } }, delay: 30,
   }]) })
-  const view = (description: string) => (
+  const view = (description: string | null | undefined) => (
     <ApolloProvider client={client}><MemoryRouter><SkillMatches description={description} /></MemoryRouter></ApolloProvider>
   )
   const { rerender } = render(view('Rust'))
@@ -77,4 +77,9 @@ it('refreshes saved skills on mount and recomputes when description or cached li
   expect(await screen.findByText('None of your saved skills are mentioned in this job description.')).toBeVisible()
   expect(screen.queryByText('Python')).not.toBeInTheDocument()
   expect(screen.queryByText('Rust')).not.toBeInTheDocument()
+  for (const missing of [null, undefined]) {
+    rerender(view(missing))
+    expect(screen.getByText('Add a job description to see skill matches.')).toBeVisible()
+    expect(screen.queryByRole('list', { name: 'Saved skill mentions' })).not.toBeInTheDocument()
+  }
 })

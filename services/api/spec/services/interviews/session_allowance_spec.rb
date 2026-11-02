@@ -93,7 +93,7 @@ RSpec.describe "Prepared interview allowances" do
     expect(question.reload.accepted_answer_count).to eq(0)
   end
 
-  it "conducts all 27 answers and 28 speeches under one hourly admission while retaining every bill" do
+  it "conducts all 27 answers and 27 playable speeches under one hourly admission while retaining every bill" do
     session = prepare(accounted: true)
     complete_speech(session)
     27.times do
@@ -108,16 +108,18 @@ RSpec.describe "Prepared interview allowances" do
       expect(Interviews::AcceptTurnService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, transcript: "I calibrated the instrument.", decision: "continue",
         reply: "Which checks did you use?")).to be_success
-      complete_speech(session.reload)
+      session.reload
+      complete_speech(session) unless session.completed?
     end
     expect(session.reload).to be_completed
     expect(session.questions.pluck(:accepted_answer_count)).to eq([ 3 ] * 9)
-    expect(user.ai_tasks.count).to eq(56)
+    expect(session.operations.speech.where(message: session.messages.closing)).to be_empty
+    expect(user.ai_tasks.count).to eq(55)
     expect(user.ai_tasks.hourly_admissions.count).to eq(1)
-    expect(user.ai_tasks.where.not(hourly_admission_task_id: nil).count).to eq(55)
+    expect(user.ai_tasks.where.not(hourly_admission_task_id: nil).count).to eq(54)
     expect(user.ai_tasks).to all(be_completed)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(110)
-    expect(InterviewVerificationReservation.sum(:actual_microdollars)).to eq(110)
+    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(109)
+    expect(InterviewVerificationReservation.sum(:actual_microdollars)).to eq(109)
     expect(Interviews::StartPreparationService.call(user: user).errors.join).to include("too many interview sessions")
   end
 

@@ -28,13 +28,16 @@ RSpec.describe "Avoided spoken interview questions" do
     expect(user.avoided_interview_questions).to be_empty
   end
 
-  it "shares saved voice prompts with new written tasks" do
+  it "keeps saved voice prompts available without copying them into written commands" do
     opening
     expect(avoid(opening).dig("data", "avoidInterviewPrompt", "saved")).to be(true)
     allow(Shoryuken::Client).to receive(:queues).and_return(instance_double(Shoryuken::Queue, send_message: nil))
     task = InterviewPrep::StartQuestionSetService.call(user: user)
     expect(task).to be_success
-    expect(task.value.input["avoided_questions"]).to eq([opening.content])
+    expect(user.avoided_interview_questions.pluck(:question_text)).to eq([opening.content])
+    expect(task.value.input).to include("source_version" => 1,
+      "question_set_id" => task.value.subject.id)
+    expect(task.value.input).not_to have_key("avoided_questions")
   end
 
 end

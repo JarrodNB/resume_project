@@ -12,10 +12,19 @@ from job_postings.posting_from_parsed_job import (
     DROPPED_LOCATION_WARNING,
     DROPPED_URL_WARNING,
     NO_REQUIREMENTS_WARNING,
+    fit_posting_to_saved_limits,
     posting_from_parsed_job,
 )
 from schemas.parsed_job_posting import ParsedJobPosting
-from text_limits import MAX_JOB_URL, POSTING_LEFT_OUT_WARNING
+from schemas.scraped_job_posting import ScrapedJobPosting
+from text_limits import (
+    MAX_BULLET_TEXT,
+    MAX_JOB_DESCRIPTION,
+    MAX_JOB_URL,
+    MAX_REQUIREMENT_ITEMS,
+    MAX_SHORT_TEXT,
+    POSTING_LEFT_OUT_WARNING,
+)
 
 AD = """\
 AI Engineer
@@ -183,3 +192,50 @@ def test_exactly_copied_mixed_case_url_is_preserved() -> None:
 
     assert posting.source_url == url
     assert posting.warnings == []
+
+
+def _posting(**overrides: object) -> ScrapedJobPosting:
+    """A posting ready to fit to Rails' saved limits, with any field replaced."""
+    fields = {
+        "source": "linkedin", "source_url": "https://www.linkedin.com/jobs/view/1/", "title": "Engineer",
+        "company": "Acme", "location": "Remote", "description": "Build APIs.", "requirements": ["Python"],
+        "responsibilities": [], "nice_to_haves": [], "requirements_sorted_by": "llm", "warnings": [],
+    }
+    return ScrapedJobPosting(**{**fields, **overrides})
+
+
+def test_exactly_the_saved_item_limit_is_kept_without_a_warning() -> None:
+    """Exactly 80 required items fit Rails' saved posting contract."""
+    items = [f"Requirement {index}" for index in range(MAX_REQUIREMENT_ITEMS)]
+
+    posting = fit_posting_to_saved_limits(_posting(requirements=items))
+
+    assert posting.requirements == items
+    assert POSTING_LEFT_OUT_WARNING not in posting.warnings
+
+
+def test_text_over_the_save_caps_is_left_out_with_a_warning() -> None:
+    """Rails would refuse more than 80 requirements, a long bullet, or a long description."""
+    long_bullet = "x" * (MAX_BULLET_TEXT + 1)
+
+    posting = fit_posting_to_saved_limits(_posting(
+        title="T" * (MAX_SHORT_TEXT + 1),
+        description="d" * (MAX_JOB_DESCRIPTION + 1),
+        requirements=["Python"] * (MAX_REQUIREMENT_ITEMS + 1) + [long_bullet],
+    ))
+
+    assert len(posting.title) == MAX_SHORT_TEXT
+    assert len(posting.description) == MAX_JOB_DESCRIPTION
+    assert posting.requirements == ["Python"] * MAX_REQUIREMENT_ITEMS
+    assert POSTING_LEFT_OUT_WARNING in posting.warnings
+
+
+@pytest.mark.parametrize("extra_characters", [0, 1])
+def test_each_bullet_is_checked_at_its_save_limit(extra_characters: int) -> None:
+    """The exact saved bullet limit is retained; one extra character is omitted."""
+    bullet = "x" * (MAX_BULLET_TEXT + extra_characters)
+
+    posting = fit_posting_to_saved_limits(_posting(requirements=[bullet]))
+
+    assert posting.requirements == ([bullet] if not extra_characters else [])
+    assert (POSTING_LEFT_OUT_WARNING in posting.warnings) is bool(extra_characters)

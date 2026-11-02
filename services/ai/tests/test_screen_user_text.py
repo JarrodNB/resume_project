@@ -136,9 +136,10 @@ def test_jev_error_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_reported_model_name_prefers_the_priced_version() -> None:
-    """The version the API names is billed when it has a price; otherwise the setting is."""
+    """Bill the reported version and keep unknown models visible for reconciliation."""
     assert reported_model_name("jev-1.13.0", "typesafe:jev-1.13.0") == "jev-1.13.0"
-    assert reported_model_name("function:test", "typesafe:jev-1.13.0") == "typesafe:jev-1.13.0"
+    assert reported_model_name("function:test", "typesafe:jev-1.13.0") == "function:test"
+    assert reported_model_name("", "typesafe:jev-1.13.0") == "typesafe:jev-1.13.0"
 
 
 def test_yes_probability_recovers_the_threshold() -> None:

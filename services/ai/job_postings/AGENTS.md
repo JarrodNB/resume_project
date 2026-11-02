@@ -17,17 +17,11 @@ source checks and conversion. Deterministic HTML helpers remain available separa
 - `find_parsed_job_problems.py` — title, supplied company, and list spans must appear in the ad;
   an unstated company stays null through conversion and saved-length normalization
 - `posting_from_parsed_job.py` — `ParsedJobPosting` -> `ScrapedJobPosting` (the paste is the
-  description; a location or link that is not in the ad is dropped with a warning)
-- `extract_job_posting.py` — `extract_job_posting(page, sort_bullets)` -> `ScrapedJobPosting`;
-  calls `sort_bullets` (the job requirements sorting agent) only when no requirement heading
-  matched but bullets exist, and skips it when there are more than 200 bullets or 40,000
-  characters of bullet text (a warning says to add requirements by hand). Text Rails would
+  description; a location or link that is not in the ad is dropped with a warning). Text Rails would
   refuse (more than 80 items in each of requirements, responsibilities, and nice-to-haves, a
   bullet over 1,000 characters, a description over 20,000, a short field over 200) is left out
   and the posting is still
-  returned with a warning. URLs over the short-field cap are omitted rather than truncated;
-  `pick_sorted_bullets` maps the agent's 1-based numbers back to bullets. When the sorter ran,
-  `sorting_model` is the name to bill
+  returned with a warning. URLs over the short-field cap are omitted rather than truncated
 
 ## Local Rules
 

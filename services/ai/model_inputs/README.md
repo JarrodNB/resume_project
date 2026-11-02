@@ -50,7 +50,6 @@ The call-site audit covers every production reasoning agent and evaluation judge
 | --- | --- |
 | Resume extraction | `<resume>`; embedded resume tags are neutralized |
 | Pasted job ad | Collision-free `job_ad` block |
-| Requirement sorting | Collision-free `job_bullets` block |
 | Gap analysis | Separate `job` and `career_library` blocks; label maps stay unchanged |
 | Resume tailoring | Separate `job`, `gap_analysis`, and labeled `career_source` blocks |
 | Library review | `career_records` block containing target labels |

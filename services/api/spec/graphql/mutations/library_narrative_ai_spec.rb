@@ -64,7 +64,9 @@ RSpec.describe "Career library narrative AI targets" do
       expect(started["errors"]).to eq([])
       task = AiTask.find(started.dig("aiTask", "id"))
       expect(task.input["section"]).to eq(section)
-      expect(task.input["targets"].length).to eq(1)
+      expect(task.input.fetch("target").slice("kind", "record_id", "field")).to eq(
+        "kind" => kind, "record_id" => record.id, "field" => field)
+      expect(task.input).not_to have_key("targets")
       complete(task)
       acceptance = -> { expect(accept(task)["errors"]).to eq([]) }
       if kind == "user"

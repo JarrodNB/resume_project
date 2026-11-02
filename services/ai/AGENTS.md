@@ -127,13 +127,12 @@ skip it. Export indexes are not required.
 - `telemetry/` — process-independent Logfire instrumentation, privacy processors, prompt
   labels and bounded export flushing
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
-  `job_requirements_sorting_agent.py`,
   `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`,
   `interview_questions_agent.py`, `interview_feedback_agent.py`)
 - `prompts/` — agent instructions
 - `model_inputs/` — deterministic workflow-specific user-text rendering from selected, screened sources
 - `schemas/` — structured output models (`ParsedResume`, `ParsedJobPosting`, `ScrapedJobPosting`,
-  `SortedRequirementBullets`, `GapAnalysis`), the gap analysis input (`GapAnalysisContext`), and
+  `GapAnalysis`), the gap analysis input (`GapAnalysisContext`), and
   `LibrarySearchMatch` (a similarity search hit)
 - `database/` — read-only Postgres access (`ai_reader`): the job and career library for gap
   analysis, and similarity search over `library_embeddings`

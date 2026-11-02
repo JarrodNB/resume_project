@@ -63,7 +63,10 @@ def test_shipped_runtime_configuration_hydrates_owned_operations(monkeypatch, fi
         claim, _ = seed(admin, saved_job=True)
         owner, session = claim.payload.user_id, claim.payload.interview_id
         try:
-            for name in ["DB_HOST", "DB_USERNAME", "DB_PASSWORD"]:
+            # Compose resolves `db` on its own network. Use this runner's explicit
+            # test host while retaining the shipped reader role and password.
+            assert env["DB_HOST"] == "db"
+            for name in ["DB_USERNAME", "DB_PASSWORD"]:
                 monkeypatch.setenv(name, env[name])
             monkeypatch.setenv("DB_NAME", database)
             assert interview_database_ready(AISettings())

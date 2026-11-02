@@ -98,7 +98,8 @@ def test_reports_token_usage(
     """The result carries the run's tokens and cost for the configured model."""
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
 
-    with gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT)):
+    with gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT,
+        model_name=task_dependencies.settings.gap_analysis_model)):
         result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
 
     [model_usage] = result.usage

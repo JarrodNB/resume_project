@@ -56,7 +56,8 @@ RSpec.describe "Complete prepared interview" do
     expect(interview.messages.where(kind: "opening").count).to eq(9)
     expect(interview.messages.where(kind: "closing").count).to eq(1)
     expect(interview.messages.where(kind: "follow_up").count).to eq(18)
-    expect(interview.operations.speech.count).to eq(28)
+    expect(interview.operations.speech.count).to eq(27)
+    expect(interview.operations.speech.where(message: interview.messages.closing)).to be_empty
     expect(Interviews::BeginService.call(interview: interview)).to be_success
     expect(interview.messages.where(kind: "opening").count).to eq(9)
   end

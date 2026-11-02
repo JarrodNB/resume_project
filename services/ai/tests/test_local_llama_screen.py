@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from itertools import pairwise
 from time import monotonic
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import screening.screen_user_text as screening_module
 from screening import local_llama
@@ -154,7 +155,7 @@ def test_local_trace_shows_the_exact_screened_chunk(monkeypatch):
 
     def span(name, **attributes):
         spans.append((name, attributes))
-        return nullcontext()
+        return nullcontext(MagicMock())
 
     monkeypatch.setattr("screening.screen_user_text.logfire.span", span)
     outcome = screen_user_text("secret resume sentence", local_llama.MODEL, 10)
@@ -272,7 +273,7 @@ def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
     first_started = threading.Event()
     spans = []
     monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
-        spans.append((name, attrs)) or nullcontext()
+        spans.append((name, attrs)) or nullcontext(MagicMock())
     ))
     monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter(
         [("slow", 4), ("attack", 6)] if text == "synthetic" else [("ordinary", 8)]
@@ -374,7 +375,7 @@ def test_prefetched_chunks_are_traced_after_early_block(monkeypatch):
     monkeypatch.setattr("telemetry.tracing.flush_tracing", flushed.set)
     spans = []
     monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
-        spans.append((name, attrs)) or nullcontext()
+        spans.append((name, attrs)) or nullcontext(MagicMock())
     ))
     try:
         result = screen_user_text("synthetic", local_llama.MODEL, 1, check_phrases=False)

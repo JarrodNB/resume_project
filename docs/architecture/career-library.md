@@ -224,14 +224,12 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   Rollback requires real company names for existing null rows: the migration refuses to
   restore NOT NULL until those rows are filled, without inventing names or removing jobs.
 
-- **Job scraping is deterministic and per site; the LLM only sorts scraped bullets by number.**
+- **Job scraping is per site; the LLM only copies fields out of the selected ad.**
   Each supported job site gets its own scraper (`services/ai/scrapers/`, one site at a time)
   that reads the site's own markup or data instead of handing a whole page to an LLM.
-  Requirements and nice-to-haves come from the posting's own headings ("Requirements",
-  "Preferred qualifications", ...). Only when no requirement heading matches does a small agent
-  sort the posting's bullets, and it answers with bullet numbers, so every requirement is still
-  the posting's exact wording and nothing can be invented. Unsupported sites fail fast in Rails,
-  with no AI task.
+  A source-only parser with no tools or private context then copies the requirements, duties
+  and nice-to-haves from the ad's text, and validators reject anything that isn't in the source,
+  so nothing can be invented. Unsupported sites fail fast in Rails, with no AI task.
 
 - **LinkedIn is the first (and only) job site.** Sites must be where job seekers actually find
   jobs and copy links. Applicant tracking systems (Greenhouse, Lever, Ashby) were rejected: many

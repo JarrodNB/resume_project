@@ -12,14 +12,14 @@ const job = { id: 'job-1', title: 'Laboratory technician', company: 'Sample Labs
 
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); start.mockResolvedValue('session') })
 
-it('prepares for the selected job with limited-context copy and the existing round choices', async () => {
+it('starts the selected saved job with the chosen round settings', async () => {
   const { router } = renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview',
     element: <InterviewSetup notice={null} job={job} />,
     mocks: [],
     extraRoutes: [{ path: '/practice/interviews/:id', element: <p>Saved interview preparation</p> }],
   })
-  expect(screen.getByRole('heading', { name: 'Laboratory technician' })).toBeVisible()
-  expect(screen.getByText(/This job only has a title/)).toBeVisible()
+  expect(screen.getByRole('heading', { name: 'Set up your interview' })).toBeVisible()
+  expect(screen.getByText('Choose your round for this saved job.')).toBeVisible()
   expect(screen.queryByText(/prepare a fictional role/)).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('radio', { name: /Stretch/ }))
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))

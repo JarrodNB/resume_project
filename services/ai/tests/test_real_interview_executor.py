@@ -88,10 +88,10 @@ def test_saved_style_reaches_first_and_resumed_turn_without_stale_persona(monkey
     request.payload.setup = InterviewSetup(question_count=9, question_format="screening", difficulty="warm_up", interviewer="maya", focus_areas=["communication"])
     run(client, models, request)
     prompt = models.prompts[-1][1]
-    assert prompt.count("Maya — Friendly Coach") == 1
-    assert "foundational questions" in prompt
-    assert "Selected focus areas: communication" in prompt
-    assert "Selected question format: screening" in prompt
+    assert prompt.count("Interviewer: Maya, a friendly coach.") == 1
+    assert "Difficulty: Warm-up." in prompt
+    assert "at most one follow-up" in prompt
+    assert "Focus areas: communication." in prompt
     first = client.accepted[0]
     resumed = claim()
     resumed.payload.setup = InterviewSetup(question_count=9, question_format="screening", difficulty="stretch", interviewer="priya", focus_areas=["leadership"])
@@ -99,11 +99,10 @@ def test_saved_style_reaches_first_and_resumed_turn_without_stale_persona(monkey
         PublicMessage(kind="answer", content=first["transcript"]), PublicMessage(kind="follow_up", content=first["reply"])]
     run(client, models, resumed)
     prompt = models.prompts[-1][1]
-    assert prompt.count("Priya — Tough Interviewer") == 1
-    assert "Maya — Friendly Coach" not in prompt
-    assert "Selected focus areas: leadership" in prompt
-    assert "Selected question format: screening" in prompt
-    assert "after submission only" in prompt
+    assert prompt.count("Interviewer: Priya, a tough interviewer.") == 1
+    assert "Maya" not in prompt
+    assert "Difficulty: Stretch." in prompt and "Warm-up" not in prompt
+    assert "Focus areas: leadership." in prompt
 
 
 def test_spoken_turn_does_not_call_injection_classifier(monkeypatch):

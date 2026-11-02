@@ -32,7 +32,7 @@ from interviews.settings import InterviewThinkingSettings
 from privacy.contact_mask import contact_scope, mask_outbound
 from privacy.known_contact import KnownContact
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
-from prompts.interview_style import interview_style
+from prompts.interview_style import follow_up_style, preparation_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.conversation import screen_with_operation_models
 from screening.prompt_guardrail import screening_failure_code
@@ -124,7 +124,7 @@ class RealInterviewExecutor(InterviewExecutor):
 
     async def _preparation(self, claim):
         context = claim.payload.preparation_context
-        formatted = system_context(context) + "\n\n" + interview_style(claim.payload.setup)
+        formatted = system_context(context) + "\n\n" + preparation_style(claim.payload.setup)
         if len(formatted) > MAX_PROMPT_TEXT:
             raise ScreeningRejected("context_limit")
         if "job" in context:
@@ -147,7 +147,7 @@ class RealInterviewExecutor(InterviewExecutor):
         if role:
             from interviews.conversation import format_role
             formatted += "\n\n" + format_role(role)
-        formatted += "\n\n" + interview_style(payload.setup)
+        formatted += "\n\n" + follow_up_style(payload.setup)
         previous = earlier_context(payload)
         if previous:
             formatted += "\n\n" + previous

@@ -18,6 +18,15 @@ RSpec.describe "Spoken interview preparation" do
     expect(interview.reload).not_to respond_to(:frozen_context)
   end
 
+  it "derives the answer cap from the saved difficulty" do
+    caps = %w[warm_up realistic stretch].map do |difficulty|
+      interview = Interviews::StartPreparationService.call(user: user, setup: { "difficulty" => difficulty }).value
+      interview.update!(status: "abandoned")
+      interview.answer_cap
+    end
+    expect(caps).to eq([ 2, 3, 3 ])
+  end
+
   it "starts durable preparation instead of a fixture question and never starts speech" do
     result = Interviews::StartSessionService.call(user: user)
     expect(result).to be_success

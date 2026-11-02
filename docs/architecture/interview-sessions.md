@@ -4,7 +4,7 @@ Interview sessions own spoken interview dialogue and progress, separate from wri
 InterviewPrep. Basic Interview is the first supported type in the app.
 New sessions prepare 5, 8 or 12 typed main questions from the owner's career library,
 using either an owned saved job or a fictional role, then begin explicitly after review. Each question allows at most three accepted
-answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers
+answers (two for Warm-up difficulty). Older fixture sessions keep their one/two questions and two-answer cap. Real providers
 run in the normal local Compose stack when its credentials are configured.
 
 ### Saved-job practice
@@ -71,10 +71,13 @@ Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewe
 (Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions
 default to Realistic, Daniel and no focus when those fields are absent. Preparation
 and turn claims carry the same saved choices. Focus biases questions within the selected
-format; it never replaces the format or supplies career evidence. Maya is warm without
-coaching or grading; Priya asks direct, specific follow-ups after submission and never
-interrupts live answers. Personas retain the existing British speech voice, factual
-acknowledgements, accounting and answer limits.
+format; it never replaces the format or supplies career evidence. `prompts/interview_style.py`
+turns the choices into concrete behaviors: difficulty sets how hard prepared questions are and
+how much detail an answer needs before advancing; Rails also derives the answer cap from it
+(Warm-up 2, Realistic and Stretch 3). Maya acknowledges warmly and asks open follow-ups without
+coaching or grading; Daniel stays neutral and structured; Priya skips acknowledgements and
+presses for numbers, personal actions and evidence. Follow-ups only run after submission, so no
+persona interrupts live answers. Personas share the existing British speech voice and accounting.
 
 The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
 ready, active or completed states. Preparing/ready sessions reopen their saved preparation
@@ -477,7 +480,7 @@ or unrelated task accounting.
 The owner lock admits at most one unexpired preparing/ready/active **prepared** session per
 user. Resume or abandon it before preparing another; completed, expired and abandoned
 sessions do not occupy that slot. A prepared question permits six distinct submitted
-recordings, including failures, independently of its three-accepted-answer cap. Retrying
+recordings, including failures, independently of its accepted-answer cap. Retrying
 the same operation or replaying its submission key does not use another recording slot.
 Thus a twelve-question interview permits at most 72 turn operations, 37 saved-message speech
 operations in provider playback mode and one preparation operation; existing six-execution and

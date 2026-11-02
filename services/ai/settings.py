@@ -35,9 +35,6 @@ class AISettings(BaseSettings):
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.
     # Pydantic AI maps False to OpenAI reasoning_effort="none".
     resume_parsing_thinking: ThinkingLevel = False
-    # Only runs for postings whose headings don't label the requirements.
-    job_requirements_sorting_model: str = "openai:gpt-6-luna"
-    job_requirements_sorting_thinking: ThinkingLevel = False
     # Copies title, company, and requirement lines out of a pasted job ad.
     job_posting_parse_model: str = "openai:gpt-6-luna"
     job_posting_parse_thinking: ThinkingLevel = False

@@ -13,10 +13,6 @@ output in addition to the usual Description/Index.
 - `parse_job_posting_instructions.py` — `PARSE_JOB_POSTING_INSTRUCTIONS` and
   `PARSE_JOB_POSTING_PROMPT_VERSION` (copy title, company, duties, and qualification bullets
   from the fenced ad; leave out benefits and marketing)
-- `job_requirements_sorting_instructions.py` — `JOB_REQUIREMENTS_SORTING_PROMPT_VERSION`,
-  `JOB_REQUIREMENTS_SORTING_INSTRUCTIONS`
-  (requirements, responsibilities, and nice-to-haves by bullet number; leave out benefits and
-  company info)
 - `gap_analysis_instructions.py` — `GAP_ANALYSIS_PROMPT_VERSION`, `GAP_ANALYSIS_INSTRUCTIONS` (the library is the only
   evidence; met / partial / missing; overlapping periods count once; project evidence is judged
   against the requirement's professional/production scope; adjacent experience is partial,

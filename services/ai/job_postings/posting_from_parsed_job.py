@@ -6,10 +6,11 @@ URLs retain exact source spelling because paths and query values can be case-sen
 Index:
     - NO_REQUIREMENTS_WARNING / DROPPED_LOCATION_WARNING / DROPPED_URL_WARNING: user-facing notes
     - posting_from_parsed_job: builds the posting and fits Rails' length limits
+    - fit_posting_to_saved_limits: drops text Rails would refuse, and says so
 """
 
+import text_limits
 from documents.text_matching import appears_in, normalize_text
-from job_postings.extract_job_posting import fit_posting_to_saved_limits
 from schemas.parsed_job_posting import ParsedJobPosting
 from schemas.scraped_job_posting import ScrapedJobPosting
 from scrapers.job_page import JobPage
@@ -92,3 +93,59 @@ def _unique_items(items: list[str]) -> list[str]:
         seen.add(key)
         unique.append(stripped)
     return unique
+
+
+def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting:
+    """Fit fields to Rails limits, dropping oversized links instead of changing their targets.
+    A kept bullet is still copied verbatim; omitted content adds a warning."""
+    left_out = False
+
+    def shorten(value: str | None, limit: int) -> str | None:
+        """Keeps a field Rails can store. None stays None."""
+        nonlocal left_out
+        if value is None or len(value) <= limit:
+            return value
+        left_out = True
+        return value[:limit]
+
+    def keep_items(items: list[str]) -> list[str]:
+        """Drops a bullet over the character cap, then anything past the count cap."""
+        nonlocal left_out
+        kept: list[str] = []
+        for item in items:
+            if (
+                len(item) > text_limits.MAX_BULLET_TEXT
+                or len(kept) >= text_limits.MAX_REQUIREMENT_ITEMS
+            ):
+                left_out = True
+                continue
+            kept.append(item)
+        return kept
+
+    source_url = posting.source_url
+    if len(source_url) > text_limits.MAX_JOB_URL:
+        source_url = ""
+        left_out = True
+    title = shorten(posting.title, text_limits.MAX_SHORT_TEXT) or ""
+    company = shorten(posting.company, text_limits.MAX_SHORT_TEXT)
+    location = shorten(posting.location, text_limits.MAX_SHORT_TEXT)
+    description = shorten(posting.description, text_limits.MAX_JOB_DESCRIPTION) or ""
+    requirements = keep_items(posting.requirements)
+    responsibilities = keep_items(posting.responsibilities)
+    nice_to_haves = keep_items(posting.nice_to_haves)
+    warnings = list(posting.warnings)
+    if left_out:
+        warnings.append(text_limits.POSTING_LEFT_OUT_WARNING)
+    return posting.model_copy(
+        update={
+            "source_url": source_url,
+            "title": title,
+            "company": company,
+            "location": location,
+            "description": description,
+            "requirements": requirements,
+            "responsibilities": responsibilities,
+            "nice_to_haves": nice_to_haves,
+            "warnings": warnings,
+        }
+    )

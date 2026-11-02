@@ -6,16 +6,14 @@ Index:
     - MAX_SCREENED_TEXT: one string sent to Jev
     - MAX_INTERVIEW_ANSWER: user-written interview answer cap
     - MAX_PROMPT_TEXT: one gap-analysis or tailoring prompt
-    - MAX_SORT_BULLETS / MAX_SORT_BULLET_TEXT: the requirements sorting agent
     - MAX_SHORT_TEXT / MAX_BULLET_TEXT / MAX_JOB_DESCRIPTION / MAX_REQUIREMENT_ITEMS:
       the same caps Rails uses when it saves a scraped job
     - MAX_PROSE_TEXT / MAX_CAREER_CONTEXTS: Rails `TextLimits::PROSE` and
       `TextLimits::MAX_CAREER_CONTEXTS`, checked before chat stages a career context
-    - prompt_is_too_long / sorting_input_too_long: the checks
+    - prompt_is_too_long: the check
     - RESUME_TOO_LONG_MESSAGE / GAP_PROMPT_TOO_LONG_MESSAGE / TAILOR_PROMPT_TOO_LONG_MESSAGE /
       TAILOR_LIBRARY_TOO_LONG_MESSAGE /
-      SECTION_TOO_LONG_MESSAGE / POSTING_TOO_LONG_TO_SORT_WARNING /
-      POSTING_LEFT_OUT_WARNING / NOTE_TOO_LONG_WARNING: what the user is told
+      SECTION_TOO_LONG_MESSAGE / POSTING_LEFT_OUT_WARNING / NOTE_TOO_LONG_WARNING: what the user is told
 """
 
 MAX_RESUME_TEXT = 80_000
@@ -23,8 +21,6 @@ MAX_PDF_PAGES = 30
 MAX_SCREENED_TEXT = 80_000
 MAX_PROMPT_TEXT = 120_000
 MAX_INTERVIEW_ANSWER = 2_000
-MAX_SORT_BULLETS = 200
-MAX_SORT_BULLET_TEXT = 40_000
 MAX_SHORT_TEXT = 200
 MAX_JOB_URL = 2048
 MAX_BULLET_TEXT = 1_000
@@ -47,9 +43,6 @@ TAILOR_LIBRARY_TOO_LONG_MESSAGE = (
     "Shorten an entry and try again."
 )
 SECTION_TOO_LONG_MESSAGE = "This section is too long. Shorten it and try again."
-POSTING_TOO_LONG_TO_SORT_WARNING = (
-    "This posting is too long to sort into requirements. Add them by hand."
-)
 POSTING_LEFT_OUT_WARNING = (
     "Part of this posting was too long to save, so the extra text was left out."
 )
@@ -59,8 +52,3 @@ NOTE_TOO_LONG_WARNING = "One of your notes was left out because it is too long."
 def prompt_is_too_long(text: str) -> bool:
     """True when an assembled prompt is over the generative cap."""
     return len(text) > MAX_PROMPT_TEXT
-
-
-def sorting_input_too_long(bullets: list[str]) -> bool:
-    """True when the sorting agent would be handed too many bullets or too much text."""
-    return len(bullets) > MAX_SORT_BULLETS or sum(len(bullet) for bullet in bullets) > MAX_SORT_BULLET_TEXT

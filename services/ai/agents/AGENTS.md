@@ -28,11 +28,6 @@ instructions from `prompts/`.
   same instructions, source validator and bounded execution as the pasted parser. Its input
   capability checks size, exact fenced source and absence of history; it does not classify
   prompt injection. No tools/private context and no source approval for downstream agents.
-- `job_requirements_sorting_agent.py` — numbered job posting bullets ->
-  `SortedRequirementBullets` (bullet numbers only, so wording can't change);
-  `sort_job_requirement_bullets(bullets, model, thinking, timeout_seconds)` returns a
-  `BulletSortingRun` (`sorted_bullets`, `usage`). Retained for explicit numbered-bullet
-  sorting; scraped job construction uses the shared ad parser
 - `gap_analysis_agent.py` — labeled job requirements + career library -> `GapAnalysis` (a
   verdict per requirement citing library labels); its output validator retries with
   `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`

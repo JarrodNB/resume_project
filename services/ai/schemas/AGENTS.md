@@ -16,8 +16,6 @@ the `result` sent to Rails, so changes must be mirrored there.
 - `scraped_job_posting.py` — `ScrapedJobPosting`, the `scrape_job` and `parse_job_posting` result
   (`result["scraped_job"]`); Rails turns it into a Job in
   `Jobs::CreateJobFromPostingService`
-- `sorted_requirement_bullets.py` — `SortedRequirementBullets`, the job requirements sorting
-  agent's output (1-based bullet numbers for requirements, responsibilities, and nice-to-haves)
 - `gap_analysis_context.py` — `GapAnalysisContext` (job + `CareerLibrary`, including career context entries),
   read from the database by `database/career_library_reader.py`; the gap analysis input, not an
   LLM output

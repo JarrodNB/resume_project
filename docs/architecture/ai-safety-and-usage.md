@@ -152,8 +152,7 @@ requests get a JSON 429 with `Retry-After`.
   `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
   PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000
   characters. Those failures tell the user the text is too long. They are not reported as
-  unsafe, and rows are not silently truncated. A posting with too many bullets to sort is
-  still saved, with a warning to add requirements by hand. A request body over 8 MB is a
+  unsafe, and rows are not silently truncated. A request body over 8 MB is a
   JSON 413. Provider screening usage is reported under its actual model and counts
   toward the monthly budget, including completed responses before later failures and validation
   retries. Missing usage stays explicitly unknown. JEV token rates are TypeSafe's published

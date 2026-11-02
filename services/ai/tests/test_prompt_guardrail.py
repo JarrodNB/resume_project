@@ -61,7 +61,7 @@ def providers(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.mark.parametrize("name", [
-    "resume_parsing", "parse_job_posting", "job_requirements_sorting", "gap_analysis",
+    "resume_parsing", "parse_job_posting", "gap_analysis",
     "resume_tailoring", "summary_generation", "interview_questions", "interview_feedback", "interview_session_feedback",
 ])
 def test_screened_agents_block_before_provider_call(name, providers) -> None:

@@ -75,8 +75,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai-worker pytest`
 - `test_linkedin_description_to_html.py` — `<br>` lines to paragraphs, bold headings split
 - `test_split_description_sections.py` — heading classification, bullet filing, plain-text
   description
-- `test_extract_job_posting.py` — headings vs sorting-agent fallback, bullet-number mapping
-- `test_posting_from_parsed_job.py` — pasted-ad span checks and the posting builder
+- `test_posting_from_parsed_job.py` — pasted-ad span checks, the posting builder and saved-length limits
 - `test_parse_job_posting_handler.py` — parse_job_posting with the screen and agent mocked
 - `test_job_posting_parse_evaluators.py` — pasted-ad eval labels score 1.0
 - `test_scrape_job_handler.py` — scraped prose/lists through the shared parser and fake site;

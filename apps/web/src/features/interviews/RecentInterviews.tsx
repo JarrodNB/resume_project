@@ -10,7 +10,7 @@ export function RecentInterviews() {
     <p className="max-w-prose text-sm text-muted-foreground">Your latest 20 saved interviews appear here until their text expires. Open an unfinished interview to continue, or review a completed one.</p>
     {loading && <p role="status">Loading saved interviews…</p>}
     {error && <div className="grid gap-3"><p role="alert">Could not load saved interviews. Try again when connected.</p><Button className="justify-self-start" variant="outline" onClick={() => void refresh()}>Try again</Button></div>}
-    {!loading && !error && !interviews.length && <p className="text-sm">No recent interviews. Prepare one above to get started.</p>}
+    {!loading && !error && !interviews.length && <p className="text-sm">No recent interviews. Start one above.</p>}
     <ol className="divide-y">
       {interviews.map((interview) => {
         const date = new Date(interview.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })

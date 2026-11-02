@@ -101,7 +101,7 @@ describe('InterviewPage', () => {
       state.interview = { ...snapshot, status: 'preparing', questions: [], preparedRole: null, jobContext: null,
         operations: [{ id: 'prep', questionId: null, messageId: null, kind: 'preparation', status: 'pending', failureCode: null, checkpoint: null, submissionKey: null, canRetry: false }] }
       renderInterview()
-      expect(screen.getByRole('status')).toHaveTextContent('Preparing your interview…')
+      expect(screen.getByRole('status')).toHaveTextContent('Getting your interview ready…')
       expect(screen.getByText('Waiting to start…')).toBeVisible()
       expect(screen.queryByText(/pending/)).not.toBeInTheDocument()
       state.interview = { ...(state.interview as typeof snapshot), operations: [{ ...(state.interview as typeof snapshot).operations[0], status: 'running' }] }
@@ -178,15 +178,15 @@ describe('InterviewPage', () => {
     start.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
     await renderPracticeRoleSetup()
     fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-    expect(screen.getByRole('button', { name: 'Preparing…' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
+    expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Turn the microphone on automatically' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Preparing…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Starting…' }))
     expect(start).toHaveBeenCalledOnce()
     await act(async () => finish(null))
-    expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Back to round' }))
-    expect(screen.getByRole('radio', { name: /Mixed Interview/ })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Start interview' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Back to round' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change role' })).not.toBeInTheDocument()
     expect(recorder.start).not.toHaveBeenCalled()
   })
 
@@ -206,14 +206,6 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toHaveValue('streaming')
   })
 
-  it('keeps round choices when moving between the round and settings steps', async () => {
-    await renderPracticeRoleSetup()
-    await userEvent.click(screen.getByRole('radio', { name: /Stretch/ }))
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Back to round' }))
-    expect(screen.getByRole('radio', { name: /Stretch/ })).toBeChecked()
-  })
-
   it('submits selected difficulty, interviewer and optional focus areas', async () => {
     await renderPracticeRoleSetup()
     await userEvent.click(screen.getByRole('radio', { name: /Stretch/ }))
@@ -222,14 +214,14 @@ describe('InterviewPage', () => {
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Leadership' }))
     await userEvent.keyboard('{Escape}')
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
     expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'priya', focusAreas: ['leadership'] })
   })
   it('passes the selected question format with the requested length', async () => {
     await renderPracticeRoleSetup()
     await userEvent.click(screen.getByRole('radio', { name: /HR Screening/ }))
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
     expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'screening', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
   it('defaults to eight core questions and sends the selected interview length', async () => {
@@ -237,7 +229,7 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('radio', { name: /Standard/ })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: /Full loop/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
     expect(start).toHaveBeenCalledWith('', { questionCount: 12, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
   it('clarifies the latest follow-up while preserving typed draft and progress', async () => {
@@ -572,7 +564,7 @@ describe('InterviewPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
     await waitFor(() => expect(recorder.reset).toHaveBeenCalledOnce())
     await waitFor(() => expect(router.state.location.pathname).toBe('/practice/interviews'))
-    expect(await screen.findByText('Interview ended. You can prepare another whenever you’re ready.')).toBeVisible()
+    expect(await screen.findByText('Interview ended. You can start another whenever you’re ready.')).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Who is this interview for?' })).toBeVisible()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -609,7 +601,7 @@ describe('InterviewPage', () => {
     expect(screen.queryByRole('combobox', { name: /execution mode/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/offline scripted/i)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
     expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
   it('retires old scripted sessions without recording or retry controls', () => {
@@ -777,8 +769,8 @@ it('shows durable preparation progress and retry without recording controls', as
     { ...snapshot.operations[0], id: 'prep', kind: 'preparation', status: 'failed', canRetry: true, failureCode: 'dependency_unavailable' },
   ] }
   renderInterview()
-  expect(screen.getByRole('heading', { name: 'Preparing your interview' })).toBeVisible()
-  expect(screen.getByText(/fictional role and 9 core questions/)).toBeVisible()
+  expect(screen.getByRole('heading', { name: 'Getting your interview ready' })).toBeVisible()
+  expect(screen.getByText(/setting up a fictional role for your interview/)).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Retry preparation' }))
   expect(state.retryOperation).toHaveBeenCalledWith('prep')
@@ -799,7 +791,7 @@ it('prepares without a career-focus field or library review link', async () => {
   expect(screen.queryByRole('textbox', { name: /Career focus/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Review your career library' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
 })
 
@@ -1291,7 +1283,7 @@ it('summarizes disjoint review outcomes and repeats through editable setup witho
   expect(start).not.toHaveBeenCalled()
   expect(state.beginInterview).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'daniel', focusAreas: ['leadership'] })
 })
 
@@ -1315,7 +1307,7 @@ it('uses supported defaults when repeating a legacy setup', async () => {
   expect(screen.getByRole('radio', { name: /Realistic/ })).toBeChecked()
   expect(screen.getByRole('radio', { name: /Daniel/ })).toBeChecked()
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: ['leadership'] })
 })
 
@@ -1387,7 +1379,7 @@ describe('choosing who the interview is for', () => {
     expect(await within(group).findByRole('radio', { name: /Laboratory technician.*Sample Labs · Applied/ })).not.toBeChecked()
     expect(within(group).getByRole('radio', { name: /Quality analyst.*Unknown company · Not applied/ })).toBeVisible()
     expect(within(group).queryByRole('radio', { name: /Rejected role/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Prepare interview' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
   })
   it('opens the chosen job\'s interview tab', async () => {
     const { router } = renderInterview('/practice/interviews', [], jobsMock(savedJobs))
@@ -1405,7 +1397,7 @@ describe('choosing who the interview is for', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Change role' }))
     expect(screen.getByRole('heading', { name: 'Who is this interview for?' })).toBeVisible()
     expect(screen.getByRole('radio', { name: /A practice role/ })).toBeChecked()
-    expect(screen.queryByRole('button', { name: 'Prepare interview' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
   })
   it('still allows a practice role when saved jobs fail to load', async () => {
     renderInterview('/practice/interviews', [], { request: { query: JOBS_QUERY }, error: new Error('network down') })

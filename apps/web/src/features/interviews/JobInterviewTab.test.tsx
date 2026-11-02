@@ -31,13 +31,13 @@ it('restores the saved round choices when repeating practice for the same job', 
   expect(screen.getByRole('radio', { name: /Stretch/ })).toBeChecked()
   await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'technical', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, 'job-1')
 })
 
 it('says the interview ended when an abandoned job interview returns here', async () => {
   mount(true, { interviewEnded: 'abandoned' })
-  expect(await screen.findByText('Interview ended. You can prepare another whenever you’re ready.')).toBeVisible()
+  expect(await screen.findByText('Interview ended. You can start another whenever you’re ready.')).toBeVisible()
 })
 
 it('loads selection from the route again on reload, then starts practice for that exact job', async () => {
@@ -50,7 +50,7 @@ it('loads selection from the route again on reload, then starts practice for tha
   expect(screen.getByRole('link', { name: 'Interview' })).toHaveAttribute('aria-current', 'page')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8, questionFormat: 'mixed' }), 'job-1')
   expect(await screen.findByText('Saved preparation')).toBeVisible()
 })
@@ -58,7 +58,7 @@ it('loads selection from the route again on reload, then starts practice for tha
 it('keeps unavailable jobs out of setup instead of offering generic preparation', async () => {
   mount(false)
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this job")
-  expect(screen.queryByRole('button', { name: 'Prepare interview' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
   expect(start).not.toHaveBeenCalled()
 })
 
@@ -69,6 +69,6 @@ it('keeps setup closed when loading the job fails on the network', async () => {
     ],
   })
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this job")
-  expect(screen.queryByRole('button', { name: 'Prepare interview' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
   expect(start).not.toHaveBeenCalled()
 })

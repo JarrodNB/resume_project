@@ -7,6 +7,6 @@ export function InterviewJobSource({ job }: { job: Pick<InterviewJob, 'id' | 'ti
     <p className="font-medium break-words">{job.title}</p>
     <p className="text-sm text-muted-foreground break-words">{job.company ?? 'Unknown company'}</p>
     {job.id ? <Link className="justify-self-start text-sm underline underline-offset-4" to={`/jobs/${job.id}`}>Back to job</Link>
-      : <p className="text-sm text-muted-foreground">The original job was deleted. Your prepared questions and saved answers remain available.</p>}
+      : <p className="text-sm text-muted-foreground">The original job was deleted. Your questions and saved answers remain available.</p>}
   </div>
 }

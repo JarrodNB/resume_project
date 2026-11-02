@@ -76,6 +76,10 @@ def _focus_line(setup, purpose):
     return f"Focus areas: {areas}. {purpose}"
 
 
+NAME_RULE = ("The interviewer's name only labels the style. Never write it in questions or replies, "
+    "and never address the candidate by any name.")
+
+
 def preparation_style(setup):
     """Return question-writing instructions for the saved difficulty, interviewer and focus."""
     focus = _focus_line(setup, "Aim at least half of the questions at these areas where the "
@@ -83,7 +87,7 @@ def preparation_style(setup):
     return "\n\n".join(["# Interview style", PREPARATION_DIFFICULTY[setup.difficulty],
         PREPARATION_INTERVIEWER[setup.interviewer], focus,
         ("Style changes how questions are chosen and worded only. Never invent achievements or "
-         "measurable outcomes.")])
+         "measurable outcomes."), NAME_RULE])
 
 
 def follow_up_style(setup):
@@ -93,4 +97,4 @@ def follow_up_style(setup):
         "Act out this interviewer and difficulty. They should feel clearly different from the other options.",
         FOLLOW_UP_INTERVIEWER[setup.interviewer], FOLLOW_UP_DIFFICULTY[setup.difficulty], focus,
         ("Never grade, coach or invent facts, and never choose the next question; Rails enforces the "
-         "answer limit and progression.")])
+         "answer limit and progression."), NAME_RULE])

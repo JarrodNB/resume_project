@@ -16,7 +16,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { useFocusMode } from '@/components/useFocusMode'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { ArrowLeft, Mic, Pause, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
+import { Mic, Pause, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
@@ -60,10 +60,9 @@ function InterviewOverview({ navigationState }: { navigationState: { interviewEn
   return <>
     {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
     {step === 'role' ? <InterviewRoleStep onPracticeRole={() => setStep('round')} /> : <>
-      <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => setStep('role')}><ArrowLeft aria-hidden /> Change role</Button>
-      <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} />
+      <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} onChangeRole={() => setStep('role')} />
     </>}
-    <RecentInterviews /><InterviewPrivacy />
+    {step === 'role' && <><RecentInterviews /><InterviewPrivacy /></>}
   </>
 }
 export function InterviewPrivacy() {

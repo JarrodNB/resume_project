@@ -185,8 +185,8 @@ describe('InterviewPage', () => {
     expect(start).toHaveBeenCalledOnce()
     await act(async () => finish(null))
     expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Back to round' }))
-    expect(screen.getByRole('radio', { name: /Mixed Interview/ })).toBeChecked()
+    expect(screen.queryByRole('button', { name: 'Back to round' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change role' })).not.toBeInTheDocument()
     expect(recorder.start).not.toHaveBeenCalled()
   })
 
@@ -204,14 +204,6 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('switch', { name: 'Turn the microphone on automatically' })).toBeChecked()
     expect(screen.getByRole('combobox', { name: 'Thinking time before the mic opens' })).toHaveValue('10')
     expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toHaveValue('streaming')
-  })
-
-  it('keeps round choices when moving between the round and settings steps', async () => {
-    await renderPracticeRoleSetup()
-    await userEvent.click(screen.getByRole('radio', { name: /Stretch/ }))
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Back to round' }))
-    expect(screen.getByRole('radio', { name: /Stretch/ })).toBeChecked()
   })
 
   it('submits selected difficulty, interviewer and optional focus areas', async () => {

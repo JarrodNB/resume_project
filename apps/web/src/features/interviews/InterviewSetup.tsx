@@ -4,7 +4,7 @@
  * Preparation saves the round choices before review. Settings stay local to this account.
  */
 import { useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { MultiSelect } from '@/components/MultiSelect'
@@ -37,7 +37,7 @@ function Switch({ name, options, value, change }: { name: string; options: Optio
   </div>
 }
 
-export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNode; initialSetup?: unknown; job?: InterviewJob & { id: string } }) {
+export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { notice?: ReactNode; onChangeRole?: () => void; initialSetup?: unknown; job?: InterviewJob & { id: string } }) {
   const { start, loading, error } = useStartInterview()
   const { user } = useAuth()
   const microphone = useInterviewMicSettings(user?.id ?? '')
@@ -73,7 +73,8 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
   }
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
   return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); if (step === 'round') setStep('settings'); else void prepare() }}>
-    <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library.' : 'Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.'}</p></div>
+    {onChangeRole && step === 'round' && <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={onChangeRole}><ArrowLeft aria-hidden /> Change role</Button>}
+    <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library.' : 'Choose the round you want to practise. We’ll prepare your questions from your career library.'}</p></div>
     <fieldset disabled={busy} className="interview-setup-fields">
       {step === 'round' ? <div className="interview-setup-panel">
       <SetupRow title="Interview type"><Switch name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} /><p className="interview-setup-help">{selected.type.description}</p></SetupRow>
@@ -104,7 +105,7 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
     </fieldset>
     {step === 'round'
       ? <div className="interview-setup-footer"><p className="text-sm leading-relaxed"><span className="block text-[15px] font-bold">{selected.type.label} · {selected.difficulty.label} · {questionCount} core questions</span><span className="text-muted-foreground">With {selected.interviewer.label.split(' — ')[0]} · {minutes}. Next, check your microphone and transcription.</span></p><Button type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button></div>
-      : <div className="interview-setup-summary"><h3 className="font-medium">Your round</h3><p className="text-sm leading-relaxed">{selected.type.label} · {selected.difficulty.label} · {questionCount} core questions</p><p className="text-sm text-muted-foreground">{selected.interviewer.label}. Follow-up questions may extend the interview.</p><div className="flex flex-wrap gap-3"><Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => setStep('round')}>Back to round</Button><Button type="submit" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Preparing…' : 'Prepare interview'}</Button></div>{error && <p role="alert" className="text-destructive">{error}</p>}</div>}
-    <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>
+      : <div className="interview-setup-summary"><h3 className="font-medium">Your round</h3><p className="text-sm leading-relaxed">{selected.type.label} · {selected.difficulty.label} · {questionCount} core questions</p><p className="text-sm text-muted-foreground">{selected.interviewer.label}. Follow-up questions may extend the interview.</p><div className="flex flex-wrap gap-3"><Button type="submit" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Preparing…' : 'Prepare interview'}</Button></div>{error && <p role="alert" className="text-destructive">{error}</p>}</div>}
+    {notice && <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>}
   </form>
 }

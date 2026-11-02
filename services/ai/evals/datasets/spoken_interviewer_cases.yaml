@@ -43,3 +43,13 @@
     reply: How did you check that the reporting prototype worked?
   relevant_terms: [check, prototype]
   acknowledgement_terms: []
+- name: candidate-clarifying-question
+  question: How would you structure a workflow that uses an AI agent to retrieve information from a business data source?
+  answer: First I would decide whether to respond immediately or at the end of the workflow. What is the business data source? Is it stored in a vector store or a database?
+  history: []
+  expected:
+    decision: continue
+    acknowledgement: null
+    reply: Let's say it's a database of customer orders. With that in mind, how would you connect the agent to it?
+  relevant_terms: [database]
+  acknowledgement_terms: []

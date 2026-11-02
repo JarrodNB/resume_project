@@ -29,10 +29,10 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
   }
   const settle = () => {
     if (!failed && [...slots.values()].some((slot) => !slot.final && slot.text)) {
-      failed = true; callbacks.fallback('Recognition ended with unfinished words. Your recording is kept. Finish recording, then choose Transcribe recording.')
+      failed = true; callbacks.fallback('Live transcription cut off before it finished your last words.')
     }
     const text = finalText()
-    if (!failed && !text) { failed = true; callbacks.fallback('No final recognition text was available. Your recording is kept. Finish recording, then choose Transcribe recording.') }
+    if (!failed && !text) { failed = true; callbacks.fallback('Live transcription didn\'t pick up any words.') }
     active = false; detach(); resolveFinish?.(failed ? null : text)
   }
   const fail = (reason: string) => {
@@ -53,7 +53,7 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
         slots.set(index, { text: result[0].transcript.trim(), final: result.isFinal })
       }
       const display = [completed, ...[...slots.entries()].sort(([a], [b]) => a - b).map(([, slot]) => slot.text)].filter(Boolean).join(' ')
-      if (display.length > 4000) { fail('Recognition text exceeded the answer limit. Your recording is kept. Finish recording, then choose Transcribe recording.'); return }
+      if (display.length > 4000) { fail('Your answer got too long for live transcription.'); return }
       callbacks.text(display)
     }
     rec.onerror = ({ error }) => {
@@ -61,22 +61,22 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
       if (error === 'no-speech') return
       fail(error === 'not-allowed' || error === 'service-not-allowed'
         ? 'Browser recognition permission was denied. If microphone recording succeeds, finish recording, then choose Transcribe recording.'
-        : 'Browser recognition failed. Your recording is kept. Finish recording, then choose Transcribe recording.')
+        : 'Your browser\'s speech recognition hit a problem.')
     }
     rec.onend = () => {
       if (!active || current !== rec || failed) return
       if (stopping) { settle(); return }
-      if ([...slots.values()].some((slot) => !slot.final && slot.text)) { fail('Recognition was interrupted before words finalized. Your recording is kept. Finish recording, then choose Transcribe recording.'); return }
+      if ([...slots.values()].some((slot) => !slot.final && slot.text)) { fail('Live transcription was interrupted before it finished your words.'); return }
       // Each restarted recognizer gets fresh indexed results; preserve only completed slots.
       completed = finalText(); slots.clear()
       rec.onresult = null; rec.onend = null; rec.onerror = null
-      if (++restarts > 12) { fail('Browser recognition stopped repeatedly. Your recording is kept. Finish recording, then choose Transcribe recording.'); return }
+      if (++restarts > 12) { fail('Your browser\'s speech recognition kept stopping.'); return }
       restartTimer = setTimeout(start, 250)
     }
-    try { rec.start() } catch { fail('Browser recognition could not start. Your recording is kept. Finish recording, then choose Transcribe recording.') }
+    try { rec.start() } catch { fail('Your browser\'s speech recognition couldn\'t start.') }
   }
   if (Constructor) start()
-  else fail('Browser recognition is unavailable. Your recording is kept. Finish recording, then choose Transcribe recording.')
+  else fail('Your browser doesn\'t support live transcription.')
   return {
     finish() {
       if (finishPromise) return finishPromise
@@ -84,8 +84,8 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
       stopping = true; clearTimeout(restartTimer)
       if (failed || !current) settle()
       else {
-        deadline = setTimeout(() => { fail('Browser recognition did not finalize. Your recording is kept. Finish recording, then choose Transcribe recording.') }, 1500)
-        try { current.stop() } catch { fail('Browser recognition could not finalize. Your recording is kept. Finish recording, then choose Transcribe recording.') }
+        deadline = setTimeout(() => { fail('Live transcription didn\'t finish in time.') }, 1500)
+        try { current.stop() } catch { fail('Live transcription couldn\'t finish.') }
       }
       return finishPromise
     },

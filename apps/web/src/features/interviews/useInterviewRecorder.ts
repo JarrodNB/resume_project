@@ -81,14 +81,14 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       recorder.ondataavailable = ({ data }) => {
         if (current.discard || capture.current !== current) return
         current.bytes += data.size
-        if (current.bytes >= MAX_BYTES) { fail('Recording reached 10 MiB. Please record a shorter answer.'); return }
+        if (current.bytes >= MAX_BYTES) { fail('That recording went over 10 MiB and was not saved. Please record a shorter answer.'); return }
         if (data.size > 0) current.chunks.push(data)
         current.checkpoint?.(); current.checkpoint = undefined
       }
       recorder.onerror = () => fail('Recording failed. Please check your microphone and try again.')
       const review = async () => {
         const finalText = finalized.current ? await finalized.current.catch(() => {
-          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Recognition finalization failed. Your recording is kept. Choose Transcribe recording.') }
+          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Live transcription couldn\'t finish.') }
           return null
         }) : null
         if (current.discard || capture.current !== current) return
@@ -111,8 +111,8 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
         if (mode === 'streaming') {
           if (startStreaming) {
             try { transcription.current = startStreaming(current.stream, callbacks) }
-            catch { callbacks.fallback('Streaming could not start. Your recording is kept. Finish recording, then choose Transcribe recording.') }
-          } else callbacks.fallback('Streaming is unavailable. Your recording is kept. Finish recording, then choose Transcribe recording.')
+            catch { callbacks.fallback('We couldn\'t start live transcription.') }
+          } else callbacks.fallback('Live transcription isn\'t available right now.')
         }
       }
       current.listen()
@@ -122,7 +122,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
         current.checkpoint = () => { void review() }
         current.recorder.requestData()
       })
-      current.timer = setTimeout(() => fail('Recording reached 2 minutes. Please record a shorter answer.'), 120_000)
+      current.timer = setTimeout(() => fail('Answers can be up to 2 minutes. That recording was stopped and not saved, so please record a shorter one.'), 120_000)
       setStatus('recording')
     } catch (cause) {
       if (stream) release(stream)
@@ -153,7 +153,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
     current.recorder.resume()
     current.started = Date.now()
     current.timer = setTimeout(() => {
-      discard(); setRecording(null); setError('Recording reached 2 minutes. Please record a shorter answer.'); setStatus('idle')
+      discard(); setRecording(null); setError('Answers can be up to 2 minutes. That recording was stopped and not saved, so please record a shorter one.'); setStatus('idle')
     }, Math.max(0, current.remaining))
     setStatus('recording')
   }, [discard])

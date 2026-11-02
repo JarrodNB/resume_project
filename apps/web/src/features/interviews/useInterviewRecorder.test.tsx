@@ -180,7 +180,7 @@ describe('recording with live transcription', () => {
     await act(() => result.current.start())
     act(() => FakeRecorder.latest.chunk(new Blob(['complete recording'])))
     expect(result.current.effectiveMode).toBe('recorded')
-    expect(result.current.fallbackReason).toMatch(/unavailable/)
+    expect(result.current.fallbackReason).toMatch(/doesn.t support/)
     await act(async () => result.current.stop())
     expect(result.current.status).toBe('ready')
     expect(result.current.recording?.size).toBe(18)

@@ -58,7 +58,7 @@ export function InterviewPage() {
 function InterviewOverview({ navigationState }: { navigationState: { interviewEnded?: string; practiceSetup?: unknown } | null }) {
   const [step, setStep] = useState<'role' | 'round'>(navigationState?.practiceSetup ? 'round' : 'role')
   return <>
-    {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
+    {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can start another whenever you’re ready.</p>}
     {step === 'role' ? <InterviewRoleStep onPracticeRole={() => setStep('round')} /> : <>
       <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} onChangeRole={() => setStep('role')} />
     </>}

@@ -25,7 +25,7 @@ it('prepares for the selected job with limited-context copy and the existing rou
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch',
     interviewer: 'daniel', focusAreas: [] }, 'job-1')
   expect(await screen.findByText('Saved interview preparation')).toBeVisible()

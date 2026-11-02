@@ -7,7 +7,7 @@ import { useSkillMatches } from './useSkillMatches'
 export function SkillMatches({ description }: { description: string | null | undefined }) {
   const { data, loading, error } = useSkillMatches(Boolean(description?.trim()))
   const mentioned = (data?.skills ?? [])
-    .map(skill => ({ skill, count: skillMentionCount(description, skill.name) }))
+    .map(skill => ({ skill, count: skillMentionCount(description ?? '', skill.name) }))
     .filter(({ count }) => count > 0)
   return (
     <Card>

@@ -45,10 +45,10 @@ def test_preparation_applies_saved_style_without_changing_format():
     client = run(models, Claim.model_validate(raw))
     assert client.accepted == [prepared_output()]
     prompt = models.requests[-1][1]
-    assert "harder scenarios" in prompt
+    assert "harder questions than a typical round" in prompt
     assert "Priya" in prompt
     assert "leadership, impact & metrics" in prompt
-    assert "never invent achievements" in prompt
+    assert "Never invent achievements" in prompt
 
 
 @pytest.mark.parametrize("extra", [{"difficulty": "unknown"}, {"interviewer": "unknown"},

@@ -32,7 +32,7 @@ def classifier(monkeypatch):
             provider_details={"confidence": {"prompt_injection": 1., "harmful_request": 1.}},
         )
 
-    with user_text_screen_agent.override(model=FunctionModel(classify)):
+    with user_text_screen_agent.override(model=FunctionModel(classify, model_name="jev-1.13.0")):
         yield seen
 
 

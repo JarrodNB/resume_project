@@ -73,8 +73,9 @@ def test_jev_outage_recovers_with_nano(offline_model_resolution):
     assert seen == [source] * 2
 
 
-def test_mixed_chunks_keep_separate_model_usage(offline_model_resolution):
+def test_mixed_chunks_keep_separate_model_usage(offline_model_resolution, monkeypatch):
     """One successful JEV chunk followed by recovered Nano usage keeps both prices."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "4000")
     calls = 0
 
     def jev(messages, info):
@@ -159,9 +160,10 @@ def test_jev_timeout_is_three_seconds():
 
 @pytest.mark.real_guardrail
 def test_required_task_recovers_and_publishes_each_response_once(
-    offline_model_resolution, task_dependencies,
+    offline_model_resolution, task_dependencies, monkeypatch,
 ):
-    """Real queued handler retains JEV, fallback validation retries, and generator costs."""
+    """Real queued handler retains JEV, fallback and generator costs."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "4000")
     import json
 
     from tests.test_parse_job_posting_handler import AD, _parsed, build_parse_task

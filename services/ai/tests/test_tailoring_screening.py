@@ -108,9 +108,14 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
             provider_details={"confidence": {"prompt_injection": 1.0, "harmful_request": 1.0}})
 
     def answer(messages, info):
+        from tests.test_complete_resume_draft import section_name
+
         generation.append(messages)
+        output = {"nothing_fits": True, "entries": []}
+        if section_name(messages) == "experience":
+            output = {"nothing_fits": False, "entries": [{"label": "E1", "prose": []}]}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
-            {"nothing_fits": True, "entries": []})], model_name="gpt-5-mini")
+            output)], model_name="gpt-5-mini")
 
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline-test")
     task_dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context,

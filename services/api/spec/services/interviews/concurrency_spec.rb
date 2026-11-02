@@ -221,7 +221,8 @@ RSpec.describe "Basic Interview concurrency" do
       expect(@interview.reload).to have_attributes(status: "completed", revision: 1)
       expect(@question.reload.accepted_answer_count).to eq(1)
       expect(@interview.messages.pluck(:kind)).to eq(%w[opening answer closing])
-      expect(@interview.operations.speech.count).to eq(2)
+      expect(@interview.operations.speech.count).to eq(1)
+      expect(@interview.operations.speech.joins(:message).where(interview_session_messages: { kind: "closing" })).to be_empty
     end
   end
 end

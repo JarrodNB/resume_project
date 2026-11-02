@@ -127,11 +127,18 @@ def tailor_task() -> AiTaskMessage:
         "source_version": 1, "job_id": str(uuid4()), "include_summary": True})
 
 
-def tailoring_generation():
-    """A writer that selects nothing, so only the screening before it is under test."""
+def tailoring_generation(context):
+    """Keep mandatory work history while omitting optional generated sections."""
+    from tests.test_complete_resume_draft import section_name
+
     def answer(messages, info):
+        output = {"nothing_fits": True, "entries": []}
+        if section_name(messages) == "experience":
+            output = {"nothing_fits": False, "entries": [
+                {"label": f"E{index}", "prose": []}
+                for index, _ in enumerate(context.career_library.experiences, start=1)]}
         return ModelResponse(
-            parts=[ToolCallPart(info.output_tools[0].name, {"nothing_fits": True, "entries": []})],
+            parts=[ToolCallPart(info.output_tools[0].name, output)],
             model_name="gpt-5-mini", usage=RequestUsage(input_tokens=11, output_tokens=5))
     return FunctionModel(answer, model_name="gpt-5-mini")
 
@@ -155,7 +162,7 @@ def run_tailoring(dependencies, context):
     from database.tailoring_sources import TailoringSources
     dependencies = replace(dependencies, read_tailoring_sources=lambda *_: TailoringSources(
         context, {"full_name": "Synthetic Candidate", "email": "candidate@example.com", "links": []}, None, []))
-    with resume_tailoring_agent.override(model=tailoring_generation()):
+    with resume_tailoring_agent.override(model=tailoring_generation(context)):
         return run_like_the_worker(tailor_task(), dependencies)
 
 

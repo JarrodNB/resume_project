@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CollapseToggle } from '@/components/CollapseToggle'
 import { useOpenSection } from '@/components/useOpenSection'
-import { JobBoardMultiSelect } from './JobBoardMultiSelect'
+import { MultiSelect } from '@/components/MultiSelect'
 import { JobBoardLocationPicker, type LocationChoice } from './JobBoardLocationPicker'
 import { ageOptions, employmentTypeOptions, experienceLevelOptions, remoteOptions, type BoardSearch } from './searchFilters'
 
@@ -68,8 +68,8 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
       <div><Label htmlFor="board-remote">Remote arrangement</Label><select id="board-remote" value={remote} onChange={(event) => setRemote(event.target.value)}>{remoteOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
       <JobBoardLocationPicker initialChoice={location} onChange={(choice, unresolved) => { setLocation(choice); setUnresolvedLocation(unresolved) }} />
       <div><Label htmlFor="board-sort">Sort by</Label><select id="board-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="published">Newest</option><option value="relevance">Most relevant</option></select></div>
-      <JobBoardMultiSelect id="board-experience" label="Experience level" emptyLabel="All levels" options={experienceLevelOptions} selected={experienceLevels} onChange={setExperienceLevels} />
-      <JobBoardMultiSelect id="board-employment" label="Employment type" emptyLabel="All types" options={employmentTypeChoices} selected={employmentTypes} onChange={setEmploymentTypes} />
+      <div><Label id="board-experience-label" htmlFor="board-experience">Experience level</Label><MultiSelect id="board-experience" labelId="board-experience-label" emptyLabel="All levels" options={experienceLevelOptions} selected={experienceLevels} onChange={setExperienceLevels} /></div>
+      <div><Label id="board-employment-label" htmlFor="board-employment">Employment type</Label><MultiSelect id="board-employment" labelId="board-employment-label" emptyLabel="All types" options={employmentTypeChoices} selected={employmentTypes} onChange={setEmploymentTypes} /></div>
     </div>
     <div className="board-advanced"><CollapseToggle open={advanced.open} panelId={advanced.panelId} onToggle={advanced.toggle}>More filters{advancedCount > 0 && ` (${advancedCount})`}</CollapseToggle>
       {advanced.open && <div id={advanced.panelId} className="board-filter-grid">

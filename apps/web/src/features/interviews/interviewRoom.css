@@ -59,7 +59,7 @@
 @media (prefers-reduced-motion: reduce) { .interview-presence, .interview-evidence-body { transition: none; } .interview-stage[data-speaking="true"] .interview-presence svg path { animation: none; } }
 
 /* Setup follows the same ruled record as the career library; native inputs keep keyboard behavior. */
-.interview-setup { display: grid; gap: 24px; max-width: 920px; min-width: 0; }
+.interview-setup { display: grid; gap: 24px; max-width: 1040px; min-width: 0; container-type: inline-size; }
 .interview-setup-fields { display: grid; gap: 28px; min-width: 0; }
 .interview-setup-section { display: grid; gap: 12px; min-width: 0; padding-top: 20px; border-top: 1px solid var(--border); }
 .interview-setup-section legend { padding-top: 20px; font-weight: 500; }
@@ -68,18 +68,61 @@
 .interview-setup-choice { display: flex; align-items: start; gap: 12px; min-height: 44px; padding: 16px; border: 1.5px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; transition: border-color 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms cubic-bezier(.23, 1, .32, 1), box-shadow 160ms cubic-bezier(.23, 1, .32, 1); }
 @media (hover: hover) { .interview-setup-choice:hover { border-color: var(--input); } }
 .interview-setup-choice:has(input:checked) { border-color: var(--rule-strong); background: var(--muted); box-shadow: inset 0 0 0 1px var(--rule-strong); }
-.interview-setup-choice:has(input:focus-visible), .interview-focus-choice:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.interview-setup-choice:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
 .interview-setup-choice input { appearance: none; flex-shrink: 0; width: 20px; height: 20px; margin: 2px 0 0; border: 1.5px solid var(--input); border-radius: 50%; background: var(--card); cursor: inherit; transition: background-color 160ms cubic-bezier(.23, 1, .32, 1), border-color 160ms cubic-bezier(.23, 1, .32, 1), box-shadow 160ms cubic-bezier(.23, 1, .32, 1); }
 .interview-setup-choice input:checked { border-color: var(--rule-strong); background: var(--primary); box-shadow: inset 0 0 0 3px var(--muted); }
 .interview-choice-eyebrow { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
-.interview-setup-fields:disabled .interview-setup-choice, .interview-setup-fields:disabled .interview-focus-choice { cursor: not-allowed; }
-/* Focus areas are a true multi-select: ink-filled chips, many at once. */
-.interview-focus-choice { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; font-size: 14px; font-weight: 600; user-select: none; transition: border-color 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms cubic-bezier(.23, 1, .32, 1), color 160ms cubic-bezier(.23, 1, .32, 1); }
-@media (hover: hover) { .interview-focus-choice:hover { border-color: var(--input); } }
-.interview-focus-choice::before { content: "+"; width: 14px; text-align: center; font-weight: 700; color: var(--muted-foreground); }
-.interview-focus-choice:has(input:checked) { border-color: var(--rule-strong); background: var(--primary); color: var(--primary-foreground); }
-.interview-focus-choice:has(input:checked)::before { content: "\2713"; color: inherit; }
-.interview-focus-choice input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
+.interview-setup-fields:disabled .interview-setup-choice { cursor: not-allowed; }
+/* Control panel rows: a label column, then the control. Rows stack under 640px. */
+.interview-setup-panel { display: grid; border-top: 2px solid var(--rule-strong); }
+.interview-setup-row { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 10px 24px; padding-block: 22px; border-bottom: 1px solid var(--border); min-width: 0; }
+.interview-setup-label { padding-top: 10px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+.interview-setup-label span { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.interview-setup-help { margin-top: 10px; max-width: 60ch; font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
+/* Switch: joined radio buttons drawn like the Board/List view switch. */
+.interview-setup-switch { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 2px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.interview-setup-switch label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 18px; background: var(--background); font-size: 14px; font-weight: 700; cursor: pointer; transition: background-color 160ms cubic-bezier(.23, 1, .32, 1), color 160ms cubic-bezier(.23, 1, .32, 1); }
+.interview-setup-switch label + label { border-left: 1.5px solid var(--rule-strong); }
+.interview-setup-switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
+.interview-setup-switch label:has(input:checked) { background: var(--rule-strong); color: var(--background); }
+.interview-setup-switch label:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: -5px; }
+.interview-setup-switch label:has(input:checked:focus-visible) { outline-color: var(--background); }
+@media (hover: hover) and (pointer: fine) { .interview-setup-switch label:not(:has(input:checked)):hover { background: var(--muted); } }
+.interview-setup-length { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+/* One ink stop per core question, then a hollow stop for follow-ups. */
+.interview-setup-stops { position: relative; display: flex; justify-content: space-between; align-items: center; width: 220px; height: 16px; }
+.interview-setup-stops::before { content: ""; position: absolute; inset: 7px 6px auto; height: 2px; background: var(--rule-strong); }
+.interview-setup-stops i { position: relative; width: 12px; height: 12px; border-radius: 50%; background: var(--rule-strong); }
+.interview-setup-stops i:last-child { border: 2px solid var(--stop-off); background: var(--card); }
+/* Interviewer tiles: the whole tile is the radio's label; the letter bullet fills when chosen. */
+.interview-setup-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.interview-setup-person { position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: 10px; padding: 16px; border: 1.5px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; transition: border-color 160ms cubic-bezier(.23, 1, .32, 1); }
+.interview-setup-person input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
+.interview-setup-person:has(input:checked) { border-color: var(--rule-strong); box-shadow: inset 0 0 0 1px var(--rule-strong); }
+.interview-setup-person:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .interview-setup-person:not(:has(input:checked)):hover { border-color: var(--input); } }
+.interview-setup-who { display: flex; align-items: start; gap: 12px; }
+.interview-setup-initial { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border: 5px solid var(--stop-off); border-radius: 50%; font-size: 15px; font-weight: 800; transition: border-color 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms cubic-bezier(.23, 1, .32, 1), color 160ms cubic-bezier(.23, 1, .32, 1); }
+.interview-setup-person:has(input:checked) .interview-setup-initial { border-color: var(--rule-strong); background: var(--rule-strong); color: var(--background); }
+.interview-setup-sample { padding: 10px 12px; border-radius: 4px; background: var(--muted); font-size: 14px; line-height: 1.45; }
+.interview-setup-focus { display: grid; gap: 10px; max-width: 420px; }
+.interview-setup-focus .interview-setup-help { margin-top: 0; }
+.interview-setup-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.interview-setup-tags button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px 0 10px; border: 1.5px solid var(--rule-strong); border-radius: 3px; font-size: 13px; font-weight: 600; cursor: pointer; }
+@media (hover: hover) and (pointer: fine) { .interview-setup-tags button:hover { background: var(--muted); } }
+.interview-setup-tags button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.interview-setup-fields:disabled :is(.interview-setup-switch label, .interview-setup-person, .interview-setup-tags button) { cursor: not-allowed; }
+.interview-setup-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .interview-setup-summary { display: grid; gap: 12px; padding-block: 24px; border-block: 1px solid var(--border); }
 .interview-setup:has(fieldset:disabled) .interview-setup-fields { opacity: .65; }
-@container (max-width: 640px) { .interview-setup-choices { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 760px) { .interview-setup-people { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 640px) {
+  .interview-setup-choices { grid-template-columns: minmax(0, 1fr); }
+  .interview-setup-row { grid-template-columns: minmax(0, 1fr); }
+  .interview-setup-label { padding-top: 0; }
+  /* Narrow switches become an even grid so long labels never wrap unevenly. */
+  .interview-setup-switch { display: grid; grid-template-columns: repeat(var(--switch-columns, 2), minmax(0, 1fr)); gap: 1.5px; width: 100%; background: var(--rule-strong); }
+  .interview-setup-switch label { padding: 0 10px; text-align: center; }
+  .interview-setup-switch label + label { border-left: 0; }
+  .interview-setup-stops { width: 100%; }
+}

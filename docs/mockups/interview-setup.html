@@ -1,0 +1,440 @@
+<!doctype html>
+<!--
+  Three mockup directions for the job interview setup screen (Practice > job > Interview tab).
+  Static and self-contained: no app code, no network calls besides the Archivo font.
+  Every direction stays inside the Transit Line design system in DESIGN.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interview Setup Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --background:#ffffff; --foreground:#111418; --card:#ffffff; --primary:#111418; --primary-foreground:#ffffff;
+  --secondary:#f1f2f4; --muted:#f4f5f6; --muted-foreground:#5b6168; --accent:#eceef0; --border:#d9dce0;
+  --input:#a9afb6; --ring:#111418; --band:#111418; --band-foreground:#ffffff; --band-muted:#b8bdc3; --band-rule:#3a4048;
+  --rule-strong:#111418; --stop-off:#b9bec4; --tab-idle:#3a4048;
+  --ease:cubic-bezier(.23,1,.32,1);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background:#15181c; --foreground:#eef0f2; --card:#1c2025; --primary:#eef0f2; --primary-foreground:#111418;
+    --secondary:#262b31; --muted:#22262b; --muted-foreground:#a3a9b0; --accent:#2a2f35; --border:#353b42;
+    --input:#5b6168; --ring:#eef0f2; --band:#0a0c0e; --band-muted:#a3a9b0; --band-rule:#353b42;
+    --rule-strong:#eef0f2; --stop-off:#5b6168; --tab-idle:#c3c8ce; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background:#15181c; --foreground:#eef0f2; --card:#1c2025; --primary:#eef0f2; --primary-foreground:#111418;
+  --secondary:#262b31; --muted:#22262b; --muted-foreground:#a3a9b0; --accent:#2a2f35; --border:#353b42;
+  --input:#5b6168; --ring:#eef0f2; --band:#0a0c0e; --band-muted:#a3a9b0; --band-rule:#353b42;
+  --rule-strong:#eef0f2; --stop-off:#5b6168; --tab-idle:#c3c8ce; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin:0; background:var(--background); color:var(--foreground); font-family:Archivo,"Helvetica Neue",Arial,sans-serif; font-size:16px; line-height:1.55; font-variant-numeric: tabular-nums; }
+::selection { background:var(--foreground); color:var(--background); }
+button, input { font:inherit; color:inherit; }
+:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* Mockup chooser: sits above the product, not part of the design. */
+.mock-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 48px; background:var(--secondary); border-bottom:1px solid var(--border); font-size:13px; }
+.mock-bar strong { font-weight:700; margin-right:4px; }
+.mock-bar .seg { display:inline-flex; border:1.5px solid var(--rule-strong); border-radius:4px; overflow:hidden; }
+.mock-bar .seg button { border:0; background:transparent; padding:6px 12px; font-weight:600; cursor:pointer; }
+.mock-bar .seg button[aria-pressed="true"] { background:var(--rule-strong); color:var(--background); }
+.mock-bar .note { color:var(--muted-foreground); }
+.mock-bar .spacer { flex:1; }
+
+/* Signage band */
+.band { height:60px; display:flex; align-items:center; gap:28px; padding:0 48px; background:var(--band); color:var(--band-foreground); }
+.brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px; letter-spacing:-.01em; }
+.brand i { width:18px; height:18px; border-radius:50%; border:4px solid #fff; }
+.band nav { display:flex; height:100%; }
+.band nav a { display:flex; align-items:center; padding:4px 18px 0; color:var(--band-muted); text-decoration:none; font-weight:600; font-size:15px; border-bottom:4px solid transparent; }
+.band nav a[aria-current] { color:#fff; border-bottom-color:#fff; }
+
+.page { max-width:1040px; margin:0 auto; padding:28px 48px 64px; }
+.job-head { display:flex; justify-content:space-between; align-items:end; gap:16px; flex-wrap:wrap; }
+.job-head h1 { margin:0; font-size:2.5rem; font-weight:800; line-height:1.05; letter-spacing:-.025em; text-wrap:balance; }
+.job-head p { margin:6px 0 0; color:var(--muted-foreground); }
+.job-tabs { display:flex; gap:28px; margin-top:20px; border-bottom:2px solid var(--rule-strong); overflow-x:auto; scrollbar-width:none; }
+.job-tabs a { padding:12px 0 10px; font-size:15px; font-weight:700; color:var(--tab-idle); text-decoration:none; border-bottom:4px solid transparent; margin-bottom:-2px; white-space:nowrap; }
+.job-tabs a[aria-current] { color:var(--foreground); border-bottom-color:var(--rule-strong); }
+
+.intro h2 { margin:32px 0 6px; font-size:20px; font-weight:800; letter-spacing:-.01em; }
+.intro p { margin:0; max-width:65ch; color:var(--muted-foreground); }
+
+/* Shared controls */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 20px; border:2px solid var(--primary); border-radius:4px; background:var(--primary); color:var(--primary-foreground); font-weight:700; font-size:15px; cursor:pointer; transition:transform 160ms var(--ease), opacity 160ms var(--ease); }
+.btn:active { transform:scale(.97); }
+.btn.outline { background:var(--background); color:var(--foreground); }
+.btn.small { height:32px; padding:0 12px; font-size:14px; border-width:1.5px; font-weight:600; }
+.btn.ghost { border-color:transparent; background:transparent; color:var(--foreground); }
+@media (hover:hover) { .btn:hover { opacity:.85; } .btn.outline:hover, .btn.ghost:hover { opacity:1; background:var(--muted); } }
+.legend { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-foreground); }
+.optional { font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted-foreground); }
+fieldset { border:0; margin:0; padding:0; min-width:0; }
+legend { padding:0; }
+
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { position:relative; display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:6px 14px 6px 12px; border:1.5px solid var(--border); border-radius:4px; background:var(--card); font-size:14px; font-weight:600; cursor:pointer; user-select:none; transition:border-color 160ms var(--ease), background-color 160ms var(--ease), color 160ms var(--ease); }
+.chip input { position:absolute; inset:0; opacity:0; margin:0; cursor:inherit; }
+.chip svg { width:14px; height:14px; flex-shrink:0; }
+.chip .on { display:none; }
+.chip:has(input:checked) { background:var(--primary); color:var(--primary-foreground); border-color:var(--primary); }
+.chip:has(input:checked) .on { display:block; } .chip:has(input:checked) .off { display:none; }
+.chip:has(input:focus-visible) { outline:2px solid var(--ring); outline-offset:2px; }
+@media (hover:hover) { .chip:hover { border-color:var(--input); } }
+
+/* Stop row: a line of core questions. */
+.stops { display:flex; align-items:center; position:relative; height:16px; }
+.stops::before { content:""; position:absolute; left:6px; right:6px; top:50%; height:2px; margin-top:-1px; background:var(--rule-strong); }
+.stops i { position:relative; width:12px; height:12px; border-radius:50%; background:var(--rule-strong); flex-shrink:0; }
+.stops i + i { margin-left:auto; }
+.stops i.extra { background:var(--card); border:2px solid var(--stop-off); }
+
+.privacy { margin-top:32px; padding-top:16px; border-top:1px solid var(--border); font-size:14px; }
+.privacy summary { cursor:pointer; font-weight:600; padding:6px 0; }
+.privacy p { color:var(--muted-foreground); max-width:65ch; }
+
+[hidden] { display:none !important; }
+
+/* ===================== A · Route ticket ===================== */
+.a-grid { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:40px; margin-top:28px; align-items:start; }
+.a-sections { display:grid; gap:32px; }
+.a-list { margin-top:10px; border:1.5px solid var(--rule-strong); border-radius:6px; overflow:hidden; }
+.a-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:14px; align-items:center; padding:13px 16px; cursor:pointer; background:var(--card); transition:background-color 160ms var(--ease); }
+.a-row + .a-row { border-top:1px solid var(--border); }
+.a-row input { appearance:none; width:20px; height:20px; margin:0; border:1.5px solid var(--input); border-radius:50%; background:var(--card); cursor:inherit; transition:box-shadow 160ms var(--ease), background-color 160ms var(--ease); }
+.a-row input:checked { background:var(--primary); border-color:var(--rule-strong); box-shadow:inset 0 0 0 3px var(--card); }
+.a-row:has(input:checked) { background:var(--muted); }
+.a-row:has(input:checked) input { box-shadow:inset 0 0 0 3px var(--muted); }
+.a-row:has(input:focus-visible) { outline:2px solid var(--ring); outline-offset:-3px; }
+@media (hover:hover) { .a-row:hover { background:var(--muted); } }
+.a-row b { font-weight:700; }
+.a-row .role { font-size:13px; font-weight:600; color:var(--muted-foreground); margin-left:8px; }
+.a-row .desc { display:block; font-size:14px; color:var(--muted-foreground); line-height:1.45; }
+.a-row .meta { font-size:13px; font-weight:600; color:var(--muted-foreground); white-space:nowrap; }
+.a-ticket { position:sticky; top:20px; border:1.5px solid var(--rule-strong); border-radius:6px; background:var(--card); }
+.a-ticket header { padding:14px 18px; background:var(--band); color:var(--band-foreground); border-radius:4px 4px 0 0; display:flex; justify-content:space-between; align-items:center; }
+.a-ticket header span { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--band-muted); }
+.a-ticket header b { font-size:13px; }
+.a-ticket .body { padding:18px; display:grid; gap:16px; }
+.a-ticket h3 { margin:0; font-size:22px; font-weight:800; line-height:1.15; letter-spacing:-.015em; }
+.a-ticket dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:14px; }
+.a-ticket dt { color:var(--muted-foreground); }
+.a-ticket dd { margin:0; font-weight:600; }
+.a-ticket .line-cap { display:flex; justify-content:space-between; font-size:12px; font-weight:600; color:var(--muted-foreground); margin-top:6px; }
+.a-ticket .actions { display:grid; gap:8px; padding-top:16px; border-top:1px solid var(--border); }
+.a-ticket .actions small { color:var(--muted-foreground); font-size:13px; }
+
+/* ===================== B · Station line ===================== */
+.b-line { position:relative; margin-top:28px; }
+.b-station { position:relative; display:grid; grid-template-columns:34px minmax(0,1fr); gap:20px; padding-bottom:28px; }
+.b-station::before { content:""; position:absolute; left:14px; top:34px; bottom:0; width:6px; background:var(--rule-strong); }
+.b-station:last-child::before { display:none; }
+.b-station.ahead::before, .b-station.optional-st::before { background:var(--stop-off); }
+.b-bullet { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:14px; border:5px solid var(--rule-strong); background:var(--card); position:relative; z-index:1; transition:background-color 200ms var(--ease), box-shadow 200ms var(--ease); }
+.b-station.done .b-bullet { background:var(--rule-strong); color:var(--background); }
+.b-station.done .b-bullet svg { width:14px; height:14px; }
+.b-station.current .b-bullet { box-shadow:0 0 0 3px var(--background), 0 0 0 4.5px var(--rule-strong); }
+.b-station.ahead .b-bullet { border-color:var(--stop-off); color:var(--muted-foreground); }
+.b-head { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; }
+.b-head h3 { margin:0; font-size:16px; font-weight:700; }
+.b-head .picked { display:block; font-size:15px; font-weight:400; color:var(--muted-foreground); }
+.b-station.current .b-head h3 { font-size:20px; font-weight:800; letter-spacing:-.01em; }
+.b-opts { display:grid; grid-template-columns:repeat(var(--cols,3),minmax(0,1fr)); gap:12px; margin-top:14px; }
+.b-opt { display:grid; gap:4px; align-content:start; padding:14px 16px; border:1.5px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; text-align:left; transition:border-color 160ms var(--ease), background-color 160ms var(--ease); }
+.b-opt b { font-weight:700; }
+.b-opt .role { font-size:12px; font-weight:600; color:var(--muted-foreground); }
+.b-opt span:last-child { font-size:14px; color:var(--muted-foreground); line-height:1.45; }
+.b-opt[aria-pressed="true"] { border-color:var(--rule-strong); box-shadow:inset 0 0 0 1px var(--rule-strong); background:var(--muted); }
+@media (hover:hover) { .b-opt:hover { border-color:var(--input); } .b-opt[aria-pressed="true"]:hover { border-color:var(--rule-strong); } }
+.b-final { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:6px; }
+.b-final p { margin:0; font-size:14px; color:var(--muted-foreground); }
+
+/* ===================== C · Control panel ===================== */
+.c-panel { margin-top:28px; display:grid; gap:0; border-top:2px solid var(--rule-strong); }
+.c-row { display:grid; grid-template-columns:180px minmax(0,1fr); gap:24px; padding:22px 0; border-bottom:1px solid var(--border); }
+.c-row > .legend { padding-top:10px; }
+.c-switch { display:inline-flex; flex-wrap:wrap; border:2px solid var(--rule-strong); border-radius:4px; overflow:hidden; max-width:100%; }
+.c-switch label { position:relative; display:flex; align-items:center; height:38px; padding:0 18px; font-size:14px; font-weight:700; cursor:pointer; transition:background-color 160ms var(--ease), color 160ms var(--ease); }
+.c-switch label + label { border-left:1.5px solid var(--rule-strong); }
+.c-switch input { position:absolute; opacity:0; inset:0; margin:0; cursor:inherit; }
+.c-switch label:has(input:checked) { background:var(--rule-strong); color:var(--background); }
+.c-switch label:has(input:focus-visible) { outline:2px solid var(--ring); outline-offset:-5px; }
+@media (hover:hover) { .c-switch label:not(:has(input:checked)):hover { background:var(--muted); } }
+.c-help { margin:10px 0 0; font-size:14px; color:var(--muted-foreground); }
+.c-length { display:flex; flex-wrap:wrap; align-items:center; gap:20px; }
+.c-length .stops { width:220px; }
+.c-people { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.c-person { position:relative; display:grid; grid-template-rows:auto auto 1fr; gap:10px; padding:16px; border:1.5px solid var(--border); border-radius:6px; background:var(--card); cursor:pointer; transition:border-color 160ms var(--ease), background-color 160ms var(--ease); }
+.c-person input { position:absolute; opacity:0; inset:0; margin:0; cursor:inherit; }
+.c-person:has(input:checked) { border-color:var(--rule-strong); box-shadow:inset 0 0 0 1px var(--rule-strong); }
+.c-person:has(input:focus-visible) { outline:2px solid var(--ring); outline-offset:2px; }
+@media (hover:hover) { .c-person:hover { border-color:var(--input); } .c-person:has(input:checked):hover { border-color:var(--rule-strong); } }
+.c-who { display:flex; align-items:start; gap:12px; }
+.c-mono { width:40px; height:40px; flex-shrink:0; border-radius:50%; border:5px solid var(--stop-off); display:grid; place-items:center; font-weight:800; font-size:15px; transition:border-color 160ms var(--ease), background-color 160ms var(--ease), color 160ms var(--ease); }
+.c-person:has(input:checked) .c-mono { border-color:var(--rule-strong); background:var(--rule-strong); color:var(--background); }
+.c-who b { display:block; font-size:16px; font-weight:700; line-height:1.2; }
+.c-who small { font-size:12px; font-weight:600; color:var(--muted-foreground); }
+.c-person p { margin:0; font-size:14px; color:var(--muted-foreground); line-height:1.45; }
+.c-quote { margin:0; padding:10px 12px; background:var(--muted); border-radius:4px; font-size:14px; line-height:1.45; }
+.c-quote span { display:block; margin-bottom:2px; font-size:12px; font-weight:600; color:var(--muted-foreground); }
+.c-focus-meta { display:flex; align-items:center; gap:12px; margin-bottom:10px; font-size:14px; color:var(--muted-foreground); }
+.c-foot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; padding:22px 0 0; }
+.c-foot .sum { font-size:15px; }
+.c-foot .sum b { font-weight:700; }
+.c-foot .sum span { display:block; font-size:13px; color:var(--muted-foreground); }
+
+/* Responsive */
+@media (max-width:900px) {
+  .band, .mock-bar { padding-left:24px; padding-right:24px; }
+  .band nav a { padding:4px 10px 0; }
+  .page { padding:24px 24px 56px; }
+  .job-head h1 { font-size:1.75rem; }
+  .a-grid { grid-template-columns:minmax(0,1fr); }
+  .a-ticket { position:static; }
+  .c-row { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .c-row > .legend { padding-top:0; }
+  .c-people, .b-opts { grid-template-columns:minmax(0,1fr); }
+  .btn { min-height:44px; }
+}
+@media (max-width:600px) {
+  .band, .mock-bar { padding-left:16px; padding-right:16px; }
+  .band { gap:12px; } .band nav { overflow-x:auto; }
+  .brand span { display:none; }
+  .page { padding:20px 16px 48px; }
+  .a-row { grid-template-columns:20px minmax(0,1fr); }
+  .a-row .meta { grid-column:2; }
+  .c-switch { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5px; background:var(--rule-strong); width:100%; }
+  .c-switch label { padding:0 12px; justify-content:center; background:var(--card); }
+  .c-switch label + label { border-left:0; }
+  .c-switch.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .c-length .stops { width:100%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="mock-bar" role="region" aria-label="Mockup controls">
+  <strong>Interview setup mockups</strong>
+  <div class="seg" role="group" aria-label="Direction">
+    <button type="button" data-variant="a" aria-pressed="true">A · Route ticket</button>
+    <button type="button" data-variant="b" aria-pressed="false">B · Station line</button>
+    <button type="button" data-variant="c" aria-pressed="false">C · Control panel</button>
+  </div>
+  <span class="note" id="variant-note">Choices on the left, a live summary on the right.</span>
+  <span class="spacer"></span>
+  <div class="seg" role="group" aria-label="Theme">
+    <button type="button" data-theme-set="light" aria-pressed="true">Light</button>
+    <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+  </div>
+</div>
+
+<header class="band">
+  <div class="brand"><i aria-hidden="true"></i><span>Careergrind</span></div>
+  <nav aria-label="Main"><a href="#">Home</a><a href="#" aria-current="page">Jobs</a><a href="#">Library</a><a href="#">Practice</a></nav>
+</header>
+
+<main class="page">
+  <div class="job-head">
+    <div><h1>Senior Product Designer</h1><p>Northwind Labs · Interviewing</p></div>
+  </div>
+  <nav class="job-tabs" aria-label="Job"><a href="#">Overview</a><a href="#">Requirements</a><a href="#">Resume</a><a href="#" aria-current="page">Interview</a></nav>
+
+  <div class="intro">
+    <h2>Set up your interview</h2>
+    <p>Choose your round. We’ll prepare questions for this saved job using your career library.</p>
+  </div>
+
+  <!-- A · Route ticket -->
+  <form id="variant-a" onsubmit="return false">
+    <div class="a-grid">
+      <div class="a-sections" id="a-sections"></div>
+      <aside class="a-ticket" aria-label="Your round">
+        <header><span>Your round</span><b id="a-time">~20 min</b></header>
+        <div class="body">
+          <h3 id="a-title">Mixed Interview, Realistic</h3>
+          <dl>
+            <dt>Interviewer</dt><dd id="a-who">Daniel, Professional Hiring Manager</dd>
+            <dt>Focus</dt><dd id="a-focus">Balanced</dd>
+          </dl>
+          <div>
+            <div class="stops" id="a-stops" aria-hidden="true"></div>
+            <div class="line-cap"><span id="a-count">8 core questions</span><span>Follow-ups may add more</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button">Continue to settings</button>
+            <small>Next: microphone and transcription. Nothing is prepared until you confirm.</small>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </form>
+
+  <!-- B · Station line -->
+  <form id="variant-b" onsubmit="return false" hidden>
+    <div class="b-line" id="b-line"></div>
+  </form>
+
+  <!-- C · Control panel -->
+  <form id="variant-c" onsubmit="return false" hidden>
+    <div class="c-panel" id="c-panel"></div>
+  </form>
+
+  <details class="privacy">
+    <summary>How your details and audio are used</summary>
+    <p>Interview details and privacy. We use your saved job and career library to write questions. Audio is only recorded if you turn on the microphone in the next step.</p>
+  </details>
+</main>
+
+<script>
+const sections = {
+  type: { title: 'Interview type', cols: 2, options: [
+    { value: 'mixed', label: 'Mixed Interview', description: 'Behavioural + role questions. Closest to a real loop.' },
+    { value: 'behavioral', label: 'Behavioural', description: 'Past experience, teamwork, conflict, leadership. STAR-focused.' },
+    { value: 'technical', label: 'Technical / Role', description: 'Role knowledge, judgement and problem-solving depth.' },
+    { value: 'screening', label: 'HR Screening', description: 'Motivation, background, logistics and culture fit.' } ] },
+  difficulty: { title: 'Difficulty', cols: 3, options: [
+    { value: 'warm_up', label: 'Warm-up', description: 'Supportive pace, foundational questions.' },
+    { value: 'realistic', label: 'Realistic', description: 'Matches a typical on-site / video round.' },
+    { value: 'stretch', label: 'Stretch', description: 'Probing follow-ups and harder scenarios.' } ] },
+  interviewer: { title: 'Your interviewer', cols: 3, options: [
+    { value: 'maya', label: 'Maya', role: 'Friendly Coach', description: 'Warm, encouraging, gives you room to think.', sample: 'Take your time. Tell me about a project you’re proud of.' },
+    { value: 'daniel', label: 'Daniel', role: 'Professional Hiring Manager', description: 'Neutral and structured, like a real panel member.', sample: 'Walk me through how you approached your last redesign.' },
+    { value: 'priya', label: 'Priya', role: 'Tough Interviewer', description: 'Direct, presses for specifics and measurable impact. Probes after you submit your answer.', sample: 'What changed because of your work? Give me a number.' } ] },
+  length: { title: 'Interview length', cols: 3, options: [
+    { value: '5', label: 'Short', description: '5 core questions · ~10 min', count: 5, time: '~10 min' },
+    { value: '8', label: 'Standard', description: '8 core questions · ~20 min', count: 8, time: '~20 min' },
+    { value: '12', label: 'Full loop', description: '12 core questions · ~30 min', count: 12, time: '~30 min' } ] },
+}
+const focusOptions = { communication:'Communication', problem_solving:'Problem Solving', leadership:'Leadership', teamwork:'Teamwork', conflict:'Conflict', impact_metrics:'Impact & Metrics', technical_depth:'Technical Depth', adaptability:'Adaptability', ownership:'Ownership', customer_focus:'Customer Focus' }
+const state = { type:'mixed', difficulty:'realistic', interviewer:'daniel', length:'8', focus:[] }
+const order = ['type','difficulty','interviewer','length','focus']
+let bOpen = 'type'
+
+const pick = (key) => sections[key].options.find((o) => o.value === state[key])
+const plusIcon = '<svg class="off" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+const checkIcon = '<svg class="on" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const stopsMarkup = (n) => Array.from({ length: n }, () => '<i></i>').join('') + '<i class="extra"></i>'
+const chipsMarkup = (prefix) => `<div class="chips">${Object.entries(focusOptions).map(([v, l]) => `<label class="chip"><input type="checkbox" name="${prefix}-focus" value="${v}" ${state.focus.includes(v) ? 'checked' : ''}>${plusIcon}${checkIcon}${l}</label>`).join('')}</div>`
+const focusText = () => state.focus.length ? state.focus.map((v) => focusOptions[v]).join(', ') : 'Balanced'
+
+/* A: list rows plus a live ticket */
+function renderA() {
+  const root = document.getElementById('a-sections')
+  root.innerHTML = Object.entries(sections).map(([key, s]) => `<fieldset><legend class="legend">${s.title}</legend><div class="a-list">${s.options.map((o) => `
+    <label class="a-row"><input type="radio" name="a-${key}" value="${o.value}" ${state[key] === o.value ? 'checked' : ''}>
+      <span><b>${o.label}</b>${o.role ? `<span class="role">${o.role}</span>` : ''}<span class="desc">${key === 'length' ? 'Follow-ups may extend it.' : o.description}</span></span>
+      ${key === 'length' ? `<span class="meta">${o.count} questions · ${o.time}</span>` : '<span></span>'}
+    </label>`).join('')}</div></fieldset>`).join('') +
+    `<fieldset><legend class="legend">Focus areas <span class="optional">(optional)</span></legend><p class="c-help" style="margin:6px 0 12px">Bias which questions you get. Leave these clear for a balanced round.</p>${chipsMarkup('a')}</fieldset>`
+  updateTicket()
+}
+function updateTicket() {
+  const len = pick('length'), who = pick('interviewer')
+  document.getElementById('a-title').textContent = `${pick('type').label}, ${pick('difficulty').label}`
+  document.getElementById('a-who').textContent = `${who.label}, ${who.role}`
+  document.getElementById('a-focus').textContent = focusText()
+  document.getElementById('a-time').textContent = len.time
+  document.getElementById('a-count').textContent = `${len.count} core questions`
+  document.getElementById('a-stops').innerHTML = stopsMarkup(len.count)
+}
+
+/* B: one section open at a time on a vertical line */
+const check = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+function renderB() {
+  const openIndex = order.indexOf(bOpen)
+  const stations = order.map((key, i) => {
+    const isFocus = key === 'focus'
+    const current = key === bOpen
+    const status = current ? 'current' : i < openIndex || (!isFocus && bOpen === 'done') ? 'done' : 'ahead'
+    const title = isFocus ? 'Focus areas' : sections[key].title
+    const picked = isFocus ? focusText() : (() => { const o = pick(key); return o.role ? `${o.label}, ${o.role}` : key === 'length' ? `${o.label} · ${o.count} questions · ${o.time}` : o.label })()
+    const bullet = status === 'done' ? check : i + 1
+    let body = ''
+    if (current && !isFocus) body = `<div class="b-opts" style="--cols:${sections[key].cols}">${sections[key].options.map((o) => `<button type="button" class="b-opt" data-b-key="${key}" data-b-value="${o.value}" aria-pressed="${state[key] === o.value}"><b>${o.label}</b>${o.role ? `<span class="role">${o.role}</span>` : ''}<span>${o.description}</span></button>`).join('')}</div>`
+    if (current && isFocus) body = `<p class="c-help" style="margin:6px 0 12px">Optional. Bias which questions you get, or leave them clear for a balanced round.</p>${chipsMarkup('b')}<div class="b-final" style="margin-top:16px"><button class="btn small" type="button" data-b-done>Done</button></div>`
+    return `<section class="b-station ${status} ${isFocus ? 'optional-st' : ''}">
+      <div class="b-bullet" aria-hidden="true">${bullet}</div>
+      <div><div class="b-head"><h3>${title}${current ? '' : `<span class="picked">${picked}</span>`}</h3>${current ? '' : `<button class="btn small ghost" type="button" data-b-open="${key}">Change</button>`}</div>${body}</div>
+    </section>`
+  }).join('')
+  const nextReady = bOpen === 'done'
+  const final = `<section class="b-station ${nextReady ? 'current' : 'ahead'}">
+      <div class="b-bullet" aria-hidden="true">6</div>
+      <div><div class="b-head"><h3>Microphone and transcription</h3></div>
+      <div class="b-final"><button class="btn${nextReady ? '' : ' outline'}" type="button">Continue to settings</button><p>${nextReady ? `${pick('type').label} · ${pick('difficulty').label} · ${pick('length').count} core questions with ${pick('interviewer').label}` : 'You can skip ahead any time: every step already has a sensible default.'}</p></div></div>
+    </section>`
+  document.getElementById('b-line').innerHTML = stations + final
+}
+
+/* C: compact switches, persona tiles */
+function renderC() {
+  const sw = (key) => `<div class="c-switch${sections[key].options.length === 3 ? ' three' : ''}" role="radiogroup" aria-label="${sections[key].title}">${sections[key].options.map((o) => `<label><input type="radio" name="c-${key}" value="${o.value}" ${state[key] === o.value ? 'checked' : ''}>${o.label}</label>`).join('')}</div><p class="c-help" id="c-help-${key}">${key === 'length' ? '' : pick(key).description}</p>`
+  const len = pick('length')
+  document.getElementById('c-panel').innerHTML = `
+    <div class="c-row"><span class="legend">Interview type</span><div>${sw('type')}</div></div>
+    <div class="c-row"><span class="legend">Difficulty</span><div>${sw('difficulty')}</div></div>
+    <div class="c-row"><span class="legend">Your interviewer</span><div class="c-people" role="radiogroup" aria-label="Your interviewer">${sections.interviewer.options.map((o) => `
+      <label class="c-person"><input type="radio" name="c-interviewer" value="${o.value}" ${state.interviewer === o.value ? 'checked' : ''}>
+        <span class="c-who"><span class="c-mono" aria-hidden="true">${o.label[0]}</span><span><b>${o.label}</b><small>${o.role}</small></span></span>
+        <p>${o.description}</p>
+        <blockquote class="c-quote"><span>Sounds like</span>“${o.sample}”</blockquote>
+      </label>`).join('')}</div></div>
+    <div class="c-row"><span class="legend">Interview length</span><div><div class="c-length">${sw('length').replace(/<p[^>]*><\/p>/, '')}<div class="stops" id="c-stops" aria-hidden="true">${stopsMarkup(len.count)}</div></div><p class="c-help" id="c-len-help">${len.count} core questions · ${len.time}. Follow-ups may extend it.</p></div></div>
+    <div class="c-row"><span class="legend">Focus areas <span class="optional">(optional)</span></span><div><div class="c-focus-meta"><span id="c-focus-count">${state.focus.length ? `${state.focus.length} selected` : 'None selected · balanced round'}</span>${state.focus.length ? '<button class="btn small ghost" type="button" data-c-clear>Clear</button>' : ''}</div>${chipsMarkup('c')}</div></div>
+    <div class="c-foot"><div class="sum"><b>${pick('type').label} · ${pick('difficulty').label} · ${len.count} questions</b><span>with ${pick('interviewer').label} · ${len.time} · next you’ll check your microphone</span></div><button class="btn" type="button">Continue to settings</button></div>`
+}
+
+function renderAll() { renderA(); renderB(); renderC() }
+
+document.addEventListener('change', (e) => {
+  const t = e.target
+  const [prefix, key] = t.name.split('-')
+  if (key === 'focus') {
+    state.focus = t.checked ? [...state.focus, t.value] : state.focus.filter((v) => v !== t.value)
+  } else if (key in state) state[key] = t.value
+  if (prefix === 'a') updateTicket()
+  if (prefix === 'c') { const y = scrollY; renderC(); focusBack(t); scrollTo(0, y) }
+  if (prefix !== 'a') renderA()
+  if (prefix !== 'b') renderB()
+  if (prefix !== 'c') renderC()
+})
+function focusBack(t) { const el = document.querySelector(`input[name="${t.name}"][value="${t.value}"]`); if (el && t.matches(':focus-visible')) el.focus() }
+
+document.addEventListener('click', (e) => {
+  const opt = e.target.closest('[data-b-value]')
+  if (opt) { state[opt.dataset.bKey] = opt.dataset.bValue; bOpen = order[order.indexOf(opt.dataset.bKey) + 1]; renderAll(); return }
+  const open = e.target.closest('[data-b-open]')
+  if (open) { bOpen = open.dataset.bOpen; renderB(); return }
+  if (e.target.closest('[data-b-done]')) { bOpen = 'done'; renderB(); return }
+  if (e.target.closest('[data-c-clear]')) { state.focus = []; renderAll(); return }
+  const v = e.target.closest('[data-variant]')
+  if (v) {
+    document.querySelectorAll('[data-variant]').forEach((b) => b.setAttribute('aria-pressed', b === v))
+    for (const id of ['a','b','c']) document.getElementById(`variant-${id}`).hidden = id !== v.dataset.variant
+    document.getElementById('variant-note').textContent = { a: 'Choices on the left, a live summary on the right.', b: 'One choice at a time on a vertical line. Picked steps collapse.', c: 'Compact switches; interviewer tiles carry a sample line.' }[v.dataset.variant]
+    try { history.replaceState(null, '', '#' + v.dataset.variant) } catch {}
+    return
+  }
+  const th = e.target.closest('[data-theme-set]')
+  if (th) { document.documentElement.dataset.theme = th.dataset.themeSet; document.querySelectorAll('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', b === th)) }
+})
+
+renderAll()
+if (matchMedia('(prefers-color-scheme: dark)').matches) document.querySelector('[data-theme-set="dark"]').click()
+const start = location.hash.slice(1)
+if (['a','b','c'].includes(start)) document.querySelector(`[data-variant="${start}"]`).click()
+</script>
+</body>
+</html>

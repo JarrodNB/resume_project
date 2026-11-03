@@ -3,6 +3,7 @@
  * Index:
  *   - ResumesPage: page component
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { ArrowUpRight, FileText } from 'lucide-react'
 import { Link } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -19,7 +20,7 @@ export function ResumesPage() {
     <div className="mx-auto grid max-w-3xl gap-6">
       <PageHeading title="Resumes" description="Your experience, shaped for each opportunity. Open a draft to review, refine, and export." />
       {error && <ErrorAlert title="Couldn't load your resumes" messages={[requestErrorMessage(error, error.message)]} />}
-      {!resumes && loading && <p className="text-muted-foreground">Loading…</p>}
+      {!resumes && loading && <ContentSkeleton label="Loading your resumes…" />}
       {resumes?.length === 0 && (
         <div className="empty-records">
             <FileText size={30} strokeWidth={1.4} aria-hidden />

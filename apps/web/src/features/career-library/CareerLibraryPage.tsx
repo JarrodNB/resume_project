@@ -9,6 +9,7 @@
  * Index:
  *   - CareerLibraryPage: page component
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import type { ReactNode } from 'react'
 import { DragDropProvider } from '@dnd-kit/react'
 import { sortableId } from '@/components/dnd/moveItems'
@@ -62,7 +63,7 @@ export function CareerLibraryPage() {
       <ImportSummaryNotice />
       {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}
       <ErrorAlert title="Couldn't save that change" messages={[...reordering.errors, ...sectionOrder.errors]} />
-      {!library && loading && <p className="text-muted-foreground">Loading…</p>}
+      {((!library && loading) || (library && sectionOrder.loading)) && <ContentSkeleton label="Loading your career library…" layout="sections" />}
       {library && !libraryHasContent(library) && (
         <section className="library-resume-import" aria-labelledby="resume-import-heading">
           <div className="grid gap-2">

@@ -4,6 +4,7 @@
  * Index:
  *   - ResumePage: page component
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { ArrowLeft } from 'lucide-react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -32,7 +33,7 @@ export function ResumePage() {
         {resume && <p className="text-muted-foreground">The job for this resume was removed.</p>}
       </div>
       {error && <ErrorAlert title="Couldn't load this resume" messages={[requestErrorMessage(error, error.message)]} />}
-      {!resume && loading && <p className="text-muted-foreground">Loading…</p>}
+      {!resume && loading && <ContentSkeleton label="Loading resume…" layout="detail" />}
       {resume && <SavedResumeEditor key={resume.id} resumeId={resume.id} title={resume.title} includeSummary={resume.includeSummary} sections={resume.sections} onSummaryAccepted={refetch} onDeleted={() => void navigate('/resumes')} />}
     </div>
   )

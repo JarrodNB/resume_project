@@ -3,6 +3,7 @@
  * The URL names the open question; without one, the page opens the first unanswered question.
  * Internal batch IDs keep existing links working; leaving an unsaved answer asks first.
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useBlocker, useBeforeUnload } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
@@ -44,7 +45,7 @@ export function InterviewSetPage() {
     <Link className="question-back-link" to="/practice/questions"><ArrowLeft aria-hidden="true" />All questions</Link>
     {blocker.state === 'blocked' && <div role="alert" className="grid gap-3 rounded-md border p-4"><p>You have unsaved answers. Leave and discard your changes?</p><div className="flex gap-2"><Button onClick={() => blocker.reset()}>Keep editing</Button><Button variant="outline" onClick={() => blocker.proceed()}>Leave page</Button></div></div>}
     {error && <ErrorAlert title="Couldn't load this question" messages={[requestErrorMessage(error, error.message)]} />}
-    {!questionSet && loading && <p>Loading…</p>}
+    {!questionSet && loading && <ContentSkeleton label="Loading practice question…" layout="detail" />}
     {questionSet && <>
       <PageHeading title={active ? 'Practice question' : 'Practice questions'} description={`${interviewSetTypeLabel(questionSet.setType)} · ${interviewSetDate(questionSet.createdAt)}`}
         actions={questions.length === 0 && <DismissQuestionGenerationButton id={id} onDeleted={() => void navigate('/practice/questions')} />} />

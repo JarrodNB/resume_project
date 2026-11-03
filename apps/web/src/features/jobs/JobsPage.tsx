@@ -5,6 +5,7 @@
  * Index:
  *   - JobsPage: page component
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { useState } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { ArrowUpRight, BriefcaseBusiness, ClipboardPaste, ExternalLink, Link2 } from 'lucide-react'
@@ -39,7 +40,7 @@ export function JobsPage() {
       } />
       <JobFormDialog open={adding} job={null} onOpenChange={setAdding} onCreated={(jobId) => navigate(`/jobs/${jobId}`)} />
       {error && <ErrorAlert title="Couldn't load your jobs" messages={[requestErrorMessage(error, error.message)]} />}
-      {!jobs && loading && <p className="text-muted-foreground">Loading…</p>}
+      {!jobs && loading && <ContentSkeleton label="Loading your jobs…" />}
       {jobs?.length === 0 && (
         <div className="empty-records">
           <BriefcaseBusiness size={30} strokeWidth={1.4} aria-hidden />

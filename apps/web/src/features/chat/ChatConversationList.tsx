@@ -3,6 +3,7 @@
  *
  * It only reads the list the page already loaded, and it never deletes or renames chats.
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import type { useChatWorkspace } from './useChatWorkspace'
@@ -14,7 +15,7 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat(undefined, { dateSt
 export function ChatConversationList({ workspace, activeId }: { workspace: Workspace; activeId?: string }) {
   return <nav aria-label="Saved chats" className="chat-rail">
     <p className="chat-rail-title">Saved chats</p>
-    {workspace.loading && !workspace.conversations && <p role="status" className="chat-rail-note">Loading chats…</p>}
+    {workspace.loading && !workspace.conversations && <ContentSkeleton label="Loading chats…" />}
     {workspace.conversations?.length === 0 && <p className="chat-rail-note">No saved chats yet. Start one when you’re ready.</p>}
     <ul>
       {workspace.conversations?.map((conversation) => <li key={conversation.id}>

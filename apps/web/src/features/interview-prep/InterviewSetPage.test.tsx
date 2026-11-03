@@ -30,7 +30,7 @@ it('restores a queued task on reload and opens the first question on live comple
     request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, delay: 500,
     result: { data: { aiTaskUpdated: taskFixture('COMPLETED') } },
   }, setMock('COMPLETED')])
-  expect(await screen.findByRole('status')).toHaveTextContent('Generating questions…')
+  expect(await screen.findByText('Generating questions…')).toBeInTheDocument()
   expect(await screen.findByRole('heading', { level: 2, name: 'Saved question text 1' })).toBeVisible()
   expect(screen.queryByText('Generating questions…')).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Practice question')
@@ -81,6 +81,6 @@ it('keeps generation progress visible when live updates disconnect', async () =>
   render('/practice/questions/set-1', [setMock('QUEUED'), {
     request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, error: new Error('Connection interrupted'),
   }])
-  expect(await screen.findByRole('status')).toHaveTextContent('Generating questions…')
+  expect(await screen.findByText('Generating questions…')).toBeInTheDocument()
   expect(await screen.findByText('Live updates disconnected')).toBeInTheDocument()
 })

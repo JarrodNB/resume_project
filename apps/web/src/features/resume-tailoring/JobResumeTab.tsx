@@ -4,6 +4,7 @@
  * The write route (`/jobs/:id/resume/write`) starts a whole-draft tailor task when there isn't
  * one, follows it live, and returns to the Resume tab once the draft is saved.
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { FileText, LoaderCircle } from 'lucide-react'
 import { Navigate, useNavigate } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -51,9 +52,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
         <Button type="button" variant="outline" className="justify-self-start" onClick={retry}>Try again</Button>
       )}
       {!job && loading && (
-        <p role="status" className="flex items-center gap-2 text-muted-foreground">
-          <LoaderCircle className="size-4 animate-spin" aria-hidden /> Loading…
-        </p>
+        <ContentSkeleton label="Loading resume…" layout="detail" />
       )}
       {job?.resume && <h2 className="text-lg font-medium break-words">{job.resume.title}</h2>}
       {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} includeSummary={job.resume.includeSummary} sections={job.resume.sections} jobId={id} onSummaryAccepted={refetch} onDeleted={() => void navigate(resumeTab)} />}

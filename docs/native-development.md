@@ -148,3 +148,28 @@ python3 script/native.py --help
 python3 script/native.py doctor
 python3 -m unittest discover -s script -p test_native.py -v
 ```
+
+## Troubleshooting local previews
+
+- Use `http://localhost:5173` for the default local browser session. The web and
+  API origins must match the configured origins; substituting `127.0.0.1` can
+  cause the session request to fail even when both servers respond. For a cloud
+  preview, configure the `NATIVE_*_ORIGIN` values above instead.
+- If a managed sandbox rejects a server bind with `EPERM`, run the startup and
+  browser commands with the environment's network permission enabled. Start the
+  full stack, not just Vite: the frontend needs the API for its session.
+- A restored cloud workspace can retain stale PID files after its processes have
+  gone away. Check the recorded process identity before removing a stale PID file;
+  never remove one belonging to a running database. Then rerun the start hook.
+- If PostgreSQL logs `Illegal instruction` while loading pgvector after a workspace
+  moves to a different host, the locally compiled extension may target the old
+  CPU. From the repository root, rebuild the existing `.native/sources/pgvector`
+  with `make -C .native/sources/pgvector PG_CONFIG=$PWD/.native/pgsql/bin/pg_config clean`,
+  then run `make` and `make install` with the same `-C` and `PG_CONFIG` arguments
+  plus `OPTFLAGS=''`. Restart the stack. Inspect the PostgreSQL log first; an
+  illegal instruction alone does not prove pgvector is responsible.
+- For a browser screenshot, use Playwright with headless Chromium and save the
+  screenshot to a local PNG. Sign in using the synthetic QA account documented in
+  `docs/testing.md` (run the development seeds if needed). Verify the screenshot
+  shows the intended page rather than a sign-in or error screen. Check desktop
+  and narrow layouts when changing responsive UI.

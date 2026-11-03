@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { useTaskNotifications } from './useTaskNotifications'
 
 export function TaskNotifications({ userId, initialCursor }: { userId: string; initialCursor?: string | null }) {
-  const { notices, dismiss } = useTaskNotifications(userId, initialCursor)
+  const { notices, dismiss, clearAll } = useTaskNotifications(userId, initialCursor)
   const contentRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
@@ -37,7 +37,10 @@ export function TaskNotifications({ userId, initialCursor }: { userId: string; i
       <PopoverContent ref={contentRef} align="end" sideOffset={10} collisionPadding={16} className="w-[min(24rem,calc(100vw-2rem))] gap-0 overflow-hidden rounded-xl p-0" aria-label="Task notifications">
         <div className="flex items-baseline justify-between gap-4 border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold tracking-tight">Notifications</h2>
-          <span className="text-xs text-muted-foreground">{notices.length} {notices.length === 1 ? 'update' : 'updates'}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{notices.length} {notices.length === 1 ? 'update' : 'updates'}</span>
+            {notices.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => { clearAll(); setReadIds(new Set()); contentRef.current?.focus() }}>Clear all</Button>}
+          </div>
         </div>
         {notices.length === 0 ? <div className="px-5 py-8">
           <p className="text-sm font-medium">You’re all caught up</p>

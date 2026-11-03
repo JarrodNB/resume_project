@@ -212,12 +212,12 @@ function EmptyLibraryNote() {
   )
 }
 
-/** The three steps that start a search, shown before any job is saved. Step 1 is marked done once
+/** The four steps that start a search, shown before any job is saved. Step 1 is marked done once
  * the library has content; the first unfinished step is the one to do now. */
 function FirstRun({ libraryStarted }: { libraryStarted: boolean | null }) {
   return (
     <section className="home-first-run" aria-labelledby="first-run-heading">
-      <h2 id="first-run-heading">Start your search in three steps</h2>
+      <h2 id="first-run-heading">Start your search in four steps</h2>
       <p className="first-run-time">Do these in order. The first comparison of a job against your library is where it starts to pay off.</p>
       <ol>
         <li data-state={libraryStarted ? 'done' : 'now'} aria-current={libraryStarted ? undefined : 'step'}>
@@ -242,6 +242,10 @@ function FirstRun({ libraryStarted }: { libraryStarted: boolean | null }) {
         <li data-state="next">
           <h3>Compare, then write</h3>
           <p>Open a saved job to see how your library matches it, answer gaps, and write a tailored resume.</p>
+        </li>
+        <li data-state="next">
+          <h3>Prepare for the interview</h3>
+          <p>Practice answering interview questions using your experience and the job you saved.</p>
         </li>
       </ol>
     </section>

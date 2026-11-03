@@ -583,11 +583,11 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .pipeline-list .is-offer .station-bullet { border-color: var(--signal-done); }
 .pipeline-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 24px; padding: 14px 4px; border-bottom: 1px solid var(--border); }
 .pipeline-row.is-closed { color: var(--muted-foreground); }
-/* First run: the three starting steps ride a short line of their own. */
+/* First run: the four starting steps ride a short line of their own. */
 .home-first-run { display: grid; gap: 24px; margin-top: 32px; padding-top: 28px; border-top: 2px solid var(--rule-strong); }
 .home-first-run h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
-.home-first-run ol { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; counter-reset: first-run-step; }
-.home-first-run ol::before { content: ""; position: absolute; top: 15px; left: 17px; right: calc((100% - 48px) / 3 - 17px); height: 6px; margin-top: -3px; background: var(--rule-strong); }
+.home-first-run ol { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; counter-reset: first-run-step; }
+.home-first-run ol::before { content: ""; position: absolute; top: 15px; left: 17px; right: calc((100% - 72px) / 4 - 17px); height: 6px; margin-top: -3px; background: var(--rule-strong); }
 .home-first-run li { position: relative; display: grid; align-content: start; gap: 8px; counter-increment: first-run-step; }
 .home-first-run li::before { content: counter(first-run-step); position: relative; display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 8px; border: 5px solid var(--rule-strong); border-radius: 50%; background: var(--background); font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .home-first-run h3 { font-size: 17px; font-weight: 700; }

@@ -101,17 +101,18 @@ it('switches to a list that skips empty stages, and remembers the choice', async
   expect(await screen.findByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
 })
 
-it('shows the three starting steps before any job is saved', async () => {
+it('shows the four starting steps before any job is saved', async () => {
   renderHome([], [], [])
-  const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
   expect(within(firstRun).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library')
   expect(within(firstRun).getByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
+  expect(within(firstRun).getByRole('heading', { name: 'Prepare for the interview' })).toBeInTheDocument()
   expect(screen.queryByRole('group', { name: 'Show jobs as' })).not.toBeInTheDocument()
 })
 
 it('marks the library step done and points at saving a job once the library has content', async () => {
   renderHome([])
-  const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
   expect(await within(firstRun).findByRole('link', { name: 'Review your library' })).toHaveAttribute('href', '/library')
   expect(within(firstRun).queryByRole('link', { name: 'Import a resume' })).not.toBeInTheDocument()
   expect(within(firstRun).getByRole('heading', { name: 'Save a job you want' }).closest('li')).toHaveAttribute('aria-current', 'step')
@@ -119,7 +120,7 @@ it('marks the library step done and points at saving a job once the library has 
 
 it('keeps the import step current while the library is empty', async () => {
   renderHome([], [], [])
-  const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
   expect(await within(firstRun).findByRole('link', { name: 'Import a resume' })).toBeInTheDocument()
   expect(within(firstRun).getByRole('heading', { name: 'Fill your career library' }).closest('li')).toHaveAttribute('aria-current', 'step')
 })

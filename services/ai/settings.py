@@ -44,6 +44,18 @@ class AISettings(BaseSettings):
     study_guide_thinking: ThinkingLevel = False
     interview_questions_model: str = "openai:gpt-6-luna"
     interview_questions_thinking: ThinkingLevel = False
+    # Live mock interviews: writing the questions, and replying to each answer.
+    # Each choice needs interview accounting.
+    interview_preparation_model: str = "openai:gpt-6-luna"
+    interview_dialogue_model: str = "openai:gpt-6-luna"
+
+    @field_validator("interview_preparation_model", "interview_dialogue_model")
+    @classmethod
+    def live_interview_model_candidate(cls, value: str) -> str:
+        if value not in {"openai:gpt-6-luna", "openai:gpt-6.1-terra"}:
+            raise ValueError("Live interviews support openai:gpt-6-luna or openai:gpt-6.1-terra")
+        return value
+
     # Interview eval judging stays independent of production and comparison models.
     eval_judge_model: str = "openai:gpt-6.1-sol"
     library_review_model: str = "openai:gpt-6-luna"

@@ -72,13 +72,19 @@ def test_luna_cache_writes_use_the_30_minute_rate():
     assert entry.cache_write_tokens == 8_000
 
 
+def test_terra_uses_its_published_standard_rates():
+    usage = RunUsage(input_tokens=10_000, cache_read_tokens=2_000, cache_write_tokens=1_000, output_tokens=1_000)
+    assert estimate_cost_microdollars("openai:gpt-6.1-terra", usage) == 13_350
+
+
+@pytest.mark.parametrize("model", ["openai:gpt-6-luna", "openai:gpt-6.1-terra"])
 @pytest.mark.parametrize("usage", [
     RunUsage(input_tokens=10, cache_read_tokens=8, cache_write_tokens=8),
     RunUsage(input_tokens=272_001),
 ])
-def test_unsupported_luna_usage_cannot_be_reported_as_known(usage):
+def test_unsupported_short_context_usage_cannot_be_reported_as_known(model, usage):
     with pytest.raises(ValueError):
-        estimate_cost_microdollars("openai:gpt-6-luna", usage)
+        estimate_cost_microdollars(model, usage)
 
 
 def test_unknown_response_model_is_not_disguised_as_the_configured_model():

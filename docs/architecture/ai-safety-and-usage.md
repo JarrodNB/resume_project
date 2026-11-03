@@ -59,6 +59,8 @@ requests get a JSON 429 with `Retry-After`.
   preparation and dialogue default to disabled Luna reasoning. Set
   `INTERVIEW_PREPARATION_THINKING` and `INTERVIEW_DIALOGUE_THINKING` independently
   to `false`, `true`, `minimal`, `low`, `medium`, `high`, or `xhigh`.
+  `INTERVIEW_PREPARATION_MODEL` and `INTERVIEW_DIALOGUE_MODEL` pick the live question-writing
+  and reply models: Luna or Terra.
   Root Compose reads these from the root `.env` or shell; the retained QA launcher
   reads them from its configured AI environment file. Recreate the interview runtime
   after changing them; these settings do not affect queued agents.

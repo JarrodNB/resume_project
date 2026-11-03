@@ -60,6 +60,28 @@ def test_interviewer_receives_follow_up_guidance_with_candidate_answer():
     assert "rather than assuming a formal process" in observed[0]
     assert "single clear question" in observed[0]
 
+def test_interviewer_is_told_to_answer_candidate_questions_before_probing():
+    observed = []
+
+    async def respond(messages, info):
+        observed.append(str(messages))
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"decision": "continue", "acknowledgement": None,
+             "reply": "Let's say it's a database of customer orders. How would you connect the agent to it?"})])
+
+    async def guard(ctx, prompt):
+        return True
+
+    result = asyncio.run(make_interviewer(guard).run(
+        "What is the business data source? Is it stored in a vector store or a database?",
+        model=FunctionModel(respond)))
+    assert result.output.decision == "continue"
+    assert "vector store" in observed[0]
+    assert "Answering it comes before probing" in observed[0]
+    assert "Return decision continue, never advance" in observed[0]
+    assert "Never give the answer to the interview question" in observed[0]
+
+
 def test_each_validation_retry_has_a_distinct_durable_observation():
     from interviews.models import InterviewModel
     from tests.test_interview_executor import Client, claim
@@ -108,7 +130,7 @@ def test_synthetic_eval_fixture_contracts_offline():
     from evals.run_spoken_interviewer_evals import run_spoken_interviewer_evals
 
     report = run_spoken_interviewer_evals()
-    assert len(report.cases) == 4 and not report.failures
+    assert len(report.cases) == 5 and not report.failures
     assert all(all(result.value for result in case.assertions.values()) for case in report.cases)
 
 

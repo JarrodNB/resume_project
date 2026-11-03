@@ -12,7 +12,7 @@ class SpokenInterviewReply(BaseModel):
     acknowledgement: str | None = Field(default=None, min_length=1, max_length=280,
         description="Optional brief grounded conversational response only when it adds something; null to move directly on. No recap, praise, evaluation, coaching or question.")
     decision: Literal["continue", "advance"] = Field(description="Continue with a follow-up, or request Rails advancement.")
-    reply: str | None = Field(default=None, max_length=4000, description="A short relevant follow-up for continue; null for advance.")
+    reply: str | None = Field(default=None, max_length=4000, description="For continue, a short relevant follow-up, or a direct answer to the candidate's question and then a prompt to carry on; null for advance.")
 
     @model_validator(mode="after")
     def valid_reply(self):

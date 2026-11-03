@@ -2,8 +2,9 @@
 
 Accounting wraps the provider, below agent validation retries. Missing or unexpected
 usage remains unknown, and transport retries are disabled in both provider clients.
-Luna caching is explicitly disabled because the pinned usage mapper loses write-lifetime
-details. Unsupported long-context or unexpected write usage cannot become a known bill.
+Luna and Terra caching is explicitly disabled because the pinned usage mapper loses
+write-lifetime details. Unsupported long-context or unexpected write usage cannot become a
+known bill.
 """
 
 from contextlib import AsyncExitStack
@@ -22,7 +23,9 @@ from conversation_logging import observe_request
 from interviews.audio_providers import ProviderError
 from interviews.provider_calls import ProviderCalls
 from interviews.provider_transport import provider_transport
-from llm.model_prices import build_model_usage
+from llm.model_prices import MAX_SHORT_CONTEXT_INPUT_TOKENS, build_model_usage
+
+CACHE_DISABLED_MODELS = {"gpt-6-luna", "gpt-6.1-terra"}
 
 
 class InterviewModel(WrapperModel):
@@ -42,7 +45,7 @@ class InterviewModel(WrapperModel):
             model_settings = {**(settings or {}), **({"max_tokens": output_cap} if self.provider_name == "openai" else {})}
             if self.provider_name == "openai":
                 model_settings["openai_service_tier"] = "default"
-            if self.configured == "gpt-6-luna":
+            if self.configured in CACHE_DISABLED_MODELS:
                 # Explicit mode without breakpoints makes no cache reads/writes. The pinned
                 # Responses adapter forwards this option; Nano uses its older cache policy.
                 model_settings["openai_prompt_cache_options"] = {"mode": "explicit"}
@@ -52,8 +55,8 @@ class InterviewModel(WrapperModel):
             entries = []
             if response.model_name in {self.configured, f"{self.provider_name}:{self.configured}"} and (
                 usage.input_tokens > 0 or usage.output_tokens > 0
-            ) and (self.configured != "gpt-6-luna" or (
-                0 <= usage.cache_read_tokens <= usage.input_tokens <= 272_000 and
+            ) and (self.configured not in CACHE_DISABLED_MODELS or (
+                0 <= usage.cache_read_tokens <= usage.input_tokens <= MAX_SHORT_CONTEXT_INPUT_TOKENS and
                 usage.output_tokens >= 0 and usage.cache_write_tokens == 0
             )):
                 priced = build_model_usage(f"{self.provider_name}:{self.configured}", usage)
@@ -84,6 +87,7 @@ class InterviewModels:
                                                transport=typesafe_transport or provider_transport(httpx2.AsyncHTTPTransport), timeout=3))
         self.models = {
             "gpt-6-luna": OpenAIResponsesModel("gpt-6-luna", provider=OpenAIProvider(openai_client=self.openai)),
+            "gpt-6.1-terra": OpenAIResponsesModel("gpt-6.1-terra", provider=OpenAIProvider(openai_client=self.openai)),
             "gpt-5-nano": OpenAIResponsesModel("gpt-5-nano", provider=OpenAIProvider(openai_client=self.openai)),
             "jev-1.13.0": TypeSafeModel("jev-1.13.0", provider=TypeSafeProvider(typesafe_client=self.typesafe)),
         }

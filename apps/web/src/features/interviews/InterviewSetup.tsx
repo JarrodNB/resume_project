@@ -1,9 +1,9 @@
 /** Assemble a practice interview from career evidence and deliberate setup choices.
  * Round choices come first as a control panel (switches, interviewer tiles, a focus-area dropdown),
- * then a settings step for microphone and transcription preferences.
+ * then a settings step for how answers are captured, with the round summary beside Start interview.
  * Preparation saves the round choices before review. Settings stay local to this account.
  */
-import { useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -11,31 +11,13 @@ import { MultiSelect } from '@/components/MultiSelect'
 import { useAuth } from '@/features/auth/useAuth'
 import { useStartInterview } from './useInterviewSession'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
-import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
-import { InterviewTranscriptionSettings } from './InterviewTranscriptionSettings'
+import { InterviewAnswerSettings } from './InterviewAnswerSettings'
+import { SetupRow, Switch } from './InterviewSetupControls'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { difficultyOptions, focusOptions, interviewerOptions, lengthOptions, typeOptions } from './interviewSetupOptions'
 import type { InterviewJob } from './InterviewJobContext'
 
-type Option = { value: string; label: string; description: string }
 const focusChoices = Object.entries(focusOptions).map(([value, label]) => ({ value, label }))
-
-/** One labelled row of the setup panel. The label column names the radio group for screen readers. */
-function SetupRow({ title, children, group = true }: { title: ReactNode; children: ReactNode; group?: boolean }) {
-  const id = useId()
-  return <div className="interview-setup-row" role={group ? 'radiogroup' : undefined} aria-labelledby={group ? id : undefined}>
-    <span id={id} className="interview-setup-label">{title}</span><div className="min-w-0">{children}</div>
-  </div>
-}
-
-/** One pick from a short list, drawn as joined switch buttons over a native radio group. */
-function Switch({ name, options, value, change }: { name: string; options: Option[]; value: string; change: (value: string) => void }) {
-  return <div className="interview-setup-switch" style={{ '--switch-columns': options.length === 3 ? 3 : 2 } as CSSProperties}>
-    {options.map((option) => <label key={option.value}>
-      <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => change(option.value)} />{option.label}
-    </label>)}
-  </div>
-}
 
 export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { notice?: ReactNode; onChangeRole?: () => void; initialSetup?: unknown; job?: InterviewJob & { id: string } }) {
   const { start, loading, error } = useStartInterview()
@@ -72,9 +54,13 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
     } finally { submitting.current = false; setPending(false) }
   }
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
-  return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); if (step === 'round') setStep('settings'); else void prepare() }}>
+  const roundSummary = `${selected.type.label} · ${selected.difficulty.label} · ${questionCount} core questions`
+  const interviewerName = selected.interviewer.label.split(' — ')[0]
+  return <form className={step === 'round' ? 'interview-setup' : 'interview-setup interview-setup-settings'} onSubmit={(event) => { event.preventDefault(); if (step === 'round') setStep('settings'); else void prepare() }}>
     {onChangeRole && step === 'round' && <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={onChangeRole}><ArrowLeft aria-hidden /> Change role</Button>}
-    <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round for this saved job.' : 'Choose the round you want to practise.'}</p></div>
+    {step === 'round'
+      ? <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round for this saved job.' : 'Choose the round you want to practise.'}</p></div>
+      : <h2 className="text-xl font-extrabold tracking-tight">How you’ll answer</h2>}
     <fieldset disabled={busy} className="interview-setup-fields">
       {step === 'round' ? <div className="interview-setup-panel">
       <SetupRow title="Interview type"><Switch name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} /><p className="interview-setup-help">{selected.type.description}</p></SetupRow>
@@ -99,13 +85,17 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
         <p className="interview-setup-help">Bias which questions you get. Leave this empty for a balanced round.</p>
       </div></SetupRow>
       </div> : <>
-      <div className="interview-setup-section"><h3 className="font-medium">Microphone preferences</h3><InterviewMicrophoneSettings microphone={microphone} /><p className="text-sm text-muted-foreground">{canRecord ? 'Microphone recording is supported in this browser. Permission has not been checked.' : 'Microphone recording is unavailable in this browser. You can type every answer.'}</p></div>
-      <div className="interview-setup-section"><h3 className="font-medium">Answer transcription</h3><InterviewTranscriptionSettings mode={transcriptionMode} change={setTranscriptionMode} /></div>
+      <InterviewAnswerSettings microphone={microphone} canRecord={canRecord} mode={transcriptionMode} changeMode={setTranscriptionMode} />
+      {canRecord && <p className="interview-setup-help">You can always type or correct your answers. Mic access is requested only when an answer starts.</p>}
       </>}
     </fieldset>
-    {step === 'round'
-      ? <div className="interview-setup-footer"><p className="text-sm leading-relaxed"><span className="block text-[15px] font-bold">{selected.type.label} · {selected.difficulty.label} · {questionCount} core questions</span><span className="text-muted-foreground">With {selected.interviewer.label.split(' — ')[0]} · {minutes}. Next, check your microphone and transcription.</span></p><Button type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button></div>
-      : <div className="interview-setup-summary"><h3 className="font-medium">Your round</h3><p className="text-sm leading-relaxed">{selected.type.label} · {selected.difficulty.label} · {questionCount} core questions</p><p className="text-sm text-muted-foreground">{selected.interviewer.label}. Follow-up questions may extend the interview.</p><div className="flex flex-wrap gap-3"><Button type="submit" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Starting…' : 'Start interview'}</Button></div>{error && <p role="alert" className="text-destructive">{error}</p>}</div>}
+    <div className="interview-setup-footer">
+      <p className="text-sm leading-relaxed"><span className="block text-[15px] font-bold">{roundSummary}</span><span className="text-muted-foreground">With {interviewerName} · {minutes}. {step === 'round' ? 'Next, check your microphone and transcription.' : 'Follow-ups may extend it.'}</span></p>
+      {step === 'round'
+        ? <Button type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button>
+        : <Button type="submit" size="lg" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Starting…' : 'Start interview'}</Button>}
+    </div>
+    {step === 'settings' && error && <p role="alert" className="text-destructive">{error}</p>}
     {notice && <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>}
   </form>
 }

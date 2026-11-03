@@ -36,6 +36,10 @@ function jobsMock(jobs: SavedJob[] = []): MockLink.MockedResponse {
   return { request: { query: JOBS_QUERY }, result: { data: { jobs: jobs.map((job) => ({ __typename: 'Job' as const, location: null, url: null, createdAt: '2026-10-01T00:00:00Z', ...job })) } } }
 }
 /** Opens the mock interview overview and picks the default practice role, landing on round setup. */
+function stubMicrophoneSupport() {
+  vi.stubGlobal('MediaRecorder', class {})
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn() } })
+}
 async function renderPracticeRoleSetup() {
   const view = renderInterview('/practice/interviews')
   await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
@@ -176,11 +180,12 @@ describe('InterviewPage', () => {
   it('locks setup while preparation is pending and permits retry after failure', async () => {
     let finish!: (id: null) => void
     start.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    stubMicrophoneSupport()
     await renderPracticeRoleSetup()
     fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
     fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
     expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled()
-    expect(screen.getByRole('switch', { name: 'Turn the microphone on automatically' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'Automatic' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Starting…' }))
     expect(start).toHaveBeenCalledOnce()
     await act(async () => finish(null))
@@ -191,12 +196,15 @@ describe('InterviewPage', () => {
   })
 
   it('shares microphone preferences from setup without starting capture', async () => {
+    stubMicrophoneSupport()
     const view = await renderPracticeRoleSetup()
-    expect(screen.queryByRole('switch', { name: 'Turn the microphone on automatically' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'Microphone' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Answer transcription' }), 'streaming')
-    await userEvent.click(screen.getByRole('switch', { name: 'Turn the microphone on automatically' }))
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Thinking time before the mic opens' }), '10')
+    await userEvent.click(screen.getByRole('radio', { name: 'Streaming' }))
+    expect(screen.getByText(/Try it if Browser misses words/)).toBeVisible()
+    expect(screen.queryByRole('radiogroup', { name: 'Thinking time' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('radio', { name: 'Automatic' }))
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Thinking time' })).getByRole('radio', { name: '10 sec' }))
     expect(recorder.start).not.toHaveBeenCalled()
     view.unmount()
     renderInterview()
@@ -204,6 +212,15 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('switch', { name: 'Turn the microphone on automatically' })).toBeChecked()
     expect(screen.getByRole('combobox', { name: 'Thinking time before the mic opens' })).toHaveValue('10')
     expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toHaveValue('streaming')
+  })
+
+  it('says typing still works when this browser cannot record', async () => {
+    await renderPracticeRoleSetup()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
+    expect(screen.getByText('This browser can’t record. You can type every answer.')).toBeVisible()
+    expect(screen.queryByRole('radiogroup', { name: 'Microphone' })).not.toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Transcription' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Start interview' })).toBeEnabled()
   })
 
   it('submits selected difficulty, interviewer and optional focus areas', async () => {

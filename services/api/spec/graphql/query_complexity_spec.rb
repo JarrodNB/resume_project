@@ -30,4 +30,25 @@ RSpec.describe "GraphQL query complexity" do
       include("message" => "Query has complexity of 304, which exceeds max complexity of 300")
     )
   end
+
+  # Every aliased Job Board field can call the shared provider, so only two fit in one operation.
+  it "rejects three aliased Job Board searches before any provider call" do
+    expect(JobBoard::SearchCatalogueService).not_to receive(:call)
+
+    selections = 3.times.map { |index| %(s#{index}: jobBoardSearch(keyword: "k#{index}") { retrievedAt }) }
+    result = execute_graphql("query { #{selections.join(' ')} }", user: user)
+
+    expect(result).not_to have_key("data")
+    expect(result.fetch("errors").first.fetch("message")).to match(/exceeds max complexity of 300/)
+  end
+
+  it "rejects three aliased Job Board location lookups before any provider call" do
+    expect(JobBoard::SuggestLocationsService).not_to receive(:call)
+
+    selections = 3.times.map { |index| %(l#{index}: jobBoardLocations(query: "q#{index}") { locations { label } }) }
+    result = execute_graphql("query { #{selections.join(' ')} }", user: user)
+
+    expect(result).not_to have_key("data")
+    expect(result.fetch("errors").first.fetch("message")).to match(/exceeds max complexity of 300/)
+  end
 end

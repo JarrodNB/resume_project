@@ -9,6 +9,7 @@ from docx.oxml.ns import qn
 
 from documents.extract_document_text import (
     DOCX_CONTENT_TYPE,
+    MAX_PDF_LINKS_PER_PAGE,
     DocumentTooLongError,
     UnsupportedDocumentError,
     _extract_pdf_page,
@@ -325,6 +326,25 @@ def test_pdf_malformed_link_does_not_abort_extraction(uri: str) -> None:
     text = extract_document_text(buffer.getvalue(), "application/pdf")
 
     assert f'url="{uri}"' in text
+
+
+def test_pdf_keeps_labels_for_only_the_first_links_on_a_page() -> None:
+    """A page full of distinct links is capped so label matching stays bounded."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=300, height=300)
+    for index in range(MAX_PDF_LINKS_PER_PAGE + 5):
+        writer.add_annotation(0, Link(rect=(10, 10, 100, 30), url=f"https://example.com/{index}"))
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert text.count('url="') == MAX_PDF_LINKS_PER_PAGE
+    assert f'url="https://example.com/{MAX_PDF_LINKS_PER_PAGE - 1}"' in text
+    assert f'url="https://example.com/{MAX_PDF_LINKS_PER_PAGE}"' not in text
 
 
 def test_pdf_indirect_annotation_array_preserves_links() -> None:

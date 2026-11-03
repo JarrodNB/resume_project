@@ -4,6 +4,8 @@ Keep DOCX paragraphs and distinct table cells in document order, retaining list 
 hyperlink labels and targets so the resume parser can use their context. Include active
 headers before the body and footers after it, reading inherited parts only once.
 Malformed link destinations remain source text without aborting extraction.
+Each PDF page keeps labels for at most MAX_PDF_LINKS_PER_PAGE distinct links, so a page full of
+annotations cannot make label matching grow with annotations times text fragments.
 PDF annotation arrays and link actions may be indirect or explicitly absent via null.
 Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
@@ -26,6 +28,7 @@ from pypdf.generic import NullObject
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
 
+MAX_PDF_LINKS_PER_PAGE = 100
 PDF_CONTENT_TYPE = "application/pdf"
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
@@ -109,6 +112,8 @@ def _pdf_hyperlink_markers(
         rectangle = annotation.get("/Rect")
         if not uri or uri in seen_urls or not rectangle or len(rectangle) != 4:
             continue
+        if len(seen_urls) >= MAX_PDF_LINKS_PER_PAGE:
+            break
         seen_urls.add(uri)
         x1, y1, x2, y2 = (float(value) for value in rectangle)
         label = _pdf_link_label(uri, (x1, y1, x2, y2), fragments)
@@ -122,6 +127,10 @@ def _pdf_link_label(
     fragments: list[tuple[str, float, float, float]],
 ) -> str:
     """Finds the visible label within an annotation, avoiding the rest of its text line."""
+    branded_label = _known_link_label(uri)
+    if branded_label:
+        return branded_label
+
     x1, y1, x2, y2 = rectangle
     overlapping = [
         fragment
@@ -131,10 +140,6 @@ def _pdf_link_label(
         and fragment[2] <= y2 + fragment[3]
         and fragment[2] + fragment[3] >= y1 - 2
     ]
-    branded_label = _known_link_label(uri)
-    if branded_label:
-        return branded_label
-
     pieces = [_text_inside_rectangle(fragment, x1, x2) for fragment in overlapping]
     return " ".join(piece for piece in pieces if piece).strip(" ·|,-") or uri
 

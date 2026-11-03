@@ -3,7 +3,7 @@
  * Index:
  *   - CertificationSection: credentials with merge/delete and the certification form
  */
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatCertificationDates } from '@/lib/formatCertificationDates'
 import { editableCertificationDate } from './certificationDateValues'
@@ -12,20 +12,20 @@ import { LibraryEntry } from './LibraryEntry'
 import { LibraryEntryActions } from './LibraryEntryActions'
 import { certificationLabel } from './libraryEntryLabels'
 import { LibrarySection } from './LibrarySection'
+import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 
 type Certification = CareerLibraryQuery['certifications'][number]
 
 /** Lists certification entries and opens the form to add one or edit one. */
-export function CertificationSection({ certifications, dragHandle }: { certifications: Certification[]; dragHandle?: ReactNode }) {
+export function CertificationSection({ certifications }: { certifications: Certification[] }) {
   const [editing, setEditing] = useState<Certification | 'new' | null>(null)
   const candidates = certifications.map((certification) => ({ id: certification.id, label: certificationLabel(certification) }))
 
   return (
     <>
       <LibrarySection
-        dragHandle={dragHandle}
-        sectionId="library.certifications"
-        tone="certifications"
+       
+        sectionId={LIBRARY_SECTION_ANCHORS.certifications}
         title="Certifications"
         count={certifications.length}
         emptyText="No certifications yet."
@@ -35,7 +35,6 @@ export function CertificationSection({ certifications, dragHandle }: { certifica
         {certifications.map((certification, index) => (
           <LibraryEntry
             key={certification.id}
-            tone="certifications"
             heading={certification.name}
             subheading={[certification.issuer, certification.credentialId, certification.credentialUrl].filter(Boolean).join(', ')}
             dates={formatCertificationDates(editableCertificationDate(certification.issuedDate, certification.issuedDatePrecision), editableCertificationDate(certification.expiryDate, certification.expiryDatePrecision))}

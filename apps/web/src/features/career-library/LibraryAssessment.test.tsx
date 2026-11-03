@@ -18,9 +18,9 @@ it('explains a current color and replaces stale grades with a review prompt', ()
 it('shows a saved review question beside the detail and hides it when its assessment is stale', () => {
   const assessment = { kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Explain your contribution.', stale: false,
     question: 'What did you personally do during the migration?' }
-  const { rerender } = render(<LibraryAssessment assessment={assessment} compact />)
+  const { rerender } = render(<LibraryAssessment assessment={assessment} />)
   expect(screen.getByText(assessment.question)).toBeInTheDocument()
-  rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} compact />)
+  rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} />)
   expect(screen.queryByText(assessment.question)).not.toBeInTheDocument()
 })
 
@@ -28,8 +28,8 @@ it('shows all saved questions together without repeating the legacy first questi
   const questions = ['What did you personally do?', 'How did you approach it?', 'What changed afterward, if anything?']
   const assessment = { kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add useful details.', stale: false,
     questions, question: questions[0] }
-  const { rerender } = render(<LibraryAssessment assessment={assessment} compact />)
+  const { rerender } = render(<LibraryAssessment assessment={assessment} />)
   questions.forEach((question) => expect(screen.getAllByText(question)).toHaveLength(1))
-  rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} compact />)
+  rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} />)
   questions.forEach((question) => expect(screen.queryByText(question)).not.toBeInTheDocument())
 })

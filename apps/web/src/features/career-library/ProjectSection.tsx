@@ -4,7 +4,7 @@
  * Index:
  *   - ProjectSection: projects with merge/delete and the project form
  */
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { LibrarySectionReview } from './LibrarySectionReview'
 import { LibraryDetail } from './LibraryDetail'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
@@ -13,24 +13,24 @@ import { LibraryEntry } from './LibraryEntry'
 import { LibraryEntryActions } from './LibraryEntryActions'
 import { projectLabel } from './libraryEntryLabels'
 import { LibrarySection } from './LibrarySection'
+import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 import { ProjectFormDialog } from './ProjectFormDialog'
 
 type Project = CareerLibraryQuery['projects'][number]
 
 /** Lists projects and opens the form to add one or edit one. */
-export function ProjectSection({ projects, dragHandle }: { projects: Project[]; dragHandle?: ReactNode }) {
+export function ProjectSection({ projects }: { projects: Project[] }) {
   const [editing, setEditing] = useState<Project | 'new' | null>(null)
   const candidates = projects.map((project) => ({ id: project.id, label: projectLabel(project) }))
 
   return (
     <>
-      <LibrarySection dragHandle={dragHandle} sectionId="library.projects" tone="projects" title="Projects" count={projects.length} emptyText="No projects yet." addLabel="Add project" onAdd={() => setEditing('new')}
+      <LibrarySection sectionId={LIBRARY_SECTION_ANCHORS.projects} title="Projects" count={projects.length} emptyText="No projects yet." addLabel="Add project" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="projects" />} reviewSection="projects">
 
         {projects.map((project, index) => (
           <LibraryEntry
             key={project.id}
-            tone="projects"
             heading={project.name}
             subheading={[project.role, project.url].filter(Boolean).join(' · ')}
             dates={formatDateRange(project.startDate, project.endDate)}

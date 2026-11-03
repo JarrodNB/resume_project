@@ -3,19 +3,20 @@
  * Index:
  *   - SkillsSection: grouped skills with the skill form
  */
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { LibrarySection } from './LibrarySection'
+import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 import { SkillFormDialog } from './SkillFormDialog'
 import { SkillList } from './SkillList'
 import type { CategorizedSkill } from './groupSkillsByCategory'
 
 /** Lists skills and opens the form to add one or edit one. */
-export function SkillsSection({ skills, dragHandle }: { skills: CategorizedSkill[]; dragHandle?: ReactNode }) {
+export function SkillsSection({ skills }: { skills: CategorizedSkill[] }) {
   const [editing, setEditing] = useState<CategorizedSkill | 'new' | null>(null)
 
   return (
     <>
-      <LibrarySection dragHandle={dragHandle} sectionId="library.skills" tone="skills" title="Skills" count={skills.length} emptyText="No skills yet." addLabel="Add skill" onAdd={() => setEditing('new')}>
+      <LibrarySection sectionId={LIBRARY_SECTION_ANCHORS.skills} title="Skills" count={skills.length} emptyText="No skills yet." addLabel="Add skill" onAdd={() => setEditing('new')}>
         <SkillList skills={skills} onEdit={setEditing} />
       </LibrarySection>
       <SkillFormDialog open={editing !== null} skill={editing === 'new' ? null : editing} onOpenChange={(open) => !open && setEditing(null)} />

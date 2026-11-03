@@ -21,6 +21,7 @@ export function DragHandle({ handleRef, label, className }: DragHandleProps) {
     <button
       ref={handleRef}
       type="button"
+      data-slot="drag-handle"
       aria-label={`Drag ${label}`}
       className={cn(
         'flex shrink-0 cursor-grab touch-none items-center justify-center rounded-md p-1 text-muted-foreground',

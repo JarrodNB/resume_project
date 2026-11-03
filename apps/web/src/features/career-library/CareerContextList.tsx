@@ -34,13 +34,11 @@ export function CareerContextList({ careerContexts, onEdit }: { careerContexts: 
   }
 
   return (
-    <ul className="grid gap-3">
+    <ul className="library-contexts">
       {careerContexts.map((context) => (
-        <li key={context.id} className="flex items-start justify-between gap-3 rounded-md border border-section-career-context-accent/25 bg-section-career-context/50 p-3">
-          <div className="grid min-w-0 flex-1 gap-1">
-            <p className="text-sm font-medium">{context.requirement}</p>
-            <LibraryDetail kind="career_context" recordId={context.id} text={context.response} />
-          </div>
+        <li key={context.id} className="library-context">
+          <div className="library-context-head">
+          <p className="library-context-requirement">{context.requirement}</p>
           <div className="flex shrink-0 gap-1">
             <button
               type="button"
@@ -59,6 +57,8 @@ export function CareerContextList({ careerContexts, onEdit }: { careerContexts: 
               <X className="size-4" />
             </button>
           </div>
+          </div>
+          <LibraryDetail kind="career_context" recordId={context.id} text={context.response} />
         </li>
       ))}
       <DeleteEntryDialog

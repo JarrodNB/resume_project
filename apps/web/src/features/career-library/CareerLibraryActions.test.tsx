@@ -7,7 +7,6 @@ import type { MockLink } from '@apollo/client/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
-import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
 import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_CAREER_CONTEXT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
@@ -59,10 +58,8 @@ const libraryMock = {
 
 function renderLibrary(
   mutationMock: MockLink.MockedResponse,
-  sections = ['library.experience', 'library.skills'],
   library: MockLink.MockedResponse = libraryMock,
 ) {
-  for (const sectionId of sections) setSectionOpen(sectionId, true)
   renderPage({
     path: '/library',
     url: '/library',
@@ -174,7 +171,6 @@ it('edits a project and can clear a field', async () => {
       },
       result: { data: { updateProject: { __typename: 'UpdateProjectPayload', errors: [] } } },
     },
-    ['library.projects'],
     library,
   )
 
@@ -199,7 +195,6 @@ it('edits the profile', async () => {
       },
       result: { data: { updateProfile: { __typename: 'UpdateProfilePayload', errors: [] } } },
     },
-    ['library.profile'],
   )
 
   await user.click(await screen.findByRole('button', { name: 'Edit profile' }))
@@ -266,7 +261,6 @@ it('edits a context', async () => {
       },
       result: { data: { updateCareerContext: { __typename: 'UpdateCareerContextPayload', errors: [] } } },
     },
-    ['library.career_contexts'],
     library,
   )
 
@@ -284,7 +278,7 @@ it('adds a certification using nullable optional fields', async () => {
   renderLibrary({
     request: { query: CREATE_CERTIFICATION_MUTATION, variables: { attributes: { name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: null, issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: 'day', credentialId: null, credentialUrl: null, description: null } } },
     result: { data: { createCertification: { __typename: 'CreateCertificationPayload', errors: [] } } },
-  }, ['library.certifications'])
+  })
   await user.click(await screen.findByRole('button', { name: 'Add certification' }))
   const dialog = await screen.findByRole('dialog')
   await user.type(within(dialog).getByLabelText(/^Certification name/), 'Cloud Architect')
@@ -301,7 +295,7 @@ it('retains year-only expiry when editing a certification issuer', async () => {
   renderLibrary({
     request: { query: UPDATE_CERTIFICATION_MUTATION, variables: { id: 'cert-1', attributes: { name: 'Cloud Architect', issuer: 'New issuer', issuedDate: '2024-06-01', issuedDatePrecision: 'month', expiryDate: '2027-01-01', expiryDatePrecision: 'year', credentialId: null, credentialUrl: null, description: null } } },
     result: { data: { updateCertification: { __typename: 'UpdateCertificationPayload', errors: [] } } },
-  }, ['library.certifications'], library)
+  }, library)
   await user.click(await screen.findByRole('button', { name: /Actions for Cloud Architect/ }))
   await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
   const dialog = await screen.findByRole('dialog')
@@ -321,7 +315,7 @@ it('clears certification dates using valid default precision', async () => {
   renderLibrary({
     request: { query: UPDATE_CERTIFICATION_MUTATION, variables: { id: 'cert-1', attributes: { name: 'Cloud Architect', issuer: null, issuedDate: null, issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: 'day', credentialId: null, credentialUrl: null, description: null } } },
     result: { data: { updateCertification: { __typename: 'UpdateCertificationPayload', errors: [] } } },
-  }, ['library.certifications'], library)
+  }, library)
   await user.click(await screen.findByRole('button', { name: /Actions for Cloud Architect/ }))
   await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
   const dialog = await screen.findByRole('dialog')
@@ -337,7 +331,6 @@ it('saves the library summary default without changing summary text', async () =
   Object.assign(initial.result.data.me, { summary: 'Retained profile summary.', includeSummary: true })
   const after = structuredClone(initial)
   Object.assign(after.result.data.me, { includeSummary: false })
-  setSectionOpen('library.summary', true)
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [
     ...emptyLibraryReviewMocks, initial,
     { request: { query: UPDATE_PROFILE_MUTATION, variables: { attributes: { includeSummary: false } } },

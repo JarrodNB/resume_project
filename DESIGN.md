@@ -317,7 +317,14 @@ Solid and square-shouldered, like a sign you can press.
 
 ### Review Questions (Library)
 - When an AI review has questions you can answer, they sit in a box with a 1.5px red signal border. Inside are a red bullet with "The review has N questions for you", the questions in full ink, and a filled "Answer review questions" button. Questions are never muted gray text.
-- Library sections start collapsed, so each section header also shows a red-bullet count ("2 questions for you") whenever it holds open questions.
+- Each section heading also shows a red-bullet count ("2 questions for you") whenever it holds open questions, and the library's tab row totals them with a link to the first one.
+
+### Career Line (Library)
+- The library is one long page with every section open. Sticky tabs on the gray platform strip jump between sections and mark the one being read. Dragging a tab moves its section, because a whole section can be taller than the screen; the tab order is the default resume order. Under 900px the strip stops sticking under the band and sits at the top of the screen.
+- Section headings are 28px 800-weight on a 2px ink rule. Career context comes last, set off by a thin divider in the tabs and a dashed rule on its heading, because it never prints on a resume.
+- Roles are stops on a 2px ink line: a 14px hollow bullet, or the filled gap-and-ring bullet for a current role, with dates in a right-aligned column left of the line. Under 900px the dates move under the role title.
+- Each saved detail is a row: text capped at 75ch on the left, and a review note in a 320px hairline margin on the right (260px under 1200px, below the text under 900px). The note holds a small signal dot, the grade, a quiet Improve button, the reason, and any question box.
+- AI work opens right under the selected detail in a 1.5px ink-bordered box, with the proposed revision on the left and the feedback form on the right. The selected row sits on `muted`. Under 900px it opens as a full-screen dialog instead.
 
 ### Station Line (Home signature)
 - Five stations across the top of the board, each a 42px ringed bullet holding its job count, with the stage name under it. An 8px ink track runs through every bullet.

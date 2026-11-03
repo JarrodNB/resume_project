@@ -3,14 +3,12 @@ import { MockedProvider } from '@apollo/client/testing/react'
 import { DragDropProvider } from '@dnd-kit/react'
 import { render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
-import { setSectionOpen } from '@/lib/openSections'
 import { LibraryWorkspace } from './LibraryWorkspace'
 import { emptyLibraryReviewMocks, emptyReviewLibrary } from './libraryReviewTestFixtures'
 import { ExperienceSection } from './ExperienceSection'
 import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 
 it('keeps grades neutral while a highlight save and assessment refetch are pending', async () => {
-  setSectionOpen('library.experience', true)
   const experiences = [{ __typename: 'Experience' as const, id: 'e1', title: 'Engineer', company: 'Acme', location: null,
     startDate: null, endDate: null, description: 'Builds services.', highlights: [] }]
   const mocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'), {

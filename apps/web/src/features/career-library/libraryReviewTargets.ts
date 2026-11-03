@@ -8,7 +8,6 @@ export interface LibraryReviewTarget {
   kind: string
   recordId: string
   section: ReviewSection
-  sectionId: string
   title: string
   fieldLabel: string
   text: string
@@ -18,15 +17,18 @@ export const REVIEW_SECTIONS: Record<ReviewSection, string> = { summary: 'Summar
 export const targetKey = (target: { kind: string; recordId: string }) => `${target.kind}:${target.recordId}`
 export const targetElementId = (target: { kind: string; recordId: string }) => `library-detail-${targetKey(target)}`
 
+/** True when a current review has questions the user can answer. */
+export const hasOpenQuestion = (assessment: { question?: string | null; reviewTaskId?: string | null; stale: boolean }) => !!assessment.question && !!assessment.reviewTaskId && !assessment.stale
+
 export function libraryReviewTargets(library: CareerLibraryQuery): LibraryReviewTarget[] {
   const targets: LibraryReviewTarget[] = []
-  if (library.me.summary) targets.push({ kind: 'user', recordId: library.me.id, section: 'summary', sectionId: 'library.summary', title: library.me.name || 'Your profile', fieldLabel: 'Summary', text: library.me.summary, sourceRevision: library.me.summary })
+  if (library.me.summary) targets.push({ kind: 'user', recordId: library.me.id, section: 'summary', title: library.me.name || 'Your profile', fieldLabel: 'Summary', text: library.me.summary, sourceRevision: library.me.summary })
   for (const entry of library.experiences) {
-    const base = { section: 'experience' as const, sectionId: 'library.experience', title: `${entry.title} at ${entry.company}`, sourceRevision: JSON.stringify(entry) }
+    const base = { section: 'experience' as const, title: `${entry.title} at ${entry.company}`, sourceRevision: JSON.stringify(entry) }
     if (entry.description) targets.push({ ...base, kind: 'experience', recordId: entry.id, fieldLabel: 'Role description', text: entry.description })
     entry.highlights.forEach((highlight, index) => targets.push({ ...base, kind: 'experience_highlight', recordId: highlight.id, fieldLabel: `Highlight ${index + 1}`, text: highlight.content }))
   }
-  for (const entry of library.projects) if (entry.description) targets.push({ kind: 'project', recordId: entry.id, section: 'projects', sectionId: 'library.projects', title: entry.name, fieldLabel: 'Project description', text: entry.description, sourceRevision: JSON.stringify(entry) })
-  for (const entry of library.careerContexts) targets.push({ kind: 'career_context', recordId: entry.id, section: 'career_contexts', sectionId: 'library.career_contexts', title: entry.requirement, fieldLabel: 'Saved response', text: entry.response, sourceRevision: JSON.stringify(entry) })
+  for (const entry of library.projects) if (entry.description) targets.push({ kind: 'project', recordId: entry.id, section: 'projects', title: entry.name, fieldLabel: 'Project description', text: entry.description, sourceRevision: JSON.stringify(entry) })
+  for (const entry of library.careerContexts) targets.push({ kind: 'career_context', recordId: entry.id, section: 'career_contexts', title: entry.requirement, fieldLabel: 'Saved response', text: entry.response, sourceRevision: JSON.stringify(entry) })
   return targets
 }

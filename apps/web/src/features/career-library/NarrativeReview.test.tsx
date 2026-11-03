@@ -2,7 +2,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
-import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
@@ -14,20 +13,19 @@ import { LIBRARY_EDIT_QUERY } from './libraryEditOperations'
 import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 
 const cases = [
-  { section: 'summary', title: 'Summary', sectionId: 'library.summary', kind: 'user', field: 'summary', id: 'user-1',
+  { section: 'summary', title: 'Summary', kind: 'user', field: 'summary', id: 'user-1',
     library: { ...emptyReviewLibrary, me: { ...emptyReviewLibrary.me, name: 'Jane', summary: 'I build useful tools.' } },
     element: <SummarySection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], includeSummary: true, summary: 'I build useful tools.' }} /> },
-  { section: 'projects', title: 'Projects', sectionId: 'library.projects', kind: 'project', field: 'description', id: 'project-1',
+  { section: 'projects', title: 'Projects', kind: 'project', field: 'description', id: 'project-1',
     library: { ...emptyReviewLibrary, projects: [{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }] },
     element: <ProjectSection projects={[{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }]} /> },
-  { section: 'career_contexts', title: 'Career context', sectionId: 'library.career_contexts', kind: 'career_context', field: 'response', id: 'context-1',
+  { section: 'career_contexts', title: 'Career context', kind: 'career_context', field: 'response', id: 'context-1',
     library: { ...emptyReviewLibrary, careerContexts: [{ id: 'context-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }] },
     element: <CareerContextSection careerContexts={[{ id: 'context-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }]} /> },
 ]
 
 for (const item of cases) {
   it(`reviews ${item.title} separately and opens the selected narrative target`, async () => {
-    setSectionOpen(item.sectionId, true)
     const user = userEvent.setup()
     renderPage({ path: '/', url: '/', element: <LibraryWorkspace library={item.library}>{item.element}<LibraryAiWorkspace /></LibraryWorkspace>, mocks: [
       ...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== item.section),
@@ -43,7 +41,7 @@ for (const item of cases) {
     expect(screen.getByText('What was your own contribution?')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Improve with AI' }))
     expect(await screen.findByLabelText('What would you like to improve? (optional)')).toBeEnabled()
-    expect(screen.getAllByText('What was your own contribution?')).toHaveLength(2)
+    expect(screen.getAllByText('What was your own contribution?')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Generate revision' })).toBeEnabled()
   })
 }

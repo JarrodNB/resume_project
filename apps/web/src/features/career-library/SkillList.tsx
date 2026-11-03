@@ -30,10 +30,10 @@ export function SkillList({ skills, onEdit }: { skills: CategorizedSkill[]; onEd
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="library-skills">
       {groupSkillsByCategory(skills).map(([category, categorySkills]) => (
-        <div key={category} className="grid gap-1.5">
-          <p className="text-sm font-medium text-muted-foreground">{category}</p>
+        <div key={category} className="library-skill-group">
+          <h3>{category}</h3>
           <div className="flex flex-wrap gap-1.5">
             {categorySkills.map((skill, index) => (
               <SortableItem
@@ -43,7 +43,7 @@ export function SkillList({ skills, onEdit }: { skills: CategorizedSkill[]; onEd
                 type={skillDragType(category)}
                 group={category}
                 label={skill.name}
-                className="flex h-7 items-center gap-0.5 rounded-full border border-section-skills-accent/30 bg-section-skills pr-1 text-sm"
+                className="library-skill"
               >
                 {(dragHandle) => (
                   <>

@@ -39,6 +39,7 @@ from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
 from telemetry.tracing import configure_tracing, flush_tracing
 from worker.contact_context import using_known_contact
+from worker.interview_help import requires_explicit_retry
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.result_delivery import publish_result
 from worker.retryable_errors import is_retryable_error
@@ -134,7 +135,11 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
             ai_task_id=task.ai_task_id, status="failed", error_message=RUN_LIMIT_MESSAGE
         )
     except Exception as error:
-        if task.task_type not in {"interview_clarification", "interview_references", "interview_session_feedback"} and is_retryable_error(error) and receive_count < dependencies.settings.max_task_attempts:
+        if (
+            not requires_explicit_retry(task.task_type)
+            and is_retryable_error(error)
+            and receive_count < dependencies.settings.max_task_attempts
+        ):
             logger.warning(
                 "Task %s hit a temporary error on attempt %d, leaving it for a retry",
                 task.ai_task_id,

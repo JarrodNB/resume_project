@@ -825,6 +825,14 @@ Rails coordinates clarification and career-reference tasks in `Interviews::Curre
 Its `Clarification` and `References` adapters share locking, admission, retries and publication
 recovery while keeping payloads, allowances and result validation feature-specific.
 
+Python's `worker/interview_help.py` coordinates queued clarification, career references and
+completed-session coaching. One set of task definitions supplies command validation,
+authenticated claim paths, owned-context loading, dispatch and explicit-retry policy.
+Denied claims return usage only, before source reads or paid work. The feature modules
+receive admitted canonical context and retain their own screening, retrieval, coaching
+validation and usage reporting. The generic worker still owns accounting and result
+publication; interactive execution keeps its separate transport and lifecycle.
+
 `requestInterviewClarification` authorizes an owned active real-mode session and its exact latest
 saved opening/follow-up message. It creates one `InterviewClarification` per message.
 Only the clarification/message identities and a question digest enter its saved task command;

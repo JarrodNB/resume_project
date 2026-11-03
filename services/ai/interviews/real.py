@@ -2,8 +2,8 @@
 
 Python reads accepted public dialogue and current preparation sources. The runtime uses
 fixed accounted providers with configurable Luna reasoning, preserving Rails ownership
-of acceptance and progression. INTERVIEW_PREPARATION_MODEL picks the question-writing model;
-follow-ups stay on Luna.
+of acceptance and progression. INTERVIEW_PREPARATION_MODEL picks the question-writing model
+and INTERVIEW_DIALOGUE_MODEL picks the model that replies to each answer.
 """
 
 import asyncio
@@ -50,7 +50,9 @@ class RealInterviewExecutor(InterviewExecutor):
         super().__init__(client, **kwargs)
         self.audio, self.models = audio, models
         self.thinking = InterviewThinkingSettings()
-        self.preparation_model = load_settings().interview_preparation_model.removeprefix("openai:")
+        settings = load_settings()
+        self.preparation_model = settings.interview_preparation_model.removeprefix("openai:")
+        self.dialogue_model = settings.interview_dialogue_model.removeprefix("openai:")
 
     @contextmanager
     def _trace(self, claim):
@@ -113,7 +115,7 @@ class RealInterviewExecutor(InterviewExecutor):
 
     def _interviewer(self, claim, guard, *, system_prompt=""):
         return make_interviewer(guard, system_prompt=system_prompt), {
-            "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
+            "model": self.models.accounted(self.client, claim, "interviewer", self.dialogue_model),
             "model_settings": {"thinking": self.thinking.interview_dialogue_thinking, "max_tokens": 1024},
         }
 

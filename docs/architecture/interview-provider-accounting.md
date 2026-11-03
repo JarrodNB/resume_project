@@ -161,10 +161,10 @@ model name (optionally provider-prefixed) is priced; unverified snapshot aliases
 The existing pure worker price helper normalizes token usage, including cached tokens.
 Library-informed preparation shares the interviewer stage. `INTERVIEW_PREPARATION_MODEL` picks its
 model from Luna (default, US$0.05 reservation estimate) or Terra (US$0.15, covering the
-120,000-character prompt cap at one token per character plus 4,096 output tokens). Settings
-reject any other value at startup. Dialogue always uses Luna, and
-the saved `execution_config.interviewer_model` still names Luna because it describes dialogue;
-provider observations record the actual model. Each concrete request still needs its own
+120,000-character prompt cap at one token per character plus 4,096 output tokens). `INTERVIEW_DIALOGUE_MODEL` independently picks
+the dialogue model from the same two, under the same estimates. Settings reject any other value
+at startup. The saved `execution_config.interviewer_model` still names Luna whichever is chosen
+because a database constraint fixes it; provider observations record the actual model. Each concrete request still needs its own
 durable observation.
 Only preparation reasoning raises the bounded output cap to 4,096 tokens to fit the role
 and all nine questions. Ordinary interview dialogue and Nano screening remain at 1,024.

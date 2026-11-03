@@ -105,13 +105,19 @@ def test_saved_style_reaches_first_and_resumed_turn_without_stale_persona(monkey
     assert "Focus areas: leadership." in prompt
 
 
-def test_spoken_turn_stays_on_luna_when_question_writing_uses_another_model(monkeypatch):
+@pytest.mark.parametrize("preparation,dialogue,expected", [
+    ("openai:gpt-6.1-terra", None, "gpt-6-luna"),
+    (None, "openai:gpt-6.1-terra", "gpt-6.1-terra"),
+])
+def test_spoken_turn_uses_only_the_dialogue_model_setting(monkeypatch, preparation, dialogue, expected):
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
-    monkeypatch.setenv("INTERVIEW_PREPARATION_MODEL", "openai:gpt-6.1-terra")
+    for key, value in (("INTERVIEW_PREPARATION_MODEL", preparation), ("INTERVIEW_DIALOGUE_MODEL", dialogue)):
+        if value:
+            monkeypatch.setenv(key, value)
     client, models = Client(), Models()
     run(client, models)
     assert client.accepted and not client.failed
-    assert {name for name, _ in models.prompts} == {"gpt-6-luna"}
+    assert {name for name, _ in models.prompts} == {expected}
 
 
 def test_spoken_turn_does_not_call_injection_classifier(monkeypatch):

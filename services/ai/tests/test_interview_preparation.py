@@ -124,6 +124,7 @@ def test_preparation_screens_frozen_sources_and_accepts_complete_accounted_plan(
 def test_preparation_uses_the_configured_approved_model(monkeypatch):
     monkeypatch.setenv("INTERVIEW_PREPARATION_MODEL", "openai:gpt-6.1-terra")
     monkeypatch.setenv("INTERVIEW_QUESTIONS_MODEL", "openai:gpt-5")
+    monkeypatch.setenv("INTERVIEW_DIALOGUE_MODEL", "openai:gpt-6-luna")
     models = Models()
     client = run(models)
     assert not client.failed
@@ -131,8 +132,9 @@ def test_preparation_uses_the_configured_approved_model(monkeypatch):
     assert [item[0] for item in models.requests] == ["gpt-6.1-terra"]
 
 
-def test_settings_reject_an_unaccounted_preparation_model(monkeypatch):
-    monkeypatch.setenv("INTERVIEW_PREPARATION_MODEL", "openai:gpt-5")
+@pytest.mark.parametrize("key", ["INTERVIEW_PREPARATION_MODEL", "INTERVIEW_DIALOGUE_MODEL"])
+def test_settings_reject_an_unaccounted_live_interview_model(monkeypatch, key):
+    monkeypatch.setenv(key, "openai:gpt-5")
     with pytest.raises(ValidationError):
         load_settings()
 

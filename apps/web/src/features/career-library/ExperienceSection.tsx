@@ -1,18 +1,19 @@
 /**
- * Description: The experience section of the career library: the dated list, add, and edit.
+ * Description: The experience section of the career library: roles as stops on a dated line, add, and edit.
  * Section review checks descriptions and highlights; each detail has its own revision workspace.
  * Index:
  *   - ExperienceSection: roles with draggable highlights, merge/delete, and the role form
  */
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { LibrarySectionReview } from './LibrarySectionReview'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatDateRange } from '@/lib/formatDateRange'
 import { ExperienceFormDialog } from './ExperienceFormDialog'
-import { LibraryEntry } from './LibraryEntry'
+import { CareerStop } from './LibraryEntry'
 import { LibraryEntryActions } from './LibraryEntryActions'
 import { experienceLabel } from './libraryEntryLabels'
 import { LibrarySection } from './LibrarySection'
+import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 import { SortableHighlightList } from './SortableHighlightList'
 import { LibraryDetail } from './LibraryDetail'
 
@@ -23,24 +24,23 @@ interface ExperienceSectionProps {
   movingHighlight?: boolean
   experiences: Experience[]
   highlightsOf: (experienceId: string) => Highlight[]
-  dragHandle?: ReactNode
 }
 
 /** Lists roles and opens the form to add one or edit one. */
-export function ExperienceSection({ experiences, highlightsOf, movingHighlight = false, dragHandle }: ExperienceSectionProps) {
+export function ExperienceSection({ experiences, highlightsOf, movingHighlight = false }: ExperienceSectionProps) {
   const [editing, setEditing] = useState<Experience | 'new' | null>(null)
   const candidates = experiences.map((experience) => ({ id: experience.id, label: experienceLabel(experience) }))
   const experience = editing && editing !== 'new' ? { ...editing, highlights: highlightsForForm(highlightsOf(editing.id)) } : null
 
   return (
     <>
-      <LibrarySection dragHandle={dragHandle} sectionId="library.experience" tone="experience" title="Experience" count={experiences.length} emptyText="No roles yet." addLabel="Add role" onAdd={() => setEditing('new')}
+      <LibrarySection sectionId={LIBRARY_SECTION_ANCHORS.experience} title="Experience" count={experiences.length} emptyText="No roles yet." addLabel="Add role" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="experience" />} reviewSection="experience">
-
+        <div className="career-line">
         {experiences.map((entry, index) => (
-          <LibraryEntry
+          <CareerStop
             key={entry.id}
-            tone="experience"
+            current={!entry.endDate && !!entry.startDate}
             heading={entry.title}
             subheading={[entry.company, entry.location].filter(Boolean).join(' · ')}
             dates={formatDateRange(entry.startDate, entry.endDate, { openEndedMeansPresent: true })}
@@ -56,8 +56,9 @@ export function ExperienceSection({ experiences, highlightsOf, movingHighlight =
           >
             {entry.description && <LibraryDetail kind="experience" recordId={entry.id} text={entry.description} disabled={movingHighlight} />}
             <SortableHighlightList experienceId={entry.id} highlights={highlightsOf(entry.id)} movingHighlight={movingHighlight} />
-          </LibraryEntry>
+          </CareerStop>
         ))}
+        </div>
       </LibrarySection>
       <ExperienceFormDialog open={editing !== null} experience={experience} onOpenChange={(open) => !open && setEditing(null)} />
     </>

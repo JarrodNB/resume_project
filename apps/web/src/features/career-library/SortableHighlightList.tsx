@@ -21,9 +21,9 @@ export function SortableHighlightList({ experienceId, highlights, movingHighligh
   const group = sortableGroupId('highlights', experienceId)
 
   return (
-    <SortableGroup id={group} accept={HIGHLIGHT_TYPE} className="mt-1 grid gap-1">
+    <SortableGroup id={group} accept={HIGHLIGHT_TYPE} className="library-highlights">
       {highlights.length === 0 && (
-        <p className="rounded-md border border-dashed px-2 py-1.5 text-xs text-muted-foreground">Drag a highlight here</p>
+        <p className="library-highlight-drop">Drag a highlight here</p>
       )}
       {highlights.map((highlight, index) => (
         <SortableItem
@@ -33,12 +33,12 @@ export function SortableHighlightList({ experienceId, highlights, movingHighligh
           type={HIGHLIGHT_TYPE}
           group={group}
           label={highlight.content}
-          className="flex items-start gap-1 border-t px-1 py-2 text-sm"
+          className="library-highlight"
         >
           {(dragHandle) => (
             <>
               {dragHandle}
-              <div className="min-w-0 flex-1 py-0.5">
+              <div className="min-w-0 flex-1">
                 <LibraryDetail kind="experience_highlight" recordId={highlight.id} text={highlight.content} disabled={movingHighlight} />
               </div>
             </>

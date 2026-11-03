@@ -162,3 +162,16 @@ def test_configured_http_adapter_hydrates_real_database_before_offline_models(ad
                 source.execute(f'DELETE FROM {table} WHERE {column} = %s', (current.payload.conversation_id,))
             source.execute('DELETE FROM ai_tasks WHERE user_id = %s', (current.payload.user_id,))
             source.execute('DELETE FROM users WHERE id = %s', (current.payload.user_id,))
+
+
+def test_recent_jobs_are_current_owned_active_and_limited_to_five(admin_connection):
+    current = seed(admin_connection)
+    other = seed(admin_connection)
+    ids = [_insert(admin_connection, "jobs", user_id=current.payload.user_id,
+                   title=f"Role {index}") for index in range(7)]
+    _insert(admin_connection, "jobs", user_id=current.payload.user_id, title="Archived",
+            archived_at=datetime.now(UTC))
+    _insert(admin_connection, "jobs", user_id=other.payload.user_id, title="Private")
+    hydrated = read_as_reader(admin_connection, current)
+    assert [job.id for job in hydrated.payload.recent_jobs] == sorted(map(str, ids), reverse=True)[:5]
+    assert all(job.company == "" for job in hydrated.payload.recent_jobs)

@@ -5,13 +5,15 @@ Rails owns all writes. SQL filters the owner before applying stable newest-first
 from database.open_read_only_connection import open_read_only_connection
 
 
-def read_saved_jobs(connection, user_id):
-    """Read at most 501 rows so callers can reject lists exceeding the 500-job cap."""
+def read_saved_jobs(connection, user_id, *, limit=501):
+    """Read newest active labels; the default includes a sentinel for the tool cap."""
+    if not 1 <= limit <= 501:
+        raise ValueError("Saved job limit must be between 1 and 501")
     return connection.execute("""
         SELECT id::text, title, company, screened_fields FROM jobs
         WHERE user_id = %(user_id)s AND archived_at IS NULL
-        ORDER BY created_at DESC, id DESC LIMIT 501
-    """, {"user_id": user_id}).fetchall()
+        ORDER BY created_at DESC, id DESC LIMIT %(limit)s
+    """, {"user_id": user_id, "limit": limit}).fetchall()
 
 
 def build_database_saved_jobs_reader(settings):

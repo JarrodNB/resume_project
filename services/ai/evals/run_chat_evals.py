@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from pydantic_evals import Dataset
 
-from chat.client import ChatClaim
+from chat.client import ChatClaim, ChatSavedJob
 from chat.execution import ChatExecutionAdapter
 from chat.models import ChatModels
 from evals.chat_evaluators import (
@@ -65,6 +65,11 @@ async def execute_chat_case(case, *, models=None):
     current = ChatClaim(operation_id=str(uuid4()), attempt_id=str(uuid4()), claim_generation=1,
         lease_expires_at=datetime.now(UTC) + timedelta(seconds=30),
         execution_deadline=datetime.now(UTC) + timedelta(seconds=120), payload=case.payload)
+
+    current = current.model_copy(update={"payload": current.payload.model_copy(update={
+        "recent_jobs": [ChatSavedJob.model_validate({key: job.get(key) or default
+            for key, default in (("id", ""), ("title", ""), ("company", ""), ("screened_fields", []))})
+            for job in case.saved_jobs[:5]]})})
 
     def check_context(user_id, requirement, response):
         contexts = case.career_library.career_contexts

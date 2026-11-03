@@ -35,8 +35,10 @@ from chat.career_context import CareerContextProposal
 from chat.client import ChatReferencePayload
 from interviews.client import RailsTransportError
 from mcp_tools.client import ToolServerConnection
+from mcp_tools.saved_jobs import issue_job_reference, render_saved_jobs_result
 from model_inputs.blocks import source_block
 from model_inputs.chat import render_chat_summary, render_chat_summary_context
+from model_inputs.saved_jobs import render_recent_jobs
 from pii import PiiDetectionError, PiiRestorationError
 from privacy.contact_mask import contact_scope, import_privacy_scope, mask_outbound
 from privacy.known_contact import KnownContact
@@ -112,6 +114,8 @@ class ChatExecutionAdapter:
                 return
         # Bound local detection too; oversized source text never reaches expensive NLP.
         source_characters = sum(len(m.content) for m in claim.payload.messages) + len(claim.payload.message) + len(claim.payload.summary.text)
+        job_text = "\n\n".join(value for job in claim.payload.recent_jobs for value in (job.title, job.company))
+        source_characters += len(job_text)
         early = claim.payload.summary_plan and not claim.payload.summary_plan.scheduled
         minimum = [message for message in claim.payload.messages
                    if not early or message.position > claim.payload.summary_plan.through_position]
@@ -133,7 +137,7 @@ class ChatExecutionAdapter:
                 async with asyncio.timeout(max(0, remaining)):
                     # Keep the same privacy object on spans before detection completes.
                     await asyncio.to_thread(privacy.prepare, "\n\n".join(
-                        [claim.payload.summary.text] + [m.content for m in claim.payload.messages] + [claim.payload.message]))
+                        [claim.payload.summary.text] + [m.content for m in claim.payload.messages] + [claim.payload.message, job_text]))
                     await self._turn(claim, output, privacy)
             except (ChatRejected, LibraryScreeningError) as error:
                 await self.client.fail(claim, str(error), False)
@@ -195,6 +199,18 @@ class ChatExecutionAdapter:
             turn = await screen_conversation_turn(payload.message,
                 screen=lambda text: self._screen(claim, text),
                 render=lambda text: source_block("user_message", text))
+            jobs = [job.model_dump() for job in payload.recent_jobs]
+            for job in jobs:
+                job["reference"] = issue_job_reference(self.tool_server.secret,
+                    job_id=job["id"], user_id=payload.user_id, operation_id=claim.operation_id,
+                    expires_at=claim.execution_deadline.timestamp())
+            async def recent_jobs_result(name, arguments):
+                return {"jobs": jobs}
+            # Reuse the tool's bounded, operation-billed saved-field screening.
+            await render_saved_jobs_result(recent_jobs_result, {},
+                lambda text: self._screen_decision(claim, text))
+            recent_context = mask_outbound(source_block("recent_saved_jobs", render_recent_jobs(jobs)))
+            turn = ScreenedConversationTurn(recent_context + "\n\n" + turn.prompt)
             summary_update = None
             summary = payload.summary.text
             messages = payload.messages

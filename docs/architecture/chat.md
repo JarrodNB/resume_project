@@ -197,6 +197,14 @@ or model configuration. A detected word matching a model identifier must not ren
 
 ### Active saved-job list
 
+Each reply hydrates the owner's five most recent active saved jobs in the same
+read-only transaction as accepted dialogue, ordered by saved time and then ID.
+The prompt includes readable titles, companies, raw IDs and operation-bound selection
+references. Labels reuse the accounted saved-field screening path before generation;
+context is refreshed each turn, masked, bounded and omitted from rolling summaries.
+The model can answer recent-job questions or read their details without first listing.
+It uses `list_saved_jobs` for older selections or the complete list.
+
 `list_saved_jobs()` reads only the token owner's active jobs, newest saved first with
 an ID tie-breaker. Chat receives readable titles, companies and selection references,
 without posting facts, raw IDs, analyses or notes. The list is complete or fails: more
@@ -215,7 +223,7 @@ four-tool-call limit supports listing, detail, career-library advice and one sav
 
 ### Selected saved-job summary
 
-`read_job_summary(job_reference)` resolves a list-issued reference bound to the owner,
+`read_job_summary(job_reference)` resolves a reference from the current prompt or list, bound to the owner,
 operation and expiry, then independently reads the current owned active job. It returns
 only title, company, location, requirements, responsibilities and nice-to-haves as labeled
 text, with absent fields stated explicitly. Notes and generated analyses stay private.

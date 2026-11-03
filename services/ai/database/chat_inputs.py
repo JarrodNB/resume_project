@@ -11,6 +11,7 @@ from psycopg.pq import TransactionStatus
 from chat.client import ChatPayload
 from database.open_read_only_connection import open_read_only_connection
 from database.profile_contact import read_profile_contact
+from database.saved_jobs import read_saved_jobs
 
 OPERATION_QUERY = """
 SELECT o.message, o.expected_position, o.summary_base_version, o.summary_plan,
@@ -63,6 +64,8 @@ def read_chat_input(connection, claim):
             messages=[{k: m[k] for k in ('role', 'content', 'position')} for m in messages],
             summary={'text': row['summary_text'], 'version': row['summary_version'],
                      'through_position': row['summary_through_position']}, summary_plan=command.summary_plan,
+            recent_jobs=[{**job, "company": job["company"] or ""}
+                         for job in read_saved_jobs(connection, command.user_id, limit=5)],
             contact={'names': [name] if name else [], 'emails': [email] if email else [],
                      'phones': [phone] if phone else []})
         # Source reads can take time. Check actual wall time again in the same transaction.

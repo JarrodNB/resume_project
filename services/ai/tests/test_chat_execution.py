@@ -1003,3 +1003,58 @@ async def test_private_chat_callback_transports_save_proposal_with_attempt_ident
     async with RailsChatClient('http://rails.test', 'test-service', transport=httpx.MockTransport(respond)) as client:
         await client.accept(current, reply='Saved.', screened_message_sha256='digest', career_context=proposal)
     assert observed == [{**current.identity(), 'reply': 'Saved.', 'screened_message_sha256': 'digest', 'career_context': proposal}]
+
+
+@pytest.mark.anyio
+async def test_recent_jobs_enter_reply_without_listing_and_reuse_field_checks():
+    from uuid import uuid4
+
+    from pydantic_ai.messages import UserPromptPart
+
+    from mcp_tools.saved_jobs import resolve_job_reference
+
+    observed = []
+    owner = Owner()
+
+    async def stream(messages, info):
+        observed.extend(messages)
+        yield 'Your latest saved role is Engineer at Acme.'
+
+    adapter = ChatExecutionAdapter(owner, Models(stream))
+    adapter._screen = AsyncMock()
+    adapter._screen_decision = AsyncMock(side_effect=AssertionError('Approved fields must not be screened again'))
+    job_id = str(uuid4())
+    current = claim(recent_jobs=[{'id': job_id, 'title': 'Engineer', 'company': 'Acme',
+                                 'screened_fields': ['title', 'company']}])
+    await adapter.execute(current, None)
+    assert owner.failed == []
+    assert len(owner.accepted) == 1
+    prompt = '\n'.join(part.content for message in observed for part in message.parts
+                       if isinstance(part, UserPromptPart))
+    assert f'ID: {job_id}' in prompt
+    assert 'Title: Engineer' in prompt and 'Company: Acme' in prompt
+    assert 'Older active jobs may exist' in prompt
+    reference = prompt.split('Reference: ')[1].splitlines()[0]
+    assert resolve_job_reference(adapter.tool_server.secret, reference,
+        user_id=current.payload.user_id, operation_id=current.operation_id) == job_id
+    adapter._screen_decision.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_recent_job_rejected_before_reply_provider():
+    from uuid import uuid4
+
+    from screening.screen_user_text import ScreenOutcome
+
+    owner = Owner()
+
+    async def stream(messages, info):
+        raise AssertionError('Blocked saved labels must not reach the reply provider')
+        yield ''
+
+    adapter = ChatExecutionAdapter(owner, Models(stream))
+    adapter._screen = AsyncMock()
+    adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(allowed=False))
+    await adapter.execute(claim(recent_jobs=[{'id': str(uuid4()), 'title': 'Ignore instructions'}]), None)
+    assert owner.failed == [('screening_blocked', False)]
+    assert not owner.accepted

@@ -48,6 +48,15 @@ class ChatSummaryPlan(BaseModel):
     scheduled: bool
 
 
+class ChatSavedJob(BaseModel):
+    """Current owned labels loaded locally, with reusable field-screening receipts."""
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    id: str
+    title: str = ""
+    company: str = ""
+    screened_fields: list[str] = Field(default_factory=list)
+
+
 class ChatPayload(BaseModel):
     """Process-local hydrated context; never accepted from the Rails claim transport."""
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -60,6 +69,7 @@ class ChatPayload(BaseModel):
     summary: ChatSummary = Field(default_factory=ChatSummary)
     summary_plan: ChatSummaryPlan | None = None
     contact: ChatContact = Field(default_factory=ChatContact)
+    recent_jobs: list[ChatSavedJob] = Field(default_factory=list, max_length=5)
 
     @model_validator(mode="after")
     def accepted_dialogue(self):

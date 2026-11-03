@@ -20,7 +20,7 @@ sets the default section order for new resumes.
   runs `clearCareerLibrary` and refetches
 - `LibraryTabs.tsx` — sticky section tabs: jump links, the section in view, section dragging, and a
   link to the first waiting review question; `librarySectionLinks.ts` — section anchors
-- `ProfileSection.tsx` (contact line, always first), `SummarySection.tsx` (summary with the persisted Include summary default for new resumes), `LibrarySection.tsx` (heading on an ink rule, an Add button
+- `ProfileSection.tsx` (contact line, always first), `SummarySection.tsx` (summary, with the persisted Include summary default for new resumes in its heading row), `LibrarySection.tsx` (heading on an ink rule, an Add button
   and an empty state), `LibraryEntry.tsx` (`LibraryEntry`, a ruled entry with an `actions` slot, and
   `CareerStop`, a role as a stop on the dated line) — display pieces
 - `ExperienceSection.tsx`, `ProjectSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`,

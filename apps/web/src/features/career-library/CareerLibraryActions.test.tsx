@@ -339,6 +339,7 @@ it('saves the library summary default without changing summary text', async () =
   ] })
   const toggle = await screen.findByRole('checkbox', { name: 'Include summary' })
   expect(toggle).toBeChecked()
+  expect(toggle).not.toHaveAccessibleDescription()
   await user.click(toggle)
   await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked())
   expect(screen.getByText('Retained profile summary.')).toBeInTheDocument()

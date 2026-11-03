@@ -828,6 +828,15 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .library-review-busy { display: inline-flex; align-items: center; gap: 9px; padding-inline: 10px; color: var(--signal-ai-text); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .library-review-busy .signal-dot { width: 9px; height: 9px; }
 .library-summary { display: grid; gap: 16px; padding-top: 8px; }
+/* Include summary: a setting, not an action, so it has no button border. Sits beside buttons at their height. */
+.summary-inclusion { display: grid; justify-items: start; gap: 4px; font-size: 14px; }
+.summary-inclusion label { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.summary-inclusion label:has(:disabled) { color: var(--muted-foreground); cursor: not-allowed; }
+.summary-inclusion p { color: var(--muted-foreground); }
+.summary-inclusion [data-slot=checkbox] { width: 18px; height: 18px; border: 1.5px solid var(--rule-strong); }
+.summary-inclusion label:hover [data-slot=checkbox]:not(:disabled, [data-state=checked]) { background: var(--muted); }
+.library-section-head .summary-inclusion { margin-right: 6px; }
+@media (max-width: 899px) { .summary-inclusion label { min-height: 44px; } }
 
 /* A role is a stop on the line. Its dates hang in a column left of the rail. */
 .career-line { padding-top: 8px; }

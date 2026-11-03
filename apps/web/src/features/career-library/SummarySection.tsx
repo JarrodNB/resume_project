@@ -3,7 +3,7 @@
  * placed among the other resume sections; contact details stay in the profile at the top.
  * Supports explicit missing-text generation, review and individual improvement.
  * Index:
- *   - SummarySection: summary text with its resume inclusion default
+ *   - SummarySection: summary text, with its default for new resumes in the heading row
  */
 import { useState } from 'react'
 import { useApolloClient } from '@apollo/client/react'
@@ -29,6 +29,7 @@ export function SummarySection({ profile }: { profile: CareerLibraryQuery['me'] 
 
   return (
     <LibrarySectionFrame sectionId={LIBRARY_SECTION_ANCHORS.summary} title="Summary" reviewSection="summary" actions={<>
+      <SummaryInclusionControl checked={profile.includeSummary !== false} disabled={preference.busy} description={null} onChange={(checked) => void preference.save(UPDATE_PROFILE_MUTATION, { attributes: { includeSummary: checked } })} />
       {profile.summary && <LibrarySectionReview section="summary" />}
       <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setEditing(true)}>
         Edit summary
@@ -37,7 +38,6 @@ export function SummarySection({ profile }: { profile: CareerLibraryQuery['me'] 
       <div className="library-summary">
         {profile.summary ? <LibraryDetail kind="user" recordId={profile.id} text={profile.summary} /> :
           <SummaryGenerationPanel targetKind="profile" targetId={profile.id} onAccepted={() => client.refetchQueries({ include: [CAREER_LIBRARY_QUERY] })} />}
-        <SummaryInclusionControl checked={profile.includeSummary !== false} disabled={preference.busy} description="Default for new resumes. Existing resumes keep their own setting." onChange={(checked) => void preference.save(UPDATE_PROFILE_MUTATION, { attributes: { includeSummary: checked } })} />
         <ErrorAlert messages={preference.errors} title="Couldn't save your summary preference" />
       </div>
       <ProfileFormDialog open={editing} onOpenChange={setEditing} profile={profile} />

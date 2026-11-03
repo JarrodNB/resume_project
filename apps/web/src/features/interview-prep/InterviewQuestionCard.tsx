@@ -18,8 +18,8 @@ import { useInterviewAnswer } from './useInterviewAnswer'
 import { useQuestionAvoidance } from './useQuestionAvoidance'
 
 type Question = InterviewSetQuery['interviewQuestionSet']['questions'][number]
-/** Keeps drafts and subscriptions alive while another question in the set is open. */
-export function InterviewQuestionCard({ question, number, total, setId, refetch, onDirty }: { question: Question; number: number; total: number; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void }) {
+/** Keeps drafts and subscriptions alive while the question is open. */
+export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void }) {
   const avoidance = useQuestionAvoidance(setId, question.id, question.questionRevision, question.avoided)
   const [edits, setEdits] = useState(0)
   const [submittedEdits, setSubmittedEdits] = useState<number | null>(null)
@@ -75,10 +75,10 @@ export function InterviewQuestionCard({ question, number, total, setId, refetch,
   return <article className="question-card" aria-labelledby={`question-${question.id}`}>
     {task && <InterviewTaskStatus key={task.id} task={task} onFinished={refetch} operation={task.taskType === 'REVIEW_INTERVIEW_ANSWER' ? 'feedback' : 'replacement'} />}
     <header className="question-card-header">
-      <p className="question-card-kicker">Question {number} of {total}</p>
+      <h2 id={`question-${question.id}`} className="question-card-title">{question.questionText}</h2>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`Actions for question ${number}`}><Ellipsis /></Button>
+          <Button variant="ghost" size="icon-sm" aria-label="Question actions"><Ellipsis /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>
@@ -88,7 +88,6 @@ export function InterviewQuestionCard({ question, number, total, setId, refetch,
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
-    <h2 id={`question-${question.id}`} className="question-card-title">{question.questionText}</h2>
     {(avoidance.saved || avoidance.saving) && <p role="status" className="text-sm text-muted-foreground">{avoidance.saving ? 'Saving preference…' : "Saved. New questions won't repeat this one."}</p>}
     <ErrorAlert title="Couldn't save preference" messages={avoidance.errors} />
     <div className="question-card-body">

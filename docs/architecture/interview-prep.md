@@ -194,8 +194,9 @@ categories while choosing different concrete focuses within them.
   coach correct wrong answers without fictional experience. No type targets a saved job.
 
 - **Interview practice is persistent and independent of the library.** Existing questions
-  stay fixed when career details change; new generation uses the current library. Multiple
-  numbered/date sets support repeated practice without custom names; only answered questions
+  stay fixed when career details change; new generation uses the current library. Repeated generation adds to a unified question bank. Sets remain an internal storage and
+  execution boundary; the UI opens individual questions without set numbers, batch navigation,
+  or batch deletion. Empty generation requests retain live status and confirmed dismissal. Only answered questions
   that were replaced are kept, as retired copies. Each set has five distinct English questions within its selected scope;
   job-specific generation remains future work.
 

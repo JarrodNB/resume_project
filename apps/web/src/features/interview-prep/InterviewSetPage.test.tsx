@@ -1,8 +1,8 @@
 /**
- * Description: Set page tests: generation restoration, failures, the five-question line,
- * moving between questions with drafts kept, and the warning when leaving with unsaved answers.
+ * Description: Set page tests: generation restoration, failures, individual questions,
+ * and the warning when leaving with unsaved answers.
  */
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
@@ -33,11 +33,11 @@ it('restores a queued task on reload and opens the first question on live comple
   expect(await screen.findByRole('status')).toHaveTextContent('Generating questions…')
   expect(await screen.findByRole('heading', { level: 2, name: 'Saved question text 1' })).toBeVisible()
   expect(screen.queryByText('Generating questions…')).not.toBeInTheDocument()
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Set 1')
-  expect(screen.getByText(/Technical questions/)).toBeInTheDocument()
-  const line = within(screen.getByRole('navigation', { name: 'Questions in this set' }))
-  expect(line.getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual([1, 2, 3, 4, 5].map((number) => `Question ${number}, Not answered`))
-  expect(line.getByRole('link', { name: /Question 1,/ })).toHaveAttribute('aria-current', 'step')
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Practice question')
+  expect(screen.getByText(/Technical/)).toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: /set/i })).not.toBeInTheDocument()
+  expect(screen.queryByText(/Question \d of \d|Set 1/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Dismiss|Delete/ })).not.toBeInTheDocument()
   await waitFor(() => expect(router.state.location.pathname).toBe('/practice/questions/set-1/question-1'))
 })
 
@@ -45,38 +45,36 @@ it('opens the first unanswered question and keeps it open after saving elsewhere
   const { router } = render('/practice/questions/set-1', [setMock('COMPLETED', [1, 2])])
   expect(await screen.findByRole('heading', { level: 2, name: 'Saved question text 3' })).toBeVisible()
   await waitFor(() => expect(router.state.location.pathname).toBe('/practice/questions/set-1/question-3'))
-  expect(screen.getByRole('link', { name: 'Question 1, No feedback yet' })).toBeInTheDocument()
-  expect(screen.getByRole('heading', { level: 2, name: 'Saved question text 1', hidden: true })).not.toBeVisible()
+  expect(screen.queryByRole('heading', { level: 2, name: 'Saved question text 1', hidden: true })).not.toBeInTheDocument()
 })
 
-it('keeps drafts while moving between questions and warns only when leaving the set', async () => {
+it('keeps the draft on canceled navigation and discards only after confirmation', async () => {
   const { router } = render('/practice/questions/set-1/question-2', [setMock('COMPLETED')])
   fireEvent.change(await screen.findByRole('textbox', { name: 'Your answer' }), { target: { value: 'Draft for two' } })
-  fireEvent.click(screen.getByRole('link', { name: 'Question 3' }))
-  expect(await screen.findByRole('heading', { level: 2, name: 'Saved question text 3' })).toBeVisible()
-  expect(screen.queryByText(/Leave and discard/)).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('link', { name: /Question 2,/ }))
-  expect(await screen.findByRole('textbox', { name: 'Your answer' })).toHaveValue('Draft for two')
   fireEvent.click(screen.getByRole('link', { name: 'All questions' }))
   expect(await screen.findByText(/Leave and discard/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
   expect(router.state.location.pathname).toBe('/practice/questions/set-1/question-2')
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('Draft for two')
+  fireEvent.click(screen.getByRole('link', { name: 'All questions' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Leave page' }))
+  expect(await screen.findByText('Question bank')).toBeInTheDocument()
 })
 
-it('restores failure details and keeps deletion available', async () => {
+it('restores failure details and keeps dismissal available', async () => {
   render('/practice/questions/set-1', [setMock('FAILED')])
   expect(await screen.findByText('Add more career library details.')).toBeInTheDocument()
   expect(screen.getByText('Question generation failed')).toBeInTheDocument()
   expect(screen.queryByText('Generating questions…')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Delete set 1' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Dismiss question generation' })).toBeEnabled()
 })
 
 it('shows the persisted knowledge type on reload', async () => {
   const mock = setMock('COMPLETED')
   mock.result.data.interviewQuestionSet.setType = 'KNOWLEDGE'
   render('/practice/questions/set-1', [mock])
-  expect(await screen.findByText(/Knowledge questions/)).toBeInTheDocument()
-  expect(within(screen.getByRole('navigation', { name: 'Questions in this set' })).getAllByRole('link')).toHaveLength(5)
+  expect(await screen.findByText(/Knowledge/)).toBeInTheDocument()
+  expect(screen.getAllByRole('textbox', { name: 'Your answer' })).toHaveLength(1)
 })
 
 it('keeps generation progress visible when live updates disconnect', async () => {

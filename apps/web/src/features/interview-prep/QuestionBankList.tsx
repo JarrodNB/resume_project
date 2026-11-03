@@ -1,7 +1,7 @@
 /**
  * Description: The question bank: every current practice question with its answer progress.
  * Filters by progress and type and searches question and answer text in the browser.
- * Each row opens that question inside its set. Read-only; editing happens on the set page.
+ * Each row opens a question for writing and feedback.
  */
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -60,7 +60,7 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
             <QuestionProgressMark progress={progress} />
             <span className="question-row-text">
               <span className="question-row-title">{question.questionText}</span>
-              <span className="question-row-meta">{PROGRESS_LABELS[progress]} · {interviewSetTypeLabel(question.questionSet.setType)} · Set {question.questionSet.number} · {interviewSetDate(question.questionSet.createdAt)}</span>
+              <span className="question-row-meta">{PROGRESS_LABELS[progress]} · {interviewSetTypeLabel(question.questionSet.setType)} · {interviewSetDate(question.questionSet.createdAt)}</span>
               {question.answerText.trim() && <span className="question-row-answer">{question.answerText}</span>}
             </span>
             <ChevronRight className="record-arrow" aria-hidden="true" />

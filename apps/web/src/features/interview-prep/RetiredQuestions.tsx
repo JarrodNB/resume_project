@@ -20,7 +20,7 @@ export function RetiredQuestions({ questions }: { questions: BankQuestion[] }) {
         <details className="retired-question">
           <summary>
             <span className="question-row-title">{question.questionText}</span>
-            <span className="question-row-meta">Set {question.questionSet.number} · replaced {interviewSetDate(question.retiredAt ?? question.questionSet.createdAt)}</span>
+            <span className="question-row-meta">Replaced {interviewSetDate(question.retiredAt ?? question.questionSet.createdAt)}</span>
           </summary>
           <div className="retired-question-body">
             <div className="grid min-w-0 content-start gap-2">

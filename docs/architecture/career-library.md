@@ -94,6 +94,21 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   roles). The web app updates the Apollo cache before the server answers and refetches if the
   change is rejected. Uses `@dnd-kit/react`, which supports keyboard dragging.
 
+- **One default section order; each resume keeps its own.** `users.resume_section_order` holds
+  the order of Summary, Experience, Projects, Education, Certifications and Skills; empty means
+  the standard order (`ResumeSection::ORDERABLE_TYPES`). The library page shows its sections in
+  this order and dragging one saves it right away. The profile stays first and career context
+  stays last, because it never prints on a resume. New drafts open in the default order and the
+  worker's `SECTION_ORDER` stays unchanged, so nothing about order enters the task input or a
+  prompt. A saved resume's order lives in `resume_sections.position` and changes through
+  `updateResume(sectionOrder:)` with the same Save as content edits. "Use this order as my
+  default" copies it to the preference; sections the resume lacks keep their default slots.
+  Changing the default never changes a saved resume. Contact always stays first: the server
+  rejects or corrects any order that moves it, and PDF and DOCX draw it as the header. A later
+  summary is inserted where the default order puts it. Resume summary source labels include
+  section position, so saving a new order while a resume's summary proposal is pending fails
+  acceptance with the usual "career information changed" message and the user generates again.
+
 - **Gap analysis speaks in short labels; code fills in the evidence.** The prompt labels each
   qualification (`R1`, `N1`) and library entry (`E1`, `H1`, `P1`, `ED1`, `S1`, `F1`), and the
   agent answers with labels only. The profile summary is shown as unlabeled background for the

@@ -65,7 +65,7 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
 
     expect(result).to be_success
     expect(result.value.sections.order(:position).map { |section| [ section.section_type, section.position, section.content ] })
-      .to eq([ [ "summary", 0, { "text" => "My revised summary." } ], [ "contact", 1, { "full_name" => "Ada" } ] ])
+      .to eq([ [ "contact", 0, { "full_name" => "Ada" } ], [ "summary", 1, { "text" => "My revised summary." } ] ])
     expect(ai_task.reload.result["sections"]).to eq(sections)
   end
 
@@ -76,7 +76,7 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     result = described_class.call(ai_task: ai_task, sections: chosen)
 
     expect(result).to be_success
-    expect(result.value.sections.order(:position).pluck(:section_type)).to eq(%w[summary contact])
+    expect(result.value.sections.order(:position).pluck(:section_type)).to eq(%w[contact summary])
   end
 
   it "keeps the resume when the job is deleted" do
@@ -144,5 +144,24 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(result).to be_success
     expect(section.reload.content["items"].sole["name"]).to eq("Edited credential")
     expect(credential.reload.name).to eq("AWS Solutions Architect")
+  end
+
+  describe "section order" do
+    let(:skills) { { "section_type" => "skills", "title" => "Skills", "content" => { "items" => [] } } }
+
+    def saved_types(result) = result.value.sections.map(&:section_type)
+
+    it "keeps the client's order but always puts contact first" do
+      result = described_class.call(ai_task: ai_task, sections: [ skills, sections[1], sections[0] ])
+
+      expect(saved_types(result)).to eq(%w[contact skills summary])
+    end
+
+    it "uses the owner's default order when no edited sections are sent" do
+      ai_task.update!(result: { "sections" => [ *sections, skills ] })
+      user.update!(resume_section_order: %w[skills experience projects education certifications summary])
+
+      expect(saved_types(described_class.call(ai_task: ai_task))).to eq(%w[contact skills summary])
+    end
   end
 end

@@ -12,8 +12,8 @@
 .resume-document-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .resume-preview-stage { display: flex; min-width: 0; height: max(600px, calc(100svh - 22rem)); padding: 20px; border-radius: 12px; background: var(--muted); }
 .resume-section-list { display: grid; min-width: 0; gap: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
-.resume-section-list > [data-slot=card] { border: 0; border-radius: 0; box-shadow: none; }
-.resume-section-list > [data-slot=card] + [data-slot=card] { border-top: 1px solid var(--border); }
+.resume-section-list [data-slot=card].section-card, .resume-section-list [data-slot=card].resume-section { border: 0; border-radius: 0; box-shadow: none; }
+.resume-section-list > * + * { border-top: 1px solid var(--border); }
 .resume-section-list button[aria-expanded] { min-height: 36px; transition: color 160ms; }
 .resume-section-list button[aria-expanded]:hover { color: var(--primary); }
 .resume-editor input, .resume-editor textarea { caret-color: var(--primary); }

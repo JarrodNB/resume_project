@@ -44,7 +44,8 @@ module SummaryGeneration
 
     private
 
-    # Reuse a blank summary section; otherwise insert after contact without losing order.
+    # Reuse a blank summary section; otherwise insert where the owner's default order puts it,
+    # before the first section that follows the summary there, without losing the other sections' order.
     # The owner and resume are locked before this is called, so concurrent accept/edit/delete
     # cannot interleave or create a second summary. Inclusion belongs to the resume, not text.
     def save_resume_summary(resume, text)
@@ -53,8 +54,9 @@ module SummaryGeneration
       if summary
         summary.update!(content: { "text" => text })
       else
-        insertion = sections.rindex(&:contact?)
-        insertion = insertion ? insertion + 1 : 0
+        order = @user.ordered_resume_section_types
+        following = order.drop(order.index("summary") + 1)
+        insertion = sections.index { |section| following.include?(section.section_type) } || sections.size
         summary = resume.sections.build(section_type: "summary", title: "Summary", content: { "text" => text }, position: insertion)
         sections.insert(insertion, summary)
         sections.each_with_index { |section, position| section.update!(position: position) }

@@ -8,15 +8,15 @@ import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
 import { emptyLibraryReviewMocks, emptyReviewLibrary } from './libraryReviewTestFixtures'
 import { CareerContextSection } from './CareerContextSection'
-import { ProfileSection } from './ProfileSection'
+import { SummarySection } from './SummarySection'
 import { ProjectSection } from './ProjectSection'
 import { LIBRARY_EDIT_QUERY } from './libraryEditOperations'
 import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 
 const cases = [
-  { section: 'summary', title: 'Summary', sectionId: 'library.profile', kind: 'user', field: 'summary', id: 'user-1',
+  { section: 'summary', title: 'Summary', sectionId: 'library.summary', kind: 'user', field: 'summary', id: 'user-1',
     library: { ...emptyReviewLibrary, me: { ...emptyReviewLibrary.me, name: 'Jane', summary: 'I build useful tools.' } },
-    element: <ProfileSection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], includeSummary: true, summary: 'I build useful tools.' }} /> },
+    element: <SummarySection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], includeSummary: true, summary: 'I build useful tools.' }} /> },
   { section: 'projects', title: 'Projects', sectionId: 'library.projects', kind: 'project', field: 'description', id: 'project-1',
     library: { ...emptyReviewLibrary, projects: [{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }] },
     element: <ProjectSection projects={[{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }]} /> },

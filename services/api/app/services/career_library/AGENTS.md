@@ -24,7 +24,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   Sign-in email, jobs, and tailored resumes stay. Job answers that pointed at a career context entry stay,
   unlinked. Queues one embedding sync when an entry was removed; a second call changes nothing.
 - `reorder_library_entries_service.rb` — saves a new order for a relation of the user's entries
-  (used for skills; experiences, projects, and educations are ordered by date instead): the ids
+  (used for skills and a resume's sections; experiences, projects, and educations are ordered by date instead): the ids
   must be exactly the relation's ids, and each position becomes its index. Repeating the call
   changes nothing.
 - `build_embedding_texts_service.rb` — one text per experience, highlight, project, education,

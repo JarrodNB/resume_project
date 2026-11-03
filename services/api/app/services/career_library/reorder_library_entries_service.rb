@@ -1,11 +1,11 @@
-# Description: Saves a new order for one kind of career library entry (experiences, projects,
-# educations, or skills). The ids must be exactly the user's entries of that kind; each entry's
+# Description: Saves a new order for one list of positioned records (a user's skills, or the
+# sections of one resume). The ids must be exactly the records in that list; each record's
 # position becomes its index in the list. Running it twice with the same ids changes nothing.
 # Index:
 #   - call: renumbers positions in one transaction; returns the reordered records, or errors
 module CareerLibrary
   class ReorderLibraryEntriesService < ApplicationService
-    # @param records [ActiveRecord::Relation] the user's entries of one kind (e.g. user.experiences)
+    # @param records [ActiveRecord::Relation] the records to order (e.g. user.skills)
     # @param ordered_ids [Array<String, Integer>] every id in that relation, in the new order
     def initialize(records:, ordered_ids:)
       @records = records

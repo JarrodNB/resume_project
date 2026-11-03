@@ -82,4 +82,68 @@ RSpec.describe ResumeTailoring::UpdateResumeSectionsService do
     expect(result.errors).to eq([ "Section content must be an object." ])
     expect(summary.reload.content).to eq("text" => "Old.")
   end
+
+  describe "section order" do
+    let!(:skills) { create(:resume_section, resume: resume, section_type: "skills", title: "Skills", position: 2, content: { "items" => [] }) }
+
+    it "saves the new order together with content" do
+      result = described_class.call(
+        resume: resume,
+        sections: [ { "id" => summary.id, "content" => { "text" => "New." } } ],
+        section_order: [ contact.id, skills.id, summary.id ]
+      )
+
+      expect(result).to be_success
+      expect(result.value.sections.map(&:id)).to eq([ contact.id, skills.id, summary.id ])
+      expect(summary.reload.content).to eq("text" => "New.")
+    end
+
+    it "gives the same result when repeated" do
+      2.times { expect(described_class.call(resume: resume, sections: [], section_order: [ contact.id, skills.id, summary.id ])).to be_success }
+
+      expect(resume.reload.sections.map(&:position)).to eq([ 0, 1, 2 ])
+    end
+
+    it "keeps the order when none is sent" do
+      expect(described_class.call(resume: resume, sections: [])).to be_success
+
+      expect(resume.reload.sections.map(&:id)).to eq([ contact.id, summary.id, skills.id ])
+    end
+
+    it "rejects moving contact and changes nothing" do
+      result = described_class.call(
+        resume: resume,
+        sections: [ { "id" => summary.id, "content" => { "text" => "New." } } ],
+        include_summary: false,
+        section_order: [ summary.id, contact.id, skills.id ]
+      )
+
+      expect(result.errors).to eq([ described_class::CONTACT_NOT_FIRST ])
+      expect(summary.reload.content).to eq("text" => "Old.")
+      expect(resume.reload.include_summary).to be(true)
+      expect(resume.sections.map(&:id)).to eq([ contact.id, summary.id, skills.id ])
+    end
+
+    it "rejects an order that does not list every section and changes nothing" do
+      result = described_class.call(
+        resume: resume,
+        sections: [ { "id" => summary.id, "content" => { "text" => "New." } } ],
+        section_order: [ contact.id, skills.id ]
+      )
+
+      expect(result).not_to be_success
+      expect(summary.reload.content).to eq("text" => "Old.")
+    end
+
+    it "undoes the new order when a section's content is rejected" do
+      result = described_class.call(
+        resume: resume,
+        sections: [ { "id" => summary.id, "content" => { "text" => "x" * (TextLimits::SCREENED_TEXT + 1) } } ],
+        section_order: [ contact.id, skills.id, summary.id ]
+      )
+
+      expect(result).not_to be_success
+      expect(resume.reload.sections.map(&:id)).to eq([ contact.id, summary.id, skills.id ])
+    end
+  end
 end

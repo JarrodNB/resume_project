@@ -20,7 +20,7 @@ export const targetElementId = (target: { kind: string; recordId: string }) => `
 
 export function libraryReviewTargets(library: CareerLibraryQuery): LibraryReviewTarget[] {
   const targets: LibraryReviewTarget[] = []
-  if (library.me.summary) targets.push({ kind: 'user', recordId: library.me.id, section: 'summary', sectionId: 'library.profile', title: library.me.name || 'Your profile', fieldLabel: 'Summary', text: library.me.summary, sourceRevision: library.me.summary })
+  if (library.me.summary) targets.push({ kind: 'user', recordId: library.me.id, section: 'summary', sectionId: 'library.summary', title: library.me.name || 'Your profile', fieldLabel: 'Summary', text: library.me.summary, sourceRevision: library.me.summary })
   for (const entry of library.experiences) {
     const base = { section: 'experience' as const, sectionId: 'library.experience', title: `${entry.title} at ${entry.company}`, sourceRevision: JSON.stringify(entry) }
     if (entry.description) targets.push({ ...base, kind: 'experience', recordId: entry.id, fieldLabel: 'Role description', text: entry.description })

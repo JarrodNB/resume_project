@@ -4,6 +4,7 @@
  * Deletion requires confirmation; the route chooses where to return afterward.
  * PDF and DOCX downloads use a saved snapshot; unsaved edits stay preview-only.
  * Save status tracks the submitted snapshot, so edits made during a save stay unsaved.
+ * Sections can be dragged; contact stays first. A new order saves with Save, like an edit.
  */
 import { useMemo, useRef, useState } from 'react'
 import { Download, Trash2 } from 'lucide-react'
@@ -18,11 +19,13 @@ import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
+import { ResumeSectionList } from './ResumeSectionList'
 import { asSectionType, SECTION_TITLES } from './sectionOrder'
 import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } from './tailorDraft'
 import { SummaryGenerationPanel } from '@/features/summary-generation/SummaryGenerationPanel'
 import { SummaryInclusionControl } from './SummaryInclusionControl'
 import { useUpdateResume } from './useUpdateResume'
+import { UseSectionOrderAsDefault } from './UseSectionOrderAsDefault'
 
 interface SavedResumeSection {
   id: string
@@ -37,6 +40,9 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
   const editable = useMemo(() => editableSections(sections), [sections])
   const incomingDrafts = useMemo(() => Object.fromEntries(editable.map((section) => [section.id, sectionDraftFromContent(section.sectionType, section.content)])), [editable])
   const [drafts, setDrafts] = useState<Record<string, SectionDraft>>(incomingDrafts)
+  const incomingOrder = editable.map((section) => section.id)
+  const [order, setOrder] = useState(incomingOrder)
+  const [savedOrder, setSavedOrder] = useState(incomingOrder)
   const [summaryIncluded, setSummaryIncluded] = useState(includeSummary)
   const [savedSnapshot, setSavedSnapshot] = useState(() => draftSnapshot(drafts, summaryIncluded))
   const [savedModel, setSavedModel] = useState(() => buildResumePdfModel(editable, summaryIncluded))
@@ -50,6 +56,10 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
       drafts[section.id] && JSON.stringify(contentFromSectionDraft(drafts[section.id])) !== JSON.stringify(baseline.drafts[section.id]) ? drafts[section.id] : incomingDrafts[section.id],
     ]))
     setDrafts(next)
+    // Keep an unsaved order, and let any new section land where the server put it.
+    if (order.join() !== savedOrder.join()) setOrder(mergeSectionOrder(order, incomingOrder))
+    else setOrder(incomingOrder)
+    setSavedOrder(incomingOrder)
     if (summaryIncluded === baseline.summaryIncluded) setSummaryIncluded(includeSummary)
     setSavedSnapshot(draftSnapshot(incomingDrafts, includeSummary))
     setSavedModel(buildResumePdfModel(editable, includeSummary))
@@ -60,7 +70,9 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
   const [exportPending, setExportPending] = useState<'PDF' | 'DOCX' | null>(null)
   const [exportError, setExportError] = useState<string[]>([])
   const snapshot = draftSnapshot(drafts, summaryIncluded)
-  const dirty = snapshot !== savedSnapshot
+  const orderChanged = order.join() !== savedOrder.join()
+  const dirty = snapshot !== savedSnapshot || orderChanged
+  const ordered = order.flatMap((id) => editable.find((section) => section.id === id) ?? [])
   const [editing, setEditing] = useState(false)
   const { saveSections, errors, pending } = useUpdateResume(resumeId)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -73,7 +85,7 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
     }
   }
   const model = buildResumePdfModel(
-    editable.map((section) => ({
+    ordered.map((section) => ({
       sectionType: section.sectionType,
       title: section.title,
       content: contentFromSectionDraft(drafts[section.id] ?? sectionDraftFromContent(section.sectionType, section.content)),
@@ -83,8 +95,11 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
 
   async function save() {
     if (pending || summaryBusy) return
-    if (await saveSections(editable.map((section) => ({ id: section.id, content: contentFromSectionDraft(drafts[section.id]) })), summaryIncluded)) {
+    // The server needs every section; any this editor can't show keep their place at the end.
+    const hiddenIds = sections.map((section) => section.id).filter((id) => !order.includes(id))
+    if (await saveSections(editable.map((section) => ({ id: section.id, content: contentFromSectionDraft(drafts[section.id]) })), summaryIncluded, orderChanged ? [...order, ...hiddenIds] : undefined)) {
       setSavedSnapshot(snapshot)
+      setSavedOrder(order)
       setSavedModel(model)
     }
   }
@@ -119,14 +134,24 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
       <ErrorAlert messages={exportError} title="Couldn't download this resume" />
       <DeleteResumeDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={() => void confirmDelete()} pending={deletion.pending} errors={deletion.errors} />
       {editing && <SummaryInclusionControl checked={summaryIncluded} onChange={setSummaryIncluded} disabled={pending || summaryBusy || deletion.pending || !!exportPending} />}
-      {editing && <fieldset disabled={summaryBusy || deletion.pending} className="resume-section-list">{editable.map((section) => (
-        <SectionCard key={section.id} tone={section.sectionType} title={section.title} sectionId={`saved-resume.${resumeId}.${section.id}`}>
-          <SectionFields
-            draft={drafts[section.id]}
-            onChange={(next) => setDrafts((current) => ({ ...current, [section.id]: next }))}
-          />
-        </SectionCard>
-      ))}</fieldset>}
+      {editing && <UseSectionOrderAsDefault resumeOrder={ordered.map((section) => section.sectionType)} disabled={pending || summaryBusy || deletion.pending} />}
+      {editing && <fieldset disabled={summaryBusy || deletion.pending} className="min-w-0"><div className="resume-section-list">
+        <ResumeSectionList
+          sections={ordered}
+          idOf={(section) => section.id}
+          typeOf={(section) => section.sectionType}
+          titleOf={(section) => section.title}
+          onReorder={(movableIds) => setOrder([...ordered.filter((section) => section.sectionType === 'contact').map((section) => section.id), ...movableIds])}
+          renderSection={(section, dragHandle) => (
+            <SectionCard tone={section.sectionType} title={section.title} sectionId={`saved-resume.${resumeId}.${section.id}`} dragHandle={dragHandle}>
+              <SectionFields
+                draft={drafts[section.id]}
+                onChange={(next) => setDrafts((current) => ({ ...current, [section.id]: next }))}
+              />
+            </SectionCard>
+          )}
+        />
+      </div></fieldset>}
       {!editable.some((section) => {
         const draft = incomingDrafts[section.id]
         return section.sectionType === 'summary' && draft?.kind === 'summary' && draft.text?.trim()
@@ -146,18 +171,32 @@ export function SavedResumeEditor({ resumeId, title = '', sections, includeSumma
   )
 }
 
-/** Saved sections the review fields know how to edit, in stored order. */
+/** Saved sections the review fields know how to edit, in stored order with contact first. */
 function editableSections(sections: SavedResumeSection[]) {
-  return [...sections]
+  const stored = [...sections]
     .sort((left, right) => left.position - right.position)
     .flatMap((section) => {
       const sectionType = asSectionType(section.sectionType.toLowerCase())
       if (!sectionType) return []
       return [{ id: section.id, sectionType, title: section.title || SECTION_TITLES[sectionType], content: section.content }]
     })
+  return stored.filter((section) => section.sectionType === 'contact').concat(stored.filter((section) => section.sectionType !== 'contact'))
 }
 
-/** Ignore drag keys when comparing saved content; refetches assign fresh UI keys. */
+/** The local order with removed sections dropped and new ones placed as the server has them. */
+function mergeSectionOrder(local: string[], incoming: string[]) {
+  const merged = local.filter((id) => incoming.includes(id))
+  incoming.forEach((id, index) => {
+    if (!merged.includes(id)) merged.splice(index, 0, id)
+  })
+  return merged
+}
+
+/**
+ * Ignore drag keys when comparing saved content; refetches assign fresh UI keys.
+ * Sections are compared by ID, because a refetch after reordering rebuilds them in a new order.
+ */
 function draftSnapshot(drafts: Record<string, SectionDraft>, summaryIncluded: boolean) {
-  return JSON.stringify({ drafts: Object.fromEntries(Object.entries(drafts).map(([id, draft]) => [id, contentFromSectionDraft(draft)])), summaryIncluded })
+  const content = Object.entries(drafts).sort(([left], [right]) => left.localeCompare(right)).map(([id, draft]) => [id, contentFromSectionDraft(draft)])
+  return JSON.stringify({ drafts: Object.fromEntries(content), summaryIncluded })
 }

@@ -37,7 +37,10 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   so edits made during a request remain unsaved. Successful deletion sets a ref read by the
   blocker at navigation time; do not rely on a state render before navigating after deletion.
 - `SectionFields.tsx` — resume-import review fields for one section
-- `sectionOrder.ts` — section names and display titles
+- `ResumeSectionList.tsx` — section layout for both editors: contact pinned first, the rest draggable.
+  `UseSectionOrderAsDefault.tsx` copies a resume's order to the default for new resumes
+- `sectionOrder.ts` — section names, display titles, and order helpers
+- `useDefaultSectionOrder.ts` — reads and saves the default order; also used by the library page
 - `tailorDraft.ts` — section JSON to and from the review-field draft
 - `parseTailorTask.ts` — completed draft sections and warnings
 - `tailorOperations.ts` — job query and start / save / update mutations
@@ -69,6 +72,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   `updateResume`. Preview shows the current included draft, including unsaved edits.
 - The library Include summary preference is snapshotted when tailoring starts. Both editors expose a separate summary inclusion control, even with no summary text. Saved resumes persist that choice independently of text and never follow later library changes.
 - Excluded summary text survives first save and reload. Preview/PDF/DOCX omit it through the shared output model. Other excluded sections keep their edits and can be restored before saving. Empty selection
-  disables preview and save; sections retain their original draft order.
+  disables preview and save.
+- Drafts open in the default section order and keep any order dragged afterward. A saved resume's order saves with Save, like an edit, and never follows later default changes.
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential
   ID/URL, and description.

@@ -4,6 +4,8 @@
 # Index:
 #   - profile columns: name, contact_email, phone, location, links, summary
 #   - include_summary: default for new resumes; never changes existing resume output
+#   - resume_section_order: default section order for new resumes and the library page; never
+#     changes existing resume output. Empty means the standard order.
 #   - career library: experiences, projects, educations (most recent first), certifications (issued date), skills (by position),
 #     career_contexts (answers the user added from gap analysis, by created_at)
 #   - jobs, resumes, ai_tasks, ai_task_outcomes, interview_question_sets, interview_sessions, chat_conversations
@@ -36,7 +38,14 @@ class User < ApplicationRecord
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
   validates :summary, length: { maximum: TextLimits::PROSE }
   validate :links_within_limits
+  validate :resume_section_order_lists_each_section_once
   validate :password_safe_for_bcrypt
+
+  # The saved section order, with any section type added after it was saved at the end.
+  def ordered_resume_section_types
+    saved = resume_section_order & ResumeSection::ORDERABLE_TYPES
+    saved + (ResumeSection::ORDERABLE_TYPES - saved)
+  end
 
   # bcrypt cannot hash NUL bytes or non-text input. Keep invalid values for validation without
   # calling its eager hasher; ordinary passwords still use Devise unchanged.
@@ -78,6 +87,13 @@ class User < ApplicationRecord
   # presence/type validations report malformed passwords instead of raising on downcase.
   def not_common_password
     super if password.is_a?(String)
+  end
+
+  # Contact is left out because it is always the header. Empty restores the standard order.
+  def resume_section_order_lists_each_section_once
+    return if resume_section_order.empty? || resume_section_order.sort == ResumeSection::ORDERABLE_TYPES.sort
+
+    errors.add(:resume_section_order, "must list each section exactly once")
   end
 
   # Caps how many links the profile holds and how long each one is.

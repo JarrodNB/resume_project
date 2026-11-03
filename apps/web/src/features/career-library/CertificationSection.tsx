@@ -3,7 +3,7 @@
  * Index:
  *   - CertificationSection: credentials with merge/delete and the certification form
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatCertificationDates } from '@/lib/formatCertificationDates'
 import { editableCertificationDate } from './certificationDateValues'
@@ -16,13 +16,14 @@ import { LibrarySection } from './LibrarySection'
 type Certification = CareerLibraryQuery['certifications'][number]
 
 /** Lists certification entries and opens the form to add one or edit one. */
-export function CertificationSection({ certifications }: { certifications: Certification[] }) {
+export function CertificationSection({ certifications, dragHandle }: { certifications: Certification[]; dragHandle?: ReactNode }) {
   const [editing, setEditing] = useState<Certification | 'new' | null>(null)
   const candidates = certifications.map((certification) => ({ id: certification.id, label: certificationLabel(certification) }))
 
   return (
     <>
       <LibrarySection
+        dragHandle={dragHandle}
         sectionId="library.certifications"
         tone="certifications"
         title="Certifications"

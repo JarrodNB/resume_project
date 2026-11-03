@@ -7,6 +7,7 @@ import { expect, it, vi } from 'vitest'
 import { FinalResumeEditor } from './FinalResumeEditor'
 import { renderPage } from '@/test/renderPage'
 import type { TailorSection } from './parseTailorTask'
+import { DEFAULT_SECTION_ORDER_QUERY } from './useDefaultSectionOrder'
 
 const sections: TailorSection[] = [
   { sectionType: 'summary', title: 'Summary', content: { text: 'Backend engineer.' }, omitted: false },
@@ -149,4 +150,22 @@ it('uses a disabled summary default even before summary text exists', async () =
   expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
   expect(onSave).toHaveBeenCalledWith([{ section_type: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }] } }], false)
+})
+
+it('starts a new draft in the default order and saves it that way, with contact first', async () => {
+  const user = userEvent.setup()
+  const onSave = vi.fn(() => true)
+  const defaultOrder = {
+    request: { query: DEFAULT_SECTION_ORDER_QUERY },
+    result: { data: { me: { __typename: 'User' as const, id: 'user-1', resumeSectionOrder: ['SKILLS', 'SUMMARY', 'EXPERIENCE', 'PROJECTS', 'EDUCATION', 'CERTIFICATIONS'] } } },
+  }
+  const withContact: TailorSection[] = [{ sectionType: 'contact', title: 'Contact', content: { full_name: 'Ada' }, omitted: false }, ...sections]
+  renderPage({ path: '/', url: '/', mocks: [defaultOrder], element: <FinalResumeEditor jobId="job-1" sections={withContact} warnings={[]} pending={false} errors={[]} onSave={onSave} /> })
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await screen.findByRole('button', { name: 'This order is your default' })
+
+  expect(screen.queryByRole('button', { name: 'Drag Contact section' })).not.toBeInTheDocument()
+  expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual(['Contact', 'Skills', 'Summary'])
+  await user.click(screen.getByRole('button', { name: /^Save/ }))
+  expect((onSave.mock.calls[0] as unknown[])[0]).toMatchObject([{ section_type: 'contact' }, { section_type: 'skills' }, { section_type: 'summary' }])
 })

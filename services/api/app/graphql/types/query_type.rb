@@ -77,7 +77,9 @@ module Types
     field :interview_questions, [ Types::InterviewQuestionType ], null: false,
           description: "Every practice question the signed-in user has, including retired answered copies."
 
-    field :job_board_search, Types::JobBoardSearchPageType, null: false do
+    # Each cache miss calls the shared Job Board provider, so aliases of these fields are priced
+    # high enough that one GraphQL operation can fit only two provider-bound fields.
+    field :job_board_search, Types::JobBoardSearchPageType, null: false, complexity: 100 do
       argument :keyword, String, required: true
       argument :filters, Types::JobBoardFiltersInput, required: false
       argument :experience_levels, [ Types::JobBoardExperienceLevelEnum ], required: false, default_value: []
@@ -90,7 +92,7 @@ module Types
       result.value || { listings: [], next_cursor: nil, retrieved_at: nil, stale: false, errors: result.errors }
     end
 
-    field :job_board_locations, Types::JobBoardLocationsPageType, null: false do
+    field :job_board_locations, Types::JobBoardLocationsPageType, null: false, complexity: 100 do
       argument :query, String, required: true
     end
 

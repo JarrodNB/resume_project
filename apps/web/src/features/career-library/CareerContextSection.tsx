@@ -1,5 +1,6 @@
 /**
  * Description: The career context entries section of the career library: the list, add, and edit.
+ * It sits off the career line because these answers feed the AI and never print on a resume.
  * Reviews and regeneration apply to responses while requirement labels remain unchanged.
  * Index:
  *   - CareerContextSection: career context entries with the context form
@@ -9,6 +10,7 @@ import { LibrarySectionReview } from './LibrarySectionReview'
 import { CareerContextFormDialog } from './CareerContextFormDialog'
 import { CareerContextList, type CareerContext } from './CareerContextList'
 import { LibrarySection } from './LibrarySection'
+import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 
 /** Lists career context entries and opens the form to add one or edit one. */
 export function CareerContextSection({ careerContexts }: { careerContexts: CareerContext[] }) {
@@ -16,7 +18,7 @@ export function CareerContextSection({ careerContexts }: { careerContexts: Caree
 
   return (
     <>
-      <LibrarySection sectionId="library.career_contexts" tone="career_contexts" title="Career context" count={careerContexts.length} emptyText="No career context yet." addLabel="Add career context" onAdd={() => setEditing('new')}
+      <LibrarySection sectionId={LIBRARY_SECTION_ANCHORS.career_contexts} offLine note="Never printed on a resume. Your answers here give the AI real evidence to write from." title="Career context" count={careerContexts.length} emptyText="No career context yet." addLabel="Add career context" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="career_contexts" />} reviewSection="career_contexts">
 
         <CareerContextList careerContexts={careerContexts} onEdit={setEditing} />

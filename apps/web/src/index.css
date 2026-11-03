@@ -313,7 +313,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .page-heading h1 { font-size: 2.5rem; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; }
 .page-heading p { margin-top: 12px; max-width: 65ch; color: var(--muted-foreground); font-size: 16px; line-height: 1.55; }
 .page-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.library-sections { display: grid; gap: 12px; min-width: 0; }
 /* Focus mode: during a live interview the band shrinks to one way out. */
 .workspace.is-focused .workspace-content { max-width: 1180px; padding-top: 32px; }
 .workspace.is-focused .page-heading { padding-bottom: 16px; }
@@ -646,7 +645,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .job-posting ul { list-style: disc; padding-left: 20px; display: grid; gap: 6px; }
 
 /* Keep long career details within their review workspace. */
-.library-assessment, .library-edit-panel { overflow-wrap: anywhere; }
 .record-list { display: grid; }
 .record-list > li + li { border-top: 1px solid var(--border); }
 .job-record { position: relative; }
@@ -797,40 +795,157 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .workspace-content [data-slot=button][data-size^=icon] { min-width: 44px; }
 }
 
-/* Career library AI work stays beside the records; mobile gives it a focused screen. */
-.library-page { max-width: 1440px; }
+/* Career library: one long page. Roles are stops on a dated line, review notes sit in a margin
+   beside each detail, and AI work opens under the detail it changes. Phones use a focused screen. */
+.workspace-body:has(.library-page) { overflow-x: clip; }
+.workspace-content:has(.library-page) { padding-top: 0; }
+.library-page { --library-gutter: 48px; --library-note-width: 320px; display: flex; flex-direction: column; gap: 24px; }
+.library-page > .page-heading { margin-top: 12px; }
+.library-tabs { order: -1; position: sticky; top: 60px; z-index: 20; flex: none; margin-inline: calc(50% - 50vw); padding-inline: max(var(--library-gutter), calc(50vw - 720px + var(--library-gutter))); }
+.library-tabs .section-tab { gap: 8px; white-space: nowrap; }
+.library-tab { position: relative; display: flex; align-items: stretch; flex: none; }
+.library-tab [data-slot=drag-handle] { position: absolute; top: 15px; left: -22px; padding: 2px 1px; }
+.library-tab-count { color: var(--muted-foreground); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.library-tab-rule { align-self: center; flex: none; width: 1px; height: 22px; background: var(--input); }
+.library-tab-questions { align-self: center; flex: none; margin-left: auto; padding-left: 8px; text-underline-offset: 3px; }
+.library-tab-questions:hover { text-decoration: underline; }
+.library-tab-questions:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
 .library-resume-import { display: grid; gap: 24px; padding: 28px; border: 1px solid var(--border); border-radius: 6px; }
 .library-resume-import h2 { font-size: 20px; font-weight: 700; }
 .library-resume-import p { max-width: 72ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
-@media (max-width: 599px) {
-  .library-resume-import { padding: 20px 16px; }
+.library-sections { min-width: 0; }
+.library-profile { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 4px 0 28px; border-bottom: 1px solid var(--border); }
+.library-profile h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+.library-profile p { margin-top: 6px; color: var(--muted-foreground); font-size: 14px; }
+.library-profile ul { display: flex; flex-wrap: wrap; gap: 2px 16px; margin-top: 2px; color: var(--muted-foreground); font-size: 14px; }
+.library-section { padding-top: 48px; scroll-margin-top: 112px; }
+.library-section-head { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-height: 46px; padding-bottom: 12px; border-bottom: 2px solid var(--rule-strong); }
+.library-section.is-off-line .library-section-head { border-bottom: 2px dashed var(--stop-closed); }
+.library-section-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; min-width: 0; margin-right: auto; }
+.library-section-title h2 { font-size: 28px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
+.library-section-error { order: 1; flex-basis: 100%; }
+.library-section-note, .library-section-empty { padding-top: 12px; color: var(--muted-foreground); font-size: 14px; line-height: 1.5; }
+.library-review-busy { display: inline-flex; align-items: center; gap: 9px; padding-inline: 10px; color: var(--signal-ai-text); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.library-review-busy .signal-dot { width: 9px; height: 9px; }
+.library-summary { display: grid; gap: 16px; padding-top: 8px; }
+
+/* A role is a stop on the line. Its dates hang in a column left of the rail. */
+.career-line { padding-top: 8px; }
+.career-stop { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 12px; margin-left: 148px; padding-bottom: 12px; }
+.career-stop::before { content: ""; position: absolute; top: 0; bottom: 0; left: 14px; width: 2px; background: var(--rule-strong); }
+.career-stop:first-child::before { top: 26px; }
+.career-stop:last-child::before { bottom: auto; height: 26px; }
+.career-stop:only-child::before { display: none; }
+.career-stop-mark { position: relative; box-sizing: border-box; justify-self: center; width: 14px; height: 14px; margin-top: 20px; border: 2px solid var(--rule-strong); border-radius: 50%; background: var(--background); }
+.career-stop[data-current] .career-stop-mark { background: var(--rule-strong); box-shadow: 0 0 0 3px var(--background), 0 0 0 4.5px var(--rule-strong); }
+.career-stop-body { position: relative; min-width: 0; padding-top: 16px; }
+.career-stop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding-bottom: 6px; }
+.career-stop-head h3 { font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: -0.005em; }
+.career-stop-dates { position: absolute; top: 20px; right: calc(100% + 48px); color: var(--muted-foreground); font-size: 13px; line-height: 1.35; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.library-entry { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.library-entry-head { display: flex; align-items: flex-start; gap: 12px; }
+.library-entry-head > :first-child { flex: 1; }
+.library-entry-head h3 { font-size: 16px; font-weight: 700; line-height: 1.3; }
+.library-entry-sub { color: var(--muted-foreground); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.library-entry-dates { padding-top: 2px; color: var(--muted-foreground); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.library-entry-description { max-width: 75ch; margin-top: 6px; font-size: 15px; line-height: 1.55; }
+
+/* One detail: saved words on the left, the review's note in a margin on the right. */
+.library-detail { min-width: 0; scroll-margin-block: 130px; overflow-wrap: anywhere; }
+.library-detail-row { display: grid; grid-template-columns: minmax(0, 1fr) var(--library-note-width); column-gap: 16px; }
+.library-detail-text { max-width: 75ch; padding-block: 4px; font-size: 15px; line-height: 1.55; text-wrap: pretty; white-space: pre-wrap; }
+.library-detail-note { min-width: 0; padding: 2px 0 10px 14px; border-left: 1px solid var(--border); }
+.library-detail[data-selected] .library-detail-row { background: var(--muted); box-shadow: 0 0 0 6px var(--muted); border-radius: 1px; }
+.library-assessment { display: grid; gap: 3px; color: var(--muted-foreground); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.library-assessment .signal-dot { width: 9px; height: 9px; }
+.library-assessment-grade { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; min-height: 28px; }
+.library-improve[data-slot=button] { height: 28px; padding-inline: 6px; font-size: 12px; font-weight: 600; }
+.library-improve[data-slot=button] svg { width: 13px; height: 13px; }
+.signal-dot.is-partial { box-sizing: border-box; background: transparent; border: 2px solid var(--foreground); }
+.signal-dot.is-off { box-sizing: border-box; background: transparent; border: 2px solid var(--stop-off); }
+
+/* Highlights are bullets; the drag grip waits in the gap beside the rail until it's needed. */
+.library-highlights { display: grid; }
+.library-highlight { position: relative; display: flex; align-items: flex-start; }
+.library-highlight [data-slot=drag-handle] { position: absolute; top: 3px; left: -24px; z-index: 1; padding: 3px 1px; }
+.library-highlight .library-detail-text { position: relative; padding-left: 16px; }
+.library-highlight .library-detail-text::before { content: ""; position: absolute; top: 13px; left: 2px; width: 5px; height: 5px; border-radius: 50%; background: var(--foreground); }
+.library-highlight-drop { padding: 6px 8px; border: 1px dashed var(--stop-closed); border-radius: 4px; color: var(--muted-foreground); font-size: 12px; }
+@media (hover: hover) and (pointer: fine) {
+  .library-highlight [data-slot=drag-handle], .library-tab [data-slot=drag-handle] { opacity: 0; transition: opacity 160ms; }
+  .library-highlight:hover [data-slot=drag-handle], .library-tab:hover [data-slot=drag-handle], .library-page [data-slot=drag-handle]:focus-visible { opacity: 1; }
 }
-.library-workspace-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 354px); align-items: start; gap: 28px; }
-.library-ai-dock { position: sticky; top: 24px; min-width: 0; max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 6px; scrollbar-color: var(--input) transparent; }
-.library-ai-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
-.library-ai-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
-.library-ai-heading h2 > svg { width: 17px; height: 17px; color: var(--primary); }
-.library-ai-heading h2:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
-.library-ai-body { display: grid; gap: 18px; padding: 20px; overflow-wrap: anywhere; }
-.library-ai-body .library-assessment { padding: 0; }
-.library-ai-body .library-assessment p { font-size: 13px; line-height: 1.7; }
-.library-detail { min-width: 0; padding: 10px; border-radius: 7px; scroll-margin-block: 24px; overflow-wrap: anywhere; }
-.library-detail[data-selected] { background: var(--secondary); outline: 1px solid var(--primary); outline-offset: -1px; }
-.library-detail .library-assessment { padding: 0; font-size: 12px; }
-.library-detail .library-assessment svg { width: 14px; height: 14px; }
+.library-skills { display: grid; gap: 10px; padding-top: 16px; }
+.library-skill-group { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 6px 12px; align-items: baseline; }
+.library-skill-group h3 { font-size: 14px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.library-skill-group > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.library-skill { display: flex; align-items: center; gap: 2px; min-height: 28px; padding-right: 4px; border: 1px solid var(--input); border-radius: 3px; font-size: 13px; font-weight: 500; }
+.library-skill [data-slot=drag-handle] { padding: 3px 0 3px 2px; }
+.library-skill [data-slot=drag-handle] svg { width: 13px; height: 13px; }
+.library-contexts { display: grid; }
+.library-context { padding-block: 14px; border-bottom: 1px solid var(--border); }
+.library-context-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 2px; }
+.library-context-requirement { font-size: 15px; font-weight: 700; line-height: 1.35; }
+.library-clear { display: flex; justify-content: flex-end; margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); }
+
 /* Review questions waiting on the user: a red-signal box, not muted text, with the answer button inside. */
-.review-questions { display: grid; gap: 10px; max-width: 72ch; margin-top: 6px; padding: 14px 16px; border: 1.5px solid var(--signal-action); border-radius: 6px; background: var(--background); }
+.review-questions { display: grid; gap: 10px; margin-top: 8px; padding: 12px; border: 1.5px solid var(--signal-action); border-radius: 6px; background: var(--background); }
 .review-questions-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--signal-action-text); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .review-questions-badge .signal-dot { width: 9px; height: 9px; }
-.review-questions-title { display: flex; align-items: center; gap: 9px; color: var(--foreground); font-size: 14px; font-weight: 700; }
-.review-questions ul { display: grid; gap: 6px; padding-left: 21px; list-style: disc; color: var(--foreground); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
+.review-questions-title { display: flex; align-items: center; gap: 9px; color: var(--foreground); font-size: 13px; font-weight: 700; }
+.review-questions ul { display: grid; gap: 6px; padding-left: 18px; list-style: disc; color: var(--foreground); font-size: 13px; line-height: 1.5; text-wrap: pretty; }
+
+/* AI work, opened right under the selected detail. */
+.library-edit-panel { overflow-wrap: anywhere; }
+.library-edit-exchange { display: grid; gap: 20px; }
+.library-edit-main { display: grid; gap: 16px; min-width: 0; }
+.library-edit-main:empty { display: none; }
+.library-ai-inline { display: grid; gap: 16px; margin: 14px 0 18px; padding: 16px 18px 14px; border: 1.5px solid var(--rule-strong); border-radius: 6px; background: var(--card); scroll-margin-block: 130px; }
+.library-ai-inline .library-ai-heading { padding: 0; border-bottom: 0; }
+.library-ai-inline h4 { font-size: 15px; font-weight: 700; }
+.library-ai-inline h4:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.library-ai-inline .library-ai-heading p { color: var(--muted-foreground); font-size: 13px; }
+.library-ai-inline .library-edit-panel [data-slot=button].w-full { width: auto; justify-self: start; }
+.library-ai-inline .library-edit-panel textarea { max-width: 75ch; }
+@media (min-width: 900px) {
+  .library-ai-inline .library-edit-exchange:has(.library-edit-proposal) { grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
+  .library-ai-inline .library-edit-exchange:has(.library-edit-proposal) .library-edit-form { padding-top: 0; border-top: 0; }
+  .library-ai-inline .library-edit-exchange:has(.library-edit-proposal) .library-edit-form [data-slot=button].w-full { width: 100%; }
+}
+.library-ai-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.library-ai-mobile .library-ai-heading h2 { font-size: 16px; font-weight: 700; }
+.library-ai-heading h2:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.library-ai-body { display: grid; gap: 18px; padding: 20px; overflow-wrap: anywhere; }
 [data-slot=dialog-content].library-ai-mobile { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; transform: none; translate: none; border-radius: 0; padding: 0; display: block; overflow-y: auto; box-shadow: none; animation: none; }
 .library-ai-mobile .library-ai-heading { padding-top: max(18px, env(safe-area-inset-top)); }
 .library-ai-mobile .library-ai-body { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
 .library-ai-mobile [data-slot=button] { min-height: 44px; }
 .library-ai-mobile textarea, .library-ai-mobile select { font-size: 16px; }
+@media (max-width: 1199px) {
+  .library-page { --library-gutter: 28px; --library-note-width: 260px; }
+  .career-stop { margin-left: 132px; column-gap: 8px; }
+  .career-stop-dates { right: calc(100% + 40px); }
+  .library-tab [data-slot=drag-handle], .library-highlight [data-slot=drag-handle] { opacity: 1; }
+}
 @media (max-width: 899px) {
-  .library-workspace-layout { grid-template-columns: minmax(0, 1fr); }
+  .library-page { --library-gutter: 24px; }
+  .library-tabs { top: 0; gap: 12px; }
+  .library-tab [data-slot=drag-handle] { position: static; align-self: center; }
+  .library-tab-questions { margin-left: 0; }
+  .library-section-title h2 { font-size: 24px; }
+  .career-stop { margin-left: 0; grid-template-columns: 26px minmax(0, 1fr); column-gap: 6px; }
+  .career-stop::before { left: 12px; }
+  .career-stop-dates { position: static; }
+  .library-detail-row { grid-template-columns: minmax(0, 1fr); }
+  .library-detail-note { padding: 0 0 12px; border-left: 0; }
+  .library-highlight [data-slot=drag-handle] { position: static; padding: 8px 2px; }
+  .library-improve[data-slot=button] { height: 44px; }
+  .library-skill-group { grid-template-columns: minmax(0, 1fr); }
+  .library-entry-head { flex-wrap: wrap; }
+}
+@media (max-width: 599px) {
+  .library-page { --library-gutter: 16px; }
+  .library-resume-import { padding: 20px 16px; }
 }
 
 /* Practice questions: a bank of answers, and each set worked as a short line of five stops. */

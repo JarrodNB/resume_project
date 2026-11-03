@@ -10,16 +10,19 @@ Each section can add an entry, and each entry can be edited. Entries can be dele
 experiences, projects, and educations can be merged into a duplicate. Delete all empties the
 library (entries and the profile an import fills) so a new import starts fresh. Highlights can
 be dragged to a new place in their role or into another role; skills can be dragged within
-their category.
+their category. Every section shows its records on one long page, and dragging a section's tab
+sets the default section order for new resumes.
 
 ## Contents
 
 - `CareerLibraryPage.tsx` — page with inline resume upload above the library sections only while the library is empty, wrapped in one `DragDropProvider`; `ClearLibraryButton.tsx`
   and `ClearLibraryDialog.tsx` empty the library after confirmation; `useClearCareerLibrary.ts`
   runs `clearCareerLibrary` and refetches
-- `ProfileSection.tsx` (contact card, always first), `SummarySection.tsx` (summary card with the persisted Include summary default for new resumes), `LibrarySection.tsx` (quiet card with a tone-colored icon, a
-  count and an Add button; each starts collapsed and stays that way until opened),
-  `LibraryEntry.tsx` (ruled entry with an `actions` slot) — display pieces
+- `LibraryTabs.tsx` — sticky section tabs: jump links, the section in view, section dragging, and a
+  link to the first waiting review question; `librarySectionLinks.ts` — section anchors
+- `ProfileSection.tsx` (contact line, always first), `SummarySection.tsx` (summary with the persisted Include summary default for new resumes), `LibrarySection.tsx` (heading on an ink rule, an Add button
+  and an empty state), `LibraryEntry.tsx` (`LibraryEntry`, a ruled entry with an `actions` slot, and
+  `CareerStop`, a role as a stop on the dated line) — display pieces
 - `ExperienceSection.tsx`, `ProjectSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`,
   `CareerContextSection.tsx` — one section each, owning its add/edit dialog
 - `ExperienceFormDialog.tsx`, `ProjectFormDialog.tsx`, `EducationFormDialog.tsx`,
@@ -65,12 +68,11 @@ their category.
 - Don't sort roles, projects, or education on the client; the API's order is the display order.
 - Edit forms send every field, so a cleared optional field is stored as null. An experience
   update omits `highlights` when the bullets are unchanged.
-- Section ids are `library.profile`, `library.experience`, `library.projects`, `library.education`,
-  `library.skills`, and `library.career_contexts`. A collapsed section's entries are not in the page, so
-  they are not drag targets.
+- Sections are never collapsed, so every entry is always a drag target. Section dragging lives on the
+  tabs, not the section headings, because a whole section can be taller than the screen.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
-- `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD; section id is `library.certifications`.
+- `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD.
 
 - `certificationDateValues.ts` restores partial certification dates from API precision metadata and normalizes edits with year/month/day precision.
 
@@ -78,26 +80,25 @@ their category.
 
 - `LibraryWorkspace` shares review state and panel selection across the page. Selection
   stores target identity; `libraryReviewTargets` derives current source text and revisions
-  from the latest library data. `LibraryAiWorkspace` edits one selected detail in a right
-  dock above 899px; its idle state gives a short selection instruction. At 899px and below,
-  selecting a detail opens a full-screen modal dialog.
-- `LibraryDetail` keeps saved text and compact grades in the record and highlights the
-  selected source. Selecting a detail opens its remembered section and focuses the workspace
-  heading without scrolling the page. Closing also restores focus without scrolling.
+  from the latest library data. Above 899px, `LibraryInlineWorkspace` edits the selected detail
+  right under it; at 899px and below, `LibraryAiWorkspace` opens a full-screen modal dialog.
+- `LibraryDetail` keeps saved text on the left and its review note in a margin on the right, and
+  highlights the selected source. Selecting a detail focuses the workspace heading and scrolls the
+  panel into view only if needed. Closing restores focus without scrolling.
   Mobile exposes saved text in a disclosure.
 - `LibrarySectionReview` runs review from the original section and shows progress and errors
-  there. The shared workspace is for individual editing; it has no overview list or section picker.
+  there. The workspace is for individual editing; it has no overview list or section picker.
 - `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
   live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral
   stale/unreviewed state. Up to three current enrichment questions appear together beside the assessed detail
-  and in the selected workspace; stale questions are hidden.
+  and in the answer form; stale questions are hidden.
 - Summary, Experience, Projects, and Career context each have independent explicit review actions.
   Review/edit targets are summary, role descriptions/highlights, project descriptions, and career context
   responses; other sections and profile contact fields are not sent as context. Highlight moves
   refresh assessments after saving, because the optimistic
   library change may be visible before persistence.
-- `LibraryEditControl` selects an individual edit in the shared AI workspace;
-  `LibraryEditPanel` renders it there. `useLibraryEdit` owns loading, queued
+- `LibraryEditControl` selects an individual edit;
+  `LibraryEditPanel` renders it in the AI workspace. `useLibraryEdit` owns loading, queued
   turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.
   Closing clears selection, keeps server-owned drafts, and returns focus to the source opener
   if it remains in the page; discarding closes the draft server-side. Accepted targets can start again.

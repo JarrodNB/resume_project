@@ -1,4 +1,4 @@
-/** Opens a focused editing workspace beside one career detail.
+/** The editing exchange for one career detail.
  * Review questions can generate a proposal directly; ordinary edits retain feedback turns.
  * Review a proposal beside its saved source and save when ready.
  * Closing preserves the draft; discarding removes it through the existing edit service.
@@ -57,15 +57,18 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
     {!edit.loading && showAnswerForm && reviewQuestion && <ReviewAnswerForm key={reviewQuestion.reviewTaskId} questions={reviewQuestions} stale={reviewQuestion.stale} disabled={edit.busy || disabled} onSubmit={(answers) => edit.answerReview(reviewQuestion.reviewTaskId, answers)} />}
     {edit.loading ? <p className="text-muted-foreground" role="status">Loading saved edit…</p> : showAnswerForm && !task ? null : accepted ?
       <><p role="status" className="flex items-center gap-2 font-medium text-primary"><CheckCheck aria-hidden="true" className="size-4" />Saved to your library.</p><Button size="sm" variant="outline" className="w-full" onClick={() => setStartingAnother(true)}>Start another edit</Button></> : <>
+      <div className="library-edit-exchange">
+      <div className="library-edit-main">
       {stale && <p role="status" className="border-y py-3 font-medium">This draft is based on an earlier version of your entry. Generate a new revision using your latest changes.</p>}
       {task?.status === 'QUEUED' && <p role="status" className="flex items-center gap-2 py-2 text-muted-foreground"><LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin" />Working on this detail…</p>}
-      {hasProposal && <div className="grid gap-4">
+      {hasProposal && <div className="library-edit-proposal grid gap-4">
         <div className="min-w-0 border-y py-5"><h4 className="mb-2 text-sm font-semibold text-primary">Proposed revision</h4><p className="max-w-prose whitespace-pre-wrap leading-relaxed">{String(proposal.text)}</p></div>
         <LibraryAssessment assessment={{ kind, recordId, field: '', color: String(proposal.color), reason: String(proposal.reason), stale }} />
         <Button className="w-full" size="sm" disabled={edit.busy || stale || disabled} onClick={() => void edit.save()}><Check aria-hidden="true" />Accept revision</Button>
       </div>}
       {typeof question === 'string' && !stale && <div className="grid gap-1 border-t pt-4"><h4 className="font-medium text-primary">A little more context</h4><p className="leading-relaxed">{question}</p></div>}
-      <form className="grid gap-3 border-t pt-4" onSubmit={(event) => { event.preventDefault(); void submit(false, stale) }}>
+      </div>
+      <form className="library-edit-form grid gap-3 border-t pt-4" onSubmit={(event) => { event.preventDefault(); void submit(false, stale) }}>
         <Label htmlFor={feedbackId}>{label}</Label>
         <Textarea id={feedbackId} aria-describedby={helpId} className="min-h-24 bg-card text-base md:text-sm" value={feedback} onChange={(event) => setFeedback(event.target.value)} maxLength={PROSE_TEXT} disabled={edit.busy || disabled} rows={3} />
         <p id={helpId} className="text-xs leading-relaxed text-muted-foreground">{typeof question === 'string' ? 'Answer in your own words, or skip if you’re unsure.' : 'For example, focus on your contribution or add an outcome you can support.'}</p>
@@ -80,6 +83,7 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
           </div>
         </div>
       </form>
+      </div>
     </>}
     <p className="border-t pt-3 text-xs text-muted-foreground">Closing keeps your draft so you can return to it later.</p>
   </section>

@@ -1,9 +1,8 @@
-/** Keeps one shared set of section reviews and one selected AI edit beside the library.
+/** Keeps one shared set of section reviews and one selected AI edit for the library page.
  * Selection stores only identity; the panel receives current text and revisions from Rails data.
  */
 import { useRef, useState, type ReactNode } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
-import { setSectionOpen } from '@/lib/openSections'
 import { LibraryWorkspaceContext } from './LibraryWorkspaceContext'
 import { libraryReviewTargets, targetElementId, targetKey, type LibraryReviewTarget } from './libraryReviewTargets'
 import { useLibraryReview } from './useLibraryReview'
@@ -21,11 +20,11 @@ export function LibraryWorkspace({ library, movingHighlight = false, children }:
     if (trigger) opener.current = trigger
     setSelectedKey(targetKey(target))
     setMode(mode)
-    setSectionOpen(target.sectionId, true)
     requestAnimationFrame(() => {
       const source = document.getElementById(targetElementId(target))
       if (!trigger) opener.current = source?.querySelector('button') ?? null
       document.getElementById('library-ai-heading')?.focus({ preventScroll: true })
+      document.getElementById('library-ai-workspace')?.scrollIntoView?.({ block: 'nearest' })
     })
   }
   function close() {

@@ -31,6 +31,10 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types
   without a handler yet return a "not supported yet" failure
+- `interview_help.py` owns the shared claim, denied-delivery and canonical-context sequence
+  for clarification, career references and completed-session coaching. Its task definitions
+  supply dispatch and explicit-retry policy together; `main.py` must not repeat that list.
+  Feature modules receive admitted saved context and retain their own generation/retrieval rules.
 - `parse_resume_handler.py` — downloads the upload, extracts text, validates original limits,
   prepares local `pii/` masking before screening and parsing, restores structured output
   before source checks, and fails closed when privacy preparation/restoration fails;

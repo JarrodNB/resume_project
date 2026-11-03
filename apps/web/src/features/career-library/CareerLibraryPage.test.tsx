@@ -1,15 +1,15 @@
 /**
  * Description: The career library page shows the profile, imported records, and empty states.
  */
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
-import { setSectionOpen } from '@/lib/openSections'
 import { DEFAULT_SECTION_ORDER_QUERY } from '@/features/resume-tailoring/useDefaultSectionOrder'
 import { renderPage } from '@/test/renderPage'
 import { PARSE_RESUME_MUTATION } from '@/features/resume-import/resumeImportOperations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { emptyLibraryReviewMocks } from './libraryReviewTestFixtures'
+import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 import { CareerLibraryPage } from './CareerLibraryPage'
 
 const libraryMock = {
@@ -48,33 +48,32 @@ const libraryMock = {
   },
 }
 
-const LIBRARY_SECTION_IDS = ['library.profile', 'library.summary', 'library.experience', 'library.projects', 'library.education', 'library.certifications', 'library.skills', 'library.career_contexts']
+it('shows every section\'s records on arrival, with tabs that jump to each section', async () => {
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, libraryMock] })
 
-/** Opens every library section so a test can read what is inside. */
-function openLibrarySections() {
-  for (const sectionId of LIBRARY_SECTION_IDS) setSectionOpen(sectionId, true)
-}
+  expect(await screen.findByText('Built the billing service')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Experience/ })).not.toBeInTheDocument()
+  const tabs = within(screen.getByRole('navigation', { name: 'Library sections' }))
+  expect(tabs.getByRole('link', { name: /^Experience/ })).toHaveAttribute('href', '#library-experience')
+  expect(document.getElementById('library-experience')).toContainElement(screen.getByText('Built the billing service'))
+  expect(tabs.queryByText(/questions? for you/)).not.toBeInTheDocument()
+})
 
-it('keeps a section collapsed until it is opened', async () => {
-  const user = userEvent.setup()
-  const page = { path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, libraryMock] }
-  const { unmount } = renderPage(page)
+it('counts waiting review questions and links to the first one', async () => {
+  const experienceReview = {
+    request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } },
+    result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [
+      { __typename: 'LibraryAssessment', kind: 'experience_highlight', recordId: 'hl-1', field: 'content', color: 'red', reason: 'Add the result.', question: 'What changed?', questions: ['What changed?'], reviewTaskId: 'review-1', stale: false },
+    ] } } },
+  }
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'), experienceReview, libraryMock] })
 
-  const experience = await screen.findByRole('button', { name: /^Experience/ })
-  expect(experience).toHaveAttribute('aria-expanded', 'false')
-  expect(screen.queryByText('Engineer')).not.toBeInTheDocument()
-
-  await user.click(experience)
-  expect(screen.getByText('Engineer')).toBeInTheDocument()
-
-  unmount()
-  renderPage(page)
-  expect(await screen.findByText('Engineer')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /^Experience/ })).toHaveAttribute('aria-expanded', 'true')
+  const tabs = within(await screen.findByRole('navigation', { name: 'Library sections' }))
+  expect(await tabs.findByRole('link', { name: '1 question for you' })).toHaveAttribute('href', '#library-detail-experience_highlight:hl-1')
+  expect(screen.getByText('Add the result.')).toBeInTheDocument()
 })
 
 it('shows a context added from a gap response', async () => {
-  openLibrarySections()
   renderPage({
     path: '/library',
     url: '/library',
@@ -105,7 +104,6 @@ it('shows a context added from a gap response', async () => {
 })
 
 it('shows the imported library', async () => {
-  openLibrarySections()
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, libraryMock] })
 
   expect(await screen.findByText('Engineer')).toBeInTheDocument()
@@ -124,7 +122,6 @@ it('shows the imported library', async () => {
 })
 
 it('shows certifications in their own section with credential metadata', async () => {
-  openLibrarySections()
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, {
     ...libraryMock,
     result: { data: { ...libraryMock.result.data, certifications: [{ __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: '2024-01-01', issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: null, credentialId: 'ABC', credentialUrl: 'https://example.com/ABC', description: null }] } },
@@ -161,9 +158,11 @@ it('lists sections in the saved order, with the profile first and career context
   }
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, libraryMock, defaultOrder] })
 
-  await screen.findByRole('button', { name: /^Skills/ })
-  const titles = screen.getAllByRole('button', { name: /^(Profile|Summary|Experience|Projects|Education|Certifications|Skills|Career context)/, expanded: false }).map((button) => button.textContent?.replace(/\d+$/, ''))
-  expect(titles).toEqual(['Profile', 'Skills', 'Education', 'Summary', 'Experience', 'Projects', 'Certifications', 'Career context'])
+  await screen.findByRole('button', { name: 'Drag Skills section' })
+  const titles = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+  expect(titles).toEqual(['Jane Doe', 'Skills', 'Education', 'Summary', 'Experience', 'Projects', 'Certifications', 'Career context'])
+  const tabs = within(screen.getByRole('navigation', { name: 'Library sections' })).getAllByRole('link').map((link) => link.textContent?.replace(/\d+$/, ''))
+  expect(tabs).toEqual(['Skills', 'Education', 'Summary', 'Experience', 'Projects', 'Certifications', 'Career context'])
   expect(screen.queryByRole('button', { name: 'Drag Profile section' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Drag Skills section' })).toBeInTheDocument()
 })

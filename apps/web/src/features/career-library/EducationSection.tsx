@@ -3,7 +3,7 @@
  * Index:
  *   - EducationSection: schools with merge/delete and the education form
  */
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatDateRange } from '@/lib/formatDateRange'
 import { EducationFormDialog } from './EducationFormDialog'
@@ -11,20 +11,20 @@ import { LibraryEntry } from './LibraryEntry'
 import { LibraryEntryActions } from './LibraryEntryActions'
 import { educationLabel } from './libraryEntryLabels'
 import { LibrarySection } from './LibrarySection'
+import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 
 type Education = CareerLibraryQuery['educations'][number]
 
 /** Lists education entries and opens the form to add one or edit one. */
-export function EducationSection({ educations, dragHandle }: { educations: Education[]; dragHandle?: ReactNode }) {
+export function EducationSection({ educations }: { educations: Education[] }) {
   const [editing, setEditing] = useState<Education | 'new' | null>(null)
   const candidates = educations.map((education) => ({ id: education.id, label: educationLabel(education) }))
 
   return (
     <>
       <LibrarySection
-        dragHandle={dragHandle}
-        sectionId="library.education"
-        tone="education"
+       
+        sectionId={LIBRARY_SECTION_ANCHORS.education}
         title="Education"
         count={educations.length}
         emptyText="No education yet."
@@ -34,7 +34,6 @@ export function EducationSection({ educations, dragHandle }: { educations: Educa
         {educations.map((education, index) => (
           <LibraryEntry
             key={education.id}
-            tone="education"
             heading={education.institution}
             subheading={[education.degree, education.fieldOfStudy].filter(Boolean).join(', ')}
             dates={formatDateRange(education.startDate, education.endDate)}

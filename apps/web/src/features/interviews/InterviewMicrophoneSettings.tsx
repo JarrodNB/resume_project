@@ -1,4 +1,4 @@
-/** The same remembered microphone controls appear before preparation and in the live room.
+/** The live room's remembered microphone controls. Setup shows the same preferences in InterviewAnswerSettings.
  * Changing preferences never requests microphone access or starts capture.
  */
 import type { useInterviewMicSettings } from './useInterviewMicSettings'

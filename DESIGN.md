@@ -322,7 +322,14 @@ Solid and square-shouldered, like a sign you can press.
 
 ### Review Questions (Library)
 - When an AI review has questions you can answer, they sit in a box with a 1.5px red signal border. Inside are a red bullet with "The review has N questions for you", the questions in full ink, and a filled "Answer review questions" button. Questions are never muted gray text.
-- Library sections start collapsed, so each section header also shows a red-bullet count ("2 questions for you") whenever it holds open questions.
+- Each section heading also shows a red-bullet count ("2 questions for you") whenever it holds open questions, and the library's tab row totals them with a link to the first one.
+
+### Career Line (Library)
+- The library is one long page with every section open. Sticky tabs on the gray platform strip jump between sections and mark the one being read. Dragging a tab moves its section, because a whole section can be taller than the screen; the tab order is the default resume order. Under 900px the strip stops sticking under the band and sits at the top of the screen.
+- Section headings are 28px 800-weight on a 2px ink rule. Career context comes last, set off by a thin divider in the tabs and a dashed rule on its heading, because it never prints on a resume.
+- Roles are stops on a 2px ink line: a 14px hollow bullet, or the filled gap-and-ring bullet for a current role, with dates in a right-aligned column left of the line. Under 900px the dates move under the role title.
+- Each saved detail is a row: text capped at 75ch on the left, and a review note in a 320px hairline margin on the right (260px under 1200px, below the text under 900px). The note holds a small signal dot, the grade, a quiet Improve button, the reason, and any question box.
+- AI work opens right under the selected detail in a 1.5px ink-bordered box, with the proposed revision on the left and the feedback form on the right. The selected row sits on `muted`. Under 900px it opens as a full-screen dialog instead.
 
 ### Station Line (Home signature)
 - Five stations across the top of the board, each a 42px ringed bullet holding its job count, with the stage name under it. An 8px ink track runs through every bullet.
@@ -348,6 +355,9 @@ Solid and square-shouldered, like a sign you can press.
 - The conversation scrolls on its own above a message box that stays pinned; it follows new words unless the reader scrolled up. The box is a 1.5px ink-bordered, 6px-cornered field with the counter and Send inside it.
 - Your messages are right-aligned tiles on `secondary` with a hairline border. Replies are plain text with a small ringed bullet beside "Careergrind"; the bullet turns blue (AI working) while a reply is being written. Until the first words arrive, the reply shows a 9rem line of three gray stops on a hairline track: a blue signal shuttles between them, pausing at each stop as it lights up, above a blue caption that changes every 3.2s ("Reading your message", "Thinking it through", …) and settles on a "still working" line. Screen readers hear only "Preparing your reply…". With reduced motion the signal stays still on the middle stop.
 - Saved chats are a list of stops: a hollow bullet per chat, filled ink for the open one, with the date under the title.
+
+### Interview Setup
+- Setup's second step, "How you'll answer", is short rows on hairlines: a bold 16px label on the left, a joined switch on the right, and one line of gray help that changes with the choice. Thinking time shows only when the mic is Automatic. The round summary sits beside "Start interview" under a 2px ink rule. Keep help to one line; say something once.
 
 ### Interview Preparation
 - While a mock interview is prepared, the page shows the same AI waiting line as chat with captions every 4s. Before the work starts it says "Waiting to start"; once running it walks through the steps (career library, the job or an imagined role, drafting the core questions, checking them) and settles on a "still working" line. Captions describe the work, not tracked progress. Screen readers hear only "Preparing your interview…".

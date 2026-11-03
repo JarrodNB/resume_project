@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import { MockedProvider } from '@apollo/client/testing/react'
 import { DragDropProvider } from '@dnd-kit/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { setSectionOpen } from '@/lib/openSections'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
@@ -34,9 +33,8 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 it('keeps AI editing separate from the source and restores the saved draft after closing', async () => {
   const user = userEvent.setup()
   render(<Workspace />)
-  expect(screen.queryByText('Built the billing service.')).not.toBeInTheDocument()
-  expect(screen.queryByRole('combobox', { name: 'Section to review' })).not.toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: /^Experience 1/ }))
+  expect(screen.getByText('Built the billing service.')).toBeInTheDocument()
+  expect(screen.queryByRole('complementary', { name: 'AI workspace' })).not.toBeInTheDocument()
   const source = document.getElementById('library-detail-experience_highlight:h1')!
   const scrollIntoView = vi.fn()
   source.scrollIntoView = scrollIntoView
@@ -44,12 +42,11 @@ it('keeps AI editing separate from the source and restores the saved draft after
   await user.click(screen.getByRole('button', { name: 'Improve with AI' }))
   expect(await screen.findByText('Built and deployed the billing API.')).toBeInTheDocument()
   expect(screen.getByText('Built the billing service.')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /^Experience 1/ })).toHaveAttribute('aria-expanded', 'true')
   expect(document.getElementById('library-detail-experience_highlight:h1')).toHaveAttribute('data-selected', 'true')
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Improve with AI' })).toHaveFocus())
   expect(scrollIntoView).not.toHaveBeenCalled()
   expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
-  expect(within(screen.getByRole('article')).queryByRole('region', { name: 'Improve this career detail' })).not.toBeInTheDocument()
+  expect(source).toContainElement(screen.getByRole('complementary', { name: 'AI workspace' }))
   await user.click(screen.getByRole('button', { name: 'Close AI workspace' }))
   const trigger = screen.getByRole('button', { name: 'Improve with AI' })
   await waitFor(() => expect(trigger).toHaveFocus())
@@ -58,19 +55,16 @@ it('keeps AI editing separate from the source and restores the saved draft after
   expect(await screen.findByText('Built and deployed the billing API.')).toBeInTheDocument()
 })
 
-it('removes acceptance when the selected detail is deleted', async () => {
+it('removes the panel when the selected detail is deleted', async () => {
   const { rerender } = render(<Workspace />)
-  await userEvent.click(screen.getByRole('button', { name: /^Experience 1/ }))
   await userEvent.click(screen.getByRole('button', { name: 'Improve with AI' }))
   expect(await screen.findByRole('button', { name: 'Accept revision' })).toBeEnabled()
   rerender(<Workspace removed />)
-  expect(screen.getByText('This detail is no longer in your library.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Accept revision' })).not.toBeInTheDocument()
 })
 
 it('opens AI work in a mobile dialog and returns focus to the source on close', async () => {
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
-  setSectionOpen('library.experience', true)
   render(<Workspace />)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   const trigger = screen.getByRole('button', { name: 'Improve with AI' })
@@ -86,18 +80,13 @@ it('opens AI work in a mobile dialog and returns focus to the source on close', 
 
 it('runs section review directly without opening an overview or duplicating library records', async () => {
   render(<Workspace />)
-  const panel = screen.getByRole('complementary', { name: 'AI workspace' })
-  expect(within(panel).queryByRole('list')).not.toBeInTheDocument()
-  expect(within(panel).queryByRole('combobox')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: /^Experience 1/ }))
   await userEvent.click(screen.getByRole('button', { name: 'Review Experience' }))
   expect(await screen.findByText('Review limit reached.')).toBeInTheDocument()
-  expect(within(panel).queryByText('Built the billing service.')).not.toBeInTheDocument()
+  expect(screen.queryByRole('complementary', { name: 'AI workspace' })).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
 it('opens review answering in the same selected-detail workspace while keeping Improve with AI', async () => {
-  setSectionOpen('library.experience', true)
   const reviewMocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'),
     { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } }, result: { data: { libraryReview: {
       __typename: 'LibraryReview', aiTask: { __typename: 'AiTask', id: 'review-newer-failed', status: 'FAILED', errorMessage: null }, assessments: [

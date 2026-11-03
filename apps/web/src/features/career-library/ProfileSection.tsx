@@ -1,12 +1,11 @@
 /**
  * Description: The user's contact details in the career library: name, contact details, and links.
- * It always stays first, like the contact header on a resume. The card starts collapsed; opening
- * it is remembered in this browser. Edit opens the profile form; contact details remain manual.
+ * It always stays first, like the contact header on a resume. Edit opens the profile form;
+ * contact details remain manual.
  * Index:
- *   - ProfileSection: profile card with an empty state and an edit button
+ *   - ProfileSection: name and contact line with an empty state and an edit button
  */
 import { useState } from 'react'
-import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { ProfileFormDialog } from './ProfileFormDialog'
@@ -20,28 +19,23 @@ export function ProfileSection({ profile }: { profile: Profile }) {
   const isEmpty = !profile.name && !contactLine && profile.links.length === 0
 
   return (
-    <SectionCard sectionId="library.profile" tone="contact" title="Profile" contentClassName="grid gap-2">
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-          Edit profile
-        </Button>
+    <section className="library-profile" aria-label="Profile">
+      <div className="min-w-0">
+        <h2>{profile.name || 'Your profile'}</h2>
+        {isEmpty && <p>Add your contact details, or import a resume.</p>}
+        {contactLine && <p>{contactLine}</p>}
+        {profile.links.length > 0 && (
+          <ul>
+            {profile.links.map((link) => (
+              <li key={link.url}><a className="underline-offset-4 hover:underline" href={link.url}>{link.label}</a></li>
+            ))}
+          </ul>
+        )}
       </div>
-      {isEmpty ? (
-        <p className="text-sm text-muted-foreground">Add your contact details, or import a resume.</p>
-      ) : (
-        <>
-          {profile.name && <h3 className="font-medium">{profile.name}</h3>}
-          {contactLine && <p className="text-sm text-muted-foreground">{contactLine}</p>}
-          {profile.links.length > 0 && (
-            <ul className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-              {profile.links.map((link) => (
-                <li key={link.url}><a className="underline-offset-4 hover:underline" href={link.url}>{link.label}</a></li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
+      <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+        Edit profile
+      </Button>
       <ProfileFormDialog open={editing} onOpenChange={setEditing} profile={profile} />
-    </SectionCard>
+    </section>
   )
 }

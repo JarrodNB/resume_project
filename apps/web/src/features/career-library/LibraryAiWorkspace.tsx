@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { useLibraryWorkspace } from './LibraryWorkspaceContext'
 import { targetKey } from './libraryReviewTargets'
 import { LibraryAssessment } from './LibraryAssessment'
+import { LibraryReviewDismissActions } from './LibraryReviewDismissActions'
 import { LibraryEditPanel } from './LibraryEditPanel'
 
 const mobileQuery = '(max-width: 899px)'
@@ -87,6 +88,6 @@ function SelectedEditPanel() {
   const disabled = workspace.movingHighlight && selected.section === 'experience'
   return <>
     {disabled && <p role="status" className="text-sm text-muted-foreground">Wait for the highlight move to finish before editing.</p>}
-    <LibraryEditPanel key={`${targetKey(selected)}:${workspace.mode}`} reviewQuestion={workspace.mode === 'review' && assessment?.question && assessment.reviewTaskId ? { reviewTaskId: assessment.reviewTaskId, questions: assessment.questions, stale: assessment.stale } : undefined} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} disabled={disabled} onClose={workspace.close} />
+    <LibraryEditPanel key={`${targetKey(selected)}:${workspace.mode}`} reviewQuestion={workspace.mode === 'review' && assessment?.question && assessment.reviewTaskId ? { reviewTaskId: assessment.reviewTaskId, questions: assessment.questions, stale: assessment.stale } : undefined} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} sourceText={selected.text} reviewActions={<LibraryReviewDismissActions kind={selected.kind} recordId={selected.recordId} disabled={disabled} />} disabled={disabled} onClose={workspace.close} />
   </>
 }

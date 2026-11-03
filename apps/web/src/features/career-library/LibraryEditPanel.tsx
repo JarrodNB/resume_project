@@ -3,7 +3,7 @@
  * Review a proposal beside its saved source and save when ready.
  * Closing preserves the draft; discarding removes it through the existing edit service.
  */
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Check, CheckCheck, LoaderCircle } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
@@ -17,9 +17,11 @@ import { ReviewAnswerForm } from './ReviewAnswerForm'
 interface Props {
   kind: string
   recordId: string
+  sourceText?: string
   sourceRevision: string
   disabled?: boolean
   reviewQuestion?: { reviewTaskId: string; question?: string; questions?: string[]; stale: boolean }
+  reviewActions?: ReactNode
   onClose: () => void
 }
 
@@ -27,7 +29,7 @@ function object(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
-export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = false, reviewQuestion, onClose }: Props) {
+export function LibraryEditPanel({ kind, recordId, sourceRevision, sourceText, disabled = false, reviewQuestion, reviewActions, onClose }: Props) {
   const edit = useLibraryEdit(kind, recordId, sourceRevision)
   const [feedback, setFeedback] = useState('')
   const [startingAnother, setStartingAnother] = useState(false)
@@ -40,6 +42,7 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
   const question = object(questions[0]).question
   const accepted = !!task?.acceptedAt
   const hasProposal = task?.status === 'COMPLETED' && typeof proposal.text === 'string'
+  const unchanged = hasProposal && !stale && proposal.text === sourceText
   const origin = object(object(task?.input).review_question)
   const reviewQuestions = reviewQuestion?.questions ?? (reviewQuestion?.question ? [reviewQuestion.question] : [])
   const showAnswerForm = !!reviewQuestion && reviewQuestions.length > 0 && origin.review_task_id !== reviewQuestion.reviewTaskId
@@ -55,6 +58,7 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
   return <section aria-label="Improve this career detail" className="library-edit-panel grid gap-5 text-sm">
     <ErrorAlert title="Could not complete this edit" messages={edit.errors} />
     {!edit.loading && showAnswerForm && reviewQuestion && <ReviewAnswerForm key={reviewQuestion.reviewTaskId} questions={reviewQuestions} stale={reviewQuestion.stale} disabled={edit.busy || disabled} onSubmit={(answers) => edit.answerReview(reviewQuestion.reviewTaskId, answers)} />}
+    {showAnswerForm && reviewActions}
     {edit.loading ? <p className="text-muted-foreground" role="status">Loading saved edit…</p> : showAnswerForm && !task ? null : accepted ?
       <><p role="status" className="flex items-center gap-2 font-medium text-primary"><CheckCheck aria-hidden="true" className="size-4" />Saved to your library.</p><Button size="sm" variant="outline" className="w-full" onClick={() => setStartingAnother(true)}>Start another edit</Button></> : <>
       <div className="library-edit-exchange">
@@ -62,9 +66,9 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
       {stale && <p role="status" className="border-y py-3 font-medium">This draft is based on an earlier version of your entry. Generate a new revision using your latest changes.</p>}
       {task?.status === 'QUEUED' && <p role="status" className="flex items-center gap-2 py-2 text-muted-foreground"><LoaderCircle aria-hidden="true" className="size-4 shrink-0 animate-spin" />Working on this detail…</p>}
       {hasProposal && <div className="library-edit-proposal grid gap-4">
-        <div className="min-w-0 border-y py-5"><h4 className="mb-2 text-sm font-semibold text-primary">Proposed revision</h4><p className="max-w-prose whitespace-pre-wrap leading-relaxed">{String(proposal.text)}</p></div>
+        <div className="min-w-0 border-y py-5"><h4 className="mb-2 text-sm font-semibold text-primary">{unchanged ? 'No changes suggested' : 'Proposed revision'}</h4><p className="max-w-prose whitespace-pre-wrap leading-relaxed">{unchanged ? 'This matches your saved text. Keep it to finish this review, or add feedback below.' : String(proposal.text)}</p></div>
         <LibraryAssessment assessment={{ kind, recordId, field: '', color: String(proposal.color), reason: String(proposal.reason), stale }} />
-        <Button className="w-full" size="sm" disabled={edit.busy || stale || disabled} onClick={() => void edit.save()}><Check aria-hidden="true" />Accept revision</Button>
+        <Button className="w-full" size="sm" disabled={edit.busy || stale || disabled} onClick={() => void edit.save()}><Check aria-hidden="true" />{unchanged ? 'Keep saved text' : 'Accept revision'}</Button>
       </div>}
       {typeof question === 'string' && !stale && <div className="grid gap-1 border-t pt-4"><h4 className="font-medium text-primary">A little more context</h4><p className="leading-relaxed">{question}</p></div>}
       </div>

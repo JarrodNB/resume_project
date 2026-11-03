@@ -95,3 +95,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed
   assessment for the new digest. Exact generated text receives reusable field coverage without
   a classifier call; existing manual editors revoke coverage when user text changes.
+
+- `DismissReviewService` records questions/review dismissals on the owned completed review or
+  accepted edit result, keyed by target identity and source digest. It never queues AI work or
+  changes career facts. New reviews start fresh; current-source validation rejects stale dismissals.
+  Accepted edit assessments expose their origin task ID so they can be dismissed too.

@@ -3,7 +3,7 @@
  * Index:
  *   - EducationSection: schools with merge/delete and the education form
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatDateRange } from '@/lib/formatDateRange'
 import { EducationFormDialog } from './EducationFormDialog'
@@ -15,13 +15,14 @@ import { LibrarySection } from './LibrarySection'
 type Education = CareerLibraryQuery['educations'][number]
 
 /** Lists education entries and opens the form to add one or edit one. */
-export function EducationSection({ educations }: { educations: Education[] }) {
+export function EducationSection({ educations, dragHandle }: { educations: Education[]; dragHandle?: ReactNode }) {
   const [editing, setEditing] = useState<Education | 'new' | null>(null)
   const candidates = educations.map((education) => ({ id: education.id, label: educationLabel(education) }))
 
   return (
     <>
       <LibrarySection
+        dragHandle={dragHandle}
         sectionId="library.education"
         tone="education"
         title="Education"

@@ -1,7 +1,8 @@
 # Saves a completed draft and its sections once. Acceptance stays recorded after deletion.
 # The owner lock serializes saves with new tailoring starts; the task lock keeps acceptance
 # atomic. Hidden summary content is retained separately from its inclusion choice.
-# Deleting the job later keeps these saved snapshots.
+# Sections keep the client's order, or the owner's default order when none was sent; contact is
+# always first. Deleting the job later keeps these saved snapshots.
 module ResumeTailoring
   class SaveTailoredResumeService < ApplicationService
     NOT_READY_MESSAGE = "Finish the resume before saving it.".freeze
@@ -43,11 +44,18 @@ module ResumeTailoring
       raw = @sections.nil? ? @ai_task.result&.dig("sections") : @sections
       return [] unless raw.is_a?(Array)
 
-      raw.select do |section|
+      usable = raw.select do |section|
         section.is_a?(Hash) &&
           ResumeSection::SECTION_TYPES.include?(section["section_type"]) &&
           section["content"].is_a?(Hash)
       end
+      @sections.nil? ? in_default_order(usable) : usable.partition { |section| section["section_type"] == "contact" }.flatten(1)
+    end
+
+    # Contact, then the owner's saved order. Any other section keeps its place after those.
+    def in_default_order(sections)
+      order = [ "contact", *@ai_task.user.ordered_resume_section_types ]
+      sections.sort_by.with_index { |section, index| [ order.index(section["section_type"]) || order.size, index ] }
     end
 
     # One resume and its sections, in the order given.

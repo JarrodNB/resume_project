@@ -2695,6 +2695,7 @@ input ProfileAttributesInput {
   location: String
   name: String
   phone: String
+  resumeSectionOrder: [ResumeSectionTypeEnum!]
   summary: String
 }
 
@@ -3849,6 +3850,11 @@ input UpdateResumeInput {
   includeSummary: Boolean
 
   """
+  Every section id on this resume in the new order, with contact first.
+  """
+  sectionOrder: [ID!]
+
+  """
   Sections to update, as a list of { id, content }.
   """
   sections: JSON!
@@ -3916,5 +3922,10 @@ type User {
   location: String
   name: String
   phone: String
+
+  """
+  Default section order for new resumes. Contact is always first and is not listed.
+  """
+  resumeSectionOrder: [ResumeSectionTypeEnum!]!
   summary: String
 }

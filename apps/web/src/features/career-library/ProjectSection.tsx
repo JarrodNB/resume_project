@@ -4,7 +4,7 @@
  * Index:
  *   - ProjectSection: projects with merge/delete and the project form
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LibrarySectionReview } from './LibrarySectionReview'
 import { LibraryDetail } from './LibraryDetail'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
@@ -18,13 +18,13 @@ import { ProjectFormDialog } from './ProjectFormDialog'
 type Project = CareerLibraryQuery['projects'][number]
 
 /** Lists projects and opens the form to add one or edit one. */
-export function ProjectSection({ projects }: { projects: Project[] }) {
+export function ProjectSection({ projects, dragHandle }: { projects: Project[]; dragHandle?: ReactNode }) {
   const [editing, setEditing] = useState<Project | 'new' | null>(null)
   const candidates = projects.map((project) => ({ id: project.id, label: projectLabel(project) }))
 
   return (
     <>
-      <LibrarySection sectionId="library.projects" tone="projects" title="Projects" count={projects.length} emptyText="No projects yet." addLabel="Add project" onAdd={() => setEditing('new')}
+      <LibrarySection dragHandle={dragHandle} sectionId="library.projects" tone="projects" title="Projects" count={projects.length} emptyText="No projects yet." addLabel="Add project" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="projects" />} reviewSection="projects">
 
         {projects.map((project, index) => (

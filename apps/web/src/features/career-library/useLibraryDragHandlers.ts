@@ -2,9 +2,10 @@
  * Description: Drag-and-drop handlers for the career library page. Roles, projects, and education
  * are always listed by date, so only highlights and skills move: highlights follow the pointer
  * between roles while dragging and are saved on drop (or put back if the drag is canceled);
- * skills reorder within their category and are saved on drop.
+ * skills reorder within their category and are saved on drop. Whole sections can be dragged too,
+ * which saves the default order for new resumes.
  * Index:
- *   - HIGHLIGHT_TYPE, skillDragType: drag types used by the page's sortables
+ *   - HIGHLIGHT_TYPE, LIBRARY_SECTION_TYPE, skillDragType: drag types used by the page's sortables
  *   - useLibraryDragHandlers: DragDropProvider handlers plus `highlightsOf(experienceId)`
  */
 import { useRef, useState } from 'react'
@@ -21,9 +22,11 @@ import {
 } from '@/components/dnd/moveItems'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { groupSkillsByCategory } from './groupSkillsByCategory'
+import type { MovableSectionType } from '@/features/resume-tailoring/sectionOrder'
 import type { useLibraryReordering } from './useLibraryReordering'
 
 export const HIGHLIGHT_TYPE = 'highlight'
+export const LIBRARY_SECTION_TYPE = 'library-section'
 const SKILL_TYPE_PREFIX = 'skill-in:'
 
 /** Drag type of a skill (skills only land within their own category). */
@@ -62,7 +65,7 @@ function skillOrderAfterDrop(skills: CareerLibraryQuery['skills'], category: str
 }
 
 /** Returns the page's drag handlers, saving each finished drag through `reordering`. */
-export function useLibraryDragHandlers(library: CareerLibraryQuery | null | undefined, reordering: Reordering) {
+export function useLibraryDragHandlers(library: CareerLibraryQuery | null | undefined, reordering: Reordering, sectionOrder: readonly MovableSectionType[], onSectionOrderChange: (order: MovableSectionType[]) => void) {
   const [draggedHighlightGroups, setDraggedHighlightGroups] = useState<Record<string, string[]> | null>(null)
   const highlightStart = useRef<ItemLocation | null>(null)
   const highlightsById = new Map<string, Highlight>(
@@ -95,6 +98,13 @@ export function useLibraryDragHandlers(library: CareerLibraryQuery | null | unde
     if (orderedIds) void reordering.reorderSkills(orderedIds)
   }
 
+  /** Saves a section drop as the new default order. */
+  function finishSectionDrag(event: DragEndEvent) {
+    if (event.canceled) return
+    const sectionMove = projectedMove({ list: sectionOrder.map((section) => sortableId(LIBRARY_SECTION_TYPE, section)) }, event)
+    if (sectionMove) onSectionOrderChange(reorderList([...sectionOrder], sectionMove.from.index, sectionMove.to.index))
+  }
+
   const handlers: Pick<DragDropEventHandlers, 'onDragStart' | 'onDragOver' | 'onDragEnd'> = {
     onDragStart: (event) => {
       reordering.clearErrors()
@@ -112,6 +122,7 @@ export function useLibraryDragHandlers(library: CareerLibraryQuery | null | unde
       const type = String(event.operation.source?.type ?? '')
       if (type === HIGHLIGHT_TYPE) finishHighlightDrag(event)
       else if (type.startsWith(SKILL_TYPE_PREFIX)) finishSkillDrag(event, type)
+      else if (type === LIBRARY_SECTION_TYPE) finishSectionDrag(event)
     },
   }
 

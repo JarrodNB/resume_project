@@ -16,6 +16,9 @@ import { JobWorkspaceLayout } from '@/features/jobs/JobWorkspaceLayout'
 import { JobResumeTab, WriteJobResumePage } from './JobResumeTab'
 import { SAVE_TAILORED_RESUME_MUTATION, START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
+/** The save status line; drag areas keep their own status region for screen readers. */
+const saveStatus = () => screen.getAllByRole('status').find((element) => element.classList.contains('resume-save-status'))
+
 vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('./ResumePdfPreview', () => ({
@@ -439,7 +442,7 @@ it('deletes an edited resume and returns to the Resume tab without another disca
   await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Unsaved edit.')
-  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  expect(saveStatus()).toHaveTextContent('Unsaved changes')
   await user.click(screen.getByRole('button', { name: 'Delete resume' }))
   await user.click(screen.getByRole('button', { name: 'Delete' }))
   expect(await screen.findByRole('heading', { name: 'No resume for this job yet' })).toBeInTheDocument()

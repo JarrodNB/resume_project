@@ -17,6 +17,8 @@ module Types
     field :job_title_suggestions, [ String ], null: false
     field :summary, String
     field :include_summary, Boolean, null: false
+    field :resume_section_order, [ Types::ResumeSectionTypeEnum ], null: false, method: :ordered_resume_section_types,
+          description: "Default section order for new resumes. Contact is always first and is not listed."
     field :ai_usage, Types::AiUsageType, null: false
 
     # Returns structured links while keeping legacy string rows readable.

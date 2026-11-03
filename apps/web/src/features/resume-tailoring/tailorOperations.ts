@@ -59,8 +59,8 @@ export const SAVE_TAILORED_RESUME_MUTATION = graphql(`
 `)
 
 export const UPDATE_RESUME_MUTATION = graphql(`
-  mutation UpdateResume($id: ID!, $sections: JSON!, $includeSummary: Boolean) {
-    updateResume(input: { id: $id, sections: $sections, includeSummary: $includeSummary }) {
+  mutation UpdateResume($id: ID!, $sections: JSON!, $includeSummary: Boolean, $sectionOrder: [ID!]) {
+    updateResume(input: { id: $id, sections: $sections, includeSummary: $includeSummary, sectionOrder: $sectionOrder }) {
       resume {
         id
         title

@@ -337,7 +337,7 @@ it('saves the library summary default without changing summary text', async () =
   Object.assign(initial.result.data.me, { summary: 'Retained profile summary.', includeSummary: true })
   const after = structuredClone(initial)
   Object.assign(after.result.data.me, { includeSummary: false })
-  setSectionOpen('library.profile', true)
+  setSectionOpen('library.summary', true)
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [
     ...emptyLibraryReviewMocks, initial,
     { request: { query: UPDATE_PROFILE_MUTATION, variables: { attributes: { includeSummary: false } } },

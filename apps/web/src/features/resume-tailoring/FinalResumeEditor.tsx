@@ -3,8 +3,9 @@
  * Edits and inclusion choices stay together; excluded summary text survives first save. Unsaved drafts warn before navigation;
  * The full resume appears first; the editing view retains all draft choices.
  * Controls pause during the first save because success switches to the saved editor.
+ * Sections start in the user's default order and can be dragged; contact stays first.
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { CircleAlert } from 'lucide-react'
 import { CollapsePanel } from '@/components/CollapsePanel'
 import { CollapseToggle } from '@/components/CollapseToggle'
@@ -20,7 +21,10 @@ import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
-import { SECTION_TITLES } from './sectionOrder'
+import { ResumeSectionList } from './ResumeSectionList'
+import { asSectionType, SECTION_TITLES, sectionsInOrder, type TailorSectionType } from './sectionOrder'
+import { useDefaultSectionOrder } from './useDefaultSectionOrder'
+import { UseSectionOrderAsDefault } from './UseSectionOrderAsDefault'
 import type { TailorSection } from './parseTailorTask'
 import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } from './tailorDraft'
 
@@ -36,16 +40,20 @@ interface FinalResumeEditorProps {
 
 /** Lets the user edit the whole draft, then save it once. */
 export function FinalResumeEditor({ jobId, sections, includeSummary = true, warnings, pending, errors, onSave }: FinalResumeEditorProps) {
-  const [drafts, setDrafts] = useState(() => sections.map((section) => ({
+  const [storedDrafts, setDrafts] = useState(() => sections.map((section) => ({
     ...section,
     draft: sectionDraftFromContent(section.sectionType, section.content),
     included: section.sectionType !== 'summary' || includeSummary,
   })))
 
+  // The default order applies until the user drags a section on this draft.
+  const defaultOrder = useDefaultSectionOrder().order
+  const [draggedOrder, setDraggedOrder] = useState<TailorSectionType[] | null>(null)
+  const drafts = sectionsInOrder(storedDrafts, draggedOrder ?? defaultOrder)
   const [emptySummaryIncluded, setEmptySummaryIncluded] = useState(includeSummary)
   const [editing, setEditing] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
-  const snapshot = JSON.stringify({ drafts, emptySummaryIncluded })
+  const snapshot = JSON.stringify({ drafts: storedDrafts, draggedOrder, emptySummaryIncluded })
   const dirty = snapshot !== savedSnapshot
   const selected = drafts.filter((section) => section.included).map((section) => ({
     sectionType: section.sectionType,
@@ -80,19 +88,27 @@ export function FinalResumeEditor({ jobId, sections, includeSummary = true, warn
         setEmptySummaryIncluded(checked)
         setDrafts((current) => current.map((section) => section.sectionType === 'summary' ? { ...section, included: checked } : section))
       }} />}
-      {editing && <fieldset disabled={pending} className="resume-section-list">
-        {drafts.map((section, index) => (
-          <FinalSection
-            key={section.sectionType}
-            sectionId={`resume.${jobId}.${section.sectionType}`}
-            title={section.title || SECTION_TITLES[section.sectionType]}
-            draft={section.draft}
-            included={section.included}
-            onToggleIncluded={() => setDrafts((current) => current.map((draft, position) => position === index ? { ...draft, included: !draft.included } : draft))}
-            onChange={(next) => setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, draft: next } : draft)))}
-          />
-        ))}
-      </fieldset>}
+      {editing && <UseSectionOrderAsDefault resumeOrder={drafts.map((section) => section.sectionType)} disabled={pending} />}
+      {editing && <fieldset disabled={pending} className="min-w-0"><div className="resume-section-list">
+        <ResumeSectionList
+          sections={drafts}
+          idOf={(section) => section.sectionType}
+          typeOf={(section) => section.sectionType}
+          titleOf={(section) => section.title || SECTION_TITLES[section.sectionType]}
+          onReorder={(movable) => setDraggedOrder(movable.flatMap((id) => asSectionType(id) ?? []))}
+          renderSection={(section, dragHandle) => (
+            <FinalSection
+              sectionId={`resume.${jobId}.${section.sectionType}`}
+              title={section.title || SECTION_TITLES[section.sectionType]}
+              draft={section.draft}
+              included={section.included}
+              dragHandle={dragHandle}
+              onToggleIncluded={() => setDrafts((current) => current.map((draft) => draft.sectionType === section.sectionType ? { ...draft, included: !draft.included } : draft))}
+              onChange={(next) => setDrafts((current) => current.map((draft) => (draft.sectionType === section.sectionType ? { ...draft, draft: next } : draft)))}
+            />
+          )}
+        />
+      </div></fieldset>}
       {selected.length === 0 && <p className="text-sm text-muted-foreground">Include at least one section to preview or save your resume.</p>}
       {!editing && selected.length > 0 && (
         <div className="resume-preview-stage">
@@ -110,12 +126,14 @@ function FinalSection({
   draft,
   onChange,
   included,
+  dragHandle,
   onToggleIncluded,
 }: {
   sectionId: string
   title: string
   draft: SectionDraft
   included: boolean
+  dragHandle: ReactNode
   onToggleIncluded: () => void
   onChange: (next: SectionDraft) => void
 }) {
@@ -126,6 +144,7 @@ function FinalSection({
     <Card className={cn('resume-section gap-0 py-0 shadow-none', tone.card)}>
       <CardHeader className={cn('px-5 py-4', tone.header, included && open && 'border-b')}>
         <div className="flex flex-wrap items-center gap-3">
+          {dragHandle}
           {included ? (
             <CollapseToggle className="min-w-0 flex-1 basis-40" open={open} panelId={panelId} onToggle={toggle}>
               <tone.Icon className={cn('size-4 shrink-0', tone.icon)} aria-hidden />

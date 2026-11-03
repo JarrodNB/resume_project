@@ -7,8 +7,11 @@
 # Index:
 #   - SECTION_TYPES / section_type enum: contact, summary, experience, projects, education,
 #     certifications, skills, custom
+#   - ORDERABLE_TYPES: the types a user can arrange
 class ResumeSection < ApplicationRecord
   SECTION_TYPES = %w[contact summary experience projects education certifications skills custom].freeze
+  # The sections a user arranges, in the standard order. Contact is always the header.
+  ORDERABLE_TYPES = %w[summary experience projects education certifications skills].freeze
 
   belongs_to :resume
 

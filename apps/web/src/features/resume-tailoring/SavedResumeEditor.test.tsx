@@ -11,6 +11,9 @@ import { downloadResumePdf, downloadResumeDocx } from './resumeDownload'
 import { SavedResumeEditor } from './SavedResumeEditor'
 import { UPDATE_RESUME_MUTATION } from './tailorOperations'
 
+/** The save status line; drag areas keep their own status region for screen readers. */
+const saveStatus = () => screen.getAllByRole('status').find((element) => element.classList.contains('resume-save-status'))
+
 vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('./ResumePdfPreview', () => ({ ResumePdfPreview: ({ model }: { model: unknown }) => <pre data-testid="pdf-model">{JSON.stringify(model)}</pre> }))
@@ -38,7 +41,7 @@ function renderEditor(mocks: ReturnType<typeof updateMock>[] = []) {
 it('protects edited content, recognizes reverted edits, and allows leaving after a successful save', async () => {
   const user = userEvent.setup()
   renderEditor([updateMock('Edited summary.')])
-  expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+  expect(saveStatus()).toHaveTextContent('All changes saved')
   const cleanUnload = new Event('beforeunload', { cancelable: true })
   fireEvent(window, cleanUnload)
   expect(cleanUnload.defaultPrevented).toBe(false)
@@ -46,7 +49,7 @@ it('protects edited content, recognizes reverted edits, and allows leaving after
   await user.click(screen.getByRole('button', { name: 'Summary' }))
   const input = screen.getByRole('textbox', { name: 'Summary' })
   await user.type(input, ' Updated')
-  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  expect(saveStatus()).toHaveTextContent('Unsaved changes')
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled()
   const dirtyUnload = new Event('beforeunload', { cancelable: true })
@@ -57,11 +60,11 @@ it('protects edited content, recognizes reverted edits, and allows leaving after
   expect(input).toHaveValue('Original summary. Updated')
   await user.clear(input)
   await user.type(input, 'Original summary.')
-  expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+  expect(saveStatus()).toHaveTextContent('All changes saved')
   await user.clear(input)
   await user.type(input, 'Edited summary.')
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await waitFor(() => expect(saveStatus()).toHaveTextContent('All changes saved'))
   const savedUnload = new Event('beforeunload', { cancelable: true })
   fireEvent(window, savedUnload)
   expect(savedUnload.defaultPrevented).toBe(false)
@@ -79,7 +82,7 @@ it('keeps unsaved work after failure and clears its warning only after retry suc
   await user.type(input, 'Edited summary.')
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
   expect(await screen.findByText('Save unavailable.')).toBeInTheDocument()
-  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  expect(saveStatus()).toHaveTextContent('Unsaved changes')
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled()
   expect(input).toHaveValue('Edited summary.')
@@ -87,7 +90,7 @@ it('keeps unsaved work after failure and clears its warning only after retry suc
   expect(screen.getByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Keep editing' }))
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await waitFor(() => expect(saveStatus()).toHaveTextContent('All changes saved'))
 })
 
 it('keeps later edits unsaved when an earlier snapshot finishes saving', async () => {
@@ -99,11 +102,11 @@ it('keeps later edits unsaved when an earlier snapshot finishes saving', async (
   await user.clear(input)
   await user.type(input, 'Submitted summary.')
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  expect(screen.getByRole('status')).toHaveTextContent('Saving your resume…')
+  expect(saveStatus()).toHaveTextContent('Saving your resume…')
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled()
   await user.type(input, ' More edits.')
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes'))
+  await waitFor(() => expect(saveStatus()).toHaveTextContent('Unsaved changes'))
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled()
   expect(input).toHaveValue('Submitted summary. More edits.')
@@ -148,7 +151,7 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Later edit.')
     expect(captured.blocks[0].text).toBe('Original summary.')
     await act(async () => finish())
-    expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+    expect(saveStatus()).toHaveTextContent('Unsaved changes')
     expect(screen.getByRole('button', { name: `Download ${format}` })).toBeDisabled()
   })
 
@@ -158,7 +161,7 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     renderEditor()
     await user.click(screen.getByRole('button', { name: `Download ${format}` }))
     expect(await screen.findByText(`Could not download the ${format}. Please try again.`)).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+    expect(saveStatus()).toHaveTextContent('All changes saved')
     await user.click(screen.getByRole('button', { name: `Download ${format}` }))
     await waitFor(() => expect(download).toHaveBeenCalledTimes(2))
     expect(screen.queryByText(`Could not download the ${format}. Please try again.`)).not.toBeInTheDocument()
@@ -194,13 +197,13 @@ it('saves a summary inclusion round trip without losing its text', async () => {
   await user.click(screen.getByRole('button', { name: 'Preview' }))
   expect(screen.getByTestId('pdf-model')).not.toHaveTextContent('Original summary.')
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await waitFor(() => expect(saveStatus()).toHaveTextContent('All changes saved'))
   await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
   await user.click(screen.getByRole('button', { name: 'Preview' }))
   expect(screen.getByTestId('pdf-model')).toHaveTextContent('Original summary.')
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await waitFor(() => expect(saveStatus()).toHaveTextContent('All changes saved'))
 })
 
 it('keeps the summary choice editable on a resume with no summary section', async () => {
@@ -209,7 +212,7 @@ it('keeps the summary choice editable on a resume with no summary section', asyn
   await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
   await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
-  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  expect(saveStatus()).toHaveTextContent('Unsaved changes')
 })
 
 it('offers explicit resume summary generation and pauses it for unsaved section edits', async () => {
@@ -266,7 +269,7 @@ it('accepts a reviewed resume summary then refreshes output without changing inc
   await user.click(await screen.findByRole('button', { name: 'Accept summary' }))
   await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Proposed summary' })).not.toBeInTheDocument())
   expect(screen.getByTestId('pdf-model')).not.toHaveTextContent('A reviewed summary.')
-  expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+  expect(saveStatus()).toHaveTextContent('All changes saved')
   await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
   await user.click(screen.getByRole('button', { name: 'Summary' }))

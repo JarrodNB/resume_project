@@ -4,7 +4,7 @@
  * Index:
  *   - ExperienceSection: roles with draggable highlights, merge/delete, and the role form
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LibrarySectionReview } from './LibrarySectionReview'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatDateRange } from '@/lib/formatDateRange'
@@ -23,17 +23,18 @@ interface ExperienceSectionProps {
   movingHighlight?: boolean
   experiences: Experience[]
   highlightsOf: (experienceId: string) => Highlight[]
+  dragHandle?: ReactNode
 }
 
 /** Lists roles and opens the form to add one or edit one. */
-export function ExperienceSection({ experiences, highlightsOf, movingHighlight = false }: ExperienceSectionProps) {
+export function ExperienceSection({ experiences, highlightsOf, movingHighlight = false, dragHandle }: ExperienceSectionProps) {
   const [editing, setEditing] = useState<Experience | 'new' | null>(null)
   const candidates = experiences.map((experience) => ({ id: experience.id, label: experienceLabel(experience) }))
   const experience = editing && editing !== 'new' ? { ...editing, highlights: highlightsForForm(highlightsOf(editing.id)) } : null
 
   return (
     <>
-      <LibrarySection sectionId="library.experience" tone="experience" title="Experience" count={experiences.length} emptyText="No roles yet." addLabel="Add role" onAdd={() => setEditing('new')}
+      <LibrarySection dragHandle={dragHandle} sectionId="library.experience" tone="experience" title="Experience" count={experiences.length} emptyText="No roles yet." addLabel="Add role" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="experience" />} reviewSection="experience">
 
         {experiences.map((entry, index) => (

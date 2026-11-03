@@ -5,6 +5,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
+import { DEFAULT_SECTION_ORDER_QUERY } from '@/features/resume-tailoring/useDefaultSectionOrder'
 import { renderPage } from '@/test/renderPage'
 import { PARSE_RESUME_MUTATION } from '@/features/resume-import/resumeImportOperations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
@@ -47,7 +48,7 @@ const libraryMock = {
   },
 }
 
-const LIBRARY_SECTION_IDS = ['library.profile', 'library.experience', 'library.projects', 'library.education', 'library.certifications', 'library.skills', 'library.career_contexts']
+const LIBRARY_SECTION_IDS = ['library.profile', 'library.summary', 'library.experience', 'library.projects', 'library.education', 'library.certifications', 'library.skills', 'library.career_contexts']
 
 /** Opens every library section so a test can read what is inside. */
 function openLibrarySections() {
@@ -151,4 +152,18 @@ it('uploads directly from the empty library and opens the review task before sav
   expect(await screen.findByRole('heading', { name: 'Start with your resume' })).toBeInTheDocument()
   await user.upload(screen.getByLabelText('Resume file'), file)
   expect(await screen.findByText('Parse and review')).toBeInTheDocument()
+})
+
+it('lists sections in the saved order, with the profile first and career context last', async () => {
+  const defaultOrder = {
+    request: { query: DEFAULT_SECTION_ORDER_QUERY },
+    result: { data: { me: { __typename: 'User' as const, id: 'user-1', resumeSectionOrder: ['SKILLS', 'EDUCATION', 'SUMMARY', 'EXPERIENCE', 'PROJECTS', 'CERTIFICATIONS'] } } },
+  }
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, libraryMock, defaultOrder] })
+
+  await screen.findByRole('button', { name: /^Skills/ })
+  const titles = screen.getAllByRole('button', { name: /^(Profile|Summary|Experience|Projects|Education|Certifications|Skills|Career context)/, expanded: false }).map((button) => button.textContent?.replace(/\d+$/, ''))
+  expect(titles).toEqual(['Profile', 'Skills', 'Education', 'Summary', 'Experience', 'Projects', 'Certifications', 'Career context'])
+  expect(screen.queryByRole('button', { name: 'Drag Profile section' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Drag Skills section' })).toBeInTheDocument()
 })

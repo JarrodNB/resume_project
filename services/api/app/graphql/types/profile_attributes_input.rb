@@ -11,5 +11,6 @@ module Types
     argument :links, [ Types::ProfileLinkAttributesInput ], required: false
     argument :summary, String, required: false
     argument :include_summary, Boolean, required: false
+    argument :resume_section_order, [ Types::ResumeSectionTypeEnum ], required: false
   end
 end

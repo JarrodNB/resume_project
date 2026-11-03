@@ -28,6 +28,28 @@ RSpec.describe "Missing saved-resume summary generation" do
     expect(start.value.id).to eq(task.id)
   end
 
+  it "refuses a proposal after the sections moved, leaving the resume as it is" do
+    skills = create(:resume_section, resume: resume, section_type: "skills", position: 2, content: { "items" => [ { "name" => "Ruby" } ] })
+    task = start.value
+    complete(task)
+    ResumeTailoring::UpdateResumeSectionsService.call(resume: resume, sections: [], section_order: [ contact.id, skills.id, experience.id ])
+
+    result = SummaryGeneration::FinishGenerationService.call(user: user, ai_task_id: task.id)
+
+    expect(result.errors).to eq([ "Your career information changed. Generate a new summary." ])
+    expect(resume.sections.order(:position).pluck(:section_type)).to eq(%w[contact skills experience])
+  end
+
+  it "inserts a new summary where the owner's default order puts it" do
+    create(:resume_section, resume: resume, section_type: "skills", position: 2, content: { "items" => [ { "name" => "Ruby" } ] })
+    user.update!(resume_section_order: %w[experience summary projects education certifications skills])
+    task = start.value
+    complete(task)
+
+    expect(SummaryGeneration::FinishGenerationService.call(user: user, ai_task_id: task.id)).to be_success
+    expect(resume.sections.order(:position).pluck(:section_type)).to eq(%w[contact experience summary skills])
+  end
+
   it "accepts once into an ordered section while preserving inclusion and the library" do
     task = start.value
     complete(task)

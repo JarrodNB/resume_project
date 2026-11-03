@@ -23,6 +23,8 @@ interface SectionCardProps {
   contentClassName?: string
   /** When set, the card starts collapsed and stays that way until opened again. */
   sectionId?: string
+  /** Shown before the title when the card can be dragged to a new place. */
+  dragHandle?: ReactNode
   children: ReactNode
 }
 
@@ -46,6 +48,7 @@ function SectionCardFrame({
   description,
   contentClassName,
   children,
+  dragHandle,
   open,
   toggle,
   panelId,
@@ -62,13 +65,16 @@ function SectionCardFrame({
   return (
     <Card className={cn('section-card gap-0 py-0 shadow-none', style.card)}>
       <CardHeader className={cn('px-5 py-5', style.header, open && 'border-b')}>
-        {toggle && panelId ? (
-          <CollapseToggle open={open} panelId={panelId} onToggle={toggle}>
-            {heading}
-          </CollapseToggle>
-        ) : (
-          heading
-        )}
+        <div className="flex items-center gap-1">
+          {dragHandle}
+          {toggle && panelId ? (
+            <CollapseToggle className="min-w-0 flex-1" open={open} panelId={panelId} onToggle={toggle}>
+              {heading}
+            </CollapseToggle>
+          ) : (
+            heading
+          )}
+        </div>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CollapsePanel open={open} id={panelId}>

@@ -1,16 +1,18 @@
-# Replaces saved section content and optionally the independent summary inclusion choice.
-# Hidden summary text stays stored. Section type, title,
-# and order stay as they are. Editing a resume never changes the career library.
+# Replaces saved section content and optionally the section order and the independent summary
+# inclusion choice. Hidden summary text stays stored. Section type and title stay as they are,
+# and contact always stays first. Editing a resume never changes the career library.
 # Index:
-#   - call: writes section content and summary inclusion atomically, or returns an error
+#   - call: writes section content, order and summary inclusion atomically, or returns an error
 module ResumeTailoring
   class UpdateResumeSectionsService < ApplicationService
     UNKNOWN_SECTION = "That section isn't on this resume.".freeze
+    CONTACT_NOT_FIRST = "Contact must stay at the top of the resume.".freeze
 
-    def initialize(resume:, sections:, include_summary: nil)
+    def initialize(resume:, sections:, include_summary: nil, section_order: nil)
       @resume = resume
       @sections = sections
       @include_summary = include_summary
+      @section_order = section_order
     end
 
     # Updates each listed section. Sending the same content again succeeds.
@@ -24,6 +26,13 @@ module ResumeTailoring
         @resume.lock!
         known = @resume.sections.index_by(&:id)
         return failure([ UNKNOWN_SECTION ]) if updates.any? { |update| !known.key?(update[:id]) }
+        # Runs before any other write, so a rejected order leaves the whole resume unchanged.
+        if @section_order
+          return failure([ CONTACT_NOT_FIRST ]) unless contact_first?(known.values)
+
+          reordered = CareerLibrary::ReorderLibraryEntriesService.call(records: @resume.sections, ordered_ids: @section_order)
+          return failure(reordered.errors) unless reordered.success?
+        end
         @resume.update!(include_summary: @include_summary) unless @include_summary.nil?
         updates.each { |update| known[update[:id]].update!(content: update[:content]) }
       end
@@ -35,6 +44,12 @@ module ResumeTailoring
     end
 
     private
+
+    # True when the new order starts with the contact section, or the resume has none.
+    def contact_first?(sections)
+      contact = sections.find(&:contact?)
+      contact.nil? || @section_order.first.to_s == contact.id
+    end
 
     # A list of { id, content }, or an error message. `return` inside `map` leaves this method.
     def parsed_sections

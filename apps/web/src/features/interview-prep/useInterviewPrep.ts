@@ -44,7 +44,7 @@ export function useGenerateInterviewSet() {
       }
       const input: unknown = payload.aiTask?.input
       if (input && typeof input === 'object' && 'question_set_id' in input && typeof input.question_set_id === 'string') return input.question_set_id
-      setErrors(['The new set could not be opened. Refresh the list to find it.'])
+      setErrors(['The new questions could not be opened. Refresh the page to find them.'])
     } catch (error) {
       setErrors([requestErrorMessage(error, 'Could not start interview questions.')])
     }
@@ -64,12 +64,12 @@ export function useDeleteInterviewSet(id: string) {
       const { data } = await mutate({ variables: { id } })
       const payload = data?.deleteInterviewQuestionSet
       if (!payload || payload.errors.length) {
-        setErrors(payload?.errors ?? ['Could not delete this set.'])
+        setErrors(payload?.errors ?? ['Could not dismiss this request.'])
         return false
       }
       return true
     } catch (error) {
-      setErrors([requestErrorMessage(error, 'Could not delete this set.')])
+      setErrors([requestErrorMessage(error, 'Could not dismiss this request.')])
       return false
     }
   }

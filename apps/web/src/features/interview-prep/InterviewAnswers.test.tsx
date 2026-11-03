@@ -25,7 +25,7 @@ async function openAnswer() {
 /** Picks one item from the question's actions menu. */
 async function chooseAction(name: string) {
   const user = userEvent.setup()
-  await user.click(screen.getByRole('button', { name: 'Actions for question 1' }))
+  await user.click(screen.getByRole('button', { name: 'Question actions' }))
   await user.click(screen.getByRole('menuitem', { name }))
 }
 const ROUTE = '/practice/questions/:id/:questionId?'
@@ -112,7 +112,7 @@ it('restores replacement progress and disables editing and conflicting controls'
   renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail('Saved answer', { __typename: 'AiTask', id: 't1', status: 'QUEUED', taskType: 'REGENERATE_INTERVIEW_QUESTION', errorMessage: null }), { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 't1' } }, delay: Infinity, result: { data: {} } }] })
   expect(await openAnswer()).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
-  await userEvent.setup().click(screen.getByRole('button', { name: 'Actions for question 1' }))
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Question actions' }))
   expect(screen.getByRole('menuitem', { name: 'Replace question' })).toHaveAttribute('aria-disabled', 'true')
 })
 
@@ -225,6 +225,6 @@ it('restores saved avoidance when opening a question set', async () => {
   renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [saved] })
   await openAnswer()
   expect(screen.getByText("Saved. New questions won't repeat this one.")).toBeVisible()
-  await userEvent.setup().click(screen.getByRole('button', { name: 'Actions for question 1' }))
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Question actions' }))
   expect(screen.getByRole('menuitem', { name: 'Hidden from new questions' })).toHaveAttribute('aria-disabled', 'true')
 })

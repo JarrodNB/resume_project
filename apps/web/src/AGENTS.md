@@ -34,8 +34,8 @@ Source of the web app, organized by feature.
 - `features/resume-tailoring/` — the job's Resume tab (`/jobs/:id/resume`) and write route
   (`/jobs/:id/resume/write`): generate and review a complete draft, then edit the saved resume,
   with an actual-size PDF preview
-- `features/interview-prep/` — written practice at `/practice/questions`: persistent numbered interview sets, question generation, live status,
-  five collapsible question cards, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and confirmed deletion
+- `features/interview-prep/` — written practice at `/practice/questions`: a unified question bank, generation, live status,
+  individual question practice, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and dismissal of unfinished requests
 - `features/interviews/` — real spoken interviews at `/practice/interviews`, two-step setup there (step 1 `InterviewRoleStep`: a practice role, or a non-rejected saved job that continues to that job's Interview tab `/jobs/:id/interview`; step 2 round setup for the practice role; "Practice again" skips to step 2), focus mode while an interview is active (`useFocusMode`), browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
   resume import, jobs, gap analysis, resume tailoring, and interview prep

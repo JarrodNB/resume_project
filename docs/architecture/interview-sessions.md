@@ -79,6 +79,11 @@ coaching or grading; Daniel stays neutral and structured; Priya skips acknowledg
 presses for numbers, personal actions and evidence. Follow-ups only run after submission, so no
 persona interrupts live answers. Personas share the existing British speech voice and accounting.
 
+When a candidate asks the interviewer something, such as a clarifying question about the scenario,
+the model answers it first and continues, at every difficulty and persona. Open scenario details
+get a stated practice assumption; it never gives the interview answer or claims employer facts.
+The Rails answer cap still applies, so a question in the capped answer moves on unanswered.
+
 The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
 ready, active or completed states. Preparing/ready sessions reopen their saved preparation
 or role review; active sessions restore accepted dialogue and progress; completed sessions

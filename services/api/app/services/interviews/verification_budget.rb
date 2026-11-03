@@ -10,12 +10,15 @@ module Interviews
     # Token stages use conservative estimates with bounded prompts and 1,024 OpenAI
     # output tokens for dialogue/screening, 4,096 for complete preparation. Actual usage
     # reconciles every dispatch. These are local estimates, not provider charges or holds.
+    # Terra covers its 120,000-character prompt cap at one token per character ($0.12)
+    # plus 4,096 preparation output tokens ($0.02).
     RESERVATIONS = { %w[transcription openai gpt-transcribe] => 9_000,
       %w[transcription openai gpt-live-transcribe] => 34_000,
       %w[speech openai gpt-4o-mini-tts] => 250_000,
       %w[screening typesafe jev-1.13.0] => 10_000,
       %w[screening openai gpt-5-nano] => 50_000,
-      %w[interviewer openai gpt-6-luna] => 50_000 }.freeze
+      %w[interviewer openai gpt-6-luna] => 50_000,
+      %w[interviewer openai gpt-6.1-terra] => 150_000 }.freeze
 
     def self.reserve(observation_id:, stage:, provider:, model:)
       amount = RESERVATIONS[[ stage, provider, model ]]

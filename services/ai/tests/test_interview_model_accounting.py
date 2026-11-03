@@ -45,18 +45,18 @@ def run_model(*, model="gpt-6-luna", input_tokens=100, writes=0):
                                    openai_transport=httpx.MockTransport(respond)) as providers:
             with models.override_allow_model_requests(True):
                 return await Agent().run("A synthetic interview response", model=providers.accounted(
-                    client, claim(), "interviewer" if model == "gpt-6-luna" else "screening", model))
+                    client, claim(), "screening" if model == "gpt-5-nano" else "interviewer", model))
 
     return client, requests, execute
 
 
 def test_luna_wire_request_disables_implicit_writes_without_changing_nano():
-    for model in ("gpt-6-luna", "gpt-5-nano"):
+    for model in ("gpt-6-luna", "gpt-6.1-terra", "gpt-5-nano"):
         client, requests, execute = run_model(model=model)
         assert asyncio.run(execute()).output == "A response"
         assert len(requests) == 1
         assert requests[0]["service_tier"] == "default"
-        if model == "gpt-6-luna":
+        if model != "gpt-5-nano":
             assert requests[0]["prompt_cache_options"] == {"mode": "explicit"}
             assert "prompt_cache_breakpoint" not in json.dumps(requests[0])
         else:
@@ -64,9 +64,10 @@ def test_luna_wire_request_disables_implicit_writes_without_changing_nano():
         assert client.reports[-1][1]["incomplete"] is False
 
 
+@pytest.mark.parametrize("model", ["gpt-6-luna", "gpt-6.1-terra"])
 @pytest.mark.parametrize("input_tokens,writes", [(12_000, 7_000), (272_001, 0)])
-def test_unpriceable_luna_usage_remains_unknown_after_one_wire_dispatch(input_tokens, writes):
-    client, requests, execute = run_model(input_tokens=input_tokens, writes=writes)
+def test_unpriceable_usage_remains_unknown_after_one_wire_dispatch(model, input_tokens, writes):
+    client, requests, execute = run_model(model=model, input_tokens=input_tokens, writes=writes)
     with pytest.raises(ValueError, match="unknown_provider_usage"):
         asyncio.run(execute())
     assert len(requests) == 1

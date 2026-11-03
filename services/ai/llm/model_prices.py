@@ -33,6 +33,8 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-5-mini": ModelPrice(input=0.25, cached_input=0.025, output=2.00),
     # Standard rates from https://developers.openai.com/api/docs/pricing, checked 2026-10-18.
     "openai:gpt-6-luna": ModelPrice(input=0.10, cached_input=0.01, output=0.50, cache_write=0.125),
+    # Standard rates from https://developers.openai.com/api/docs/pricing, checked 2026-11-02.
+    "openai:gpt-6.1-terra": ModelPrice(input=1.00, cached_input=0.05, output=5.00, cache_write=1.25),
     "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
     # Embeddings bill input tokens only.
@@ -49,6 +51,12 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "typesafe:jev-1.14.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
     "jev-1.14.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
 }
+
+
+# Above 272K input tokens these models bill higher rates, which this table does not hold.
+# Their cache_write price is the 30-minute rate, so requests must fix that lifetime.
+SHORT_CONTEXT_MODELS = {"openai:gpt-6-luna", "openai:gpt-6.1-terra"}
+MAX_SHORT_CONTEXT_INPUT_TOKENS = 272_000
 
 
 def reported_model_name(response_model_name: str, configured_model: str) -> str:
@@ -79,7 +87,7 @@ def estimate_cost_microdollars(model: str, usage: RunUsage) -> int:
         raise ValueError("Invalid provider token counts")
     if writes and price.cache_write is None:
         raise ValueError("Cache-write price is unknown")
-    if model == "openai:gpt-6-luna" and usage.input_tokens > 272_000:
+    if model in SHORT_CONTEXT_MODELS and usage.input_tokens > MAX_SHORT_CONTEXT_INPUT_TOKENS:
         raise ValueError("Long-context pricing is unsupported")
     uncached_input_tokens = usage.input_tokens - cached_input_tokens - writes
     # USD per 1M tokens times tokens is exactly micro-dollars.

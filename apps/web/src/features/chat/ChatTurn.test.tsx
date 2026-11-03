@@ -27,6 +27,30 @@ it('sends once and shows the durable pending message while disabling another sen
   expect(send).toHaveBeenCalledTimes(1)
 })
 
+it('sends with Enter, keeps Shift+Enter and word-confirming Enter for typing, and hands focus back afterward', async () => {
+  const send = vi.fn(() => ({ data: { sendChatMessage: { __typename: 'SendChatMessagePayload', operation: null, errors: ['Try again.'] } } }))
+  renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={10000} onAccepted={vi.fn()} />, mocks: [query(), subscription(), {
+    request: { query: SEND_CHAT_MESSAGE, variables: (variables) => variables.input.message === 'Help me prepare.' }, result: send,
+  }] })
+  const textbox = await screen.findByRole('textbox', { name: 'Your message' })
+  await waitFor(() => expect(textbox).toBeEnabled())
+  expect(textbox).toHaveAccessibleDescription(expect.stringContaining('Enter to send'))
+  fireEvent.keyDown(textbox, { key: 'Enter' })
+  fireEvent.change(textbox, { target: { value: 'Help me prepare.' } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send message' })).toBeEnabled())
+  fireEvent.keyDown(textbox, { key: 'Enter', shiftKey: true })
+  fireEvent.keyDown(textbox, { key: 'Enter', isComposing: true })
+  fireEvent.keyDown(textbox, { key: 'Enter', keyCode: 229 })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(send).not.toHaveBeenCalled()
+  textbox.focus()
+  fireEvent.keyDown(textbox, { key: 'Enter' })
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+  expect(await screen.findByText('Try again.')).toBeInTheDocument()
+  expect(textbox).toHaveValue('Help me prepare.')
+  await waitFor(() => expect(textbox).toHaveFocus())
+})
+
 it('counts Unicode characters and rejects oversized input before sending', async () => {
   renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={2} onAccepted={vi.fn()} />, mocks: [query(), subscription()] })
   fireEvent.change(screen.getByRole('textbox'), { target: { value: '😀😀' } })

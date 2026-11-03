@@ -4,6 +4,7 @@
  * (rows, a line of stops, or bubbles) is decided by CSS from the page's layout setting.
  * Assistant replies are drawn as Markdown; the user's own words stay plain text.
  * Before the first words arrive, a small moving line of stops fills the wait.
+ * In the message box, Enter sends and Shift+Enter starts a new line.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SendHorizontal } from 'lucide-react'
@@ -33,11 +34,31 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
   const failed = turn.operation?.status === 'failed'
   const handingOff = turn.operation?.status === 'accepted' && !!turn.provisional && refreshedOperation !== turn.operation.id
   const pendingMessage = turn.pending || failed || handingOff ? turn.operation?.message : null
+  const inputLocked = turn.busy || turn.pending
+  const canSend = !!draft.trim() && !oversized && !inputLocked && !turn.error && !turn.checking
 
+  const input = useRef<HTMLTextAreaElement>(null)
+  const refocusWhenUnlocked = useRef(false)
   async function send(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!draft.trim() || oversized || turn.busy || turn.pending) return
+    if (!canSend) return
+    refocusWhenUnlocked.current = document.activeElement === input.current
     if (await turn.send(draft)) setDraft('')
+  }
+
+  // Locking the box drops its focus. Hand it back so the next message can be typed right away,
+  // unless the reader has since moved on to something else on the page.
+  useEffect(() => {
+    if (inputLocked || !refocusWhenUnlocked.current) return
+    refocusWhenUnlocked.current = false
+    if (document.activeElement === document.body) input.current?.focus()
+  }, [inputLocked])
+
+  function sendOnEnter(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Enter also confirms a word in Japanese, Chinese and Korean keyboards. Safari flags that with keyCode 229.
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.keyCode === 229) return
+    event.preventDefault()
+    event.currentTarget.form?.requestSubmit()
   }
 
   const scroller = useRef<HTMLDivElement>(null)
@@ -94,14 +115,15 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
     </div>
     <form onSubmit={(event) => void send(event)} className="chat-composer">
       <label htmlFor={`chat-message-${conversationId}`} className="sr-only">Your message</label>
-      <Textarea id={`chat-message-${conversationId}`} value={draft} onChange={(event) => setDraft(event.target.value)}
-        disabled={turn.busy || turn.pending} aria-invalid={oversized} aria-describedby={`chat-message-help-${conversationId}`}
-        placeholder="What would you like to work through?" className="chat-input" />
+      <Textarea ref={input} id={`chat-message-${conversationId}`} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={sendOnEnter}
+        disabled={inputLocked} aria-invalid={oversized} aria-describedby={`chat-message-keys-${conversationId} chat-message-help-${conversationId}`}
+        enterKeyHint="send" placeholder="What would you like to work through?" className="chat-input" />
       <div className="chat-composer-foot">
-        <p id={`chat-message-help-${conversationId}`} className={oversized ? 'text-sm text-destructive' : 'text-xs text-muted-foreground'}>
+        <p id={`chat-message-keys-${conversationId}`} className="chat-composer-keys"><kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for a new line</p>
+        <p id={`chat-message-help-${conversationId}`} className="chat-composer-count" data-oversized={oversized || undefined}>
           {length.toLocaleString()} / {maxCharacters.toLocaleString()} characters{oversized ? ' — shorten your message before sending.' : ''}
         </p>
-        <Button type="submit" disabled={!draft.trim() || oversized || turn.busy || turn.pending || !!turn.error || turn.checking}><SendHorizontal aria-hidden />{turn.busy ? 'Sending…' : 'Send message'}</Button>
+        <Button type="submit" disabled={!canSend}><SendHorizontal aria-hidden />{turn.busy ? 'Sending…' : 'Send message'}</Button>
       </div>
     </form>
   </div>

@@ -113,7 +113,16 @@
 .interview-setup-tags button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .interview-setup-fields:disabled :is(.interview-setup-switch label, .interview-setup-person, .interview-setup-tags button) { cursor: not-allowed; }
 .interview-setup-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-.interview-setup-summary { display: grid; gap: 12px; padding-block: 24px; border-block: 1px solid var(--border); }
+/* Settings step: narrower, bold row labels, and the page intro steps aside because it was read on the first step. */
+.interview-setup-settings { max-width: 760px; }
+.interview-page:has(.interview-setup-settings) .page-heading p { display: none; }
+.interview-setup-settings .interview-setup-fields { gap: 24px; }
+.interview-setup-settings .interview-setup-help { margin-top: 8px; line-height: 1.5; }
+.interview-setup-settings .interview-setup-footer { padding-top: 20px; border-top: 2px solid var(--rule-strong); }
+.interview-answer-settings { display: grid; border-top: 1px solid var(--border); }
+.interview-answer-settings .interview-setup-row { grid-template-columns: 148px minmax(0, 1fr); gap: 8px 24px; padding-block: 18px; }
+.interview-answer-settings .interview-setup-label { padding-top: 9px; font-size: 16px; font-weight: 700; line-height: 1.25; letter-spacing: 0; text-transform: none; color: var(--foreground); }
+.interview-answer-note { padding-top: 9px; font-size: 15px; line-height: 1.5; }
 .interview-setup:has(fieldset:disabled) .interview-setup-fields { opacity: .65; }
 @container (max-width: 760px) { .interview-setup-people { grid-template-columns: minmax(0, 1fr); } }
 @container (max-width: 640px) {
@@ -125,4 +134,7 @@
   .interview-setup-switch label { padding: 0 10px; text-align: center; }
   .interview-setup-switch label + label { border-left: 0; }
   .interview-setup-stops { width: 100%; }
+  .interview-answer-settings .interview-setup-row { grid-template-columns: minmax(0, 1fr); }
+  .interview-answer-settings .interview-setup-label, .interview-answer-note { padding-top: 0; }
+  .interview-setup-settings .interview-setup-footer button { width: 100%; }
 }

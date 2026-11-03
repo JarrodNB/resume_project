@@ -344,6 +344,9 @@ Solid and square-shouldered, like a sign you can press.
 - Your messages are right-aligned tiles on `secondary` with a hairline border. Replies are plain text with a small ringed bullet beside "Careergrind"; the bullet turns blue (AI working) while a reply is being written. Until the first words arrive, the reply shows a 9rem line of three gray stops on a hairline track: a blue signal shuttles between them, pausing at each stop as it lights up, above a blue caption that changes every 3.2s ("Reading your message", "Thinking it through", …) and settles on a "still working" line. Screen readers hear only "Preparing your reply…". With reduced motion the signal stays still on the middle stop.
 - Saved chats are a list of stops: a hollow bullet per chat, filled ink for the open one, with the date under the title.
 
+### Interview Setup
+- Setup's second step, "How you'll answer", is short rows on hairlines: a bold 16px label on the left, a joined switch on the right, and one line of gray help that changes with the choice. Thinking time shows only when the mic is Automatic. The round summary sits beside "Start interview" under a 2px ink rule. Keep help to one line; say something once.
+
 ### Interview Preparation
 - While a mock interview is prepared, the page shows the same AI waiting line as chat with captions every 4s. Before the work starts it says "Waiting to start"; once running it walks through the steps (career library, the job or an imagined role, drafting the core questions, checking them) and settles on a "still working" line. Captions describe the work, not tracked progress. Screen readers hear only "Preparing your interview…".
 

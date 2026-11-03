@@ -10,6 +10,7 @@
  * With jobs but an empty library, a red note says comparisons have nothing to compare yet. On the board, dragging a tile to another column moves the job to
  * that stage (saved right away, like the stage picker on the job page).
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { useCallback, useState } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { DragDropProvider } from '@dnd-kit/react'
@@ -66,7 +67,7 @@ export function HomePage() {
           <Button variant="outline" className="justify-self-start" disabled={loading} onClick={() => void refetch().catch(() => { /* The query error stays on screen. */ })}>Try again</Button>
         </div>
       )}
-      {!data && loading && <p role="status" className="text-muted-foreground">Loading your jobs…</p>}
+      {!data && loading && <ContentSkeleton label="Loading your jobs…" layout={view === 'board' ? 'board' : 'list'} />}
       {data && entries.length === 0 && <FirstRun libraryStarted={libraryStarted} />}
       {entries.length > 0 && (
         <>

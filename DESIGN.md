@@ -292,6 +292,11 @@ Two kinds of shape: small square-ish corners for things you click or read, and p
 
 ## Components
 
+### Loading saved content
+
+- Initial data reads use `ContentSkeleton` with shapes matching the board, record list, library sections, detail view, or conversation. Blocks use `muted` in both themes and stay still; looping motion remains reserved for AI work.
+- Each placeholder group announces one loading message to screen readers. Shapes are decorative and never interactive. Keep cached content visible during background refreshes, and replace skeletons with the existing empty, error, or loaded state when the request finishes.
+
 ### Buttons
 Solid and square-shouldered, like a sign you can press.
 - **Shape:** gently squared corners (4px), 1.5px border.

@@ -5,6 +5,7 @@
  * Three columns: saved chats, the conversation with its pinned message box, and a plain notes
  * panel. Its look lives in the `.chat-*` rules in index.css.
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { Plus } from 'lucide-react'
 import { PageHeading } from '@/components/PageHeading'
@@ -65,7 +66,7 @@ export function ChatPage() {
 function SavedConversation({ id, maxCharacters }: { id: string; maxCharacters: number }) {
   const history = useChatConversation(id)
   return <section aria-label="Conversation" className="chat-conversation">
-    {history.loading && !history.conversation && <p role="status" className="chat-empty">Loading conversation…</p>}
+    {history.loading && !history.conversation && <ContentSkeleton label="Loading conversation…" layout="conversation" />}
     {history.error && <div className="chat-alert">
       <ErrorAlert title="Couldn't open this chat" messages={[requestErrorMessage(history.error, 'Try loading the chat again.')]} />
       <Button variant="outline" onClick={() => void history.refetch().catch(() => undefined)}>Retry loading conversation</Button>

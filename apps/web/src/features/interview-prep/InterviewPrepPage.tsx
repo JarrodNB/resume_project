@@ -3,6 +3,7 @@
  * The bank shows every question together with its progress.
  * Answers from replaced questions are kept in their own section. Spoken practice lives elsewhere.
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { useCallback } from 'react'
 import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -27,7 +28,7 @@ export function InterviewPrepPage() {
     <PendingQuestionGeneration sets={pending} onChanged={refresh} />
     {bank.error && <ErrorAlert title="Couldn't load your questions" messages={[requestErrorMessage(bank.error, bank.error.message)]} />}
     {setsError && <ErrorAlert title="Couldn't check question generation" messages={[requestErrorMessage(setsError, setsError.message)]} />}
-    {!bank.questions && bank.loading && <p>Loading…</p>}
+    {!bank.questions && bank.loading && <ContentSkeleton label="Loading your questions…" />}
     {bank.questions?.length === 0 && pending.length === 0 && <div className="empty-records">
       <h2>No questions yet</h2>
       <p>Pick a question type above and get your first five. Questions come from your career library, so the more detail it holds, the more specific they get. Your answers and feedback will collect here.</p>

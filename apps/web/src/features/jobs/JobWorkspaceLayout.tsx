@@ -5,6 +5,7 @@
  * matches), Resume, Study, Interview, and Posting. The header and tabs share one loaded job and
  * one live comparison, handed to each tab through `useJobWorkspace`.
  */
+import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -67,7 +68,7 @@ function JobWorkspace({ id }: { id: string }) {
       </div>
     )
   }
-  if (!job) return loading ? <p role="status" className="text-muted-foreground">Loading job…</p> : null
+  if (!job) return loading ? <ContentSkeleton label="Loading job…" layout="detail" /> : null
 
   return (
     <div className="job-workspace">

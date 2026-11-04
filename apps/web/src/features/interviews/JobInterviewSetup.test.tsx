@@ -31,3 +31,10 @@ it('starts the selected saved job with the chosen round settings', async () => {
   expect(await screen.findByText('Saved interview preparation')).toBeVisible()
   expect(router.state.location.pathname).toBe('/practice/interviews/session')
 })
+
+it('stays on the settings step after Continue instead of starting preparation', async () => {
+  renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview', element: <InterviewSetup notice={null} job={job} />, mocks: [] })
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
+  expect(await screen.findByRole('heading', { name: 'How you’ll answer' })).toBeVisible()
+  expect(start).not.toHaveBeenCalled()
+})

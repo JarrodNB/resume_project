@@ -2,12 +2,13 @@
  * Description: Set page tests: generation restoration, failures, individual questions,
  * and the warning when leaving with unsaved answers.
  */
+import userEvent from '@testing-library/user-event'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { InterviewSetPage } from './InterviewSetPage'
-import { INTERVIEW_SET_QUERY } from './interviewPrepOperations'
+import { DELETE_INTERVIEW_QUESTION, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
 
 /** Supplies the shared subscription's full task shape. */
 function taskFixture(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
@@ -83,4 +84,40 @@ it('keeps generation progress visible when live updates disconnect', async () =>
   }])
   expect(await screen.findByText('Generating questions…')).toBeInTheDocument()
   expect(await screen.findByText('Live updates disconnected')).toBeInTheDocument()
+})
+
+it('confirms deletion, preserves a canceled draft, and returns to the bank after success', async () => {
+  const user = userEvent.setup()
+  render('/practice/questions/set-1/question-2', [setMock('COMPLETED'), {
+    request: { query: DELETE_INTERVIEW_QUESTION, variables: { questionSetId: 'set-1', questionId: 'question-2' } },
+    result: { data: { deleteInterviewQuestion: { __typename: 'DeleteInterviewQuestionPayload', errors: [] } } },
+  }])
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Your answer' }), { target: { value: 'My unsaved answer' } })
+  await user.click(screen.getByRole('button', { name: 'Question actions' }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete question' }))
+  expect(await screen.findByText(/Your unsaved answer will also be lost/)).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('textbox')).toHaveValue('My unsaved answer')
+  await user.click(screen.getByRole('button', { name: 'Question actions' }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete question' }))
+  await user.click(await screen.findByRole('button', { name: 'Delete question' }))
+  expect(await screen.findByText('Question bank')).toBeVisible()
+  expect(screen.queryByText(/Leave and discard/)).not.toBeInTheDocument()
+})
+
+it('keeps the answer available and lets deletion retry after server failure', async () => {
+  const user = userEvent.setup()
+  const request = { query: DELETE_INTERVIEW_QUESTION, variables: { questionSetId: 'set-1', questionId: 'question-1' } }
+  render('/practice/questions/set-1/question-1', [setMock('COMPLETED'), {
+    request, result: { data: { deleteInterviewQuestion: { __typename: 'DeleteInterviewQuestionPayload', errors: ['Please try again.'] } } },
+  }, {
+    request, result: { data: { deleteInterviewQuestion: { __typename: 'DeleteInterviewQuestionPayload', errors: [] } } },
+  }])
+  await screen.findByRole('textbox')
+  await user.click(screen.getByRole('button', { name: 'Question actions' }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Delete question' }))
+  await user.click(await screen.findByRole('button', { name: 'Delete question' }))
+  expect(await screen.findByText('Please try again.')).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Delete question' }))
+  expect(await screen.findByText('Question bank')).toBeVisible()
 })

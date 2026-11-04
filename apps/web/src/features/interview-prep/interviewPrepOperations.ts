@@ -74,3 +74,10 @@ export const AVOID_INTERVIEW_QUESTION = graphql(`
     }
   }
 `)
+
+/** Removes only the selected practice question and its saved answer. */
+export const DELETE_INTERVIEW_QUESTION = graphql(`
+  mutation DeleteInterviewQuestion($questionSetId: ID!, $questionId: ID!) {
+    deleteInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId }) { errors }
+  }
+`)

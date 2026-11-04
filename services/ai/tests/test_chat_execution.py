@@ -854,7 +854,7 @@ async def test_save_tool_stages_restored_owned_context_only_until_acceptance():
     await adapter.execute(claim(message='Save my incident example: I coordinated recovery.'), None)
     assert owner.failed == []
     assert checks == [('user-1', 'Incident leadership', 'I coordinated recovery.')]
-    assert owner.accepted[0]['career_context'] == {'requirement': 'Incident leadership', 'response': 'I coordinated recovery.'}
+    assert owner.accepted[0]['career_contexts'] == [{'requirement': 'Incident leadership', 'response': 'I coordinated recovery.'}]
 
 @pytest.mark.anyio
 @pytest.mark.parametrize('status,expected', [('conflict', 'different response'), ('full', '100 entries'), ('unavailable', 'unavailable')])
@@ -871,7 +871,7 @@ async def test_rejected_context_save_is_explained_without_a_proposal(status, exp
     adapter._screen = AsyncMock()
     await adapter.execute(claim(message='Save that fact.'), None)
     assert not owner.failed
-    assert 'career_context' not in owner.accepted[0]
+    assert 'career_contexts' not in owner.accepted[0]
 
 
 @pytest.mark.anyio
@@ -903,11 +903,11 @@ async def test_context_save_restores_private_text_and_does_not_leak_between_turn
     await adapter.execute(claim(message=f'Save this: I mentored {email}.'), None)
     await adapter.execute(claim(message='What next?'), None)
     assert checks == [('user-1', 'Mentoring', f'I mentored {email}.')]
-    assert owner.accepted[0]['career_context']['response'] == f'I mentored {email}.'
-    assert 'career_context' not in owner.accepted[1]
+    assert owner.accepted[0]['career_contexts'][0]['response'] == f'I mentored {email}.'
+    assert 'career_contexts' not in owner.accepted[1]
 
 @pytest.mark.anyio
-@pytest.mark.parametrize('second_response,expected', [('Fact', 'pending'), ('Different fact', 'only one distinct')])
+@pytest.mark.parametrize('second_response,expected', [('Fact', 'pending'), ('Different fact', 'different response')])
 async def test_repeated_save_calls_keep_one_proposal(second_response, expected):
     import json
 
@@ -927,7 +927,7 @@ async def test_repeated_save_calls_keep_one_proposal(second_response, expected):
     adapter._screen = AsyncMock()
     await adapter.execute(claim(message='Save that fact.'), None)
     assert len(checks) == 1
-    assert owner.accepted[0]['career_context'] == {'requirement': 'Topic', 'response': 'Fact'}
+    assert owner.accepted[0]['career_contexts'] == [{'requirement': 'Topic', 'response': 'Fact'}]
 
 
 @pytest.mark.anyio
@@ -967,7 +967,7 @@ async def test_invalid_context_save_never_checks_or_stages(proposal):
     adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=forbidden)
     adapter._screen = AsyncMock()
     await adapter.execute(claim(message='Save that fact.'), None)
-    assert 'career_context' not in owner.accepted[0]
+    assert 'career_contexts' not in owner.accepted[0]
 
 
 @pytest.mark.anyio
@@ -987,7 +987,7 @@ async def test_unavailable_preflight_database_does_not_fail_ordinary_chat():
     adapter._screen = AsyncMock()
     await adapter.execute(claim(message='Save that fact.'), None)
     assert owner.failed == []
-    assert 'career_context' not in owner.accepted[0]
+    assert 'career_contexts' not in owner.accepted[0]
 
 @pytest.mark.anyio
 async def test_private_chat_callback_transports_save_proposal_with_attempt_identity():
@@ -1003,8 +1003,8 @@ async def test_private_chat_callback_transports_save_proposal_with_attempt_ident
     current = claim()
     proposal = {'requirement': 'Mentoring', 'response': 'I trained new starters.'}
     async with RailsChatClient('http://rails.test', 'test-service', transport=httpx.MockTransport(respond)) as client:
-        await client.accept(current, reply='Saved.', screened_message_sha256='digest', career_context=proposal)
-    assert observed == [{**current.identity(), 'reply': 'Saved.', 'screened_message_sha256': 'digest', 'career_context': proposal}]
+        await client.accept(current, reply='Saved.', screened_message_sha256='digest', career_contexts=[proposal])
+    assert observed == [{**current.identity(), 'reply': 'Saved.', 'screened_message_sha256': 'digest', 'career_contexts': [proposal]}]
 
 
 @pytest.mark.anyio
@@ -1108,3 +1108,36 @@ async def test_all_recent_jobs_rejected_does_not_claim_the_user_has_none():
     prompt = '\n'.join(part.content for message in observed for part in message.parts
                        if isinstance(part, UserPromptPart))
     assert 'no active saved jobs' not in prompt and 'Left out: 1' in prompt
+
+
+@pytest.mark.anyio
+async def test_multiple_distinct_saves_and_parallel_retries_share_one_acceptance():
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    owner, checks = Owner(), []
+    entries = [{"requirement": "Production cutover", "response": "I resolved the incident."},
+               {"requirement": "Langfuse", "response": "I taught the team tracing."}]
+
+    async def stream(messages, info):
+        if not tool_returns(messages):
+            yield {index: DeltaToolCall(name='save_career_context', json_args=json.dumps(entry),
+                                       tool_call_id=f'save-{index}')
+                   for index, entry in enumerate([*entries, entries[0]])}
+        else:
+            assert all('pending' in result.content.lower() for result in tool_returns(messages))
+            yield 'Saved both examples.'
+
+    def check(*values):
+        checks.append(values)
+        assert owner.accepted == []
+        return 'ready'
+
+    adapter = ChatExecutionAdapter(owner, Models(stream), context_save_check=check)
+    adapter._screen = AsyncMock()
+    await adapter.execute(claim(message='Save both my cutover and Langfuse examples.'), None)
+    assert owner.failed == []
+    assert len(checks) == 2
+    assert len(owner.accepted) == 1
+    assert owner.accepted[0]['career_contexts'] == entries

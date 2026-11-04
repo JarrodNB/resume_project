@@ -23,20 +23,22 @@ export function InterviewSetPage() {
   const { id = '', questionId } = useParams()
   const { questionSet, loading, error, refetch } = useInterviewSet(id)
   const navigate = useNavigate()
+  const [deleted, setDeleted] = useState(false)
   const [dirtyAnswers, setDirtyAnswers] = useState<Record<string, boolean>>({})
   const questions = questionSet?.questions.slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0)) ?? []
   const active = questions.find((question) => question.id === questionId) ?? questions[0]
   const dirty = Boolean(active && dirtyAnswers[active.id])
   const setPath = `/practice/questions/${id}`
-  const blocker = useBlocker(({ nextLocation }) => dirty && nextLocation.pathname !== `${setPath}/${active?.id}`)
+  const blocker = useBlocker(({ nextLocation }) => !deleted && dirty && nextLocation.pathname !== `${setPath}/${active?.id}`)
   const onDirty = useCallback((changedId: string, value: boolean) => setDirtyAnswers((current) => ({ ...current, [changedId]: value })), [])
   useBeforeUnload(useCallback((event) => { if (dirty) { event.preventDefault(); event.returnValue = '' } }, [dirty]))
+  useEffect(() => { if (deleted) void navigate('/practice/questions') }, [deleted, navigate])
   const defaultId = (questions.find((question) => !question.answerText.trim()) ?? questions[0])?.id
   const urlNamesQuestion = questions.some((question) => question.id === questionId)
   // Pin the default question in the URL once, so saving an answer never moves the open question.
   useEffect(() => {
-    if (defaultId && !urlNamesQuestion) void navigate(`${setPath}/${defaultId}`, { replace: true })
-  }, [defaultId, urlNamesQuestion, navigate, setPath])
+    if (!deleted && defaultId && !urlNamesQuestion) void navigate(`${setPath}/${defaultId}`, { replace: true })
+  }, [deleted, defaultId, urlNamesQuestion, navigate, setPath])
   const result: unknown = questionSet?.latestTask?.result
   const warnings = result && typeof result === 'object' && 'warnings' in result && Array.isArray(result.warnings)
     ? result.warnings.filter((warning): warning is string => typeof warning === 'string') : []
@@ -51,7 +53,7 @@ export function InterviewSetPage() {
         actions={questions.length === 0 && <DismissQuestionGenerationButton id={id} onDeleted={() => void navigate('/practice/questions')} />} />
       {questionSet.latestTask && <InterviewTaskStatus key={questionSet.latestTask.id} task={questionSet.latestTask} onFinished={refetch} />}
       {warnings.length > 0 && <div className="grid gap-1 text-sm text-muted-foreground"><p>Some library notes were omitted:</p><ul className="list-disc pl-5">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
-      {active && <InterviewQuestionCard key={active.id} question={active} setId={id} refetch={refetch} onDirty={onDirty} />}
+      {active && <InterviewQuestionCard key={active.id} question={active} setId={id} refetch={refetch} onDirty={onDirty} onDeleted={() => setDeleted(true)} />}
     </>}
   </div>
 }

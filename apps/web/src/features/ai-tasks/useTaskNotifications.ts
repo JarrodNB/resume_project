@@ -14,5 +14,9 @@ export function useTaskNotifications(userId: string, initialCursor?: string | nu
       setNotices((current) => current.some((item) => item.id === notice.id) ? current : [...current, notice])
     })
   }, [client, userId, initialCursor])
-  return { notices, dismiss: (id: string) => setNotices((current) => current.filter((notice) => notice.id !== id)) }
+  return {
+    notices,
+    dismiss: (id: string) => setNotices((current) => current.filter((notice) => notice.id !== id)),
+    clearAll: () => setNotices([]),
+  }
 }

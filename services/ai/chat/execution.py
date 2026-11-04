@@ -33,7 +33,7 @@ from agents.chat_agent import make_chat_agent
 from agents.chat_summary_agent import make_chat_summary_agent
 from chat.career_context import CareerContextProposal
 from chat.client import ChatReferencePayload
-from interviews.client import RailsTransportError
+from execution.rails_client import RailsTransportError
 from mcp_tools.client import ToolServerConnection
 from mcp_tools.saved_jobs import issue_job_reference, select_screened_saved_jobs
 from model_inputs.blocks import source_block

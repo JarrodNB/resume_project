@@ -1,5 +1,5 @@
 # Description: Database connections per environment. Host and credentials come from
-# DB_HOST, DB_USERNAME, and DB_PASSWORD (set by docker-compose locally, k8s secrets in prod).
+# DB_HOST, DB_USERNAME, and DB_PASSWORD (set by docker-compose locally and on the production server).
 # Development has a separate `cable` database for Solid Cable (GraphQL subscriptions).
 #
 # PostgreSQL. Versions 9.5 and up are supported.

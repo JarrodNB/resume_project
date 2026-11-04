@@ -123,7 +123,7 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   cookie session as HTTP and rechecks it before private delivery and operations.
 
 - **Per-service env files** (`services/api/.env`, `services/ai/.env`) for secrets. They match
-  Kubernetes, where each deployment gets its own secrets. Local, non-secret wiring lives in
+  production, where each service gets its own secrets. Local, non-secret wiring lives in
   `docker-compose.yml`.
 
 - **AI worker reads the database directly with a read-only role** (`ai_reader`), so "Rails
@@ -140,12 +140,20 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   transaction, so the job and library are a consistent snapshot.
 
 - **Docker for everything.** Local dev runs through docker compose, and the same images
-  deploy to Kubernetes. Application runtimes and dependencies stay in containers to keep
+  deploy to the production server. Application runtimes and dependencies stay in containers to keep
   dev and prod consistent.
 
 - **Native Ubuntu development.** The host uses bash, Docker Engine, and the Docker Compose
   plugin. Keep the checkout on the local Linux filesystem for bind mounts and file-change
   events used by Rails and Vite. See the root README for setup commands.
 
-- **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.
-  Decide before the deploy phase whether to use EKS or a cheaper k8s setup.
+- **Single-server AWS hosting, no Kubernetes.** Production runs the service containers with
+  Docker Compose on one EC2 server, with Postgres on RDS, uploads on S3, and queues on SQS.
+  We expect this to cost about $45/month at the start, compared with about $220/month for
+  EKS with a NAT gateway and load balancer. To keep costs down, Caddy or nginx on the server
+  handles HTTPS, and there is no NAT gateway or load balancer. DigitalOcean costs about the
+  same for one server, but it has no SQS, so it would add a second provider and long-lived
+  AWS keys. The trade-off is that the app goes down if the server fails or restarts, and
+  deploys may cause brief downtime. RDS, S3, and SQS keep saved data and queued work outside
+  the server. Reconsider if the app needs high availability or outgrows one server, or if
+  outbound data grows enough to make DigitalOcean's included bandwidth cheaper.

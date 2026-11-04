@@ -3,6 +3,7 @@
  * Index:
  *   - ANALYZE_JOB_GAPS_MUTATION: starts an analyze_gaps AI task for one job
  *   - SAVE_GAP_RESPONSE_MUTATION: saves an answer to one requirement of a job
+ *   - SET_GAP_DISMISSAL_MUTATION: dismisses or restores one requirement of a job
  * The job's latest analysis and saved answers come with JOB_QUERY (features/jobs); live status
  * from features/ai-tasks.
  */
@@ -33,6 +34,18 @@ export const SAVE_GAP_RESPONSE_MUTATION = graphql(`
         careerContext {
           id
         }
+      }
+      errors
+    }
+  }
+`)
+
+export const SET_GAP_DISMISSAL_MUTATION = graphql(`
+  mutation SetGapDismissal($jobId: ID!, $requirement: String!, $dismissed: Boolean!) {
+    setGapDismissal(input: { jobId: $jobId, requirement: $requirement, dismissed: $dismissed }) {
+      job {
+        id
+        dismissedRequirements
       }
       errors
     }

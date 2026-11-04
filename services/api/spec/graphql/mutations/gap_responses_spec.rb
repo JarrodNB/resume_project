@@ -1,4 +1,4 @@
-# Description: saveGapResponse and deleteCareerContext, including ownership.
+# Description: saveGapResponse, setGapDismissal and deleteCareerContext, including ownership.
 require "rails_helper"
 
 RSpec.describe "Gap response mutations" do
@@ -55,6 +55,36 @@ RSpec.describe "Gap response mutations" do
     GQL
 
     expect(result.dig("data", "job", "gapResponses")).to eq([ { "id" => response.id, "body" => "Used it at Acme" } ])
+  end
+
+  it "setGapDismissal dismisses and restores a requirement, listed on the job" do
+    mutation = <<~GQL
+      mutation($jobId: ID!, $requirement: String!, $dismissed: Boolean!) {
+        setGapDismissal(input: { jobId: $jobId, requirement: $requirement, dismissed: $dismissed }) {
+          job { id dismissedRequirements }
+          errors
+        }
+      }
+    GQL
+
+    dismissed = execute_graphql(mutation, user: user, variables: { jobId: job.id, requirement: requirement, dismissed: true })
+    expect(dismissed.dig("data", "setGapDismissal")).to eq(
+      "job" => { "id" => job.id, "dismissedRequirements" => [ requirement ] }, "errors" => []
+    )
+
+    restored = execute_graphql(mutation, user: user, variables: { jobId: job.id, requirement: requirement, dismissed: false })
+    expect(restored.dig("data", "setGapDismissal", "job", "dismissedRequirements")).to eq([])
+  end
+
+  it "setGapDismissal can't change another user's job" do
+    result = execute_graphql(<<~GQL, user: user, variables: { jobId: create(:job).id, requirement: requirement })
+      mutation($jobId: ID!, $requirement: String!) {
+        setGapDismissal(input: { jobId: $jobId, requirement: $requirement, dismissed: true }) { errors }
+      }
+    GQL
+
+    expect(result["errors"].first["message"]).to eq("Record not found")
+    expect(JobGapDismissal.count).to eq(0)
   end
 
   it "deleteCareerContext removes the context, keeps the job answer, and queues an embedding sync" do

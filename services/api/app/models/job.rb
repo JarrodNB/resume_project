@@ -8,6 +8,7 @@
 #   - ai_tasks: AI tasks about this job (its scrape, gap analyses); kept when the job is
 #     deleted, because their cost still counts toward the monthly AI budget
 #   - gap_responses: the user's answers to this job's requirements, keyed by requirement text
+#   - gap_dismissals: requirements the user chose not to answer, keyed by requirement text
 #   - latest_gap_analysis: the most recent analyze_gaps task
 #   - latest_tailoring: the most recent tailor_resume task
 class Job < ApplicationRecord
@@ -23,6 +24,7 @@ class Job < ApplicationRecord
   has_many :interview_sessions, dependent: :nullify
   has_many :ai_tasks, as: :subject, dependent: :nullify
   has_many :gap_responses, -> { order(:created_at) }, class_name: "JobGapResponse", dependent: :destroy, inverse_of: :job
+  has_many :gap_dismissals, class_name: "JobGapDismissal", dependent: :destroy, inverse_of: :job
 
   enum :stage, STAGES.index_with(&:itself), validate: true
 

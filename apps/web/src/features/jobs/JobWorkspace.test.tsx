@@ -33,7 +33,7 @@ function job(overrides: Record<string, unknown> = {}) {
     requirements: ['Python'],
     responsibilities: [],
     niceToHaves: [],
-    gapResponses: [],
+    gapResponses: [], dismissedRequirements: [],
     latestGapAnalysis: null,
     resume: null,
     ...overrides,

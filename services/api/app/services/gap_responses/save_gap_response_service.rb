@@ -4,7 +4,7 @@
 # Description: Saves the user's answer to one requirement of a job. A blank answer removes it.
 # "Add to career library" upserts a career context (requirement plus answer) and links it; leaving
 # it unchecked keeps the answer on the job only. Embedding sync runs only when a context is
-# created, updated, or deleted.
+# created, updated, or deleted. Saving an answer also restores the requirement if it was dismissed.
 # Index:
 #   - call: saves, updates, or clears the response and returns it (nil when cleared)
 module GapResponses
@@ -75,6 +75,7 @@ module GapResponses
           raise ActiveRecord::Rollback
         end
         unlink_context(previous_context)
+        @job.gap_dismissals.where(requirement: @requirement).destroy_all
         saved = true
       end
       return failure(errors || [ "Couldn't save that response" ]) unless saved

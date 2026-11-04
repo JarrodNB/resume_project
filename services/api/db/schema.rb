@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_03_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -685,6 +685,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_010000) do
     t.index ["query_digest"], name: "index_job_board_search_pages_on_query_digest", unique: true
   end
 
+  create_table "job_gap_dismissals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "job_id", null: false
+    t.text "requirement", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_id", "requirement"], name: "index_job_gap_dismissals_on_job_id_and_requirement", unique: true
+  end
+
   create_table "job_gap_responses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "job_id", null: false
     t.text "requirement", null: false
@@ -1056,6 +1064,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_010000) do
   add_foreign_key "interview_transcription_captures", "ai_tasks"
   add_foreign_key "interview_transcription_captures", "interview_session_questions", column: "question_id"
   add_foreign_key "interview_transcription_captures", "interview_sessions"
+  add_foreign_key "job_gap_dismissals", "jobs"
   add_foreign_key "job_gap_responses", "career_contexts", on_delete: :nullify
   add_foreign_key "job_gap_responses", "jobs"
   add_foreign_key "job_preference_profiles", "users"

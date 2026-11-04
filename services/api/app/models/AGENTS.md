@@ -53,6 +53,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `job.rb` — job profile + application stage; `ai_tasks` it is the subject of (scrape,
   gap analyses, tailoring; nulled, not deleted, with the job so costs stay counted),
   `gap_responses` (deleted with the job; career context entries they point at are kept),
+  `gap_dismissals` (requirements the user chose not to answer; deleted with the job),
   `latest_gap_analysis`, and `latest_tailoring`
 - `resume.rb` + `resume_section.rb` — resumes tailored to a job (there is no base resume; the
   career library is the base). Section `content` is a JSON snapshot, so editing a resume never

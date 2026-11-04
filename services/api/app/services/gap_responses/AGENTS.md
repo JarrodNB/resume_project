@@ -13,6 +13,10 @@ Adding it to the career library creates a `CareerContext`; only that context is 
   response still points at it. Queues an embedding sync only when a context is created, its text
   changes, or it is deleted.
 
+- `set_gap_dismissal_service.rb` — dismisses or restores one requirement by its text
+  (`JobGapDismissal`). Refuses when the requirement has a saved answer; saving an answer removes
+  any dismissal. Dismissals only shape the Fit tab: they are not screened and never reach prompts.
+
 - `../screening/record_approvals_service.rb` — accepts final tailoring field fingerprints for answers
   on the owned task subject matching its command job ID and locked current text. Retained
   copied-input tasks also require their original answer membership/value. Successful

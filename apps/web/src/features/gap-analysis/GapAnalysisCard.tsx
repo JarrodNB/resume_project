@@ -1,9 +1,12 @@
-/** Shows comparison progress, results, and retry controls using the job page’s shared lifecycle. */
+/**
+ * The comparison on a job's Fit tab: progress, results, and retry controls, using the job page's
+ * shared lifecycle. Once a comparison finishes, the summary leads and "How you match" stays as a
+ * heading for screen readers only.
+ */
 import { LoaderCircle, RefreshCw } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { GapAnalysisResultView } from './GapAnalysisResultView'
 import { parseGapAnalysisResult } from './parseGapAnalysisResult'
 import type { SavedGapResponse } from './savedGapResponse'
@@ -14,29 +17,30 @@ interface GapAnalysisCardProps {
   jobId: string
   comparison: ReturnType<typeof useGapAnalysis>
   gapResponses: SavedGapResponse[]
+  dismissedRequirements: string[]
 }
 
 /** Displays the lifecycle owned by the page, so its writing controls see the same state. */
-export function GapAnalysisCard({ jobId, comparison, gapResponses }: GapAnalysisCardProps) {
+export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequirements }: GapAnalysisCardProps) {
   const { task, starting, errors, subscriptionError, start } = comparison
   const runButton = (currentTask: GapAnalysisTask | null) => (
     <RunButton task={currentTask} starting={starting} onRun={() => void start()} />
   )
 
+  const finished = task?.status === 'COMPLETED'
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>How you match</CardTitle>
-        <CardDescription>
+    <section className="grid gap-4">
+      <div className={finished ? 'sr-only' : 'grid gap-1'}>
+        <h2 className="text-xl font-extrabold tracking-[-0.01em]">How you match</h2>
+        <p className="text-sm text-muted-foreground">
           Each requirement compared with your career library. Only what your library says counts.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <ErrorAlert messages={errors} title="Couldn't start the comparison" />
-        {subscriptionError && <ErrorAlert title="Couldn't follow the comparison" messages={[subscriptionError.message]} />}
-        <GapAnalysisTaskView task={task} jobId={jobId} gapResponses={gapResponses} renderRunButton={runButton} />
-      </CardContent>
-    </Card>
+        </p>
+      </div>
+      <ErrorAlert messages={errors} title="Couldn't start the comparison" />
+      {subscriptionError && <ErrorAlert title="Couldn't follow the comparison" messages={[subscriptionError.message]} />}
+      <GapAnalysisTaskView task={task} jobId={jobId} gapResponses={gapResponses} dismissedRequirements={dismissedRequirements} renderRunButton={runButton} />
+    </section>
   )
 }
 
@@ -45,11 +49,13 @@ function GapAnalysisTaskView({
   task,
   jobId,
   gapResponses,
+  dismissedRequirements,
   renderRunButton,
 }: {
   task: GapAnalysisTask | null
   jobId: string
   gapResponses: SavedGapResponse[]
+  dismissedRequirements: string[]
   renderRunButton: (task: GapAnalysisTask | null) => ReactNode
 }) {
   if (!task) {
@@ -81,15 +87,22 @@ function GapAnalysisTaskView({
   }
 
   const analysis = parseGapAnalysisResult(task.result)
-  return (
-    <>
-      {analysis ? (
-        <GapAnalysisResultView jobId={jobId} analysis={analysis} responses={gapResponses} />
-      ) : (
+  if (!analysis) {
+    return (
+      <>
         <p className="text-muted-foreground">This comparison couldn't be displayed. Run it again.</p>
-      )}
-      {renderRunButton(task)}
-    </>
+        {renderRunButton(task)}
+      </>
+    )
+  }
+  return (
+    <GapAnalysisResultView
+      jobId={jobId}
+      analysis={analysis}
+      responses={gapResponses}
+      dismissedRequirements={dismissedRequirements}
+      comparedNote={renderRunButton(task)}
+    />
   )
 }
 

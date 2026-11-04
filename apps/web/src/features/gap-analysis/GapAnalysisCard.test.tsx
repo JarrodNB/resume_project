@@ -1,6 +1,6 @@
 /**
  * Description: The gap analysis card starts a comparison, follows a running one, and shows failures
- * and completed results (verdicts, evidence, and the nice-to-have section).
+ * and completed results (requirement groups, evidence, details for the resume, and dismissing).
  */
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -11,7 +11,7 @@ import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { useGapAnalysis } from './useGapAnalysis'
 import { GapAnalysisCard, type GapAnalysisTask } from './GapAnalysisCard'
-import { ANALYZE_JOB_GAPS_MUTATION, SAVE_GAP_RESPONSE_MUTATION } from './gapAnalysisOperations'
+import { ANALYZE_JOB_GAPS_MUTATION, SAVE_GAP_RESPONSE_MUTATION, SET_GAP_DISMISSAL_MUTATION } from './gapAnalysisOperations'
 
 const COMPLETED_RESULT = {
   gap_analysis: {
@@ -96,9 +96,9 @@ function openGap(requirement: string) {
   setSectionOpen(`job.job-1.gap.${requirement}`, true)
 }
 
-function TestCard({ latestGapAnalysis }: { latestGapAnalysis: GapAnalysisTask | null }) {
+function TestCard({ latestGapAnalysis, dismissedRequirements = [] }: { latestGapAnalysis: GapAnalysisTask | null; dismissedRequirements?: string[] }) {
   const comparison = useGapAnalysis('job-1', latestGapAnalysis)
-  return <GapAnalysisCard jobId="job-1" comparison={comparison} gapResponses={[]} />
+  return <GapAnalysisCard jobId="job-1" comparison={comparison} gapResponses={[]} dismissedRequirements={dismissedRequirements} />
 }
 
 function renderCard(
@@ -179,44 +179,108 @@ it('leaves the profile summary out of a requirement evidence list', () => {
   expect(screen.queryByText(biography)).not.toBeInTheDocument()
 })
 
-it('shows verdicts, evidence, and the nice-to-have section', () => {
+it('sorts requirements into groups, with what needs the user first', () => {
   openGap('5+ years of Python')
-  openGap('Go')
   openGap('Kubernetes')
   renderCard(task({ result: COMPLETED_RESULT }))
 
-  expect(screen.getByText('Requirements: 1 met · 0 partly met · 1 gap')).toBeInTheDocument()
-  const pythonItem = screen.getByText('5+ years of Python').closest('li')
-  expect(pythonItem).not.toBeNull()
-  expect(within(pythonItem as HTMLElement).getByText('Met')).toBeInTheDocument()
-  expect(within(pythonItem as HTMLElement).getByText(/Built Python APIs/)).toBeInTheDocument()
-  expect(screen.getByRole('heading', { name: 'Nice to have' })).toBeInTheDocument()
-  expect(screen.queryByRole('heading', { name: 'Responsibilities' })).not.toBeInTheDocument()
+  expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual(['Gaps to fill1 gap', 'Met1 met', 'Nice to have'])
+  const met = screen.getByText('5+ years of Python').closest('li') as HTMLElement
+  expect(within(met).getByText('Met')).toBeInTheDocument()
+  expect(within(met).getByText(/Built Python APIs/)).toBeInTheDocument()
+  expect(within(met).queryByRole('textbox')).not.toBeInTheDocument()
   expect(screen.getByText('Partly met')).toBeInTheDocument()
   expect(screen.getByText(/Compared on/)).toBeInTheDocument()
-  const met = screen.getByText('5+ years of Python').closest('li') as HTMLElement
+})
+
+it('shows a gap open, asking for details the resume can use', () => {
+  renderCard(task({ result: COMPLETED_RESULT }))
+
   const gap = screen.getByText('Go').closest('li') as HTMLElement
-  expect(within(met).queryByRole('textbox')).not.toBeInTheDocument()
-  expect(within(gap).getByRole('textbox')).toBeInTheDocument()
+  expect(within(gap).getByText('Nothing in your library mentions Go.')).toBeVisible()
+  expect(within(gap).getByRole('textbox', { name: 'Details for your resume' })).toBeVisible()
   expect(within(gap).getByRole('checkbox', { name: 'Add to career library' })).toBeInTheDocument()
 })
 
-it('keeps an unsaved answer when its requirement is collapsed', async () => {
-  openGap('Go')
+it('asks for details on a partial match only when the user chooses to add them', async () => {
+  const user = userEvent.setup()
+  const assessments = [{ kind: 'required', requirement: 'SQL', verdict: 'partial', explanation: 'Some SQL.', evidence: [] }]
+  renderCard(task({ result: { gap_analysis: { summary: '', assessments } } }))
+
+  const row = screen.getByText('SQL').closest('li') as HTMLElement
+  expect(within(row).queryByRole('textbox')).not.toBeInTheDocument()
+  await user.click(within(row).getByRole('button', { name: 'Add details for SQL' }))
+  expect(within(row).getByRole('textbox')).toBeVisible()
+})
+
+it('keeps an unsaved answer when a collapsed requirement is closed', async () => {
+  openGap('Kubernetes')
+  const user = userEvent.setup()
+  renderCard(task({ result: COMPLETED_RESULT }))
+
+  const row = screen.getByText('Kubernetes').closest('li') as HTMLElement
+  await user.type(within(row).getByRole('textbox'), 'Ran the Acme cluster')
+  await user.click(within(row).getByRole('button', { name: /Kubernetes/ }))
+  expect(within(row).queryByRole('textbox')).not.toBeInTheDocument()
+
+  await user.click(within(row).getByRole('button', { name: /Kubernetes/ }))
+  expect(within(row).getByRole('textbox')).toHaveValue('Ran the Acme cluster')
+})
+
+it('only offers to dismiss while the box is empty', async () => {
   const user = userEvent.setup()
   renderCard(task({ result: COMPLETED_RESULT }))
 
   const gap = screen.getByText('Go').closest('li') as HTMLElement
+  expect(within(gap).getByRole('button', { name: 'Dismiss Go' })).toBeVisible()
   await user.type(within(gap).getByRole('textbox'), 'Used it at Acme')
-  await user.click(within(gap).getByRole('button', { name: /Go/ }))
-  expect(within(gap).queryByRole('textbox')).not.toBeInTheDocument()
+  expect(within(gap).queryByRole('button', { name: 'Dismiss Go' })).not.toBeInTheDocument()
+})
 
-  await user.click(within(gap).getByRole('button', { name: /Go/ }))
-  expect(within(gap).getByRole('textbox')).toHaveValue('Used it at Acme')
+it('moves a dismissed requirement out of the gaps and offers Restore', () => {
+  renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <TestCard latestGapAnalysis={task({ result: COMPLETED_RESULT })} dismissedRequirements={['Go']} />,
+  })
+
+  expect(screen.queryByRole('heading', { name: /Gaps to fill/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Dismissed' })).toBeInTheDocument()
+  const row = screen.getByText('Go').closest('li') as HTMLElement
+  expect(within(row).queryByRole('textbox')).not.toBeInTheDocument()
+  expect(within(row).getByRole('button', { name: 'Restore Go' })).toBeVisible()
+})
+
+it('keeps a met requirement out of Dismissed when a new comparison finds evidence', () => {
+  renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <TestCard latestGapAnalysis={task({ result: COMPLETED_RESULT })} dismissedRequirements={['5+ years of Python']} />,
+  })
+
+  expect(screen.queryByRole('heading', { name: 'Dismissed' })).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /^Met/ })).toBeInTheDocument()
+})
+
+it('shows why a dismissal failed and leaves the gap in place', async () => {
+  const user = userEvent.setup()
+  renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <TestCard latestGapAnalysis={task({ result: COMPLETED_RESULT })} />,
+    mocks: [{
+      request: { query: SET_GAP_DISMISSAL_MUTATION, variables: { jobId: 'job-1', requirement: 'Go', dismissed: true } },
+      result: { data: { setGapDismissal: { __typename: 'SetGapDismissalPayload', job: null, errors: ['Clear your details for this requirement before dismissing it'] } } },
+    }],
+  })
+
+  await user.click(screen.getByRole('button', { name: 'Dismiss Go' }))
+
+  expect(await screen.findByText('Clear your details for this requirement before dismissing it')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /Gaps to fill/ })).toBeInTheDocument()
 })
 
 it('saves a response and can add it to the career library', async () => {
-  openGap('Go')
   const user = userEvent.setup()
   renderPage({
     path: '/jobs/:id',
@@ -262,6 +326,7 @@ it('saves a response and can add it to the career library', async () => {
               niceToHaves: [],
               notes: null,
               appliedAt: null,
+              dismissedRequirements: [],
               gapResponses: [
                 {
                   __typename: 'JobGapResponse',
@@ -285,5 +350,5 @@ it('saves a response and can add it to the career library', async () => {
   await user.click(within(gap).getByRole('checkbox', { name: 'Add to career library' }))
   await user.click(within(gap).getByRole('button', { name: 'Save' }))
 
-  expect(await within(gap).findByText('Saved on this job.')).toBeInTheDocument()
+  expect(await within(gap).findByText('Saved on this job. Resume drafts for this job can use it.')).toBeInTheDocument()
 })

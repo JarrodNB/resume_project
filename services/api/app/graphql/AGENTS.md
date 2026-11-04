@@ -24,7 +24,9 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   and `Job.resume` are the newest tailor task and the newest saved resume; `AiTask.input` stores
   the request snapshots; tailoring returns its complete editable draft in `AiTask.result`;
   `mutations/gap_responses/save_gap_response.rb` (`saveGapResponse`) saves an answer on that job,
-  and `Job.gapResponses` lists them; `mutations/career_contexts/delete_career_context.rb`
+  and `Job.gapResponses` lists them; `mutations/gap_responses/set_gap_dismissal.rb`
+  (`setGapDismissal`) dismisses or restores a requirement, listed by `Job.dismissedRequirements`;
+  `mutations/career_contexts/delete_career_context.rb`
   (`deleteCareerContext`) removes a career context entry (`careerContexts` on the root query);
   career library entries have create and update (`create*` / `update*` for projects,
   educations, skills, and career context entries; experiences already had both; `updateProfile` edits

@@ -64,7 +64,7 @@ employed-mode work journal.
    eval cases before tuning the prompt.
 5. **Web app** — resume editor, job board, gap analysis chat, tailored resume view, PDF and editable DOCX export.
 6. **Landing page.**
-7. **Deploy** — Terraform for AWS, k8s manifests, GitHub Actions CI/CD (including an eval
+7. **Deploy** — Terraform for AWS, a production Compose file for one EC2 server, GitHub Actions CI/CD (including an eval
    run on changes to `services/ai`).
 
 ## Prerequisites to Install (Ubuntu)
@@ -78,7 +78,7 @@ Use bash and run commands from the checkout root. See the root README for setup 
 Docker access checks.
 
 Ruby, Node, and Python run inside containers; generators like `rails new` also run
-through Docker. Terraform, kubectl, and AWS CLI can run from containers later too.
+through Docker. Terraform and AWS CLI can run from containers later too.
 
 ## Open Questions
 

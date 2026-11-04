@@ -6,9 +6,10 @@ Infrastructure as code and local dev infrastructure.
 
 ## Planned Layout
 
-- `terraform/` — AWS: VPC, EKS, RDS (Postgres + pgvector), SQS, S3 (uploads bucket: Rails
+- `terraform/` — AWS: VPC, EC2, RDS (Postgres + pgvector), SQS, S3 (uploads bucket: Rails
   read/write, AI worker read-only), Route53, Lambda (scheduled jobs), ECR
-- `k8s/` — Kubernetes manifests for `api`, `ai` workers, `web`, `landing`
+- `compose/` — production Docker Compose file for the single EC2 server: `api`, `ai` workers,
+  `web`, `landing`
 - `elasticmq/` — local SQS emulator config (queues) used by docker compose
 - `postgres/` — local Postgres init scripts (dev database, read-only `ai_reader` role)
 
@@ -16,6 +17,8 @@ Infrastructure as code and local dev infrastructure.
 
 - One Terraform module per concern; no monolithic `main.tf`.
 - No secrets in code; use variables plus AWS Secrets Manager / SSM.
+- Do not add Kubernetes, a NAT gateway, or a load balancer without revisiting the
+  [hosting decision](../docs/architecture.md); they make up most of the cost it avoids.
 - Add nested instructions only for distinct operational constraints.
 
 ## Documentation

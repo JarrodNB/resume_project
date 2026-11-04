@@ -361,7 +361,7 @@ The worker retries through SQS redelivery instead of in-process loops:
 - **Shoryuken for SQS in Rails, in its own process.** Shoryuken publishes to `ai_tasks` and
   consumes `ai_results` (polling, threads, retries, and dead-lettering come built in). The
   consumer runs as a separate `api-results-worker` service (same image as the API), so it
-  scales and restarts independently of Puma and maps to its own k8s Deployment later.
+  scales and restarts independently of Puma as its own production container.
   Because subscription triggers come from that process, ActionCable uses Solid Cable in
   development too.
 

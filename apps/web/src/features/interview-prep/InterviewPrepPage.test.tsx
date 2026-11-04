@@ -7,7 +7,7 @@ import { expect, it, vi } from 'vitest'
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPrepPage } from './InterviewPrepPage'
-import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY } from './interviewPrepOperations'
+import { DELETE_INTERVIEW_QUESTION, DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY } from './interviewPrepOperations'
 
 /** A saved synthetic summary enables generation just as a real career library does. */
 function libraryMock() {
@@ -167,4 +167,41 @@ it('refreshes generation status and preserves saved questions after dismissal', 
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   await waitFor(() => expect(screen.queryByRole('list', { name: 'Question generation' })).not.toBeInTheDocument())
   expect(screen.getByRole('link', { name: /Question q-tech\?/ })).toBeInTheDocument()
+})
+
+it('deletes only the selected list row after confirmation and stays in the bank', async () => {
+  const result = vi.fn(() => ({ data: { deleteInterviewQuestion: { __typename: 'DeleteInterviewQuestionPayload', errors: [] } } }))
+  const { router } = render([{
+    request: { query: DELETE_INTERVIEW_QUESTION, variables: { questionSetId: 'set-1', questionId: 'q-reviewed' } }, result,
+  }])
+  const remove = await screen.findByRole('button', { name: 'Delete question: Question q-reviewed?' })
+  fireEvent.click(remove)
+  expect(await screen.findByRole('dialog')).toHaveTextContent('Question q-reviewed?')
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(result).not.toHaveBeenCalled()
+  expect(screen.getByRole('link', { name: /Question q-reviewed/ })).toBeVisible()
+  fireEvent.click(remove)
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete question' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(screen.queryByRole('link', { name: /Question q-reviewed/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Question q-empty/ })).toBeVisible()
+  expect(screen.getByRole('button', { name: /Feedback ready/ })).toHaveTextContent('0')
+  expect(router.state.location.pathname).toBe('/practice/questions')
+  expect(result).toHaveBeenCalledTimes(1)
+})
+
+it('keeps a list row when deletion fails and supports retry', async () => {
+  const request = { query: DELETE_INTERVIEW_QUESTION, variables: { questionSetId: 'set-2', questionId: 'q-tech' } }
+  render([
+    { request, error: new Error('Connection lost') },
+    { request, result: { data: { deleteInterviewQuestion: { __typename: 'DeleteInterviewQuestionPayload', errors: [] } } } },
+  ])
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete question: Question q-tech?' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete question' }))
+  expect(await screen.findByText(/Could not delete this question/)).toBeVisible()
+  expect(screen.getByRole('link', { name: /Question q-tech/, hidden: true })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Delete question' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(screen.queryByRole('link', { name: /Question q-tech/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Question q-empty/ })).toBeVisible()
 })

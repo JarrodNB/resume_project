@@ -15,17 +15,17 @@ General AI limits exclude spoken interview preparation, turns and speech:
   token usage and a per-model price table (`services/ai/llm/model_prices.py`) and reports it
   with attempt reports, including unsuccessful attempts. Missing provider usage or prices
   makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
-- **Tasks per hour** (fallback 30, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
+- **Tasks per hour** (fallback 40, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
 - **Tasks in flight** (fallback 3, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
 For the first 7 days after verifying email, an account has lower budgets and hourly starts so a
 batch of fake accounts costs less (`AiUsage::NewAccountLimits`, `NEW_ACCOUNT_*`, fallback $1.00
-general, $1.00 interview, 10 tasks/hour, 5 interview sessions/hour). These never raise a default.
+general, $1.00 interview, 25 tasks/hour, 5 interview sessions/hour). These never raise a default.
 
 Nullable columns on `users` override each general AI default. The existing API `.env.example`
-explicitly configures $2/month, 10 tasks/hour and two in-flight tasks; those example values
-are overrides of the fallback defaults above, and are unchanged. The existing `me { aiUsage }` query exposes
+explicitly configures $2/month, 40 tasks/hour and two in-flight tasks; those example values
+are overrides of the fallback defaults above. The existing `me { aiUsage }` query exposes
 combined known monthly spend across general AI and every spoken interview stage, with the
 sum of both monthly allowances as its budget. Admission checks explicitly select their own
 general or interview allowance; combined reporting does not merge those limits.

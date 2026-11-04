@@ -98,5 +98,5 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   reads canonical clarification prompts, bounded reference queries and completed feedback dialogue.
   Rails claim responses contain identities and timestamps, never these sources.
 
-- `saved_jobs.py` — reads only current owned active job titles, companies and saved checks, newest first with ID tie-breaker; one extra row detects overflow.
+- `saved_jobs.py` — reads only current owned active job titles, companies and saved checks, newest first with ID tie-breaker; one extra row detects overflow by default, and chat hydration asks for its five newest.
 - `saved_jobs.py` also reads one selected job's current posting facts, scoped by owner and active state.

@@ -25,7 +25,7 @@ call it. See docs/architecture/chat.md#tools-mcp for the design.
   the token's user. Raise `ToolError` with a short code; never send exception details back.
 - The model only sees text the client has screened and rendered: reuse saved field
   approvals, screen the rest with the caller's accounted screen, render readable labeled
-  text with `model_inputs/` (never JSON), enforce item/text caps and fail the operation on overflow or rejected/unavailable checks.
+  text with `model_inputs/` (never JSON), enforce item/text caps and raise `LibraryScreeningError` on overflow or rejected/unavailable checks. `client.py` turns that into a plain sentence for the model; a tool result never fails the turn.
   Pending library fields are screened together; never screen each skill independently.
   New exact fingerprinted approvals return through chat acceptance for Rails to persist.
 - One file per tool (or per tight group of tools) holds both halves and the tool's name,
@@ -42,4 +42,4 @@ call it. See docs/architecture/chat.md#tools-mcp for the design.
 - Tests run the real HTTP app through `local_server.py`; never call a running `ai-mcp`.
 
 - `saved_jobs.py` — active saved-job list server/client halves and compact signed owner/operation-bound references; references expire with the issuing token and require no replica-local state.
-- `saved_jobs.py` also implements `read_job_summary`, validating selection references before independently owned active reads and caller screening.
+- `saved_jobs.py` also implements `read_job_summary`, validating selection references before independently owned active reads and caller screening. `select_screened_saved_jobs` screens chat's recent-job context per job.

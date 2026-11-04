@@ -25,7 +25,7 @@ from schemas.gap_analysis_context import CareerLibrary
 from screening.library_inputs import LibraryScreeningError, screen_library_inputs_async
 
 READ_CAREER_LIBRARY = "read_career_library"
-READ_CAREER_LIBRARY_VERSION = "read_career_library-v3"
+READ_CAREER_LIBRARY_VERSION = "read_career_library-v4"
 CAREER_LIBRARY_UNAVAILABLE = "career_library_unavailable"
 # Keeps one rendered result well inside the chat run's token cap.
 MAX_CAREER_LIBRARY_RESULT_CHARACTERS = 40_000
@@ -67,7 +67,8 @@ async def render_career_library_result(call_tool, tool_args: dict,
     """Client half: call the server, screen what lacks a saved check, and return readable text.
 
     call_tool sends the request to the server; screen returns a screening decision and
-    records its own usage. Failed reads, limits and screening fail the operation.
+    records its own usage. Failed reads, limits and screening raise; the shared client
+    turns that into a plain sentence for the model, so no partial library is shown.
     """
     with logfire.span("mcp_client.read_career_library", tool_version=READ_CAREER_LIBRARY_VERSION) as span:
         try:

@@ -21,7 +21,7 @@ General AI limits exclude spoken interview preparation, turns and speech:
 
 For the first 7 days after verifying email, an account has lower budgets and hourly starts so a
 batch of fake accounts costs less (`AiUsage::NewAccountLimits`, `NEW_ACCOUNT_*`, fallback $1.00
-general, $1.00 interview, 25 tasks/hour, 5 interview sessions/hour). These never raise a default.
+general, $1.00 interview, 25 tasks/hour, 3 interview sessions/hour). These never raise a default.
 
 Nullable columns on `users` override each general AI default. The existing API `.env.example`
 explicitly configures $2/month, 40 tasks/hour and two in-flight tasks; those example values
@@ -34,7 +34,7 @@ known subtotals from complete recorded usage. No spend display or usage subscrip
 See [cost accounting and verified receipt reconciliation](ai-cost-accounting.md).
 
 Spoken interviews have an independent per-user allowance: $3/month
-(`INTERVIEW_MONTHLY_BUDGET_USD`), 30 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
+(`INTERVIEW_MONTHLY_BUDGET_USD`), 10 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
 three concurrent operations (`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`). General tasks and general
 per-user overrides do not consume or change those allowances. Written interview question
 practice remains general AI. Every spoken stage still has its own durable cost and unknown

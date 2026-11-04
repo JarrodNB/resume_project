@@ -6,6 +6,7 @@ headers before the body and footers after it, reading inherited parts only once.
 Malformed link destinations remain source text without aborting extraction.
 Each PDF page keeps labels for at most MAX_PDF_LINKS_PER_PAGE distinct links, so a page full of
 annotations cannot make label matching grow with annotations times text fragments.
+Link rectangles allow either order of opposite corners.
 PDF annotation arrays and link actions may be indirect or explicitly absent via null.
 Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
@@ -132,6 +133,8 @@ def _pdf_link_label(
         return branded_label
 
     x1, y1, x2, y2 = rectangle
+    x1, x2 = sorted((x1, x2))
+    y1, y2 = sorted((y1, y2))
     overlapping = [
         fragment
         for fragment in fragments

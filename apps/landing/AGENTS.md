@@ -27,7 +27,7 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 - `src/LineStrip.tsx` — pinned line of stops that follows the scroll
 - `src/RideStops.tsx` — the five worked-example stops
 - `src/SearchMap.tsx` — the whole search as a map, like the app's Home
-- `src/appLinks.ts` — where sign-up, sign-in and source links lead
+- `src/appLinks.ts` — where sign-up and sign-in links lead
 - `vite.config.ts` — dev server on `0.0.0.0:5174`
 - `Dockerfile.dev` — local dev image; `node_modules` lives in a container volume
 - `VITE_APP_URL` — web app address for sign-up links; required for production builds

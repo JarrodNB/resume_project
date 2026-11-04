@@ -379,8 +379,9 @@ Solid and square-shouldered, like a sign you can press.
 The sign-in, sign-up, verification and password pages split the screen. On the left is a black signage panel (band color) with the brand bullet, a white 800-weight headline, and the three steps of a search drawn as white stops on one vertical 6px line. On the right is a plain white form whose heading sits above a 2px ink rule. A success message is a white box with a green signal border. On phones the panel moves to the top and drops the line and the caption.
 
 ### Landing Page
-The public page in `apps/landing` is the same world at poster scale. These choices belong to that page; don't bring them into the workspace.
-- **Poster type:** Archivo stretched to 112% width with tight -0.04em spacing, sized to the screen. The opening headline and the closing heading are 900; section headings are 800 and reach 7.5rem. The closing heading reaches 9rem. Map station names use 105% width.
+The public page in `apps/landing` is the same world with bigger headlines and normal reading text. These choices belong to that page; don't bring them into the workspace.
+- **Headline type:** Archivo stretched to 112% width with tight -0.04em spacing, sized to the screen and capped so it stops growing on large monitors. The opening headline and the closing heading are 900; section headings are 800 and reach 4rem. The opening headline reaches 6.5rem and the closing heading 5.5rem. Map station names use 105% width.
+- **Reading text:** paragraphs and resume lines stay at 16 to 18px at every screen width. Only headlines scale up.
 - **Pinned line strip:** under the band, five linked stops on an 8px line (6px on phones) stay pinned above a 2px ink rule. The gray track fills with ink as you scroll, and passed stops fill with it. The gaps stop stays red only while the example's question needs an answer.
 - **Map at signage scale:** Home's station line, made bigger: 56 to 84px ringed bullets, a 12 to 16px line, and a 6px dashed Rejected branch. Job tiles stay at Home's size. Under 900px it stacks, and the line keeps running down through the stations.
 - **Full-bleed ink:** the resume stop and the closing section run edge to edge in `band`, with white type. The footer joins the closing section.

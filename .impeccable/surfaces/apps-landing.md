@@ -13,7 +13,7 @@ Audience and job: job seekers partway through a search, tired of sending the sam
 
 Proof: one worked example with a made-up person and job, labeled as made up. No customers, testimonials, outcome numbers, or prices exist; none may be implied.
 
-Constraints: static only, no API calls. Inherits the Transit Line world in DESIGN.md at poster scale. Signal colors keep their one meaning.
+Constraints: static only, no API calls. Inherits the Transit Line world in DESIGN.md with bigger headlines and normal reading text. Signal colors keep their one meaning.
 
 Chosen direction: The Door Strip. Memorable moment: answering Maya's gap in one section fills the empty line on her resume further down the line, and the red stop on the strip clears.
 
@@ -27,7 +27,7 @@ OWN-WORLD: White ground, ink #111418, black signage band and full-bleed ink sect
 
 STORY: The visitor learns the promise, rides five stops with Maya (library, job, gaps, resume, interview), sees that a claim with no evidence stays off the resume until the person answers, sees the whole search as a map, reads what the product refuses to do, then signs up.
 
-FIRST VIEWPORT: 60px black band with brand at left, How it works, Sign in and a white Sign up button at right. Directly under it, the full-width strip of five stops on an 8px line, first stop ringed. Then a headline filling the width on two lines, "One job. One real resume." Under it, the plain promise at left and a large ink Sign up button at right. A pale platform strip closes the viewport naming the first stop.
+FIRST VIEWPORT: 60px black band with brand at left, How it works, Sign in and a white Sign up button at right. Directly under it, the full-width strip of five stops on an 8px line, first stop ringed. Then a large headline on two lines, "One job. One real resume." Under it, the plain promise at left and a large ink Sign up button at right. A pale platform strip closes the opening, names the first stop, and leaves the first stop peeking in below.
 
 FORM: The Door Strip, position 5 on the grounded list, dealt lead. seed:88e69ed0e1562c0a
 

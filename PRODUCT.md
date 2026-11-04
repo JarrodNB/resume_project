@@ -43,6 +43,8 @@ mass-generated, mass-sent resumes.
   gaps and partial matches and choose to save those answers as career context entries.
 - Users review and edit job-specific resumes and export them as PDFs.
 - Interview preparation supports job-specific questions, saved answers, and feedback.
+- Practice interviews are spoken or typed with an AI interviewer, using questions prepared from
+  the career library and either a saved job or a made-up role.
 
 ## Capabilities and Constraints
 

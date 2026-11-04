@@ -157,3 +157,9 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   deploys may cause brief downtime. RDS, S3, and SQS keep saved data and queued work outside
   the server. Reconsider if the app needs high availability or outgrows one server, or if
   outbound data grows enough to make DigitalOcean's included bandwidth cheaper.
+
+Chat conversation lists and study-guide history share
+`Pagination::ReadCreatedPageService` for signed creation-time/id pagination.
+Feature services still supply authorized relations, cursor scope, page size and
+presentation; the shared module owns verification, ordering and continuation.
+Existing purpose strings and cursor payloads remain valid.

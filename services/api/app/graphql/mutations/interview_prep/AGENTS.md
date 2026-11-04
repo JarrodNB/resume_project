@@ -11,6 +11,7 @@ User-owned interview practice operations. Follow parent service/GraphQL instruct
 - `save_interview_answer.rb` — saves or clears an answer through an owned set.
 - `regenerate_interview_question.rb` — queues replacement, requiring confirmation for an answered question.
 - `request_interview_answer_feedback.rb` — saves the submitted answer and queues coaching.
+- `delete_interview_question.rb` — deletes one question scoped through an owned set.
 - `delete_interview_question_set.rb` — deletes an owned set and its questions.
 
 ## Local Rules

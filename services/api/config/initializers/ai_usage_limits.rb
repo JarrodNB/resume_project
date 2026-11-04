@@ -5,6 +5,7 @@
 #   - DEFAULT_MONTHLY_AI_BUDGET_MICRODOLLARS: estimated LLM spend allowed per calendar month (UTC)
 #   - DEFAULT_AI_TASKS_PER_HOUR: tasks a user may start in any rolling hour
 #   - DEFAULT_MAX_IN_FLIGHT_AI_TASKS: queued tasks a user may have at once
+#   - SITE_DAILY_AI_BUDGET_MICRODOLLARS: known spend allowed across all users per UTC day (see AiUsage::SiteDailySpend)
 #   - NEW_ACCOUNT_*: lower limits for a recently verified account (see AiUsage::NewAccountLimits)
 DEFAULT_MONTHLY_AI_BUDGET_MICRODOLLARS = (BigDecimal(ENV.fetch("AI_MONTHLY_BUDGET_USD", "3.00")) * 1_000_000).to_i
 DEFAULT_AI_TASKS_PER_HOUR = Integer(ENV.fetch("AI_TASKS_PER_HOUR", "40"))
@@ -13,6 +14,8 @@ DEFAULT_MAX_IN_FLIGHT_AI_TASKS = Integer(ENV.fetch("AI_MAX_IN_FLIGHT_TASKS", "3"
 DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS = (BigDecimal(ENV.fetch("INTERVIEW_MONTHLY_BUDGET_USD", "3.00")) * 1_000_000).to_i
 DEFAULT_INTERVIEW_SESSIONS_PER_HOUR = Integer(ENV.fetch("INTERVIEW_SESSIONS_PER_HOUR", "10"))
 DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS = Integer(ENV.fetch("INTERVIEW_MAX_IN_FLIGHT_OPERATIONS", "3"))
+
+SITE_DAILY_AI_BUDGET_MICRODOLLARS = (BigDecimal(ENV.fetch("AI_SITE_DAILY_BUDGET_USD", "5.00")) * 1_000_000).to_i
 
 NEW_ACCOUNT_MONTHLY_AI_BUDGET_MICRODOLLARS = (BigDecimal(ENV.fetch("NEW_ACCOUNT_AI_MONTHLY_BUDGET_USD", "1.00")) * 1_000_000).to_i
 NEW_ACCOUNT_AI_TASKS_PER_HOUR = Integer(ENV.fetch("NEW_ACCOUNT_AI_TASKS_PER_HOUR", "25"))

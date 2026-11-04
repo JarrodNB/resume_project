@@ -18,6 +18,13 @@ RSpec.describe "Independent spoken interview allowances" do
     expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).to be_success
   end
 
+  it "does not start a spoken interview once the site-wide daily AI limit is reached" do
+    stub_const("SITE_DAILY_AI_BUDGET_MICRODOLLARS", 100)
+    create(:ai_task, cost_microdollars: 100)
+    result = Interviews::StartPreparationService.call(user: user)
+    expect(result.errors).to eq([ AiUsage::CheckAiTaskAllowanceService::SITE_LIMIT_MESSAGE ])
+  end
+
   %w[monthly hourly concurrent].each do |limit|
     it "does not consume the general #{limit} allowance with spoken interview work" do
       user.update!(monthly_ai_budget_microdollars: 100, ai_tasks_per_hour_limit: limit == "hourly" ? 1 : 100,

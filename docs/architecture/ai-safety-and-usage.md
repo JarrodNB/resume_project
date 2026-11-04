@@ -49,8 +49,18 @@ development honors this mode: spoken-interview monthly/hourly and verification s
 gates are skipped, while cost records, concurrency, execution limits and all general AI
 admission stay intact. It does not forgive, erase or assign zero to unknown costs.
 
+One limit sits above every user: the **site-wide daily budget** (fallback $5.00,
+`AI_SITE_DAILY_BUDGET_USD`; 0 stops all new AI work). `AiUsage::SiteDailySpend` adds known general AI, spoken interview and
+embedding costs from rows created this UTC day, across all users. Once the total reaches the
+budget, the allowance check refuses general AI and spoken interview work, including the next
+step of an interview already running, until midnight UTC. Embedding jobs count toward the total
+because they are billed, but they are not refused: they have no admission step and nobody waits
+on them. The check runs under the user row lock, so the total is cached for 30 seconds and read
+through `created_at` indexes. Spend can overshoot by what's recorded during that time or by work
+already running, and unknown costs add nothing. Development-only unmetered interview testing skips this check too.
+
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
-IP and by email, sign-up and session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled
+IP and by email, sign-up by IP and by mailbox, session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled
 requests get a JSON 429 with `Retry-After`.
 
 ## Decisions

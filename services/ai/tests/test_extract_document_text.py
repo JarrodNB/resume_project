@@ -532,6 +532,22 @@ def test_docx_text_cap_includes_margin_content(extra_characters: int) -> None:
         assert len(extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)) == MAX_RESUME_TEXT
 
 
+@pytest.mark.parametrize("missing_part", ["word/document.xml", "[Content_Types].xml", "_rels/.rels"])
+def test_missing_docx_package_parts_are_unreadable(missing_part: str) -> None:
+    """A damaged package fails through the handler's supported unreadable-file path."""
+    from zipfile import ZipFile
+
+    original = BytesIO(build_docx_bytes(["Engineer"]))
+    damaged = BytesIO()
+    with ZipFile(original) as source, ZipFile(damaged, "w") as target:
+        for entry in source.infolist():
+            if entry.filename != missing_part:
+                target.writestr(entry, source.read(entry))
+
+    with pytest.raises(UnsupportedDocumentError):
+        extract_document_text(damaged.getvalue(), DOCX_CONTENT_TYPE)
+
+
 @pytest.mark.parametrize("rectangle", [
     (10, 10, 100, 30), (100, 30, 10, 10), (100, 10, 10, 30), (10, 30, 100, 10),
 ])

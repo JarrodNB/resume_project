@@ -11,6 +11,7 @@ PDF annotation arrays and link actions may be indirect or explicitly absent via 
 Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
 Known PDF and DOCX container or XML read errors become the caller's unreadable-file error.
+Missing DOCX package parts are rejected before text traversal.
 """
 
 from io import BytesIO
@@ -177,7 +178,10 @@ def _extract_docx_text(file_bytes: bytes) -> str:
         parts = archive.infolist()
         if len(parts) > 1_000 or sum(part.file_size for part in parts) > 20 * 1024 * 1024:
             raise DocumentTooLongError("The DOCX package is too large to unpack")
-    document = Document(BytesIO(file_bytes))
+    try:
+        document = Document(BytesIO(file_bytes))
+    except KeyError:
+        raise UnsupportedDocumentError("The DOCX package is missing a required part") from None
     return "\n".join([
         *_docx_margin_lines(document, "header"),
         *_docx_block_lines(document),

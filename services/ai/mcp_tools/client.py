@@ -3,8 +3,9 @@
 Each run gets a toolset carrying a fresh token for its user and operation. Tool results
 come back as structured data, and each tool's own module turns them into screened,
 readable text before the model sees them (see TOOL_RENDERERS). This file holds only what
-every tool shares: the connection, the token, a per-run cache keyed by tool and arguments, and running without
-tools when the server is unreachable. Only tools listed in TOOL_RENDERERS are offered.
+every tool shares: the connection, the token, a per-run cache keyed by tool and arguments, a plain
+sentence for the model when a tool's result can't be used, and running without tools when the
+server is unreachable. Only tools listed in TOOL_RENDERERS are offered.
 """
 import asyncio
 import json
@@ -25,6 +26,7 @@ from mcp_tools.saved_jobs import (
     render_saved_jobs_result,
 )
 from mcp_tools.tokens import mint_tool_token, tool_token_secret
+from screening.library_inputs import LibraryScreeningError
 from settings import AISettings
 
 # Server tools the model may see, each with its client half: (call_tool, tool_args, screen) -> text.
@@ -34,6 +36,21 @@ TOOL_RENDERERS = {
     READ_JOB_SUMMARY: render_job_summary_result,
     READ_CAREER_LIBRARY: render_career_library_result,
 }
+
+# What the model reads when a tool's result can't be used. A saved record failing its check is
+# not the user's message being blocked, so the reply continues and the model explains it.
+TOOL_FAILURE_RESPONSES = {
+    "screening_blocked": "This saved information was not shown because part of it did not pass the "
+                         "safety check. Tell the user it can't be used right now and that they can "
+                         "review the saved entry. Do not guess what it says.",
+    "screening_unavailable": "This saved information was not shown because the safety check is "
+                             "unavailable right now. Tell the user to try again shortly. Do not "
+                             "guess what it says.",
+    "context_limit": "This saved information is too large to show here. Tell the user, and do not "
+                     "guess what it says.",
+}
+TOOL_UNAVAILABLE_RESPONSE = ("This saved information could not be read right now. Tell the user to "
+                             "try again shortly. Do not guess what it says.")
 
 
 @dataclass(frozen=True)
@@ -73,7 +90,11 @@ class _ResultHandler:
         key = (name, json.dumps(tool_args or {}, sort_keys=True, default=str))
         async with self._lock:
             if key not in self.results:
-                self.results[key] = await TOOL_RENDERERS[name](call_tool, tool_args, self.screen)
+                try:
+                    self.results[key] = await TOOL_RENDERERS[name](call_tool, tool_args, self.screen)
+                except LibraryScreeningError as error:
+                    logfire.warn("MCP tool result not shown", tool=name, reason=str(error))
+                    self.results[key] = TOOL_FAILURE_RESPONSES.get(str(error), TOOL_UNAVAILABLE_RESPONSE)
             return self.results[key]
 
 

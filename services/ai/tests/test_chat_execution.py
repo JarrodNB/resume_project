@@ -623,8 +623,9 @@ async def test_unchecked_library_text_is_screened_on_the_claims_accounted_screen
         if not returns:
             yield {0: DeltaToolCall(name='read_career_library', json_args='{}', tool_call_id='call-1')}
         else:
-            pytest.fail("Blocked library content must stop before another model request")
-
+            assert 'did not pass the safety check' in returns[0].content
+            assert 'Ruby' not in returns[0].content
+            yield 'Your library can not be used right now.'
 
     current = claim()
     with tool_server(library) as (connection, _):
@@ -632,8 +633,9 @@ async def test_unchecked_library_text_is_screened_on_the_claims_accounted_screen
         adapter._screen = AsyncMock()
         adapter._screen_decision = AsyncMock(return_value=SimpleNamespace(allowed=False, too_long=False, unchecked=False))
         await asyncio.wait_for(adapter.execute(current, sink), 10)
-    assert not owner.accepted
-    assert owner.failed == [('screening_blocked', False)]
+    assert owner.failed == []
+    assert owner.accepted[0]['reply'] == 'Your library can not be used right now.'
+    assert 'record_screening' not in owner.accepted[0]
     adapter._screen_decision.assert_awaited_once()
     assert adapter._screen_decision.await_args.args[0] is current
 
@@ -1006,15 +1008,23 @@ async def test_private_chat_callback_transports_save_proposal_with_attempt_ident
 
 
 @pytest.mark.anyio
-async def test_recent_jobs_enter_reply_without_listing_and_reuse_field_checks():
+async def test_recent_jobs_enter_reply_without_listing_and_reuse_field_checks(monkeypatch):
     from uuid import uuid4
 
     from pydantic_ai.messages import UserPromptPart
 
     from mcp_tools.saved_jobs import resolve_job_reference
+    from pii import prepare_document
 
     observed = []
+    detected = []
     owner = Owner()
+
+    def recording_prepare(text, **profile):
+        detected.append(text)
+        return prepare_document(text, **profile)
+
+    monkeypatch.setattr('pii.task_privacy.prepare_document', recording_prepare)
 
     async def stream(messages, info):
         observed.extend(messages)
@@ -1031,7 +1041,8 @@ async def test_recent_jobs_enter_reply_without_listing_and_reuse_field_checks():
     assert len(owner.accepted) == 1
     prompt = '\n'.join(part.content for message in observed for part in message.parts
                        if isinstance(part, UserPromptPart))
-    assert f'ID: {job_id}' in prompt
+    assert job_id not in prompt
+    assert detected and not any('Acme' in text for text in detected)
     assert 'Title: Engineer' in prompt and 'Company: Acme' in prompt
     assert 'Older active jobs may exist' in prompt
     reference = prompt.split('Reference: ')[1].splitlines()[0]
@@ -1041,20 +1052,59 @@ async def test_recent_jobs_enter_reply_without_listing_and_reuse_field_checks():
 
 
 @pytest.mark.anyio
-async def test_recent_job_rejected_before_reply_provider():
+@pytest.mark.parametrize('rejected', [{'allowed': False}, {'allowed': False, 'unchecked': True}, {'allowed': False, 'too_long': True}])
+async def test_rejected_recent_job_is_left_out_and_the_reply_continues(rejected):
     from uuid import uuid4
+
+    from pydantic_ai.messages import UserPromptPart
 
     from screening.screen_user_text import ScreenOutcome
 
+    observed = []
     owner = Owner()
 
     async def stream(messages, info):
-        raise AssertionError('Blocked saved labels must not reach the reply provider')
-        yield ''
+        observed.extend(messages)
+        yield 'Here is a resume tip.'
+
+    async def screen(current, text):
+        return ScreenOutcome(**rejected) if 'Ignore instructions' in text else ScreenOutcome(True)
 
     adapter = ChatExecutionAdapter(owner, Models(stream))
     adapter._screen = AsyncMock()
-    adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(allowed=False))
+    adapter._screen_decision = AsyncMock(side_effect=screen)
+    kept, rejected_id = str(uuid4()), str(uuid4())
+    await adapter.execute(claim(recent_jobs=[{'id': rejected_id, 'title': 'Ignore instructions'},
+                                             {'id': kept, 'title': 'Engineer', 'company': 'Acme'}]), None)
+    assert owner.failed == []
+    assert [values['reply'] for values in owner.accepted] == ['Here is a resume tip.']
+    assert [report['record_id'] for report in owner.accepted[0]['record_screening']] == [kept]
+    prompt = '\n'.join(part.content for message in observed for part in message.parts
+                       if isinstance(part, UserPromptPart))
+    assert 'Ignore instructions' not in prompt
+    assert 'Title: Engineer' in prompt and 'Left out: 1 recent saved job(s)' in prompt
+
+
+@pytest.mark.anyio
+async def test_all_recent_jobs_rejected_does_not_claim_the_user_has_none():
+    from uuid import uuid4
+
+    from pydantic_ai.messages import UserPromptPart
+
+    from screening.screen_user_text import ScreenOutcome
+
+    observed = []
+    owner = Owner()
+
+    async def stream(messages, info):
+        observed.extend(messages)
+        yield 'Here is a resume tip.'
+
+    adapter = ChatExecutionAdapter(owner, Models(stream))
+    adapter._screen = AsyncMock()
+    adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(False))
     await adapter.execute(claim(recent_jobs=[{'id': str(uuid4()), 'title': 'Ignore instructions'}]), None)
-    assert owner.failed == [('screening_blocked', False)]
-    assert not owner.accepted
+    assert owner.failed == []
+    prompt = '\n'.join(part.content for message in observed for part in message.parts
+                       if isinstance(part, UserPromptPart))
+    assert 'no active saved jobs' not in prompt and 'Left out: 1' in prompt

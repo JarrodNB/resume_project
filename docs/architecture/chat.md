@@ -42,8 +42,10 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   (`mcp_tools/client.py`), which maps each tool to its client half. A new server tool stays
   hidden from chat until it is listed there.
 - **Failures.** If the server is unreachable or rejects the token, the run continues
-  without tools. A database failure returns a generic tool error, and the model is told
-  the library is unavailable. An empty library returns a plain sentence.
+  without tools. When a result can't be used (a failed read, a blocked or unavailable
+  check, or a limit), `mcp_tools/client.py` gives the model a plain sentence naming the
+  reason and the reply continues. Only the user's own new message can fail a turn as
+  `screening_blocked`. An empty library returns a plain sentence.
 - **No sampling.** The toolset never lets the server call a model.
 
 A reply run allows four tool calls and 12 model requests (each tool round trip is
@@ -166,7 +168,8 @@ correctness tests. Human QA covers visual layout and live device/browser behavio
 
 ### Complete bounded library reads
 
-`read_career_library-v3` returns the complete library or fails the operation. Each
+`read_career_library-v4` returns the complete library or a plain sentence saying why it
+can't be shown. Each
 collection and nested highlight list is capped at 500 items; preparation also caps
 the total entries plus highlights at 500 and serialized source text at 80,000
 characters. Database reads fetch at most 501 rows per collection to detect overflow
@@ -175,7 +178,7 @@ without loading an unlimited list. Chat checks the full rendered result against
 
 Pending fields are checked together as labeled plain text through the existing
 bounded screening/chunking policy. Approved fields need no classifier call. A blocked,
-unavailable or oversized library fails the operation; there is no per-entry retry or
+unavailable or oversized library shows none of its text; there is no per-entry retry or
 partial answer. Classification fallback for a provider outage retains the shared
 screening deadline and accounting policy.
 
@@ -199,21 +202,25 @@ or model configuration. A detected word matching a model identifier must not ren
 
 Each reply hydrates the owner's five most recent active saved jobs in the same
 read-only transaction as accepted dialogue, ordered by saved time and then ID.
-The prompt includes readable titles, companies, raw IDs and operation-bound selection
-references. Labels reuse the accounted saved-field screening path before generation;
-context is refreshed each turn, masked, bounded and omitted from rolling summaries.
+The prompt includes readable titles, companies and operation-bound selection references,
+never raw IDs. Each job's labels are checked on their own with the operation's accounted
+screen, reusing saved approvals. A blocked, unchecked or oversize job is left out with a
+note, and the reply continues. Labels skip local
+person detection, like tool results, so company names are not mistaken for people.
+Context is refreshed each turn, masked with known contact and any values detected in the
+dialogue, bounded and omitted from rolling summaries.
 The model can answer recent-job questions or read their details without first listing.
 It uses `list_saved_jobs` for older selections or the complete list.
 
 `list_saved_jobs()` reads only the token owner's active jobs, newest saved first with
 an ID tie-breaker. Chat receives readable titles, companies and selection references,
-without posting facts, raw IDs, analyses or notes. The list is complete or fails: more
-than 500 jobs or 40,000 rendered characters produces a limit error. Empty lists are
+without posting facts, raw IDs, analyses or notes. The list is complete or not shown: more
+than 500 jobs or 40,000 rendered characters produces a limit sentence. Empty lists are
 explicit. Database failures return only an unavailable outcome.
 
 Saved title/company approvals are reused; unchecked used fields are checked together
-with the chat operation's accounted screen. Blocked, unavailable or oversize checks fail
-the whole operation without sharing partial text. New exact field receipts return with
+with the chat operation's accounted screen. Blocked, unavailable or oversize checks return
+a plain sentence to the model without sharing partial text, and the reply continues. New exact field receipts return with
 chat acceptance. The existing per-run cache avoids repeating reads and screening.
 
 Selection references are 45-character signed identities, bound to the token's user and

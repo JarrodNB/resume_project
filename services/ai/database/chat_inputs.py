@@ -1,7 +1,8 @@
 """Load accepted chat context for one live, owned operation.
 
 Rails chooses compaction checkpoints under its lock. This reader verifies those
-fences and reconstructs only uncovered dialogue in one coherent read transaction.
+fences and reconstructs only uncovered dialogue, plus the owner's five newest active
+saved-job labels, in one coherent read transaction.
 """
 import hashlib
 
@@ -91,6 +92,7 @@ def chat_database_ready(settings):
             connection.execute("SELECT id, user_id, summary_text, summary_version, summary_through_position FROM chat_conversations LIMIT 0")
             connection.execute("SELECT id, chat_conversation_id, message, status, attempt_id, claim_generation, lease_expires_at, execution_deadline, expected_position, summary_base_version, summary_plan FROM chat_operations LIMIT 0")
             connection.execute("SELECT chat_conversation_id, position, role, content, screened_sha256 FROM chat_messages LIMIT 0")
+            connection.execute("SELECT id, user_id, title, company, screened_fields, archived_at, created_at FROM jobs LIMIT 0")
         return True
     except Error:
         return False

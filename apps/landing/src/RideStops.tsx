@@ -1,5 +1,5 @@
 /** The five stops of the landing page’s worked example, from a saved history to an interview.
- * Each one shows a made-up person, Maya, using that part of Careergrind. The gaps and resume
+ * Each one shows a made-up person, Maya, using that part of Careergrind. The opening preview, gaps and resume
  * stops share one small piece of state: answering her gap puts a new line on her resume. The
  * page is static, so that is a scripted demo and no AI runs here.
  */
@@ -25,9 +25,8 @@ export function LibraryStop() {
       <div className="stop-copy">
         <h2 id="library-title">Tell your history once.</h2>
         <p>
-          Import a PDF or Word resume and check what came in, or type it in yourself. Your career
-          library becomes the one place every later resume draws from, so there is no base resume
-          to keep in sync.
+          Import a PDF or Word resume and review it, or add your experience yourself. Save it in
+          your career library to reuse for each application.
         </p>
       </div>
       <figure className="library-line">
@@ -130,23 +129,25 @@ export function GapsStop({ gapAnswered, onToggleGapAnswer }: GapsStopProps) {
             </p>
           )}
           <div className="gap-actions">
-            {gapAnswered ? (
-              <>
-                <a className="button button-primary button-huge" href="#resume-gap-line">See it on her resume</a>
-                <button type="button" className="text-link text-button" onClick={onToggleGapAnswer}>
-                  Take the answer back
-                </button>
-              </>
-            ) : (
-              <button type="button" className="button button-primary button-huge" onClick={onToggleGapAnswer}>
-                Answer as Maya
-              </button>
+            {gapAnswered && (
+              <a className="button button-primary button-huge" href="#resume-gap-line">See it on her resume</a>
             )}
+            {/* Keep the same button mounted so keyboard focus survives either action. */}
+            <button
+              type="button"
+              className={gapAnswered ? 'text-link text-button' : 'button button-primary button-huge'}
+              aria-controls="open-gap resume-gap-line"
+              onClick={onToggleGapAnswer}
+            >
+              {gapAnswered ? 'Take the answer back' : 'Answer as Maya'}
+            </button>
           </div>
         </div>
       </figure>
       <p className="sr-only" role="status">
-        {gapAnswered ? 'Answer saved. A new line was added to the example resume.' : ''}
+        {gapAnswered
+          ? 'Answer saved. A new line was added to the example resume.'
+          : 'No answer saved. The unsupported line stays off the example resume.'}
       </p>
     </section>
   )
@@ -167,8 +168,7 @@ export function ResumeStop({ gapAnswered }: { gapAnswered: boolean }) {
       <div className="stop-copy-wide">
         <h2 id="resume-title">Every line comes from your record.</h2>
         <p>
-          The AI writes a draft for this one job using your library and your answers. You read it,
-          change what you like, and export a PDF when it’s yours.
+          Review a draft drawn from your library and answers. Edit the wording, then export a PDF.
         </p>
       </div>
       <figure className="resume-figure">
@@ -207,9 +207,8 @@ export function InterviewStop() {
       <div className="stop-copy">
         <h2 id="interview-title">Practice before it counts.</h2>
         <p>
-          Get questions for this job, save your answers, and get feedback on them. Or sit a mock
-          interview with an AI interviewer. Its questions come from the job and your library, and
-          you talk it through, typing whenever you’d rather.
+          Practice questions for this job and get feedback on your answers. Try a mock interview
+          with an AI interviewer, using voice or typing. Questions draw on the job and your library.
         </p>
       </div>
       <figure className="question-card">

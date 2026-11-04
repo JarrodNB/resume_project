@@ -5,26 +5,24 @@
 import { useState } from 'react'
 import { SIGN_IN_URL, SIGN_UP_URL } from './appLinks'
 import { LineStrip } from './LineStrip'
+import { ExamplePreview } from './ExamplePreview'
 import { GapsStop, InterviewStop, JobStop, LibraryStop, ResumeStop } from './RideStops'
 import { SearchMap } from './SearchMap'
-import { PERSON_NAME } from './workedExample'
 
 function Hero() {
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title">One job.<br />One real resume.</h1>
+      <h1 id="hero-title">Your experience.<br />A resume for the job you want.</h1>
       <div className="hero-action">
         <p>
-          Careergrind helps you write a resume for the job in front of you, from what you have
-          actually done. You review every word. Then practice out loud with an AI interviewer.
+          Build a career library from what you’ve actually done. Use it to write a tailored resume
+          you review, keep your search organized, and practice with an AI interviewer.
         </p>
-        <a className="button button-primary button-huge" href={SIGN_UP_URL}>Sign up and start</a>
+        <div className="hero-links">
+          <a className="button button-primary button-huge" href={SIGN_UP_URL}>Sign up and start</a>
+          <a className="text-link" href="#example">Try the example</a>
+        </div>
       </div>
-      <a className="hero-next" href="#library">
-        <span className="hero-next-bullet" aria-hidden />
-        <strong>First stop: your library</strong>
-        <span>Follow {PERSON_NAME}, a made-up job seeker, from her saved history to an interview.</span>
-      </a>
     </section>
   )
 }
@@ -64,6 +62,7 @@ function Close() {
   return (
     <section className="close" aria-labelledby="close-title">
       <h2 id="close-title">Start with the job you want most.</h2>
+      <p className="close-value">Your experience, ready to reuse. A resume you control. Practice for the interview ahead.</p>
       <div className="close-arrival">
         <span className="close-track" aria-hidden><span className="close-terminal" /></span>
         <a className="button button-inverse button-huge" href={SIGN_UP_URL}>Sign up and start</a>
@@ -92,6 +91,7 @@ function App() {
       <LineStrip gapNeedsAnswer={!gapAnswered} />
       <main id="top">
         <Hero />
+        <ExamplePreview gapAnswered={gapAnswered} onToggleGapAnswer={() => setGapAnswered((answered) => !answered)} />
         <LibraryStop />
         <JobStop />
         <GapsStop gapAnswered={gapAnswered} onToggleGapAnswer={() => setGapAnswered((answered) => !answered)} />

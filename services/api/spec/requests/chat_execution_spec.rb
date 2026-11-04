@@ -90,12 +90,12 @@ RSpec.describe "Chat execution callbacks", type: :request do
     skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
     post path("claim"), params: {}, as: :json, headers: headers
     identity = response.parsed_body.slice("attempt_id", "claim_generation")
-    report = { record_type: "skill", record_id: skill.id, fields: ["name"],
+    report = { record_type: "skill", record_id: skill.id, fields: [ "name" ],
       fingerprints: { name: Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
     post path("accept"), params: identity.merge(reply: "You list Ruby.",
-      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [report]), as: :json, headers: headers
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [ report ]), as: :json, headers: headers
     expect(response).to have_http_status(:ok)
-    expect(skill.reload.screened_fields).to eq(["name"])
+    expect(skill.reload.screened_fields).to eq([ "name" ])
   end
 
   it "accepts record_screening receipts through the private HTTP callback" do
@@ -105,10 +105,10 @@ RSpec.describe "Chat execution callbacks", type: :request do
     receipt = { record_type: "skill", record_id: skill.id, revision: {},
       fingerprints: { name: Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
     args = identity.merge(reply: "You list Ruby.",
-      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [receipt])
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), record_screening: [ receipt ])
     post path("accept"), params: args, as: :json, headers: headers
     expect(response).to have_http_status(:ok)
-    expect(skill.reload.screened_fields).to eq(["name"])
+    expect(skill.reload.screened_fields).to eq([ "name" ])
     post path("accept"), params: args, as: :json, headers: headers
     expect(response).to have_http_status(:ok)
   end
@@ -122,7 +122,7 @@ RSpec.describe "Chat execution callbacks", type: :request do
       post path("accept"), params: args, as: :json, headers: headers
     }.to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).once
     expect(response).to have_http_status(:ok)
-    expect(user.career_contexts.pluck(:requirement, :response)).to eq([["Leading an incident", "I coordinated the recovery."]])
+    expect(user.career_contexts.pluck(:requirement, :response)).to eq([ [ "Leading an incident", "I coordinated the recovery." ] ])
     expect(chat.messages.count).to eq(2)
     expect { post path("accept"), params: args, as: :json, headers: headers }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
     expect(response).to have_http_status(:ok)
@@ -135,7 +135,7 @@ RSpec.describe "Chat execution callbacks", type: :request do
     { requirement: "", response: "Fact" },
     { requirement: "Topic", response: "x" * 4001 },
     { requirement: "Topic", response: "Fact", user_id: "other" },
-    [{ requirement: "Topic", response: "Fact" }]
+    [ { requirement: "Topic", response: "Fact" } ]
   ].each do |proposal|
     it "rejects malformed save #{proposal.class} without accepting dialogue" do
       post path("claim"), params: {}, as: :json, headers: headers
@@ -172,7 +172,7 @@ RSpec.describe "Chat execution callbacks", type: :request do
       screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: { requirement: "Topic", response: "Owned fact" })
     expect { post path("accept"), params: args, as: :json, headers: headers }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
     expect(response).to have_http_status(:ok)
-    expect(user.career_contexts.pluck(:id)).to eq([context.id])
+    expect(user.career_contexts.pluck(:id)).to eq([ context.id ])
   end
 
   it "rolls back the save when accepting dialogue fails" do
@@ -198,4 +198,117 @@ RSpec.describe "Chat execution callbacks", type: :request do
     expect(chat.messages).to be_empty
   end
 
+  it "saves multiple entries and replays the batch without duplicate work" do
+    post path("claim"), params: {}, as: :json, headers: headers
+    entries = [ { requirement: "Cutover", response: "I resolved the incident." },
+               { requirement: "Langfuse", response: "I taught tracing." } ]
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved both examples.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_contexts: entries)
+    expect { post path("accept"), params: args, as: :json, headers: headers }
+      .to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).exactly(2).times
+    expect(response).to have_http_status(:ok)
+    expect(user.career_contexts.pluck(:requirement)).to contain_exactly("Cutover", "Langfuse")
+    expect(chat.messages.count).to eq(2)
+    expect { post path("accept"), params: args, as: :json, headers: headers }
+      .not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+    expect(response).to have_http_status(:ok)
+    post path("accept"), params: args.merge(career_contexts: entries.reverse), as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts.count).to eq(2)
+  end
+
+  it "rejects the entire batch if a later entry conflicts" do
+    create(:career_context, user: user, requirement: "Langfuse", response: "Original")
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved both.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      career_contexts: [ { requirement: "Cutover", response: "New" }, { requirement: "Langfuse", response: "Changed" } ])
+    expect { post path("accept"), params: args, as: :json, headers: headers }
+      .not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts.pluck(:requirement)).to eq([ "Langfuse" ])
+    expect(chat.messages).to be_empty
+  end
+
+  it "checks total batch capacity before saving anything" do
+    now = Time.current
+    CareerContext.insert_all!((1..99).map { |n| { user_id: user.id, requirement: "Topic #{n}", response: "Fact", created_at: now, updated_at: now } })
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved both.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      career_contexts: [ { requirement: "Cutover", response: "New" }, { requirement: "Langfuse", response: "New" } ])
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts.count).to eq(99)
+    expect(chat.messages).to be_empty
+  end
+
+  it "rolls back every batch entry when dialogue fails" do
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved both.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      career_contexts: [ { requirement: "Cutover", response: "New" }, { requirement: "Langfuse", response: "New" } ])
+    allow_any_instance_of(ChatMessage).to receive(:save!).and_raise(ActiveRecord::RecordInvalid)
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).not_to have_http_status(:ok)
+    expect(user.career_contexts).to be_empty
+    expect(chat.messages).to be_empty
+  end
+
+  [ "invalid", {}, [ nil ], [ { requirement: "", response: "Fact" } ],
+   [ { requirement: "Topic", response: "Fact" }, { requirement: "Topic", response: "Other" } ],
+   Array.new(101) { |n| { requirement: "Topic #{n}", response: "Fact" } } ].each do |entries|
+    it "rejects malformed batches without saving entries or dialogue" do
+      post path("claim"), params: {}, as: :json, headers: headers
+      args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+        screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_contexts: entries)
+      post path("accept"), params: args, as: :json, headers: headers
+      expect(response).to have_http_status(:conflict)
+      expect(user.career_contexts).to be_empty
+      expect(chat.messages).to be_empty
+    end
+  end
+
+  it "rejects mixing legacy and batch proposals" do
+    post path("claim"), params: {}, as: :json, headers: headers
+    entry = { requirement: "Topic", response: "Fact" }
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), career_context: entry, career_contexts: [ entry ])
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts).to be_empty
+    expect(chat.messages).to be_empty
+  end
+
+  it "accepts a batch mixing an owned existing entry and a new entry" do
+    create(:career_context, requirement: "Cutover", response: "Foreign fact")
+    existing = create(:career_context, user: user, requirement: "Cutover", response: "Owned fact")
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      career_contexts: [ { requirement: "Cutover", response: "Owned fact" }, { requirement: "Langfuse", response: "New" } ])
+    expect { post path("accept"), params: args, as: :json, headers: headers }
+      .to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).once
+    expect(response).to have_http_status(:ok)
+    expect(user.career_contexts.pluck(:requirement)).to contain_exactly("Cutover", "Langfuse")
+    expect(existing.reload.response).to eq("Owned fact")
+  end
+
+  it "rolls back earlier entries if a later creation service fails" do
+    post path("claim"), params: {}, as: :json, headers: headers
+    args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved both.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      career_contexts: [ { requirement: "Cutover", response: "New" }, { requirement: "Langfuse", response: "New" } ])
+    allow(CareerContexts::CreateCareerContextService).to receive(:call).and_wrap_original do |original, **kwargs|
+      if kwargs[:attributes]["requirement"] == "Langfuse"
+        ServiceResult.new(success: false, value: nil, errors: [ "Creation failed" ])
+      else
+        original.call(**kwargs)
+      end
+    end
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:conflict)
+    expect(user.career_contexts).to be_empty
+    expect(chat.messages).to be_empty
+  end
 end

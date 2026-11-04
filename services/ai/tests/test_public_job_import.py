@@ -240,3 +240,24 @@ def test_redirect_loop_is_bounded(public_dns):
           pytest.raises(JobPageUnreadableError)):
         fetch_public_job_html(URL, client)
     assert len(requests) == 4
+
+
+@pytest.mark.parametrize("country,expected", [
+    ("Canada", "Toronto, Ontario, Canada"),
+    ({"@type": "Country", "name": "Canada"}, "Toronto, Ontario, Canada"),
+    ({"@type": "Country"}, "Toronto, Ontario"),
+    ({"name": ["Canada"]}, "Toronto, Ontario"),
+])
+def test_structured_country_names_survive_job_location_import(country, expected):
+    job = {
+        "@type": "JobPosting", "title": "Engineer", "description": "<p>Python required</p>",
+        "jobLocation": {"@type": "Place", "address": {
+            "@type": "PostalAddress", "addressLocality": "Toronto",
+            "addressRegion": "Ontario", "addressCountry": country,
+        }},
+    }
+    page = public_job_html_to_page(
+        '<script type="application/ld+json">' + json.dumps(job) + '</script>', URL,
+    )
+
+    assert page.location == expected

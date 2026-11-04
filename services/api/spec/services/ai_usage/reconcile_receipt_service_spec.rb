@@ -3,10 +3,10 @@ require "rails_helper"
 
 RSpec.describe AiUsage::ReconcileReceiptService do
   let(:user) { create(:user) }
-  let(:task) { create(:ai_task, user: user, status: "completed", cost_microdollars: 35) }
+  let(:task) { create(:ai_task, user: user, status: "completed") }
   let(:report) do
     task.ai_usage_attempts.create!(attempt_id: SecureRandom.uuid, finalized: true, incomplete: true)
-      .tap { |attempt| AiUsage::AttemptEntries.replace(attempt, [ { "cost_microdollars" => 35 } ]) }
+      .tap { |attempt| task.with_lock { AiUsage::AttemptEntries.replace(attempt, [ { "cost_microdollars" => 35 } ], ai_task: task) } }
   end
   let(:params) { { user: user, record_type: "task", attempt_id: report.attempt_id, receipt_reference: "provider-receipt-line-1",
     usage: [ { "cost_microdollars" => 55, "input_tokens" => 100 } ] } }

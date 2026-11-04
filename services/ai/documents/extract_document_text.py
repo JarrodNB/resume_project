@@ -6,7 +6,7 @@ headers before the body and footers after it, reading inherited parts only once.
 Malformed link destinations remain source text without aborting extraction.
 Each PDF page keeps labels for at most MAX_PDF_LINKS_PER_PAGE distinct links, so a page full of
 annotations cannot make label matching grow with annotations times text fragments.
-PDF annotation arrays and link actions may be indirect or explicitly absent via null.
+PDF annotation arrays, entries and link actions may be indirect or explicitly absent via null.
 Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
 Known PDF and DOCX container or XML read errors become the caller's unreadable-file error.
@@ -104,6 +104,8 @@ def _pdf_hyperlink_markers(
         return markers
     for reference in annotations:
         annotation = reference.get_object()
+        if isinstance(annotation, NullObject):
+            continue
         action_reference = annotation.get("/A") or {}
         action = action_reference.get_object() if hasattr(action_reference, "get_object") else action_reference
         if isinstance(action, NullObject):

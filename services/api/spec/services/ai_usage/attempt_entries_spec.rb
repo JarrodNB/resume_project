@@ -29,6 +29,7 @@ RSpec.describe AiUsage::AttemptEntries do
   end
 
   it "rejects a receipt for another task before changing either record" do
+    attempt
     other = create(:ai_task)
     expect { other.with_lock { described_class.replace(attempt, [], ai_task: other) } }.to raise_error(ArgumentError)
     expect(task.reload.cost_microdollars).to eq(0)

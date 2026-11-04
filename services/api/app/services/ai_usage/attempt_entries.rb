@@ -1,7 +1,6 @@
 # Saves and reads one execution attempt's usage entries as typed rows.
 # Callers hold the task lock; replacement writes entries and task totals together.
-# Keys outside the known
-# columns are dropped with a warning rather than failing result delivery.
+# Keys outside the known columns are dropped with a warning rather than failing result delivery.
 module AiUsage
   module AttemptEntries
     TOTAL_FIELDS = %w[input_tokens cached_input_tokens output_tokens cost_microdollars].freeze

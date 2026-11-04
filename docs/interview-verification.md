@@ -67,7 +67,7 @@ results below remain their recorded checkpoints. This follow-up record is editor
 
 The API was restarted to load the new configuration. `/library` at
 `http://127.0.0.2:15176/library` and API `/up` both returned HTTP 200, and the live API reported
-3,000,000 interview microdollars/month, 10 sessions/hour and three concurrent operations.
+3,000,000 interview microdollars/month, 30 sessions/hour and three concurrent operations.
 The real interview runtime remains stopped; no additional paid calls or ledger changes ran.
 No database migration or frontend rebuild was needed. The library is active with this code;
 new spoken interview execution remains unavailable because of the recorded unknown receipt.

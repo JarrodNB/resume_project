@@ -18,3 +18,11 @@ export const REVIEW_LIBRARY_SECTION_MUTATION = graphql(`
     }
   }
 `)
+
+export const DISMISS_LIBRARY_REVIEW_MUTATION = graphql(`
+  mutation DismissLibraryReview($reviewTaskId: ID!, $kind: String!, $recordId: ID!, $scope: String!) {
+    dismissLibraryReview(input: { reviewTaskId: $reviewTaskId, kind: $kind, recordId: $recordId, scope: $scope }) {
+      errors
+    }
+  }
+`)

@@ -116,6 +116,7 @@ module Types
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
     field :set_gap_dismissal, mutation: Mutations::GapResponses::SetGapDismissal
     field :review_library_section, mutation: Mutations::CareerLibrary::ReviewLibrarySection
+    field :dismiss_library_review, mutation: Mutations::CareerLibrary::DismissLibraryReview
     field :answer_library_review, mutation: Mutations::CareerLibrary::AnswerLibraryReview
     field :start_library_edit, mutation: Mutations::CareerLibrary::StartLibraryEdit
     field :accept_library_edit, mutation: Mutations::CareerLibrary::AcceptLibraryEdit

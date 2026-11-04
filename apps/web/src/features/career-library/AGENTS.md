@@ -113,3 +113,7 @@ sets the default section order for new resumes.
   mutation errors. Failed batch retries reuse their saved pairs without inventing new feedback. Accept/discard refetch assessments; stale questions cannot submit.
 
 - An empty profile summary exposes `SummaryGenerationPanel`: explicit generation from saved career facts, editable proposal, accept/discard, retry and reload recovery. It is separate from existing single-detail improvement.
+
+- `LibraryReviewDismissActions` exposes Nothing to add and Dismiss review from the detail and
+  review-answer workspace. `useLibraryReview.dismiss` saves the decision and refreshes the section.
+  Identical proposals compare against the selected field text and offer Keep saved text.

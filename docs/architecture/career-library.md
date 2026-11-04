@@ -306,6 +306,19 @@ be strong evidence without implying hands-on duties.
 Merging a saved entry or editing a neighboring bullet preserves coverage for exact unchanged
 copies, so those operations do not send generated text back through the classifier.
 
+### Dismissing feedback
+
+Each current assessment offers **Nothing to add** for its questions and **Dismiss review**
+for the whole assessment. `dismissLibraryReview` records the decision on the owned completed
+review or accepted edit, keyed by target identity and source digest. It does not enqueue AI work
+or change career facts. Question dismissal keeps the grade and reason; review dismissal hides
+that assessment. Other details stay visible. Reloads preserve the decision, while a new explicit
+review produces fresh feedback. Changed sources cannot dismiss earlier feedback.
+
+An edit proposal identical to the current saved field displays **No changes suggested** and
+**Keep saved text**. Keeping it uses the existing acceptance path to retire the linked review
+questions and save the assessment without rewriting the record or queuing embeddings.
+
 ### Answering review questions
 
 The current review question set starts one proposal through `answerLibraryReview`.

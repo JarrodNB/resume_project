@@ -56,6 +56,20 @@ RSpec.describe "Career library AI editing" do
     expect { accept_edit(task) }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
   end
 
+  it "keeps identical text and accepts its assessment without rewriting or embedding" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    AiTasks::ApplyAiResultService.call(message: {
+      "ai_task_id" => task.id, "status" => "completed", "message_history" => [],
+      "result" => { "text" => highlight.content, "color" => "yellow", "reason" => "No further facts available." }
+    })
+    updated_at = highlight.updated_at
+    expect { expect(accept_edit(task)["errors"]).to eq([]) }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+    expect(highlight.reload.updated_at).to eq(updated_at)
+    expect(task.reload.accepted_at).to be_present
+    state = CareerLibrary::ReviewStateService.call(user: user, section: "experience").value
+    expect(state[:assessments].find { |item| item["record_id"] == highlight.id }).to include("questions" => [], "color" => "yellow")
+  end
+
   def continue_edit(task, feedback: "I handled the billing API", skip: false, owner: user)
     execute_graphql(<<~GQL, user: owner).dig("data", "startLibraryEdit")
       mutation { startLibraryEdit(input: {previousTaskId: "#{task.id}", feedback: #{feedback.to_json}, skip: #{skip}}) { aiTask { id status input } errors } }

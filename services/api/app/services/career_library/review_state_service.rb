@@ -17,8 +17,8 @@ module CareerLibrary
         next unless target
 
         questions = ApplyReviewService.questions_for(item) || []
-        item.merge("questions" => questions, "question" => questions.first,
-          "review_task_id" => completed.id, "stale" => item["source_digest"] != target["source_digest"])
+        visible_assessment(completed, item.merge("questions" => questions, "question" => questions.first,
+          "review_task_id" => completed.id, "stale" => item["source_digest"] != target["source_digest"]))
       end
       if completed
         discarded = @user.ai_tasks.improve_library_entry.where(error_message: EditCommand::DISCARD_MESSAGE)
@@ -31,16 +31,27 @@ module CareerLibrary
       accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil)
         .where("input ->> 'section' = ?", @section).order(accepted_at: :asc, id: :asc)
       accepted = accepted.where("accepted_at > ?", completed.created_at) if completed
-      accepted.select(:result).each do |task|
+      accepted.select(:id, :result).each do |task|
         item = task.result&.dig("assessment")
         next unless item.is_a?(Hash)
         key = ReviewSources.target_key(item)
         target = current[key]
         next unless target
         assessments.reject! { |old| ReviewSources.target_key(old) == key }
-        assessments << item.merge("questions" => [], "question" => nil, "stale" => item["source_digest"] != target["source_digest"])
+        visible = visible_assessment(task, item.merge("questions" => [], "question" => nil, "review_task_id" => task.id, "stale" => item["source_digest"] != target["source_digest"]))
+        assessments << visible if visible
       end
       success({ ai_task: tasks.first, assessments: assessments })
+    end
+
+    private
+
+    def visible_assessment(task, item)
+      dismissal = task.result.fetch("dismissed_assessments", {})[ReviewSources.target_key(item).join(":")]
+      return item unless dismissal && dismissal["source_digest"] == item["source_digest"]
+      return nil if dismissal["scope"] == "review"
+
+      item.merge("questions" => [], "question" => nil)
     end
   end
 end

@@ -1,6 +1,7 @@
 # Accepts exactly the server-owned proposal, or closes an exchange without changing
 # the library. Single-highlight saves retain IDs and do not replace sibling bullets.
 # Discarding unfinished work records its terminal outcome for the owner's notices.
+# Keeping identical text accepts its assessment without rewriting or re-embedding the record.
 module CareerLibrary
   class FinishEditService < ApplicationService
     def initialize(user:, ai_task_id:, discard: false)
@@ -29,15 +30,18 @@ module CareerLibrary
         next failure([ "This entry changed. Start a new edit from its current text." ]) if EditCommand.stale?(user: @user, task: task)
 
         field = target.fetch("field")
+        changed_text = record[field] != task.result.fetch("text")
         record[field] = task.result.fetch("text")
         # This covers exact generated text, not a claimed classifier result. Ordinary
         # user edits already remove changed fields from this reusable coverage list.
-        record.screened_fields |= [ field ]
-        record.save!
+        if changed_text
+          record.screened_fields |= [ field ]
+          record.save!
+        end
         current = EditCommand.capture(user: @user, kind: target["kind"], record_id: target["record_id"])
         assessment = current.fetch("target").except("label").merge(task.result.slice("color", "reason"))
         task.update!(accepted_at: Time.current, result: task.result.merge("assessment" => assessment))
-        SyncLibraryEmbeddingsJob.perform_later(@user.id) unless target["kind"] == "user"
+        SyncLibraryEmbeddingsJob.perform_later(@user.id) if changed_text && target["kind"] != "user"
         success(task)
       end
     rescue ActiveRecord::RecordNotFound

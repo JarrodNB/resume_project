@@ -1,14 +1,15 @@
-/** Follows one section's review through the existing task subscription, without polling. */
+/** Follows one section review and saves feedback dismissals, refreshing through queries and subscriptions. */
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { LIBRARY_REVIEW_QUERY, REVIEW_LIBRARY_SECTION_MUTATION } from './libraryReviewOperations'
+import { DISMISS_LIBRARY_REVIEW_MUTATION, LIBRARY_REVIEW_QUERY, REVIEW_LIBRARY_SECTION_MUTATION } from './libraryReviewOperations'
 
 export function useLibraryReview(section: string, sourceRevision: string) {
   const { data, error, loading: checkingFreshness, refetch } = useQuery(LIBRARY_REVIEW_QUERY, {
     variables: { section }, fetchPolicy: 'cache-and-network', notifyOnNetworkStatusChange: true,
   })
+  const [dismissRequest, { loading: dismissing }] = useMutation(DISMISS_LIBRARY_REVIEW_MUTATION)
   const [request, { loading: starting }] = useMutation(REVIEW_LIBRARY_SECTION_MUTATION)
   const [started, setStarted] = useState<{ id: string; previousId: string | null } | null>(null)
   const [errors, setErrors] = useState<string[]>([])
@@ -51,11 +52,28 @@ export function useLibraryReview(section: string, sourceRevision: string) {
     }
   }
 
+  async function dismiss(reviewTaskId: string, kind: string, recordId: string, scope: 'questions' | 'review') {
+    if (requesting.current) return false
+    requesting.current = true
+    setErrors([])
+    try {
+      const response = await dismissRequest({ variables: { reviewTaskId, kind, recordId, scope } })
+      const messages = response.data?.dismissLibraryReview?.errors ?? ['Could not dismiss this review.']
+      setErrors(messages)
+      if (messages.length) return false
+      await refetch()
+      return true
+    } catch (error) {
+      setErrors([requestErrorMessage(error, 'Could not dismiss this review. Please try again.')])
+      return false
+    } finally { requesting.current = false }
+  }
+
   const errorMessage = aiTask && aiTask.id === followedId ? aiTask.errorMessage : task?.errorMessage
   const uncertain = !!error || checkingFreshness || checkedSource !== sourceRevision
   return {
     assessments: (data?.libraryReview.assessments ?? []).map((item) => uncertain ? { ...item, stale: true } : item),
-    start, busy,
+    start, busy, dismiss, dismissing,
     errors: [...errors, ...(error ? ['Could not load the assessments. Reload to try again.'] : []),
       ...(status === 'FAILED' && errorMessage ? [errorMessage] : []),
       ...(subscriptionError ? ['Live updates disconnected. Reload to check the review.'] : [])],

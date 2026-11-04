@@ -216,3 +216,18 @@ it('retries a saved failed batch without replacing its pairs with new feedback',
   expect(await screen.findByText('Proposed revision')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Generate revision from answer' })).not.toBeInTheDocument()
 })
+
+
+it('recognizes identical proposals and keeps saved text without presenting a revision', async () => {
+  renderPage({ path: '/', url: '/', element: <LibraryEditPanel onClose={() => {}} {...target} sourceRevision="same" sourceText={task.result.text} />, mocks: [
+    { request: query, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: task } } } },
+    subscription(),
+    { request: { query: ACCEPT_LIBRARY_EDIT_MUTATION, variables: { aiTaskId: task.id } }, result: { data: {
+      acceptLibraryEdit: { __typename: 'AcceptLibraryEditPayload', errors: [], aiTask: { ...task, acceptedAt: '2026-10-25T00:00:01Z' } },
+    } } },
+  ] })
+  expect(await screen.findByText('No changes suggested')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Accept revision' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Keep saved text' }))
+  expect(await screen.findByText('Saved to your library.')).toBeInTheDocument()
+})

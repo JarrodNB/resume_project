@@ -95,6 +95,13 @@ score attached, so runs can be compared across prompt and model changes.
 - `run_tailoring_evals.py` — runner:
   `docker compose run --rm ai-worker python -m evals.run_tailoring_evals`. This section quality
   suite does not benchmark complete-draft execution or create a second orchestration path
+- `run_resume_outcome_evals.py` / `resume_outcome_evaluators.py` / `datasets/resume_outcome_cases.yaml` — complete
+  drafts for realistic synthetic applicants through the production gap, review, Improve and tailoring handlers.
+  Compares each version with the untailored library resume using blind model judges, a claim checker and
+  countable checks, with controls for identical resumes and planted lies. It ranks versions of one person's
+  resume; it does not measure callbacks. Judges live in `prompts/resume_outcome_judge_instructions.py`.
+  After a writer change, `--compare-with SAVED_RUN --artifact-dir OUT` rewrites only the tailored versions from
+  that run's gap analysis and answers, and has a recruiter judge and a writing judge compare them with its saved resumes.
 - `datasets/library_retrieval_cases.yaml` — synthetic libraries in the text shape Rails embeds
   (experience highlight, project, education, skill, library fact). Explicit search queries,
   each with more rows than the evaluation cutoff, and the ids that should rank

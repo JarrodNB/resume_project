@@ -1,0 +1,1166 @@
+# Description: Realistic synthetic applicants for the end-to-end resume outcome eval.
+# People, employers and jobs are invented. Each case holds a full library and job posting.
+# metadata.supported: requirements the library really backs, with terms that would show it.
+# Terms match whole words, ignoring case; a trailing * matches any word ending.
+# metadata.traps: things the job wants that this person lacks; claiming one is a false claim.
+# metadata.notes: what the person knows but never wrote down. Only the simulated applicant sees
+# these, and only facts it volunteers in answers may reach the resume.
+# metadata.hidden_facts: which notes count as recovered, with marker terms to look for.
+cases:
+  - name: backend_to_platform
+    inputs:
+      full_name: Dana Reyes
+      job:
+        title: Senior Platform Engineer
+        company: Northwind Freight
+        requirements:
+          - 5+ years building backend services in Python or Go
+          - Running Kubernetes in production
+          - AWS infrastructure experience
+          - Infrastructure as code with Terraform
+          - Observability and on-call ownership
+        nice_to_haves:
+          - Developer tooling or internal platform experience
+          - Logistics domain experience
+        responsibilities:
+          - Own the internal deployment platform used by 200 engineers
+          - Reduce deployment lead time and improve service reliability
+          - Partner with product teams to migrate services onto paved-road tooling
+      library:
+        summary: Backend engineer who likes reliable systems and clean APIs.
+        experiences:
+          - company: Ledgerly
+            title: Senior Software Engineer
+            start_date: 2021-03-01
+            description: Payments company. Worked on the payouts team.
+            highlights:
+              - Built Python APIs for card payouts handling 1.2M transactions a day
+              - Moved 14 services from EC2 to ECS using Docker and CloudFormation
+              - Added Datadog dashboards and alerts for the payouts services
+              - Mentored two junior engineers
+              - Wrote the team's incident review template
+          - company: Brightcart
+            title: Software Engineer
+            start_date: 2017-06-01
+            end_date: 2021-02-01
+            highlights:
+              - Built order management services in Python and Django
+              - Worked on the build pipeline
+              - Cut nightly batch runtime from 6 hours to 90 minutes by rewriting the reconciliation job
+              - Helped with Black Friday readiness
+          - company: Campus IT Services
+            title: Student Developer
+            start_date: 2015-09-01
+            end_date: 2017-05-01
+            highlights:
+              - Maintained the course registration website in PHP
+        projects:
+          - name: tinyqueue
+            description: Open-source Go job queue with 400 GitHub stars
+        educations:
+          - institution: State University
+            degree: BSc
+            field_of_study: Computer Science
+            start_date: 2013-09-01
+            end_date: 2017-05-01
+        skills:
+          - {name: Python, category: Languages}
+          - {name: Go, category: Languages}
+          - {name: PHP, category: Languages}
+          - {name: AWS, category: Cloud}
+          - {name: Docker, category: Cloud}
+          - {name: CloudFormation, category: Cloud}
+          - {name: Datadog, category: Tools}
+          - {name: Django, category: Frameworks}
+    metadata:
+      supported:
+        - {requirement: backend python, any_of: [Python]}
+        - {requirement: aws, any_of: [AWS, ECS, EC2]}
+        - {requirement: containers, any_of: [Docker, ECS]}
+        - {requirement: observability, any_of: [Datadog, dashboards]}
+      traps: [Kubernetes, K8s, Terraform, Helm, logistics]
+      notes: |
+        On the build pipeline at Brightcart I reduced deploy time from 40 minutes to 12 minutes by parallelizing tests.
+        I led the on-call rotation for payouts at Ledgerly for two years and cut weekly pages from about 30 to 9.
+        I did a two-day Kubernetes course once but have never run Kubernetes in production.
+        I have never used Terraform.
+        I built an internal CLI at Ledgerly that 60 engineers used to create new services.
+      hidden_facts:
+        - {fact: deploy time cut, markers: ["40 minutes", "12 minutes"]}
+        - {fact: on-call pages cut, markers: ["from about 30", "30 to 9", "to 9"]}
+        - {fact: internal CLI, markers: ["CLI"]}
+
+  - name: nurse_to_icu
+    inputs:
+      full_name: Morgan Ellis
+      job:
+        title: ICU Registered Nurse
+        company: Lakeside County Hospital
+        requirements:
+          - Active state RN license
+          - BSN degree
+          - 2+ years of acute care nursing
+          - Current ACLS certification
+          - Critical care or step-down experience
+          - Epic EHR experience
+        nice_to_haves:
+          - CCRN certification
+          - Charge nurse experience
+        responsibilities:
+          - Provide direct care to critically ill adult patients in a 24-bed ICU
+          - Titrate vasoactive medications and monitor hemodynamics
+          - Collaborate with intensivists, respiratory therapists and pharmacists
+      library:
+        summary: Registered nurse with a focus on medical-surgical care.
+        experiences:
+          - company: St. Brigid Medical Center
+            title: Registered Nurse, Medical-Surgical
+            start_date: 2022-08-01
+            highlights:
+              - Cared for 5 to 6 patients per shift on a 32-bed med-surg unit
+              - Documented care in Epic
+              - Helped with new nurse orientation
+              - Served on the unit falls committee; falls fell 18% over one year
+          - company: Oak Hollow Care Center
+            title: Certified Nursing Assistant
+            start_date: 2019-05-01
+            end_date: 2022-07-01
+            highlights:
+              - Assisted residents with daily living activities in a 90-bed facility
+              - Took vital signs and reported changes to nursing staff
+        educations:
+          - institution: Harbor College of Nursing
+            degree: BSN
+            field_of_study: Nursing
+            start_date: 2018-09-01
+            end_date: 2022-05-01
+        certifications:
+          - name: Registered Nurse License
+            issuer: State Board of Nursing
+            issued_date: 2022-07-01
+            expiry_date: 2028-07-01
+          - name: ACLS
+            issuer: American Heart Association
+            issued_date: 2023-02-01
+            expiry_date: 2025-02-01
+          - name: BLS
+            issuer: American Heart Association
+            issued_date: 2025-03-01
+            expiry_date: 2027-03-01
+        skills:
+          - {name: Epic, category: Systems}
+          - {name: IV therapy, category: Clinical}
+          - {name: Wound care, category: Clinical}
+          - {name: Patient education, category: Clinical}
+    metadata:
+      supported:
+        - {requirement: rn license, any_of: [RN, Registered Nurse]}
+        - {requirement: bsn, any_of: [BSN]}
+        - {requirement: acute care, any_of: [med-surg, medical-surgical, acute]}
+        - {requirement: epic, any_of: [Epic]}
+      traps: [CCRN, ventilator, vasoactive, "intensivist*", "hemodynamic*", charge nurse]
+      notes: |
+        I float to the step-down unit about one shift a week and have done that for 8 months.
+        On step-down I manage telemetry patients and titrate heparin drips under protocol.
+        I precept new graduate nurses; I have precepted 4 so far.
+        I have never been a charge nurse and I have not worked in an ICU.
+        My ACLS lapsed and I have a renewal class booked for next month.
+      hidden_facts:
+        - {fact: step-down float, markers: ["step-down", "stepdown"]}
+        - {fact: telemetry and drips, markers: ["telemetry", "heparin"]}
+        - {fact: precepting, markers: ["precept*"]}
+
+  - name: teacher_to_instructional_designer
+    inputs:
+      full_name: Sam Okafor
+      job:
+        title: Instructional Designer
+        company: Fernwell Learning
+        requirements:
+          - Experience designing curriculum or training programs
+          - Learning management system experience such as Canvas or Moodle
+          - Articulate Storyline or Rise authoring
+          - Familiarity with ADDIE or similar design models
+          - Working with subject matter experts and stakeholders
+        nice_to_haves:
+          - Corporate training experience
+          - Measuring learning outcomes
+        responsibilities:
+          - Design self-paced online courses for enterprise customers
+          - Interview subject matter experts and turn their knowledge into modules
+          - Evaluate course effectiveness and iterate
+      library:
+        summary: Dedicated high school teacher who loves helping students grow.
+        experiences:
+          - company: Ridgeview High School
+            title: Biology Teacher
+            start_date: 2016-08-01
+            highlights:
+              - Taught 5 biology classes per day to about 140 students
+              - Wrote unit plans and assessments aligned with state standards
+              - Used Canvas with my classes
+              - Chaired the science department curriculum review
+              - Coached the science olympiad team
+          - company: Sunrise Tutoring
+            title: Tutor
+            start_date: 2014-01-01
+            end_date: 2016-06-01
+            highlights:
+              - Tutored students in math and science
+        educations:
+          - institution: Westfield University
+            degree: MEd
+            field_of_study: Curriculum and Instruction
+            start_date: 2018-09-01
+            end_date: 2020-05-01
+          - institution: Westfield University
+            degree: BSc
+            field_of_study: Biology
+            start_date: 2010-09-01
+            end_date: 2014-05-01
+        skills:
+          - {name: Canvas, category: Tools}
+          - {name: Lesson planning, category: Teaching}
+          - {name: Classroom management, category: Teaching}
+          - {name: Google Classroom, category: Tools}
+    metadata:
+      supported:
+        - {requirement: curriculum, any_of: [curriculum, unit plans]}
+        - {requirement: lms, any_of: [Canvas]}
+        - {requirement: assessment, any_of: [assessments, assessment]}
+      traps: [Storyline, Articulate, ADDIE, SCORM, corporate training]
+      notes: |
+        I built 9 self-paced Canvas modules for genetics during remote teaching, and 4 other teachers reused them.
+        After I redesigned the genetics unit the failure rate on the unit exam went from 22% to 13%.
+        For the curriculum review I interviewed 6 teachers and a district science coordinator about what to change.
+        I have not used Articulate Storyline or Rise, and I have not formally used ADDIE.
+      hidden_facts:
+        - {fact: self-paced modules, markers: ["9 self-paced", "self-paced", "nine"]}
+        - {fact: failure rate, markers: ["22%", "13%"]}
+        - {fact: interviewed teachers, markers: ["interview*"]}
+
+  - name: marketer_to_growth
+    inputs:
+      full_name: Alex Chen
+      job:
+        title: Growth Marketing Manager
+        company: Stackline
+        requirements:
+          - 4+ years in B2B SaaS marketing
+          - Managing paid search and paid social budgets
+          - Lifecycle email marketing in Marketo
+          - A/B testing and experiment design
+          - SQL for campaign analysis
+        nice_to_haves:
+          - Product-led growth experience
+          - Salesforce reporting
+        responsibilities:
+          - Own pipeline targets for paid and lifecycle channels
+          - Run a weekly experimentation program across landing pages and email
+          - Report channel performance to the executive team
+      library:
+        summary: Marketing manager experienced in demand generation.
+        experiences:
+          - company: Quillhub
+            title: Marketing Manager
+            start_date: 2021-01-01
+            description: B2B invoicing software for small businesses.
+            highlights:
+              - Managed a $600K annual Google Ads and LinkedIn Ads budget
+              - Ran email nurture campaigns in HubSpot for 40,000 contacts
+              - Improved landing pages and increased conversions
+              - Produced the monthly marketing report for leadership
+              - Worked with sales on lead quality
+          - company: Pinecrest Agency
+            title: Marketing Coordinator
+            start_date: 2018-07-01
+            end_date: 2020-12-01
+            highlights:
+              - Scheduled social media posts for 8 consumer clients
+              - Wrote blog posts and newsletters
+              - Pulled campaign reports from Google Analytics
+        educations:
+          - institution: Lakewood College
+            degree: BA
+            field_of_study: Communications
+            start_date: 2014-09-01
+            end_date: 2018-05-01
+        skills:
+          - {name: Google Ads, category: Paid}
+          - {name: LinkedIn Ads, category: Paid}
+          - {name: HubSpot, category: Email}
+          - {name: Google Analytics, category: Analytics}
+          - {name: Copywriting, category: Content}
+          - {name: Canva, category: Content}
+    metadata:
+      supported:
+        - {requirement: b2b saas, any_of: [B2B, software, SaaS]}
+        - {requirement: paid budget, any_of: [Google Ads, $600K, LinkedIn Ads]}
+        - {requirement: lifecycle email, any_of: [HubSpot, nurture]}
+      traps: [Marketo, SQL, Salesforce, product-led, PLG]
+      notes: |
+        I ran 22 landing page A/B tests in 2024 and raised demo request conversion from 2.1% to 3.4%.
+        Paid channels sourced about $3.1M of pipeline last year.
+        I use Looker Studio dashboards built by our analyst; I do not write SQL myself.
+        I have never used Marketo or Salesforce reporting directly.
+      hidden_facts:
+        - {fact: ab tests, markers: ["22 ", "A/B"]}
+        - {fact: conversion lift, markers: ["2.1%", "3.4%"]}
+        - {fact: pipeline, markers: ["$3.1M"]}
+
+  - name: warehouse_to_operations_manager
+    inputs:
+      full_name: Jordan Blake
+      job:
+        title: Operations Manager
+        company: Meridian Fulfillment
+        requirements:
+          - 5+ years leading warehouse or distribution operations
+          - Managing teams of 30 or more
+          - Warehouse management system experience
+          - Lean or Six Sigma certification
+          - P&L responsibility
+        nice_to_haves:
+          - OSHA 30 certification
+          - Experience opening a new site
+        responsibilities:
+          - Run daily operations for a 300,000 sq ft fulfillment center
+          - Drive productivity, safety and cost per unit
+          - Coach shift supervisors
+      library:
+        summary: Warehouse leader who gets things done.
+        experiences:
+          - company: Cascade Distribution
+            title: Warehouse Supervisor
+            start_date: 2019-04-01
+            highlights:
+              - Supervised a second-shift team of 35 associates
+              - Used Manhattan WMS for receiving and inventory
+              - Improved pick accuracy
+              - Handled scheduling and attendance
+              - Ran daily safety huddles
+          - company: Cascade Distribution
+            title: Lead Associate
+            start_date: 2016-02-01
+            end_date: 2019-03-01
+            highlights:
+              - Trained new hires on forklift and RF scanner use
+              - Led a receiving team of 8
+          - company: QuickMart
+            title: Stock Associate
+            start_date: 2013-06-01
+            end_date: 2016-01-01
+            highlights:
+              - Stocked shelves and unloaded trucks
+        educations:
+          - institution: Valley Community College
+            degree: Certificate
+            field_of_study: Supply Chain Fundamentals
+            end_date: 2018-05-01
+        certifications:
+          - name: Forklift Operator Certification
+            issuer: Valley Community College
+            issued_date: 2016-03-01
+          - name: OSHA 10
+            issuer: OSHA
+            issued_date: 2020-06-01
+        skills:
+          - {name: Manhattan WMS, category: Systems}
+          - {name: Forklift, category: Equipment}
+          - {name: Excel, category: Systems}
+          - {name: Scheduling, category: Leadership}
+    metadata:
+      supported:
+        - {requirement: warehouse leadership, any_of: ["supervis*", warehouse]}
+        - {requirement: team of 30, any_of: ["35"]}
+        - {requirement: wms, any_of: [WMS]}
+      traps: [Six Sigma, Lean certified, P&L, OSHA 30, new site, "300,000"]
+      notes: |
+        I raised pick accuracy from 97.2% to 99.4% by reorganizing slotting and adding a second scan step.
+        Recordable injuries on my shift went from 6 to 1 over two years.
+        I manage overtime and labor to a weekly target but I do not own a P&L.
+        I do not have a Lean or Six Sigma certification; I have only attended an internal kaizen workshop.
+      hidden_facts:
+        - {fact: pick accuracy, markers: ["99.4%", "97.2%"]}
+        - {fact: injuries, markers: ["recordable", "injuries"]}
+        - {fact: labor target, markers: ["overtime", "labor"]}
+
+  - name: new_grad_data_analyst
+    inputs:
+      full_name: Riley Tran
+      job:
+        title: Junior Data Analyst
+        company: Harborview Health
+        requirements:
+          - Bachelor's degree in a quantitative field
+          - SQL for querying relational databases
+          - Python or R for analysis
+          - Tableau or Power BI dashboards
+          - Clear communication with non-technical stakeholders
+        nice_to_haves:
+          - Healthcare data experience
+          - Statistics coursework
+        responsibilities:
+          - Build recurring reports for clinic operations teams
+          - Clean and validate data from scheduling systems
+          - Present findings to managers
+      library:
+        summary: Recent statistics graduate looking for a data role.
+        experiences:
+          - company: Campus Rec Center
+            title: Front Desk Assistant
+            start_date: 2022-09-01
+            end_date: 2026-05-01
+            highlights:
+              - Checked in members and answered questions
+              - Tracked equipment checkouts in a spreadsheet
+          - company: Dr. Lin's Lab
+            title: Undergraduate Research Assistant
+            start_date: 2025-01-01
+            end_date: 2026-05-01
+            highlights:
+              - Cleaned survey data in R
+              - Helped with analysis for a paper
+        projects:
+          - name: Bike share demand model
+            description: Modeled hourly bike share demand in Python with pandas and scikit-learn using two years of public trip data
+          - name: Course planner database
+            description: Designed a PostgreSQL schema and wrote SQL queries for a class project on course scheduling
+          - name: Personal budget tracker
+            description: Spreadsheet to track my monthly spending
+        educations:
+          - institution: Northgate University
+            degree: BSc
+            field_of_study: Statistics
+            start_date: 2022-09-01
+            end_date: 2026-05-01
+            description: Coursework in regression, probability and experimental design
+        skills:
+          - {name: Python, category: Programming}
+          - {name: R, category: Programming}
+          - {name: SQL, category: Programming}
+          - {name: PostgreSQL, category: Databases}
+          - {name: Excel, category: Tools}
+          - {name: Looker Studio, category: Tools}
+    metadata:
+      supported:
+        - {requirement: quantitative degree, any_of: [Statistics]}
+        - {requirement: sql, any_of: [SQL, PostgreSQL]}
+        - {requirement: python or r, any_of: [Python, R]}
+      traps: [Tableau, Power BI, healthcare data, clinical, HIPAA]
+      notes: |
+        In Dr. Lin's Lab I cleaned responses from about 1,800 survey participants and wrote the R script that flagged duplicates.
+        I presented the lab's findings to a group of 20 non-technical community partners.
+        I built one Looker Studio dashboard for the rec center showing peak hours; the manager used it to change staffing.
+        I have never used Tableau or Power BI.
+      hidden_facts:
+        - {fact: survey scale, markers: ["1,800", "1800"]}
+        - {fact: presented, markers: ["community partners", "presented"]}
+        - {fact: dashboard, markers: ["peak hours", "Looker Studio dashboard", "staffing"]}
+
+  - name: analyst_to_fpa
+    inputs:
+      full_name: Taylor Novak
+      job:
+        title: Senior FP&A Analyst
+        company: Altamont Software
+        requirements:
+          - 3+ years in FP&A or corporate finance
+          - Advanced Excel financial modeling
+          - Budgeting and forecasting ownership
+          - NetSuite experience
+          - Anaplan or a similar planning tool
+        nice_to_haves:
+          - SaaS metrics such as ARR and churn
+          - CPA or CFA
+        responsibilities:
+          - Own the quarterly forecast for the go-to-market organization
+          - Partner with sales and marketing leaders on headcount and spend
+          - Build board reporting
+      library:
+        summary: Finance professional with strong Excel skills.
+        experiences:
+          - company: Delmar Foods
+            title: Financial Analyst
+            start_date: 2022-02-01
+            highlights:
+              - Built the monthly sales forecast model in Excel for a $180M business
+              - Prepared variance analysis for the leadership team
+              - Supported the annual budget process
+              - Used NetSuite for month-end reporting
+          - company: Baird & Holt LLP
+            title: Audit Associate
+            start_date: 2019-09-01
+            end_date: 2022-01-01
+            highlights:
+              - Audited manufacturing and retail clients
+              - Tested internal controls
+        educations:
+          - institution: Eastern State University
+            degree: BBA
+            field_of_study: Accounting
+            start_date: 2015-09-01
+            end_date: 2019-05-01
+        skills:
+          - {name: Excel, category: Tools}
+          - {name: NetSuite, category: Tools}
+          - {name: Financial modeling, category: Finance}
+          - {name: Variance analysis, category: Finance}
+          - {name: PowerPoint, category: Tools}
+    metadata:
+      supported:
+        - {requirement: fpa, any_of: [forecast, variance, budget]}
+        - {requirement: excel modeling, any_of: [Excel]}
+        - {requirement: netsuite, any_of: [NetSuite]}
+      traps: [Anaplan, ARR, churn, CPA, CFA, board, SaaS]
+      notes: |
+        My forecast reduced average monthly forecast error from 11% to 4%.
+        I owned the trade spend budget of $14M in the annual plan.
+        I partnered directly with 3 regional sales directors on monthly reviews.
+        I passed two sections of the CPA exam but I am not licensed. I have not used Anaplan; I use Excel for planning.
+      hidden_facts:
+        - {fact: forecast error, markers: ["11%", "4%"]}
+        - {fact: trade spend, markers: ["$14M", "trade spend"]}
+        - {fact: sales directors, markers: ["sales directors"]}
+
+  - name: senior_pm_long_career
+    inputs:
+      full_name: Casey Whitfield
+      job:
+        title: Senior Product Manager, Payments
+        company: Tandem Pay
+        requirements:
+          - 7+ years of product management
+          - Experience shipping payments or fintech products
+          - API or platform products for developers
+          - Fraud or risk product experience
+          - PCI DSS knowledge
+        nice_to_haves:
+          - Experience with card networks
+          - Marketplace payouts
+        responsibilities:
+          - Own the roadmap for merchant payment acceptance
+          - Work with engineering on API design
+          - Define success metrics and report on them
+      library:
+        summary: Product leader with a broad background across consumer and enterprise software.
+        experiences:
+          - company: Vantage Commerce
+            title: Senior Product Manager
+            start_date: 2022-05-01
+            description: Led the checkout and payments group.
+            highlights:
+              - Launched saved cards and wallets at checkout, lifting checkout completion 6 points
+              - Owned the payouts API used by 3,000 marketplace sellers
+              - Partnered with data science on a rules-based fraud review queue that cut chargebacks 28%
+              - Ran quarterly planning for a team of 12 engineers
+              - Redesigned the seller onboarding flow
+              - Started a monthly customer advisory group
+          - company: Vantage Commerce
+            title: Product Manager
+            start_date: 2019-08-01
+            end_date: 2022-04-01
+            highlights:
+              - Shipped promotions and coupons engine
+              - Led search relevance improvements that raised click-through 11%
+              - Introduced feature flags and staged rollouts
+              - Wrote the first product requirements template
+          - company: HelioHealth
+            title: Product Manager
+            start_date: 2017-02-01
+            end_date: 2019-07-01
+            highlights:
+              - Built a patient scheduling mobile app with 200K downloads
+              - Worked with compliance on HIPAA reviews
+              - Ran user interviews with clinic staff
+              - Launched appointment reminders that lowered no-shows 14%
+          - company: Skyline Travel
+            title: Associate Product Manager
+            start_date: 2015-01-01
+            end_date: 2017-01-01
+            highlights:
+              - Managed hotel search filters
+              - Analyzed funnel data in SQL
+              - Coordinated releases across web and mobile
+              - Wrote help center articles for new features
+          - company: Skyline Travel
+            title: Business Analyst
+            start_date: 2013-06-01
+            end_date: 2014-12-01
+            highlights:
+              - Built weekly bookings reports
+              - Gathered requirements from the sales team
+          - company: Metro Bank
+            title: Customer Service Representative
+            start_date: 2011-06-01
+            end_date: 2013-05-01
+            highlights:
+              - Handled disputes and card issues over the phone
+              - Won the branch service award in 2012
+          - company: Campus Bookstore
+            title: Sales Associate
+            start_date: 2009-09-01
+            end_date: 2011-05-01
+            highlights:
+              - Helped customers and ran the register
+        educations:
+          - institution: Grant University
+            degree: BA
+            field_of_study: Economics
+            start_date: 2007-09-01
+            end_date: 2011-05-01
+        skills:
+          - {name: Product strategy, category: Product}
+          - {name: Roadmapping, category: Product}
+          - {name: SQL, category: Data}
+          - {name: A/B testing, category: Data}
+          - {name: User research, category: Product}
+          - {name: Payments, category: Domain}
+          - {name: REST APIs, category: Technical}
+          - {name: Figma, category: Tools}
+          - {name: Jira, category: Tools}
+          - {name: HIPAA, category: Domain}
+    metadata:
+      supported:
+        - {requirement: payments, any_of: [payments, checkout, payouts]}
+        - {requirement: api, any_of: [API]}
+        - {requirement: fraud, any_of: [fraud, chargebacks]}
+      traps: [PCI, Visa, Mastercard, acquirer, tokenization]
+      notes: |
+        The payouts API handled about $900M in annual volume.
+        I worked with our payment processor on moving to a second acquirer as a backup during outages, which I sponsored but engineering led.
+        I have not owned PCI DSS compliance; the security team handled it.
+      hidden_facts:
+        - {fact: payout volume, markers: ["$900M"]}
+        - {fact: second processor, markers: ["acquirer", "processor"]}
+
+  - name: weak_library_support_to_csm
+    inputs:
+      full_name: Avery Lindqvist
+      job:
+        title: Customer Success Manager
+        company: Beacon CRM
+        requirements:
+          - 2+ years in customer-facing SaaS roles
+          - Managing a book of accounts and renewals
+          - Experience reducing churn
+          - Running onboarding or training for customers
+          - Gainsight or a similar CS platform
+        nice_to_haves:
+          - Salesforce experience
+          - Upselling or expansion
+        responsibilities:
+          - Own renewals and expansion for 60 mid-market accounts
+          - Lead quarterly business reviews
+          - Turn customer feedback into product requests
+      library:
+        summary: Hard working customer support person and team player.
+        experiences:
+          - company: Tallyworks
+            title: Customer Support Specialist
+            start_date: 2022-03-01
+            highlights:
+              - Responsible for helping customers with issues
+              - Worked with accounts
+              - Did training for customers
+              - Helped with renewals
+              - Gave feedback to the product team
+          - company: Northside Telecom
+            title: Call Center Agent
+            start_date: 2020-01-01
+            end_date: 2022-02-01
+            highlights:
+              - Answered phones
+              - Met targets
+        educations:
+          - institution: Greenfield College
+            degree: AA
+            field_of_study: Business
+            end_date: 2019-12-01
+        skills:
+          - {name: Zendesk, category: Tools}
+          - {name: Communication, category: Soft skills}
+          - {name: Problem solving, category: Soft skills}
+    metadata:
+      supported:
+        - {requirement: customer facing, any_of: [customer]}
+        - {requirement: renewals, any_of: [renewal]}
+        - {requirement: training, any_of: [training]}
+      traps: [Gainsight, Salesforce, QBR, quarterly business review, 60 accounts]
+      notes: |
+        Tallyworks is B2B payroll SaaS. I was the named contact for 45 small-business accounts.
+        I ran live onboarding webinars twice a month for about 30 new customers each time.
+        I flagged at-risk accounts to the sales lead and helped save 7 renewals in 2024 worth about $84K a year.
+        I sent a monthly summary of top feature requests to the product manager; two were built.
+        At Northside I handled about 70 calls a day and kept a 94% satisfaction score.
+        I have not used Gainsight or Salesforce and I never ran formal quarterly business reviews.
+      hidden_facts:
+        - {fact: named accounts, markers: ["45 "]}
+        - {fact: webinars, markers: ["webinar*"]}
+        - {fact: saved renewals, markers: ["$84K", "7 renewals", "seven renewals"]}
+        - {fact: call stats, markers: ["94%", "70 calls"]}
+
+  - name: weak_library_admin_to_office_manager
+    inputs:
+      full_name: Quinn Hart
+      job:
+        title: Office Manager
+        company: Ashford Legal
+        requirements:
+          - 3+ years in office administration
+          - Vendor and budget management
+          - Calendar management for senior staff
+          - QuickBooks experience
+          - Onboarding new employees
+        nice_to_haves:
+          - Law firm experience
+          - Event planning
+        responsibilities:
+          - Run day-to-day operations of a 40-person office
+          - Manage vendors, supplies and facilities
+          - Coordinate onboarding and internal events
+      library:
+        summary: Organized and friendly administrative professional.
+        experiences:
+          - company: Delphi Architects
+            title: Administrative Assistant
+            start_date: 2021-06-01
+            highlights:
+              - Handled calendars
+              - Ordered supplies
+              - Helped new hires
+              - Various other duties as assigned
+          - company: Greenleaf Dental
+            title: Receptionist
+            start_date: 2018-03-01
+            end_date: 2021-05-01
+            highlights:
+              - Greeted patients and answered phones
+              - Did scheduling and billing
+        educations:
+          - institution: Riverton High School
+            degree: High School Diploma
+            end_date: 2017-06-01
+        skills:
+          - {name: Microsoft Office, category: Tools}
+          - {name: Scheduling, category: Admin}
+          - {name: Customer service, category: Admin}
+    metadata:
+      supported:
+        - {requirement: office admin, any_of: [Administrative, administrative]}
+        - {requirement: calendars, any_of: [calendar]}
+        - {requirement: onboarding, any_of: [new hires, onboarding]}
+      traps: [QuickBooks, law firm, legal, facilities, 40-person]
+      notes: |
+        I manage calendars and travel for the 3 founding partners of a 25-person firm.
+        I renegotiated the supply and copier contracts and saved about $6,000 a year, and I track a $30K annual office budget in Excel.
+        I created the new-hire checklist and onboarded 11 people.
+        I planned the firm's 25th anniversary party for 120 guests.
+        I have not used QuickBooks. Billing at the dental office was in Dentrix.
+      hidden_facts:
+        - {fact: partner calendars, markers: ["3 founding", "founding partners", "partners"]}
+        - {fact: savings, markers: ["$6,000", "$30K"]}
+        - {fact: onboarding checklist, markers: ["checklist", "11 "]}
+        - {fact: event, markers: ["120 guests", "anniversary"]}
+
+  - name: mismatch_cook_to_software
+    inputs:
+      full_name: Rowan Pike
+      job:
+        title: Software Engineer
+        company: Lumen Systems
+        requirements:
+          - 3+ years of professional software development
+          - Java or Kotlin
+          - React
+          - Relational databases
+          - CS degree or equivalent
+        nice_to_haves:
+          - AWS
+          - CI/CD pipelines
+        responsibilities:
+          - Build customer-facing web features
+          - Write automated tests
+          - Participate in code review
+      library:
+        summary: Line cook with eight years in busy restaurants.
+        experiences:
+          - company: Olive & Ash
+            title: Lead Line Cook
+            start_date: 2020-02-01
+            highlights:
+              - Ran the grill station for 250 covers a night
+              - Trained 6 new cooks
+              - Built the weekly prep schedule in a spreadsheet
+          - company: Harbor Grill
+            title: Line Cook
+            start_date: 2017-05-01
+            end_date: 2020-01-01
+            highlights:
+              - Prepared menu items to spec
+        skills:
+          - {name: Food safety, category: Kitchen}
+          - {name: Inventory, category: Kitchen}
+          - {name: Excel, category: Tools}
+    metadata:
+      supported:
+        - {requirement: none really, any_of: [Excel, spreadsheet]}
+      traps: [Java, Kotlin, React, software development, AWS, CI/CD, SQL]
+      notes: |
+        I am teaching myself web development and finished a free online HTML and CSS course last month.
+        I have no professional software experience.
+      hidden_facts:
+        - {fact: self study, markers: ["HTML", "CSS"]}
+
+  # Strong fits with long libraries, where tailoring can only help by choosing and framing.
+  - name: strong_fit_fullstack_engineer
+    inputs:
+      full_name: Blair Sato
+      job:
+        title: Senior Full Stack Engineer
+        company: Copperline Health
+        requirements:
+          - 5+ years of professional software development
+          - TypeScript and React
+          - Node.js or Python backend services
+          - PostgreSQL
+          - Experience in healthcare or another regulated industry
+        nice_to_haves:
+          - Accessibility experience
+          - Mentoring engineers
+        responsibilities:
+          - Build the patient scheduling and messaging product end to end
+          - Improve page performance and accessibility
+          - Mentor mid-level engineers
+      library:
+        summary: Full stack engineer with broad experience across startups and larger companies.
+        experiences:
+          - company: MedBridge Portal
+            title: Senior Software Engineer
+            start_date: 2022-01-01
+            description: Patient portal used by 180 clinics.
+            highlights:
+              - Built the appointment booking flow in React and TypeScript used by 400,000 patients
+              - Cut portal load time from 4.2 seconds to 1.6 seconds through code splitting and query fixes
+              - Led the WCAG 2.1 AA accessibility remediation of the portal
+              - Designed the PostgreSQL schema for secure patient messaging
+              - Built Node.js services for insurance eligibility checks
+              - Worked with compliance on HIPAA audit logging
+              - Mentored 3 mid-level engineers, two of whom were promoted
+              - Organized the team holiday party
+              - Rewrote the internal lunch-order bot
+              - Migrated the build from Webpack to Vite
+          - company: Parcelly
+            title: Software Engineer
+            start_date: 2018-05-01
+            end_date: 2021-12-01
+            highlights:
+              - Built shipment tracking pages in React
+              - Built Python and Flask APIs for carrier integrations with 12 carriers
+              - Added end-to-end tests with Cypress, reducing production regressions by 35%
+              - Ran the frontend guild meeting
+              - On-call for the tracking service
+              - Wrote a Slack bot for standups
+              - Upgraded Python 2 services to Python 3
+          - company: Gamehive Studio
+            title: Junior Developer
+            start_date: 2016-06-01
+            end_date: 2018-04-01
+            highlights:
+              - Built leaderboard features for a mobile game in Unity and C#
+              - Fixed bugs in the in-app store
+              - Built a level editor for designers
+              - Maintained the marketing website
+        projects:
+          - name: a11y-lint-kit
+            description: Open-source accessibility lint rules for React with 900 GitHub stars
+          - name: Sourdough timer
+            description: Personal mobile app for baking schedules
+          - name: Fantasy football scraper
+            description: Python script that scrapes weekly stats
+        educations:
+          - institution: Coastal University
+            degree: BSc
+            field_of_study: Computer Science
+            start_date: 2012-09-01
+            end_date: 2016-05-01
+        skills:
+          - {name: TypeScript, category: Languages}
+          - {name: Python, category: Languages}
+          - {name: "C#", category: Languages}
+          - {name: React, category: Frontend}
+          - {name: Node.js, category: Backend}
+          - {name: Flask, category: Backend}
+          - {name: PostgreSQL, category: Data}
+          - {name: Unity, category: Other}
+          - {name: Cypress, category: Testing}
+          - {name: Photoshop, category: Other}
+          - {name: WCAG, category: Frontend}
+    metadata:
+      supported:
+        - {requirement: react typescript, any_of: [TypeScript]}
+        - {requirement: node or python, any_of: [Node.js, Python]}
+        - {requirement: postgres, any_of: [PostgreSQL]}
+        - {requirement: healthcare, any_of: [HIPAA, patient]}
+        - {requirement: accessibility, any_of: [WCAG, accessibility]}
+        - {requirement: mentoring, any_of: ["mentored"]}
+      traps: [Kubernetes, GraphQL, FHIR, HL7, Epic]
+      notes: |
+        The booking flow increased online booking share from 31% to 58%.
+        Eligibility checks reduced front-desk insurance call-backs by about a quarter.
+      hidden_facts:
+        - {fact: booking share, markers: ["31%", "58%"]}
+        - {fact: eligibility result, markers: ["call-backs", "callbacks"]}
+
+  - name: strong_fit_project_manager
+    inputs:
+      full_name: Emerson Vale
+      job:
+        title: Construction Project Manager
+        company: Ironbridge Builders
+        requirements:
+          - 5+ years managing commercial construction projects
+          - Projects of $10M or more
+          - Budget and schedule control
+          - Subcontractor management
+          - Procore experience
+        nice_to_haves:
+          - PMP certification
+          - Healthcare or lab construction
+        responsibilities:
+          - Run ground-up commercial projects from precon to closeout
+          - Manage owner relationships and change orders
+          - Lead weekly subcontractor coordination
+      library:
+        summary: Experienced construction professional and reliable team member.
+        experiences:
+          - company: Summit Commercial Contractors
+            title: Project Manager
+            start_date: 2020-03-01
+            highlights:
+              - Delivered a $28M medical office building 3 weeks ahead of schedule
+              - Managed a $14M tenant fit-out for a biotech lab under budget by 2%
+              - Coordinated 22 subcontractors in weekly meetings using Procore
+              - Negotiated change orders with owners and architects, keeping changes under 3% of contract value
+              - Kept the jobsite coffee machine stocked
+              - Prepared monthly owner reports
+              - Sat on the company picnic committee
+              - Closed out punch lists and warranties
+          - company: Summit Commercial Contractors
+            title: Assistant Project Manager
+            start_date: 2017-01-01
+            end_date: 2020-02-01
+            highlights:
+              - Tracked submittals and RFIs on a $40M office tower
+              - Built the lookahead schedule in Primavera P6
+              - Helped buy out trade packages
+              - Filed permits
+              - Took meeting minutes
+          - company: Tri-County Homes
+            title: Site Supervisor
+            start_date: 2013-05-01
+            end_date: 2016-12-01
+            highlights:
+              - Supervised framing crews on single-family homes
+              - Built 60 homes per year across three subdivisions
+              - Ran daily safety walks
+              - Answered homeowner questions at closings
+        educations:
+          - institution: Midland Polytechnic
+            degree: BSc
+            field_of_study: Construction Management
+            start_date: 2009-09-01
+            end_date: 2013-05-01
+        certifications:
+          - name: PMP
+            issuer: Project Management Institute
+            issued_date: 2021-06-01
+            expiry_date: 2027-06-01
+          - name: OSHA 30
+            issuer: OSHA
+            issued_date: 2018-02-01
+        skills:
+          - {name: Procore, category: Software}
+          - {name: Primavera P6, category: Software}
+          - {name: Bluebeam, category: Software}
+          - {name: Estimating, category: Construction}
+          - {name: Framing, category: Construction}
+          - {name: Change orders, category: Construction}
+          - {name: AutoCAD, category: Software}
+    metadata:
+      supported:
+        - {requirement: commercial, any_of: [commercial, medical office]}
+        - {requirement: over 10m, any_of: ["$28M", "$14M"]}
+        - {requirement: subs, any_of: [subcontractors]}
+        - {requirement: procore, any_of: [Procore]}
+        - {requirement: lab, any_of: [biotech, lab]}
+      traps: [LEED, Revit, ground-up, precon]
+      notes: |
+        On the medical office building I ran preconstruction estimating with the owner for 4 months before ground broke.
+        I have been the owner's main point of contact on 5 projects.
+      hidden_facts:
+        - {fact: preconstruction, markers: ["preconstruction", "precon"]}
+        - {fact: owner contact, markers: ["5 projects"]}
+
+  - name: strong_fit_marketing_director
+    inputs:
+      full_name: Harper Dunn
+      job:
+        title: Director of Content Marketing
+        company: Fieldnote Software
+        requirements:
+          - 8+ years in content marketing
+          - B2B SaaS experience
+          - Managing a team of writers
+          - SEO strategy with measurable traffic growth
+          - Connecting content to pipeline
+        nice_to_haves:
+          - Podcast or video programs
+          - Experience with Ahrefs
+        responsibilities:
+          - Set content strategy across blog, email and video
+          - Lead a team of 5 writers and editors
+          - Report content-sourced pipeline to the CMO
+      library:
+        summary: Creative storyteller with a passion for brands.
+        experiences:
+          - company: Northlight CRM
+            title: Head of Content
+            start_date: 2021-02-01
+            highlights:
+              - Grew organic blog traffic from 80,000 to 310,000 monthly visits in two years
+              - Managed 4 writers and a freelance network of 10
+              - Launched a customer story video series with 12 episodes
+              - Built attribution with marketing ops; content influenced $4.2M of pipeline in 2024
+              - Planned the company's booth at two trade shows
+              - Wrote the brand voice guide
+              - Ran the employee newsletter
+              - Hosted a monthly webinar
+          - company: Brightpath Payroll
+            title: Senior Content Manager
+            start_date: 2017-04-01
+            end_date: 2021-01-01
+            highlights:
+              - Ran SEO keyword strategy with Ahrefs across 300 articles
+              - Started the HR Unfiltered podcast with 20,000 downloads
+              - Edited 8 posts a month
+              - Managed the content calendar
+              - Wrote sales one-pagers
+          - company: Glossy Weekly
+            title: Staff Writer
+            start_date: 2014-06-01
+            end_date: 2017-03-01
+            highlights:
+              - Wrote lifestyle and fashion features
+              - Covered 3 Fashion Weeks
+              - Edited the horoscopes column
+              - Managed the magazine's Instagram
+        educations:
+          - institution: Ashby College
+            degree: BA
+            field_of_study: Journalism
+            start_date: 2010-09-01
+            end_date: 2014-05-01
+        skills:
+          - {name: SEO, category: Marketing}
+          - {name: Ahrefs, category: Tools}
+          - {name: HubSpot, category: Tools}
+          - {name: Editing, category: Writing}
+          - {name: Podcast production, category: Media}
+          - {name: Fashion writing, category: Writing}
+          - {name: InDesign, category: Tools}
+    metadata:
+      supported:
+        - {requirement: b2b saas, any_of: [CRM, B2B, SaaS, Payroll]}
+        - {requirement: team, any_of: ["4 writers", writers]}
+        - {requirement: seo growth, any_of: ["310,000", SEO]}
+        - {requirement: pipeline, any_of: ["$4.2M", pipeline]}
+        - {requirement: podcast, any_of: [podcast]}
+      traps: [Marketo, CMO, TikTok]
+      notes: |
+        I report content results to our VP Marketing every month.
+        Trial signups from content tripled after I rebuilt the top 40 pages around product use cases.
+      hidden_facts:
+        - {fact: vp reporting, markers: ["VP Marketing"]}
+        - {fact: trials tripled, markers: ["tripled", "40 pages"]}
+
+  - name: strong_fit_staff_nurse
+    inputs:
+      full_name: Logan Mercer
+      job:
+        title: Emergency Department RN
+        company: Riverside General
+        requirements:
+          - Active RN license
+          - 3+ years of emergency nursing
+          - Current ACLS and PALS
+          - Triage experience
+          - Epic experience
+        nice_to_haves:
+          - TNCC certification
+          - Level I or II trauma center experience
+        responsibilities:
+          - Triage and treat patients across all acuity levels in a 45-bed ED
+          - Respond to trauma activations
+          - Precept new nurses
+      library:
+        summary: Compassionate nurse committed to excellent patient care.
+        experiences:
+          - company: Mercy Regional Level II Trauma Center
+            title: Emergency Department RN
+            start_date: 2020-06-01
+            highlights:
+              - Triaged and treated up to 60 patients per shift in a 38-bed emergency department
+              - Responded to trauma activations as a primary nurse
+              - Precepted 7 new graduate nurses
+              - Helped lower door-to-EKG time from 14 to 8 minutes through a triage protocol change
+              - Documented in Epic
+              - Organized the unit potluck
+              - Participated in the shared governance council
+          - company: Mercy Regional Level II Trauma Center
+            title: Medical-Surgical RN
+            start_date: 2017-07-01
+            end_date: 2020-05-01
+            highlights:
+              - Cared for 5 patients per shift on a telemetry-capable unit
+              - Served as relief charge nurse
+              - Educated patients on discharge plans
+              - Updated the unit bulletin board
+          - company: Happy Paws Veterinary
+            title: Veterinary Assistant
+            start_date: 2014-08-01
+            end_date: 2017-05-01
+            highlights:
+              - Restrained animals during exams
+              - Cleaned kennels
+        educations:
+          - institution: Fairview University
+            degree: BSN
+            field_of_study: Nursing
+            start_date: 2013-09-01
+            end_date: 2017-05-01
+        certifications:
+          - {name: RN License, issuer: State Board of Nursing, issued_date: 2017-06-01, expiry_date: 2028-06-01}
+          - {name: ACLS, issuer: American Heart Association, issued_date: 2025-01-01, expiry_date: 2027-01-01}
+          - {name: PALS, issuer: American Heart Association, issued_date: 2025-02-01, expiry_date: 2027-02-01}
+          - {name: TNCC, issuer: Emergency Nurses Association, issued_date: 2024-05-01, expiry_date: 2028-05-01}
+        skills:
+          - {name: Epic, category: Systems}
+          - {name: Triage, category: Clinical}
+          - {name: Trauma care, category: Clinical}
+          - {name: IV insertion, category: Clinical}
+          - {name: Animal handling, category: Other}
+    metadata:
+      supported:
+        - {requirement: rn, any_of: [RN]}
+        - {requirement: ed, any_of: [emergency]}
+        - {requirement: acls, any_of: [ACLS]}
+        - {requirement: triage, any_of: [triage, triaged]}
+        - {requirement: trauma, any_of: [trauma]}
+      traps: [CEN, stroke coordinator, flight]
+      notes: |
+        I led the triage protocol change for chest pain; it was my proposal and I trained 40 nurses on it.
+        Our ED has about 70,000 visits a year.
+      hidden_facts:
+        - {fact: led protocol, markers: ["40 nurses", "my proposal", "led the triage"]}
+        - {fact: ed volume, markers: ["70,000"]}

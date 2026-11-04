@@ -1,12 +1,22 @@
 """Check whether a model-written section can become an editable resume section.
 
 Section shape, supplied labels, and complete work history are checked here. The model writes the prose;
-the user reviews and edits it before saving.
+the user reviews and edits it before saving. A narrow writing check also catches text that was never
+meant for the page, such as a note about sources. It does not judge whether a claim is true.
 """
+
+import re
 
 from schemas.tailored_section import CitedProse, TailoredSectionDraft
 from tailoring.labeled_sources import LabeledSources
 from tailoring.section_catalog import ENTRY_PREFIX
+
+# Kept narrow on purpose: a false match costs a paid retry, and real bullets can say almost anything.
+_NOTE_TO_READER = re.compile(
+    r"\b(?:(?:listed|provided|supplied) sources?|source labels?|career_source|not supported by the)\b", re.IGNORECASE)
+_STATED_LACK = re.compile(
+    r"\b(?:ha(?:s|ve) not (?:used|worked|held|managed|led)|does not have|"
+    r"(?:no|lacks?) (?:direct |formal |hands-on |prior |professional )?experience (?:with|in))\b", re.IGNORECASE)
 
 
 def find_section_problems(
@@ -51,6 +61,18 @@ def find_section_problems(
         for prose in entry.prose:
             problems.extend(_unknown_source_labels(prose, sources))
     return problems + coverage_problems
+
+
+def find_writing_problems(draft: TailoredSectionDraft) -> list[str]:
+    """List prose that should never reach a resume. Unlike shape problems, this is worth one retry but never a failure."""
+    prose = [*([draft.summary] if draft.summary else []), *(item for entry in draft.entries for item in entry.prose)]
+    problems = []
+    for item in prose:
+        if _NOTE_TO_READER.search(item.text):
+            problems.append(f"Remove the note about sources; the page holds only resume content: {item.text}")
+        if _STATED_LACK.search(item.text):
+            problems.append(f"Do not state what the person lacks. Leave it out: {item.text}")
+    return problems
 
 
 def _unknown_source_labels(prose: CitedProse, sources: LabeledSources) -> list[str]:

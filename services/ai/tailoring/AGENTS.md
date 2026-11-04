@@ -15,8 +15,9 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
   to screening without looking entries up again. Tailoring does not retrieve or rank library rows.
 - `build_section_prompt.py` — the user prompt for one written section
 - `format_gap_analysis.py` — readable overview and every saved requirement assessment
-- `check_section_output.py` — checks usable section shape and known source labels;
-  it does not judge prose claims or replace model wording with library text
+- `check_section_output.py` — checks usable section shape and known source labels, and finds
+  text never meant for the page (notes about sources, stated lacks); it does not judge prose
+  claims or replace model wording with library text
 - `materialize_section.py` — copies identity (employer, title, dates, skill name) from the
   library and keeps the model's prose; also copies education and certifications exactly
 - `generate_resume_draft.py` — prepares shared evidence, overlaps at most three independent
@@ -32,7 +33,9 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
   sections are omitted with an explanation.
 - The checker gives one repair chance for unusable structure or unknown labels.
   Experience must include every supplied role exactly once, including unrelated roles.
-  It accepts empty citation lists and does not inspect prose claims. The user
+  Page-text problems get that same one repair chance but never fail a draft: on the last
+  attempt they stay for the user to edit. Keep those patterns narrow, since a false match
+  costs a paid retry. It accepts empty citation lists and does not inspect prose claims. The user
   reviews and edits generated wording before saving.
 - Reuse saved field checks for each labeled library source and the job context; screen
   unchecked used fields once per execution and report successful approvals. Gap responses

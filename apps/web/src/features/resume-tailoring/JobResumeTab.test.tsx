@@ -90,7 +90,7 @@ function workspaceJobMock(resume: Record<string, unknown> | null = null) {
     result: { data: { job: {
       __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme', location: null, stage: 'UNAPPLIED', url: null,
       description: null, notes: null, appliedAt: null, requirements: [], responsibilities: [], niceToHaves: [],
-      gapResponses: [], latestGapAnalysis: null, resume: resume && { __typename: 'Resume', includeSummary: true, id: resume.id },
+      gapResponses: [], dismissedRequirements: [], latestGapAnalysis: null, resume: resume && { __typename: 'Resume', includeSummary: true, id: resume.id },
     } } },
   }
 }

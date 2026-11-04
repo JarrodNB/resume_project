@@ -56,7 +56,7 @@ it('shows the error and allows another try when the selected job is deleted afte
     children: [{ path: 'interview', element: <JobInterviewTab /> }],
     mocks: [
       { request: { query: JOB_QUERY, variables: { id: job.id } }, result: { data: { job: { ...job, __typename: 'Job',
-        stage: 'UNAPPLIED', location: null, url: null, notes: null, appliedAt: null, gapResponses: [], latestGapAnalysis: null, resume: null } } } },
+        stage: 'UNAPPLIED', location: null, url: null, notes: null, appliedAt: null, gapResponses: [], dismissedRequirements: [], latestGapAnalysis: null, resume: null } } } },
       startMock(defaultSetup, reject),
     ],
   })

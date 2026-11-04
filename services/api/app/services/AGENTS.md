@@ -85,6 +85,7 @@ All business logic, as service objects grouped by domain folder.
   AiTask (`Job#latest_gap_analysis`)
 - `gap_responses/save_gap_response_service.rb` — saves an answer on a job by requirement text;
   optionally creates a career context entry (see `gap_responses/AGENTS.md`)
+- `gap_responses/set_gap_dismissal_service.rb` — dismisses or restores one requirement of a job
 - `users/update_profile_service.rb` — name, contact details, links, and summary; blank strings
   are cleared; does not queue an embedding sync (the summary is read live)
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,

@@ -16,7 +16,7 @@
 #   - gap analysis: analyzeJobGaps
 #   - resume tailoring: startResumeTailoring, saveTailoredResume,
 #     updateResume
-#   - gap responses: saveGapResponse
+#   - gap responses: saveGapResponse, setGapDismissal
 #   - career context entries: createCareerContext, updateCareerContext, deleteCareerContext
 #   - career library: clearCareerLibrary
 module Types
@@ -114,6 +114,7 @@ module Types
     field :delete_resume, mutation: Mutations::ResumeTailoring::DeleteResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
+    field :set_gap_dismissal, mutation: Mutations::GapResponses::SetGapDismissal
     field :review_library_section, mutation: Mutations::CareerLibrary::ReviewLibrarySection
     field :answer_library_review, mutation: Mutations::CareerLibrary::AnswerLibraryReview
     field :start_library_edit, mutation: Mutations::CareerLibrary::StartLibraryEdit

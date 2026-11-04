@@ -49,6 +49,7 @@ export const JOB_QUERY = graphql(`
           id
         }
       }
+      dismissedRequirements
       latestGapAnalysis {
         id
         status

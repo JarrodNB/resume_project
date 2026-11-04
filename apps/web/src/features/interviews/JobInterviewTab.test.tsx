@@ -13,7 +13,7 @@ vi.mock('./useInterviewSession', () => ({ useStartInterview: () => ({ start, loa
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const job = { __typename: 'Job', id: 'job-1', title: 'Laboratory technician', company: null, location: null,
   stage: 'UNAPPLIED', url: null, description: 'Maintain laboratory instruments.', notes: null, appliedAt: null,
-  requirements: ['Calibration'], responsibilities: [], niceToHaves: [], gapResponses: [], latestGapAnalysis: null, resume: null }
+  requirements: ['Calibration'], responsibilities: [], niceToHaves: [], gapResponses: [], dismissedRequirements: [], latestGapAnalysis: null, resume: null }
 const request = { query: JOB_QUERY, variables: { id: 'job-1' } }
 const interviewTab = [{ path: 'interview', element: <JobInterviewTab /> }]
 function mount(available = true, historyState?: unknown) {

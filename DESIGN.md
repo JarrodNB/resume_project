@@ -350,6 +350,11 @@ Solid and square-shouldered, like a sign you can press.
 ### View Switch
 - Two joined buttons (Board, List) inside a 2px ink border with 4px corners. The selected one is filled ink with white text.
 
+### Fit Tab
+- A finished comparison has no card around it. The summary leads, with "Compare again" under it. Requirements sit in groups, each a 16px bold heading with a count badge on a 2px ink rule: Gaps to fill, Could be stronger, Answered, Met, Nice to have, Dismissed.
+- Rows that can use the user's help are always open: requirement and verdict badge on top, then the AI's reason and evidence on the left and the response on the right (stacked under 768px). Met and nice-to-have rows stay collapsed.
+- Red marks only required gaps still waiting on the user. An answered gap, a missing nice-to-have and any dismissed row use a quiet gray badge. Answering or dismissing moves a row, and never changes its verdict.
+
 ### Chat Desk
 - Three columns on wide screens: saved chats (15rem), the conversation, and an "About this chat" notes panel (16.5rem), each divided by a 1px hairline. Under 1180px the panel drops and its text sits as a small note under the message box. Under 900px the saved chats become a row of tiles you swipe sideways.
 - The conversation scrolls on its own above a message box that stays pinned; it follows new words unless the reader scrolled up. The box is a 1.5px ink-bordered, 6px-cornered field that grows with the message. Under a hairline it holds the keyboard hint (hidden on touch screens), the counter and Send. Enter sends and Shift+Enter starts a new line. Focus adds the soft ring; the border goes field gray while a reply is on its way and red when the message is too long.

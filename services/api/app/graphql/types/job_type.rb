@@ -3,6 +3,7 @@
 # Description: Structured job profile and its application stage.
 # Index:
 #   - gap_responses: the user's answers to this job's requirements
+#   - dismissed_requirements: requirement text the user chose not to answer
 #   - latest_gap_analysis: the newest analyze_gaps task comparing this job with the career library
 #   - study_guides, study_guide: owned guide summaries and selected successful content
 #   - latest_tailoring: the newest tailor_resume task for this job
@@ -26,6 +27,8 @@ module Types
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false
     field :gap_responses, [ Types::JobGapResponseType ], null: false,
           description: "The user's answers to this job's requirements, keyed by requirement text."
+    field :dismissed_requirements, [ String ], null: false,
+          description: "Requirement text the user chose not to answer on the Fit tab."
     field :latest_gap_analysis, Types::AiTaskType,
           description: "The newest gap analysis of this job (its result holds gap_analysis), if any."
     field :latest_study_guide, Types::AiTaskType,
@@ -49,6 +52,11 @@ module Types
     # Returns this job's answers, with their career context entries.
     def gap_responses
       object.gap_responses.includes(:career_context)
+    end
+
+    # Returns the requirement text of each dismissal.
+    def dismissed_requirements
+      object.gap_dismissals.pluck(:requirement)
     end
 
     # Returns the job's newest analyze_gaps task.

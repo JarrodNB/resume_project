@@ -13,9 +13,14 @@ import { useJobWorkspace } from './useJobWorkspace'
 export function JobFitTab() {
   const { job, comparison } = useJobWorkspace()
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-7">
+      <GapAnalysisCard
+        jobId={job.id}
+        comparison={comparison}
+        gapResponses={job.gapResponses}
+        dismissedRequirements={job.dismissedRequirements}
+      />
       <SkillMatches description={job.description} />
-      <GapAnalysisCard jobId={job.id} comparison={comparison} gapResponses={job.gapResponses} />
     </div>
   )
 }

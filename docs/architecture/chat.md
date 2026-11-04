@@ -58,6 +58,12 @@ Repeated calls with the same arguments in one run reuse the first result.
 Rails owns conversations, accepted messages, pending operations, summary checkpoints
 and feedback. Authenticated GraphQL reads and mutations scope every conversation to
 its owner. Conversation and message history use bounded, signed cursor pages.
+Conversation lists and study-guide history share
+`Pagination::ReadCreatedPageService` for signed creation-time/id pagination.
+Feature services supply authorized relations, cursor scope, page size and
+presentation; the shared module owns verification, ordering and continuation.
+Existing purpose strings and cursor payloads remain valid. Position-based chat
+message history keeps its own pagination.
 Failed and provisional output stays separate from accepted dialogue.
 
 Interactive chat uses the same FastAPI app and `ExecutionRunner` as interviews.

@@ -532,6 +532,37 @@ def test_docx_text_cap_includes_margin_content(extra_characters: int) -> None:
         assert len(extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)) == MAX_RESUME_TEXT
 
 
+@pytest.mark.parametrize("rectangle", [
+    (10, 10, 100, 30), (100, 30, 10, 10), (100, 10, 10, 30), (10, 30, 100, 10),
+])
+def test_pdf_link_labels_allow_either_rectangle_corner_order(rectangle: tuple) -> None:
+    """PDF rectangles describe opposite corners without requiring sorted coordinates."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=200, height=200)
+    font = DictionaryObject({
+        NameObject("/Type"): NameObject("/Font"),
+        NameObject("/Subtype"): NameObject("/Type1"),
+        NameObject("/BaseFont"): NameObject("/Helvetica"),
+    })
+    page[NameObject("/Resources")] = DictionaryObject({
+        NameObject("/Font"): DictionaryObject({NameObject("/F1"): font}),
+    })
+    content = DecodedStreamObject()
+    content.set_data(b"BT /F1 12 Tf 10 15 Td (Portfolio) Tj ET")
+    page[NameObject("/Contents")] = writer._add_object(content)
+    writer.add_annotation(0, Link(rect=rectangle, url="https://portfolio.example/me"))
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert '[hyperlink label="Portfolio" url="https://portfolio.example/me"]' in text
+
+
 @pytest.mark.parametrize("indirect", [False, True])
 def test_pdf_null_annotation_entry_preserves_other_links(indirect: bool) -> None:
     """An absent annotation must not abort extraction of usable links on the page."""

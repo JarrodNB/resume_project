@@ -3,7 +3,7 @@
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
 read-only tools for the career library and active saved-job postings. A chat-local
-`save_career_context` tool stages one user-requested new career context. Attachments
+`save_career_context` tool stages user-requested new career contexts. Attachments
 and other app actions are not available.
 
 ## Tools (MCP)
@@ -48,7 +48,7 @@ ai-http (chat run) ──HTTP + Bearer token──▶ ai-mcp ──ai_reader─�
   `screening_blocked`. An empty library returns a plain sentence.
 - **No sampling.** The toolset never lets the server call a model.
 
-A reply run allows four tool calls and 12 model requests (each tool round trip is
+A reply run allows 16 tool calls and 12 model requests (each tool round trip is
 another request). Text written before a tool call is kept: the saved reply joins the
 text of every model response in the run, so it always matches what was streamed.
 Repeated calls with the same arguments in one run reuse the first result.
@@ -226,7 +226,7 @@ chat acceptance. The existing per-run cache avoids repeating reads and screening
 Selection references are 45-character signed identities, bound to the token's user and
 operation and expiring with the token (at most ten minutes). All replicas share the signing
 secret; references contain no source snapshots and need no in-memory registry. Detail resolution still filters by current owner and active status. The existing
-four-tool-call limit supports listing, detail, career-library advice and one save together.
+16-tool-call limit supports reads and multiple authorized saves together.
 
 ### Selected saved-job summary
 
@@ -239,7 +239,7 @@ Missing/deleted/archived selections are unavailable. Invalid references and data
 failures expose no database details. The complete summary must fit 40,000 characters.
 Saved approvals are reused; unchecked used fields pass through the caller's accounted
 screen and exact receipts return through fenced chat acceptance. Location edits discard
-saved location approvals. List, summary, and career-library reads fit the four-tool reply limit with room for one save.
+saved location approvals. List, summary, and career-library reads fit the 16-tool reply limit with room for multiple saves.
 The eval runner serves synthetic jobs locally and never falls back to database reads.
 Receipts for the same record and revision merge checked field fingerprints, keeping the
 latest checked value. Listing 500 jobs then reading one summary stays within the existing
@@ -263,11 +263,12 @@ preflight returns status only: ready, already saved, topic conflict or library f
 No existing text enters the prompt through this check. Database failure produces a
 truthful unavailable result while ordinary chat can continue. Topics are limited to
 1,000 characters, responses to 4,000 and the library to 100 entries. Exact repeated
-calls reuse one proposal; a second distinct save in the same turn is rejected.
+calls reuse the same proposal; distinct authorized facts are staged as separate entries
+in one turn. A repeated topic with different text is rejected.
 The topic, response and entry caps come from `text_limits.py`, which mirrors Rails
 `TextLimits`. Its span records only the tool version and outcome.
 
-The proposal is attempt-local and private placeholders are restored before comparison
+The proposals are attempt-local and private placeholders are restored before comparison
 and transport. A successful tool call means pending, not durable. Python returns the
 proposal with final reply acceptance. Rails rechecks ownership, current claim fences,
 limits and uniqueness under the existing owner lock, then saves the new context,
@@ -283,3 +284,13 @@ screening coverage; existing exact entries retain their current checks. The exis
 embedding job makes new context eligible for subsequent interview preparation; already
 frozen interview reference sets do not change. Future cover-letter workflows can read
 the same career library without introducing a separate memory store.
+
+
+Acceptance carries a `career_contexts` array (at most the 100-entry library cap).
+Rails rechecks all topics and total capacity under the owner lock, then saves the
+entries and dialogue atomically. Conflicts or insufficient space reject the entire
+acceptance, including earlier entries. Exact accepted replays create no duplicates
+or additional embedding jobs. The singular `career_context` request remains supported
+for older workers; requests containing both forms are rejected. Deploy Rails before
+workers that send the array. Multiple entries remove the extra confirmation turn
+when a user has already authorized saving several stories.

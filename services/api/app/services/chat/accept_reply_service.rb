@@ -2,15 +2,18 @@
 #
 # The worker may also report career-library or active saved-job fields its tools screened.
 # Those `record_screening` receipts are saved through Screening::RecordApprovalsService
-# with the reply after its exact claim fences. Optional generated career context is
+# with the reply after its exact claim fences. Optional generated career contexts are
 # created in that same transaction; conflicts reject the entire acceptance. Only this explicit chat context allows
 # taskless owned active-job approvals; unrelated taskless callers retain library-only scope.
 require "digest"
 module Chat
   class AcceptReplyService < ApplicationService
     include ExecutionPolicy
-    def initialize(operation:, attempt_id:, claim_generation:, reply:, screened_message_sha256:, summary_update: nil, record_screening: [], career_context: nil)
+    def initialize(operation:, attempt_id:, claim_generation:, reply:, screened_message_sha256:, summary_update: nil, record_screening: [], career_context: nil, career_contexts: nil)
+      # Keep the singular wire contract for workers deployed before batch saves.
       @career_context = career_context
+      @career_contexts = career_contexts
+      @contexts = career_contexts.nil? ? (career_context.nil? ? [] : [ career_context ]) : career_contexts
       @record_screening = record_screening
       @summary_update = summary_update
       @operation, @attempt_id, @generation, @reply, @screened = operation, attempt_id, claim_generation, reply, screened_message_sha256
@@ -23,17 +26,18 @@ module Chat
         @record_screening.all? { |report| report.is_a?(Hash) && report["fingerprints"].is_a?(Hash) && report["fingerprints"].length <= 16 && (report["revision"].nil? || report["revision"].is_a?(Hash)) }
       return failure("Invalid career context") unless valid_career_context?
       summary_identity = @summary_update.is_a?(Hash) ? @summary_update.sort_by { |key, _| key.to_s }.to_h : @summary_update
-      record_identity = @record_screening.present? ? [{ "record_screening" => @record_screening }] : []
+      record_identity = @record_screening.present? ? [ { "record_screening" => @record_screening } ] : []
       record_identity << { "career_context" => @career_context.sort.to_h } if @career_context
-      fingerprint = Digest::SHA256.hexdigest(JSON.generate([@attempt_id, @generation, @reply, @screened, summary_identity, *record_identity]))
+      record_identity << { "career_contexts" => @contexts.map { |entry| entry.sort.to_h } } unless @career_contexts.nil?
+      fingerprint = Digest::SHA256.hexdigest(JSON.generate([ @attempt_id, @generation, @reply, @screened, summary_identity, *record_identity ]))
       with_operation_lock do |conversation|
         next(@operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts")) if @operation.accepted?
         next failure("Claim is stale or expired") unless current_claim?
         next failure("Chat revision changed") unless (conversation.messages.maximum(:position) || 0) == @operation.expected_position
         next failure("Summary version changed") unless conversation.summary_version == @operation.summary_base_version
         next failure("Summary update conflicts with the claimed context") unless valid_summary_update?(conversation)
-        if @career_context
-          result = save_career_context(conversation.user)
+        if @contexts.any?
+          result = save_career_contexts(conversation.user)
           next result unless result.success?
         end
         position = @operation.expected_position
@@ -44,7 +48,7 @@ module Chat
             summary_through_position: @summary_update.fetch("through_position"))
         end
         Screening::RecordApprovalsService.call(user: conversation.user, reports: @record_screening, context: :chat)
-        receipt = { "message_ids" => [user_message.id, assistant.id] }
+        receipt = { "message_ids" => [ user_message.id, assistant.id ] }
         @operation.update!(status: "accepted", result_fingerprint: fingerprint, accepted_result: receipt)
         conversation.update!(title: conversation.title == "New chat" ? @operation.message.squish.truncate(80) : conversation.title, updated_at: Time.current)
         AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "completed", completed_at: Time.current })
@@ -56,18 +60,33 @@ module Chat
     private
 
     def valid_career_context?
-      return true if @career_context.nil?
-      @career_context.is_a?(Hash) && @career_context.keys.sort == %w[requirement response] &&
-        @career_context.all? { |_, value| value.is_a?(String) && value.strip.present? && value == value.strip } &&
-        @career_context["requirement"].length <= TextLimits::BULLET && @career_context["response"].length <= TextLimits::PROSE
+      return false if !@career_context.nil? && !@career_contexts.nil?
+      return false if @career_contexts == []
+      @contexts.is_a?(Array) && @contexts.length <= TextLimits::MAX_CAREER_CONTEXTS &&
+        @contexts.all? { |entry| entry.is_a?(Hash) && entry.keys.sort == %w[requirement response] &&
+          entry.all? { |_, value| value.is_a?(String) && value.strip.present? && value == value.strip } &&
+          entry["requirement"].length <= TextLimits::BULLET && entry["response"].length <= TextLimits::PROSE } &&
+        @contexts.map { |entry| entry["requirement"] }.uniq.length == @contexts.length
     end
 
-    def save_career_context(user)
-      existing = user.career_contexts.find_by(requirement: @career_context.fetch("requirement"))
-      return existing.response == @career_context.fetch("response") ? success(existing) : failure("Career context topic already exists") if existing
+    def save_career_contexts(user)
+      existing = user.career_contexts.where(requirement: @contexts.map { |entry| entry.fetch("requirement") }).index_by(&:requirement)
+      return failure("Career context topic already exists") if @contexts.any? { |entry|
+        existing[entry["requirement"]] && existing[entry["requirement"]].response != entry["response"] }
 
-      CareerContexts::CreateCareerContextService.call(user: user,
-        attributes: @career_context.merge("screened_fields" => %w[requirement response]))
+      additions = @contexts.reject { |entry| existing.key?(entry["requirement"]) }
+      return failure("Career context library is full") if user.career_contexts.count + additions.length > TextLimits::MAX_CAREER_CONTEXTS
+
+      # A service validation failure must roll back earlier entries as well as jobs.
+      result = success(nil)
+      user.class.transaction(requires_new: true) do
+        additions.each do |entry|
+          result = CareerContexts::CreateCareerContextService.call(user: user,
+            attributes: entry.merge("screened_fields" => %w[requirement response]))
+          raise ActiveRecord::Rollback unless result.success?
+        end
+      end
+      result
     end
 
     def valid_summary_update?(conversation)

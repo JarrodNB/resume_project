@@ -1,7 +1,8 @@
 """Select one public posting's embedded job data or visible article/main content.
 
 Never execute scripts or follow linked resources. Structured job data must identify
-one posting; unstructured content is passed to the source-checked job parser,
+one posting; country names may be text or structured Country objects.
+Unstructured content is passed to the source-checked job parser,
 which must identify an actual single job rather than a home/search/login page.
 """
 
@@ -54,9 +55,14 @@ def public_job_html_to_page(html: str, url: str) -> JobPage:
             if isinstance(locations, list):
                 locations = locations[0] if len(locations) == 1 else None
             address = locations.get("address") if isinstance(locations, dict) else None
-            location = ", ".join(_text(address.get(key)) for key in (
-                "addressLocality", "addressRegion", "addressCountry",
-            ) if _text(address.get(key))) if isinstance(address, dict) else ""
+            location = ""
+            if isinstance(address, dict):
+                country = address.get("addressCountry")
+                if isinstance(country, dict):
+                    country = country.get("name")
+                location = ", ".join(filter(None, map(_text, (
+                    address.get("addressLocality"), address.get("addressRegion"), country,
+                ))))
             if not location and job.get("jobLocationType") == "TELECOMMUTE":
                 location = "Remote"
             return JobPage("website", url, title, company, location or None, description)

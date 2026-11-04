@@ -139,7 +139,7 @@ RSpec.describe AiExecutions::Features, ".stream_authority" do
   end
 
   it "uses any registered feature and rejects unknown ones" do
-    stub_const("AiExecutions::Features::STREAM_AUTHORITIES", { "chat" => "Interviews::StreamAuthority" }.freeze)
+    stub_const("AiExecutions::Features::REGISTRY", { "chat" => { stream_authority: "Interviews::StreamAuthority" }.freeze }.freeze)
     expect(described_class.stream_authority("chat")).to eq(Interviews::StreamAuthority)
     expect { described_class.stream_authority("interviews") }.to raise_error(ArgumentError, "Unknown execution feature")
   end

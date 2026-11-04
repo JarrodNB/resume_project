@@ -12,9 +12,11 @@ and canonical acceptance. Interviews retain final-result execution. Enabling str
 configuration alone does not turn interviews into token streams.
 
 A streaming feature needs both an opted-in AI adapter and its Rails authority in
-`AiExecutions::Features::STREAM_AUTHORITIES`. Lifecycle dispatch (operation lookup,
-delivery state, recovery and stop) must also resolve the feature explicitly through the
-fixed registry. Registration does not authorize arbitrary classes from request payloads.
+the `stream_authority` field of `AiExecutions::Features::REGISTRY`. Each fixed
+registration also binds the lifecycle domain and operation model, so operation lookup,
+delivery state, recovery, stop and observer authority resolve the same feature entry.
+Omitting `stream_authority` disables Rails observer authorization without disabling
+lifecycle dispatch. Registration does not authorize arbitrary classes from request payloads.
 Missing either streaming half means no stream; unknown features are rejected. Chat does
 not add another dispatcher, claim store, retry policy, supervisor or accounting engine.
 

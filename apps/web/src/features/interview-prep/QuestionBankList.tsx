@@ -1,7 +1,7 @@
 /**
  * Description: The question bank: every current practice question with its answer progress.
  * Filters by progress and type and searches question and answer text in the browser.
- * Each row opens a question for writing and feedback.
+ * Each row opens a question for writing and feedback, or confirms its deletion.
  */
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { interviewSetDate } from './interviewSetDate'
 import { interviewSetTypeLabel } from './interviewSetTypeLabel'
 import { PROGRESS_LABELS, matchesFilter, questionProgress, type QuestionFilter } from './questionProgress'
+import { DeleteQuestionButton } from './DeleteQuestionButton'
 import { QuestionProgressMark } from './QuestionProgressMark'
 
 type BankQuestion = InterviewQuestionBankQuery['interviewQuestions'][number]
@@ -55,8 +56,8 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
     {visible.length === 0
       ? <p className="question-bank-none">No questions match these filters.</p>
       : <ul className="record-list">
-        {visible.map(({ question, progress }) => <li key={question.id}>
-          <Link className="question-row" to={`/practice/questions/${question.questionSet.id}/${question.id}`}>
+        {visible.map(({ question, progress }) => <li key={question.id} className="flex items-center gap-2">
+          <Link className="question-row min-w-0 flex-1" to={`/practice/questions/${question.questionSet.id}/${question.id}`}>
             <QuestionProgressMark progress={progress} />
             <span className="question-row-text">
               <span className="question-row-title">{question.questionText}</span>
@@ -65,6 +66,8 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
             </span>
             <ChevronRight className="record-arrow" aria-hidden="true" />
           </Link>
+          <DeleteQuestionButton setId={question.questionSet.id} questionId={question.id} questionText={question.questionText}
+            disabled={question.latestTask?.status === 'QUEUED' && question.latestTask.taskType === 'REGENERATE_INTERVIEW_QUESTION'} />
         </li>)}
       </ul>}
   </section>

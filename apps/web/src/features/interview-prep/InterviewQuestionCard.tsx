@@ -1,5 +1,5 @@
 /**
- * Description: One practice question: write and save an answer, get coaching, or replace the question.
+ * Description: One practice question: write and save an answer, get coaching, replace it, or permanently delete it.
  * Get feedback saves the typed answer first. Replacing an answered question keeps the old answer
  * as a read-only copy on the practice page. "Don't show this again" only affects future questions.
  */
@@ -15,11 +15,13 @@ import type { InterviewSetQuery } from '@/graphql/generated/graphql'
 import { InterviewFeedback } from './InterviewFeedback'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
 import { useInterviewAnswer } from './useInterviewAnswer'
+import { DeleteQuestionDialog } from './DeleteQuestionDialog'
 import { useQuestionAvoidance } from './useQuestionAvoidance'
 
 type Question = InterviewSetQuery['interviewQuestionSet']['questions'][number]
 /** Keeps drafts and subscriptions alive while the question is open. */
-export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void }) {
+export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDeleted }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void; onDeleted: () => void }) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const avoidance = useQuestionAvoidance(setId, question.id, question.questionRevision, question.avoided)
   const [edits, setEdits] = useState(0)
   const [submittedEdits, setSubmittedEdits] = useState<number | null>(null)
@@ -85,6 +87,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { q
           <DropdownMenuItem disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onSelect={() => void avoidance.save()}>
             {avoidance.saved ? 'Hidden from new questions' : "Don't show this again"}
           </DropdownMenuItem>
+          <DropdownMenuItem disabled={!!busy || replacing || avoidance.saving} onSelect={() => setDeleteOpen(true)}>Delete question</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
@@ -111,5 +114,6 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { q
       <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated || feedbackDraftChanged} unsavedChanges={feedbackDraftChanged} />
     </div>
     <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer and its feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><ErrorAlert title="Couldn't replace question" messages={errors} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
+    <DeleteQuestionDialog setId={setId} questionId={question.id} questionText={question.questionText} dirty={dirty} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onDeleted} />
   </article>
 }

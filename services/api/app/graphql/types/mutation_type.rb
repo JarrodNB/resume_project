@@ -60,6 +60,7 @@ module Types
 
     field :request_interview_answer_feedback, mutation: Mutations::InterviewPrep::RequestInterviewAnswerFeedback
 
+    field :delete_interview_question, mutation: Mutations::InterviewPrep::DeleteInterviewQuestion
     field :delete_interview_question_set, mutation: Mutations::InterviewPrep::DeleteInterviewQuestionSet
 
     field :update_profile, mutation: Mutations::Users::UpdateProfile

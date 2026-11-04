@@ -240,7 +240,7 @@ class ChatExecutionAdapter:
             # before answering and leaves those five exchanges intact instead.
             if payload.summary_plan and payload.summary_plan.scheduled:
                 summary_update = await self._summarize(claim, privacy, usage)
-            await self._accept(claim, reply, summary_update, proposal.value)
+            await self._accept(claim, reply, summary_update, proposal.values)
             if output:
                 await output.emit("completed")
 
@@ -260,7 +260,7 @@ class ChatExecutionAdapter:
         # Each tool round trip is another accounted model request, on top of retries and fallback.
         async with agent.iter(turn.prompt, message_history=history, model=self._model(claim, "reply"),
                 model_settings={"thinking": False, "max_tokens": 2400}, usage=usage,
-                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=4, total_tokens_limit=128000)) as run:
+                usage_limits=UsageLimits(request_limit=12, tool_calls_limit=16, total_tokens_limit=128000)) as run:
             async for node in run:
                 if not Agent.is_model_request_node(node):
                     continue
@@ -300,12 +300,12 @@ class ChatExecutionAdapter:
         for start in range(0, len(text), 4096):
             await output.emit("delta", text=text[start:start + 4096])
 
-    async def _accept(self, claim, reply, summary_update=None, career_context=None):
+    async def _accept(self, claim, reply, summary_update=None, career_contexts=None):
         digest = hashlib.sha256(claim.payload.message.encode()).hexdigest()
         try:
             values = {"reply": reply, "screened_message_sha256": digest}
-            if career_context is not None:
-                values["career_context"] = career_context
+            if career_contexts:
+                values["career_contexts"] = career_contexts
             session = current_session()
             if session and session.record_screening:
                 # These are optional future screening approvals, not the sources used

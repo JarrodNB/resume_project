@@ -112,7 +112,7 @@ async def test_blocked_recent_job_eval_case_still_answers(monkeypatch):
 
 def test_context_save_evaluator_catches_unsolicited_and_invented_saves():
     evaluator = CareerChatOutcome()
-    saved = ChatEvalOutput(status="completed", reply="Saved.", career_context={"requirement": "Incident", "response": "Reduced downtime 50%"})
+    saved = ChatEvalOutput(status="completed", reply="Saved.", career_contexts=[{"requirement": "Incident", "response": "Reduced downtime 50%"}])
     unsolicited = evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(), output=saved))
     assert unsolicited["career_context_save_policy"] == 0
     invented = evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(expects_context_save=True, forbidden_context_terms=["50%"]), output=saved))

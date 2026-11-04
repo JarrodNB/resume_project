@@ -1,7 +1,7 @@
-"""Stage one user-requested career context for Rails to save with the chat reply.
+"""Stage user-requested career contexts for Rails to save with the chat reply.
 
 The tool only checks owned saved records. Its proposal lives in this reply run and
-has no durable effect until Rails accepts the attempt, dialogue and proposal together.
+has no durable effect until Rails accepts the attempt, dialogue and proposals together.
 Its span records only the tool version and outcome, never the saved text.
 """
 import asyncio
@@ -14,7 +14,7 @@ from psycopg import Error as DatabaseError
 from text_limits import MAX_BULLET_TEXT, MAX_CAREER_CONTEXTS, MAX_PROSE_TEXT
 
 # Bump when the tool's description, arguments or outcome sentences change.
-SAVE_CAREER_CONTEXT_VERSION = "save-career-context-v1"
+SAVE_CAREER_CONTEXT_VERSION = "save-career-context-v2"
 
 INVALID_MESSAGE = (f"Not saved: use a nonblank topic up to {MAX_BULLET_TEXT:,} characters "
                    f"and response up to {MAX_PROSE_TEXT:,} characters.")
@@ -22,7 +22,6 @@ UNAVAILABLE_MESSAGE = "Not saved: career context is unavailable. Please try agai
 OUTCOME_MESSAGES = {
     "pending": "Save pending: this career context will be saved when this reply is accepted.",
     "repeated": "Save pending with this reply.",
-    "second_save": "Not saved: only one distinct career context can be saved per turn.",
     "already_saved": ("This exact career context is already saved; "
                       "it will be checked again with this reply."),
     "conflict": ("Not saved: that topic already has a different response. "
@@ -39,7 +38,7 @@ class CareerContextProposal:
     user_id: str
     check: Callable[[str, str, str], str]
     restore: Callable[[str], str]
-    value: dict[str, str] | None = None
+    values: list[dict[str, str]] = field(default_factory=list)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def save_career_context(self, requirement: str, response: str) -> str:
@@ -63,18 +62,21 @@ class CareerContextProposal:
                     or len(proposed["requirement"]) > MAX_BULLET_TEXT
                     or len(proposed["response"]) > MAX_PROSE_TEXT):
                 return "invalid"
-            if self.value is not None:
-                return "repeated" if self.value == proposed else "second_save"
+            for existing in self.values:
+                if existing["requirement"] == proposed["requirement"]:
+                    return "repeated" if existing == proposed else "conflict"
+            if len(self.values) >= MAX_CAREER_CONTEXTS:
+                return "full"
             try:
                 status = await asyncio.to_thread(self.check, self.user_id,
                                                  proposed["requirement"], proposed["response"])
             except DatabaseError:
                 return "unavailable"
             if status == "ready":
-                self.value = proposed
+                self.values.append(proposed)
                 return "pending"
             if status == "already_saved":
                 # Still submit it so acceptance rechecks that the record remains unchanged.
-                self.value = proposed
+                self.values.append(proposed)
                 return "already_saved"
             return status if status in ("conflict", "full") else "unavailable"

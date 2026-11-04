@@ -4,6 +4,7 @@ The injected client's normal transport/proxy routing stays active. Requests use
 validated literal IPs with the original Host and TLS SNI, so neither a local nor
 proxy-side second DNS lookup can switch the destination to a private address.
 No cookies, authorization headers or client defaults are copied into requests.
+Decode the bounded body using its HTTP charset, or HTML declarations and byte markers.
 """
 
 from contextlib import closing
@@ -11,6 +12,7 @@ from time import monotonic
 from urllib.parse import urljoin
 
 import httpx
+from bs4 import UnicodeDammit
 
 from scrapers.job_page import JobPageUnreadableError, JobPostingNotFoundError
 from scrapers.public_job_url import public_job_url, resolve_public_job_host
@@ -72,5 +74,11 @@ def fetch_public_job_html(url: str, client: httpx.Client) -> str:
                 content.extend(chunk)
             if monotonic() >= deadline:
                 raise JobPageUnreadableError("The job website took too long")
-            return content.decode(response.encoding or "utf-8", errors="replace")
+            if response.charset_encoding:
+                try:
+                    return content.decode(response.charset_encoding, errors="replace")
+                except LookupError:
+                    # An unknown HTTP charset cannot override a usable HTML declaration.
+                    pass
+            return UnicodeDammit(bytes(content), is_html=True).unicode_markup or ""
     raise JobPageUnreadableError("The job website could not be read")

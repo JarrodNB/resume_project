@@ -11,6 +11,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
   records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when text changes.
 - `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues replacement/feedback identity/revision commands.
+- `delete_question_service.rb` — deletes one owned question and its derived vector while retaining AI usage records.
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.
 - `apply_questions_service.rb` — validates generation/replacement drafts and task identity/revisions, then persists atomically inside the owner/task transaction, retiring an answered copy on replacement.
 - `apply_feedback_service.rb` — validates task ownership/identity and coaching shape; stores reviewed revisions while preserving answers.

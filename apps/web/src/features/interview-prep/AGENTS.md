@@ -13,11 +13,12 @@ Written interview practice (the Practice section's Questions tab): the question 
 - `QuestionProgressMark.tsx` — the stop/signal mark for a progress step.
 - `InterviewPrepPage.tsx` — the bank page: generation, pending requests, bank list, and replaced answers.
 - `GenerateQuestionSet.tsx` — type switch, generation, and the empty-library prompt.
-- `QuestionBankList.tsx` — progress/type filters, search, and question rows linking to individual practice.
+- `QuestionBankList.tsx` — progress/type filters, search, and question rows linking to individual practice, with confirmed deletion from each row.
 - `RetiredQuestions.tsx` — read-only answers kept from replaced questions.
 - `PendingQuestionGeneration.tsx` — pending/failed generation requests above the bank with live status and dismissal.
 - `InterviewSetPage.tsx` — one question, generation restoration, and unsaved-answer navigation protection.
-- `InterviewQuestionCard.tsx` — persistent drafts, Get feedback/Save, and the actions menu (replace, avoid).
+- `InterviewQuestionCard.tsx` — persistent drafts, Get feedback/Save, and the actions menu (replace, avoid, confirmed single-question deletion).
+- `DeleteQuestionDialog.tsx`, `DeleteQuestionButton.tsx`, `useDeleteQuestion.ts` — shared confirmed deletion, list action, and mutation/cache cleanup.
 - `useQuestionAvoidance.ts` — revision-bound saved avoidance state and retryable errors without touching drafts.
 - `useInterviewAnswer.ts` — answer/feedback/replacement mutations and retryable errors.
 - `InterviewFeedback.tsx` — coaching and examples with explicit highlighted placeholders.

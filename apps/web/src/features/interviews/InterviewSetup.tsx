@@ -91,9 +91,11 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
     </fieldset>
     <div className="interview-setup-footer">
       <p className="text-sm leading-relaxed"><span className="block text-[15px] font-bold">{roundSummary}</span><span className="text-muted-foreground">With {interviewerName} · {minutes}. {step === 'round' ? 'Next, check your microphone and transcription.' : 'Follow-ups may extend it.'}</span></p>
+      {/* Distinct keys matter: React would otherwise reuse one DOM button and flip its type to
+          "submit" mid-click, so the Continue click would also submit the form and start preparation. */}
       {step === 'round'
-        ? <Button type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button>
-        : <Button type="submit" size="lg" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Starting…' : 'Start interview'}</Button>}
+        ? <Button key="continue" type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button>
+        : <Button key="start" type="submit" size="lg" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Starting…' : 'Start interview'}</Button>}
     </div>
     {step === 'settings' && error && <p role="alert" className="text-destructive">{error}</p>}
     {notice && <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>}

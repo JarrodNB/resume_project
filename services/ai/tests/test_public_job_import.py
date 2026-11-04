@@ -261,3 +261,52 @@ def test_structured_country_names_survive_job_location_import(country, expected)
     )
 
     assert page.location == expected
+
+
+@pytest.mark.parametrize("declaration", [
+    '<meta charset="windows-1252">',
+    '<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">',
+])
+def test_fetch_honors_html_charset_without_http_charset(public_dns, declaration):
+    html = declaration + '<main>Développeur – Montréal</main>'
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, headers={"content-type": "text/html"},
+        stream=httpx.ByteStream(html.encode("windows-1252")),
+    ))) as client:
+        assert fetch_public_job_html(URL, client) == html
+
+
+@pytest.mark.parametrize("charset", ["utf-8", "windows-1252"])
+def test_fetch_http_charset_takes_precedence_over_html_meta(public_dns, charset):
+    html = '<meta charset="iso-8859-1"><main>Développeur – Montréal</main>'
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, headers={"content-type": f"text/html; charset={charset}"},
+        stream=httpx.ByteStream(html.encode(charset)),
+    ))) as client:
+        assert fetch_public_job_html(URL, client) == html
+
+
+def test_fetch_preserves_utf8_without_encoding_declarations(public_dns):
+    html = '<main>Développeur – 日本語</main>'
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, headers={"content-type": "text/html"},
+        stream=httpx.ByteStream(html.encode("utf-8")),
+    ))) as client:
+        assert fetch_public_job_html(URL, client) == html
+
+
+def test_unknown_http_charset_falls_back_to_html_declaration(public_dns):
+    html = '<meta charset="windows-1252"><main>Développeur – Montréal</main>'
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, headers={"content-type": "text/html; charset=unknown-encoding"},
+        stream=httpx.ByteStream(html.encode("windows-1252")),
+    ))) as client:
+        assert fetch_public_job_html(URL, client) == html
+
+
+def test_declared_utf8_keeps_replacement_behavior_for_bad_bytes(public_dns):
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(
+        200, headers={"content-type": "text/html; charset=utf-8"},
+        stream=httpx.ByteStream(b"<main>Invalid \xff</main>"),
+    ))) as client:
+        assert fetch_public_job_html(URL, client) == '<main>Invalid \ufffd</main>'

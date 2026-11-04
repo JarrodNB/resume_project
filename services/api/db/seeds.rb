@@ -11,6 +11,7 @@ if Rails.env.development?
         user.name = name
         user.password = "local cedar lantern harbor 2026"
         user.skip_confirmation!
+        user.confirmed_at = 30.days.ago # Established, so QA isn't held to new-account AI limits.
       end
     end
   end

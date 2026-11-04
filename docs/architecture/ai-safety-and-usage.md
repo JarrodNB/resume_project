@@ -15,13 +15,17 @@ General AI limits exclude spoken interview preparation, turns and speech:
   token usage and a per-model price table (`services/ai/llm/model_prices.py`) and reports it
   with attempt reports, including unsuccessful attempts. Missing provider usage or prices
   makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
-- **Tasks per hour** (fallback 30, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
+- **Tasks per hour** (fallback 40, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
 - **Tasks in flight** (fallback 3, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
+For the first 7 days after verifying email, an account has lower budgets and hourly starts so a
+batch of fake accounts costs less (`AiUsage::NewAccountLimits`, `NEW_ACCOUNT_*`, fallback $1.00
+general, $1.00 interview, 25 tasks/hour, 3 interview sessions/hour). These never raise a default.
+
 Nullable columns on `users` override each general AI default. The existing API `.env.example`
-explicitly configures $2/month, 10 tasks/hour and two in-flight tasks; those example values
-are overrides of the fallback defaults above, and are unchanged. The existing `me { aiUsage }` query exposes
+explicitly configures $2/month, 40 tasks/hour and two in-flight tasks; those example values
+are overrides of the fallback defaults above. The existing `me { aiUsage }` query exposes
 combined known monthly spend across general AI and every spoken interview stage, with the
 sum of both monthly allowances as its budget. Admission checks explicitly select their own
 general or interview allowance; combined reporting does not merge those limits.
@@ -30,7 +34,7 @@ known subtotals from complete recorded usage. No spend display or usage subscrip
 See [cost accounting and verified receipt reconciliation](ai-cost-accounting.md).
 
 Spoken interviews have an independent per-user allowance: $3/month
-(`INTERVIEW_MONTHLY_BUDGET_USD`), 30 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
+(`INTERVIEW_MONTHLY_BUDGET_USD`), 10 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
 three concurrent operations (`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`). General tasks and general
 per-user overrides do not consume or change those allowances. Written interview question
 practice remains general AI. Every spoken stage still has its own durable cost and unknown
@@ -45,8 +49,18 @@ development honors this mode: spoken-interview monthly/hourly and verification s
 gates are skipped, while cost records, concurrency, execution limits and all general AI
 admission stay intact. It does not forgive, erase or assign zero to unknown costs.
 
+One limit sits above every user: the **site-wide daily budget** (fallback $5.00,
+`AI_SITE_DAILY_BUDGET_USD`; 0 stops all new AI work). `AiUsage::SiteDailySpend` adds known general AI, spoken interview and
+embedding costs from rows created this UTC day, across all users. Once the total reaches the
+budget, the allowance check refuses general AI and spoken interview work, including the next
+step of an interview already running, until midnight UTC. Embedding jobs count toward the total
+because they are billed, but they are not refused: they have no admission step and nobody waits
+on them. The check runs under the user row lock, so the total is cached for 30 seconds and read
+through `created_at` indexes. Spend can overshoot by what's recorded during that time or by work
+already running, and unknown costs add nothing. Development-only unmetered interview testing skips this check too.
+
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
-IP and by email, sign-up and session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled
+IP and by email, sign-up by IP and by mailbox, session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled
 requests get a JSON 429 with `Retry-After`.
 
 ## Decisions

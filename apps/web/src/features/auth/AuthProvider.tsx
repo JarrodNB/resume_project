@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (credentials: AuthCredentials) => {
     if (session) await startSession(() => signInRequest(credentials, session.csrfToken))
   }, [session, startSession])
-  const signUp = useCallback(async (credentials: AuthCredentials) => {
-    if (session) await signUpRequest(credentials, session.csrfToken)
+  const signUp = useCallback(async (credentials: AuthCredentials, turnstileToken: string) => {
+    if (session) await signUpRequest(credentials, turnstileToken, session.csrfToken)
   }, [session])
   const signOut = useCallback(async () => {
     if (!session) return

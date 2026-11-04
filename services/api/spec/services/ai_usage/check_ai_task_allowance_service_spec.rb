@@ -47,6 +47,55 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
     end
   end
 
+  describe "site-wide daily limit" do
+    before do
+      stub_const("SITE_DAILY_AI_BUDGET_MICRODOLLARS", 100)
+      create(:ai_task, :completed_resume_parse, cost_microdollars: 100)
+    end
+
+    it "refuses general AI for a user with their own budget left" do
+      expect(described_class.call(user: user).errors).to eq([ described_class::SITE_LIMIT_MESSAGE ])
+    end
+
+    it "refuses spoken interviews too" do
+      expect(described_class.call(user: user, interview: true).errors).to eq([ described_class::SITE_LIMIT_MESSAGE ])
+    end
+
+    it "refuses the next step of work the user already started" do
+      existing_task = create(:ai_task, user: user, task_type: "interview_turn")
+
+      expect(described_class.call(user: user, existing_task: existing_task, interview: true).errors).to eq([ described_class::SITE_LIMIT_MESSAGE ])
+    end
+
+    it "counts background embedding spend" do
+      stub_const("SITE_DAILY_AI_BUDGET_MICRODOLLARS", 150)
+      expect(described_class.call(user: user)).to be_success
+
+      AiEmbeddingRequest.create!(user: create(:user), model: "text-embedding-3-small", purpose: "career_library", cost_microdollars: 50)
+
+      expect(described_class.call(user: user).errors).to eq([ described_class::SITE_LIMIT_MESSAGE ])
+    end
+
+    it "shows the user's own monthly limit first, because that one won't clear tomorrow" do
+      create_finished_task(cost_microdollars: DEFAULT_MONTHLY_AI_BUDGET_MICRODOLLARS)
+
+      expect(described_class.call(user: user).errors.first).to start_with("You've reached this month's AI usage limit")
+    end
+
+    it "lets work start again the next UTC day" do
+      travel_to(1.day.from_now.utc.beginning_of_day) do
+        expect(described_class.call(user: user)).to be_success
+      end
+    end
+
+    it "skips interviews in development-only unmetered testing, but not general AI" do
+      allow(Interviews::LocalTesting).to receive(:unmetered?).and_return(true)
+
+      expect(described_class.call(user: user, interview: true)).to be_success
+      expect(described_class.call(user: user)).not_to be_success
+    end
+  end
+
   describe "hourly limit" do
     it "refuses once the user started the default number of tasks in the last hour" do
       DEFAULT_AI_TASKS_PER_HOUR.times { create_finished_task }

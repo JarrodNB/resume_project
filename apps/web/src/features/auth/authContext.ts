@@ -3,7 +3,7 @@ import { createContext } from 'react'
 import type { AuthCredentials, BrowserSession } from './authApi'
 export interface AuthContextValue extends BrowserSession {
   signIn: (credentials: AuthCredentials) => Promise<void>
-  signUp: (credentials: AuthCredentials) => Promise<void>
+  signUp: (credentials: AuthCredentials, turnstileToken: string) => Promise<void>
   signOut: () => Promise<void>
   expireSession: (broadcast?: boolean) => void
 }

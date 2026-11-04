@@ -14,5 +14,5 @@ it.each([
 })
 it('handles non-JSON failures', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('oops', { status: 500 })))
-  await expect(signUpRequest({ email: 'a@b.c', password: 'x' }, 'csrf')).rejects.toThrow('HTTP 500')
+  await expect(signUpRequest({ email: 'a@b.c', password: 'x' }, 'turnstile', 'csrf')).rejects.toThrow('HTTP 500')
 })

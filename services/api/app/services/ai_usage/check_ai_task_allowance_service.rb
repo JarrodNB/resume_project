@@ -1,4 +1,5 @@
 # Checks monthly spend, hourly starts and in-flight work within one independent allowance.
+# A site-wide daily spend limit sits above them all, so it stops general AI and interviews alike.
 # Spoken interview work never consumes general AI allowances, or the other way around.
 # Optional references have their own bounded in-flight pool so they never block answering.
 # Development-only unmetered interview testing skips spend/start gates; concurrency still bounds work.
@@ -8,6 +9,7 @@ module AiUsage
   class CheckAiTaskAllowanceService < ApplicationService
     # Queued tasks older than this are treated as stuck, so they don't block the user forever.
     IN_FLIGHT_WINDOW = 15.minutes
+    SITE_LIMIT_MESSAGE = "AI features have reached today's limit for all of Careergrind. They'll be back after midnight UTC."
 
     # An already-owned logical HTTP task rechecks spend/concurrency without counting
     # itself as another hourly task or blocking its own retry as in-flight work.
@@ -22,6 +24,7 @@ module AiUsage
       unless @interview && Interviews::LocalTesting.unmetered?
         monthly_usage = SummarizeMonthlyAiUsageService.call(user: @user, scope: @interview ? :interview : :general).value
         return failure([ monthly_limit_message(monthly_usage) ]) if monthly_usage.exhausted?
+        return failure([ SITE_LIMIT_MESSAGE ]) if SiteDailySpend.limit_reached?
         return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
       end
       return failure([ "You already have #{@interview ? (@reference_work ? 'career references' : 'interview operations') : 'AI tasks'} running. Wait for them to finish, then try again." ]) if in_flight_limit_reached?
@@ -34,7 +37,7 @@ module AiUsage
     # Prepared interview children share their root's hourly admission only; all other
     # tasks keep their existing count, including failures and finished work.
     def hourly_limit_reached?
-      limit = @interview ? DEFAULT_INTERVIEW_SESSIONS_PER_HOUR : (@user.ai_tasks_per_hour_limit || DEFAULT_AI_TASKS_PER_HOUR)
+      limit = @interview ? NewAccountLimits.interview_sessions_per_hour(@user) : (@user.ai_tasks_per_hour_limit || NewAccountLimits.ai_tasks_per_hour(@user))
       @tasks.hourly_admissions.where(created_at: 1.hour.ago..).count >= limit
     end
 

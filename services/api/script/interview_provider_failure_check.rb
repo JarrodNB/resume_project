@@ -1,7 +1,7 @@
 # Verify real provider failure callbacks through Rails and mocked HTTP, with no paid calls.
 # Uses an isolated synthetic development DB; deliberately retains its unknown reservation.
 raise "Synthetic verification only" unless Rails.env.development? && ENV["INTERVIEW_SYNTHETIC_PROVIDER_CHECK"] == "true"
-user = User.create!(email: "spoken-fault-#{SecureRandom.hex(6)}@example.invalid", password: SecureRandom.base64(30), confirmed_at: Time.current,
+user = User.create!(email: "spoken-fault-#{SecureRandom.hex(6)}@example.invalid", password: SecureRandom.base64(30), confirmed_at: 30.days.ago,
   summary: "I coordinate scheduling improvements and build tools for team projects.")
 result = Interviews::StartSessionService.call(user: user, execution_mode: "real")
 raise "Creation rejected" unless result.success?

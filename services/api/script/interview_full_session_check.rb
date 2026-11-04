@@ -72,7 +72,7 @@ phase = ENV.fetch("CHECK_PHASE")
 user = User.find_by(email: email)
 if phase == "setup"
   raise "Run identity already exists" if user
-  user = User.create!(email: email, password: SecureRandom.base64(30), confirmed_at: Time.current,
+  user = User.create!(email: email, password: SecureRandom.base64(30), confirmed_at: 30.days.ago,
     summary: "I improve scheduling tools and coordinate team projects.")
   interview = checked(Interviews::StartPreparationService.call(user: user, career_focus: "Scheduling coordination"))
   puts "OPERATION_ID=#{interview.operations.preparation.first.id}"

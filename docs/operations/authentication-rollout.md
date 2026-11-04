@@ -41,7 +41,9 @@ review database; preserve any real data and investigate its schema separately.
    access to API instances; make the proxy overwrite forwarded headers and strip
    client-supplied forwarding values. Check Rack's effective client IP behind the
    actual proxy: two controlled client IPs should get separate throttle buckets,
-   while spoofed forwarding headers must not evade one client's limit. Check Rails
+   while spoofed forwarding headers must not evade one client's limit. Behind a public
+   proxy such as Cloudflare, set `TRUSTED_PROXY_CIDRS` to its published ranges, or all
+   clients on an edge IP share one limit. Check Rails
    Host restrictions/load-balancer routing for the actual API domain. Repository
    defaults do not prove those external controls exist.
 5. Production Rails uses Solid Cache in the shared cache database. Prepare that
@@ -50,14 +52,17 @@ review database; preserve any real data and investigate its schema separately.
    forwarding. Memory/null cache or per-replica isolated databases do not provide
    the documented deployment-wide throttles. Test a controlled 429 and Retry-After
    across replicas without targeting other users.
-6. Configure the verified `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT` (587 or 2525),
+6. Create a Turnstile widget for the web domain. Build the web app with its public
+   `VITE_TURNSTILE_SITE_KEY` and set its `TURNSTILE_SECRET_KEY` secret on the API. Sign-up
+   fails closed if either is missing or wrong, so test one real sign-up after release.
+7. Configure the verified `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT` (587 or 2525),
    `SMTP_DOMAIN`, `SMTP_USERNAME`, `SMTP_PASSWORD` as secrets. Run
    `bin/rails accounts:email_preflight` inside the configured release container.
    The command prints only readiness/missing variable names; it does not connect,
    authenticate, validate provider ownership or send. Required STARTTLS and normal
    certificate validation must remain enabled. Sender/domain DNS and provider setup
    remain deployment work.
-7. Run Rails `bin/jobs` against the shared queue database as a supervised process;
+8. Run Rails `bin/jobs` against the shared queue database as a supervised process;
    its `queues: "*"` includes account mail. API-only health `/up` does not prove
    worker readiness, shared-cache operation or mail delivery. Monitor worker
    heartbeat, mail queue age/failures and database availability before reopening

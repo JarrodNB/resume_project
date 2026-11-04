@@ -55,4 +55,5 @@ Testing Library, oxlint.
 - Add a package: `docker compose run --rm --no-deps web npm install <package>`, then
   `docker compose up --build -V -d web`
 
-The API URL defaults to `http://localhost:3000`; override with `VITE_API_URL`.
+The API URL defaults to `http://localhost:3000`; override with `VITE_API_URL`. Production builds
+must also set `VITE_TURNSTILE_SITE_KEY`; the default is Cloudflare's test key.

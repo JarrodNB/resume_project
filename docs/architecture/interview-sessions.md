@@ -462,7 +462,7 @@ operation purpose before creating or reusing a child task. Missing or forged pre
 admission fails closed. Existing fixture operations use the interview allowance but retain
 their individual hourly admissions. General AI tasks use a separate allowance.
 
-Spoken interviews have their own per-user limits: **$3/month**, **30 session starts/hour**, and
+Spoken interviews have their own per-user limits: **$3/month**, **10 session starts/hour**, and
 **three concurrent operations**, configured by `INTERVIEW_MONTHLY_BUDGET_USD`,
 `INTERVIEW_SESSIONS_PER_HOUR`, and `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and
 its per-user override columns do not consume or change these limits. Conversely, spoken

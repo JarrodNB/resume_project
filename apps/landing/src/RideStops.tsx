@@ -208,7 +208,8 @@ export function InterviewStop() {
         <h2 id="interview-title">Practice before it counts.</h2>
         <p>
           Get questions for this job, save your answers, and get feedback on them. Or sit a mock
-          interview and talk it through, typing whenever you’d rather.
+          interview with an AI interviewer. Its questions come from the job and your library, and
+          you talk it through, typing whenever you’d rather.
         </p>
       </div>
       <figure className="question-card">

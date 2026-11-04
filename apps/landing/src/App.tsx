@@ -1,9 +1,9 @@
 /** The Careergrind landing page: one ride from a person’s history to an interview, then sign-up.
  * Static and public. Its only state is the scripted gap answer in the worked example, and its
- * only ways out are links to the web app and the source code.
+ * only ways out are links to the web app.
  */
 import { useState } from 'react'
-import { SIGN_IN_URL, SIGN_UP_URL, SOURCE_CODE_URL } from './appLinks'
+import { SIGN_IN_URL, SIGN_UP_URL } from './appLinks'
 import { LineStrip } from './LineStrip'
 import { GapsStop, InterviewStop, JobStop, LibraryStop, ResumeStop } from './RideStops'
 import { SearchMap } from './SearchMap'
@@ -16,7 +16,7 @@ function Hero() {
       <div className="hero-action">
         <p>
           Careergrind helps you write a resume for the job in front of you, from what you have
-          actually done. You review every word.
+          actually done. You review every word. Then practice out loud with an AI interviewer.
         </p>
         <a className="button button-primary button-huge" href={SIGN_UP_URL}>Sign up and start</a>
       </div>
@@ -55,7 +55,6 @@ function Limits() {
           Prompts and models are tested against labelled, made-up examples, and every run is traced.
           These checks reduce mistakes rather than remove them, which is why you review the result.
         </p>
-        <a className="text-link" href={SOURCE_CODE_URL}>Read the source code</a>
       </div>
     </section>
   )
@@ -107,7 +106,6 @@ function App() {
         <p>Maya Okafor, her jobs and every company on this page are made up.</p>
         <nav aria-label="Footer">
           <a href={SIGN_IN_URL}>Sign in</a>
-          <a href={SOURCE_CODE_URL}>Source code</a>
         </nav>
       </footer>
     </>

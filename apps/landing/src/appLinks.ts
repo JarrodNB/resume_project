@@ -6,4 +6,3 @@ const APP_URL = import.meta.env.VITE_APP_URL ?? 'http://localhost:5173'
 
 export const SIGN_UP_URL = `${APP_URL}/sign-up`
 export const SIGN_IN_URL = `${APP_URL}/sign-in`
-export const SOURCE_CODE_URL = 'https://github.com/JarrodNB/resume_project'

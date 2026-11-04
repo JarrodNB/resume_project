@@ -96,7 +96,7 @@ class AISettings(BaseSettings):
         return value
 
     resume_tailoring_model: str = "openai:gpt-6-luna"
-    resume_tailoring_thinking: ThinkingLevel = False
+    resume_tailoring_thinking: ThinkingLevel = "low"
     # Used when a generative OpenAI call hits a rate limit, 5xx, or connection error.
     # Output-validation retries stay on the primary. The same name as the primary skips it.
     generative_fallback_model: str = "openai:gpt-5-nano"

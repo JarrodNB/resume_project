@@ -1,13 +1,18 @@
 """Check the boundary between generated section output and editable resume content.
 
-These cases cover usable shape and supplied labels; prose quality remains for human review.
+These cases cover usable shape, supplied labels and text not meant for the page; prose quality
+remains for human review.
 """
 
-import pytest
+from types import SimpleNamespace
 
+import pytest
+from pydantic_ai import ModelRetry
+
+from agents.resume_tailoring_agent import check_section_output
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
-from tailoring.check_section_output import find_section_problems
+from tailoring.check_section_output import find_section_problems, find_writing_problems
 from tests.fakes import build_gap_analysis_context
 
 
@@ -99,3 +104,42 @@ def test_experience_cannot_repeat_a_role() -> None:
     draft = TailoredSectionDraft(nothing_fits=False,
         entries=[ChosenEntry(label="E1"), ChosenEntry(label="E1")])
     assert "exactly once" in find_section_problems("experience", draft, _sources())[0]
+
+
+def _experience_draft(text: str) -> TailoredSectionDraft:
+    return TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="E1", prose=[
+        CitedProse(text=text, source_labels=[])])])
+
+
+@pytest.mark.parametrize("text", [
+    "Led accessibility work. (The WCAG 2.1 AA claim is not supported by the listed sources; omit.)",
+    "Managed monthly close; has not used QuickBooks.",
+    "No direct experience with Kubernetes.",
+])
+def test_text_not_meant_for_the_page_is_found(text: str) -> None:
+    assert find_writing_problems(_experience_draft(text))
+
+
+@pytest.mark.parametrize("text", [
+    "Migrated billing data from the source systems to Snowflake.",
+    "Site has not had a lost-time incident since the 2022 safety program.",
+    "Coached new hires with no prior sales background to quota in 90 days.",
+])
+def test_ordinary_bullets_are_not_flagged(text: str) -> None:
+    assert find_writing_problems(_experience_draft(text)) == []
+
+
+def test_a_summary_with_a_note_is_found() -> None:
+    draft = TailoredSectionDraft(nothing_fits=False, summary=CitedProse(text="Lacks experience in SQL.", source_labels=[]))
+
+    assert find_writing_problems(draft)
+
+
+def test_writing_problems_get_one_retry_and_never_fail_the_draft() -> None:
+    draft = _experience_draft("Managed monthly close; has not used QuickBooks.")
+    first_try = SimpleNamespace(deps=SimpleNamespace(section_type="experience", sources=_sources()), retry=0)
+    last_try = SimpleNamespace(deps=first_try.deps, retry=1)
+
+    with pytest.raises(ModelRetry, match="lacks"):
+        check_section_output(first_try, draft)
+    assert check_section_output(last_try, draft) is draft

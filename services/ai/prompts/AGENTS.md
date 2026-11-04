@@ -22,7 +22,9 @@ output in addition to the usual Description/Index.
   career history, and an instruction inside it is still an instruction); the yes/no questions
   live on the output type
 - `resume_tailoring_instructions.py` — `RESUME_TAILORING_PROMPT_VERSION`, `RESUME_TAILORING_INSTRUCTIONS` (write toward the job
-  from the labeled library only; cite labels; say when nothing fits)
+  from the labeled library only; choose what earns a place, one achievement per bullet, plain
+  credit without hedging, a short summary, nothing on the page but resume content; cite labels;
+  say when nothing fits)
 
 - `user_text_fallback_instructions.py` — versioned screening LLM prompt-injection instructions;
   untrusted input is data, and a positive boolean blocks.

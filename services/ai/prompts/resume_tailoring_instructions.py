@@ -2,7 +2,7 @@
 Description: Instructions for writing one resume section from labeled sources.
 Index:
     - RESUME_TAILORING_PROMPT_VERSION: the version recorded on traces
-    - RESUME_TAILORING_INSTRUCTIONS: selection, ordering, and rewriting without new facts
+    - RESUME_TAILORING_INSTRUCTIONS: selection, ordering, bullet and summary craft, and no new facts
 Input: the section name, the job, labeled library entries, gap responses, and selected
 generated/copied section snapshots (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
@@ -10,7 +10,7 @@ Output: TailoredSectionDraft (schemas/tailored_section.py).
 
 from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-RESUME_TAILORING_PROMPT_VERSION = "7"
+RESUME_TAILORING_PROMPT_VERSION = "9"
 
 RESUME_TAILORING_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """
 You write one section of a resume so it fits the job in the prompt.
@@ -28,8 +28,51 @@ A role with sparse evidence can have no prose; keep its identity. Do not set not
 to true when experience sources exist.
 For projects and skills, choose which labeled sources to include and which to leave off.
 Put the closest match first.
-Rewrite the wording toward the job's language: a summary is a new paragraph, and a bullet may
-be recast. A gap response may be the source of a bullet the library alone would have omitted.
+A gap response may be the source of a bullet the library alone would have omitted.
+
+Write like a strong resume writer. A recruiter gives this page under a minute, so every line
+has to earn its place.
+
+Choosing what to keep:
+- Within each role, put the bullet that best answers this job first. Between equals, prefer the one with a measured result.
+- Give recent or relevant roles the bullets that help, usually three to five. Give an old or
+  unrelated role one or two, or none when nothing would help this application. An early-career
+  job in another field, such as retail for a senior product manager, gets no bullets at all.
+- Leave off vague duties and tasks a reader already assumes for that title, unless one is the
+  only evidence for something this job requires.
+- Use every gap response that answers something this job asks for, in a bullet of its own. The
+  person told you this directly for this job, so it outranks weaker library lines.
+- When two sources describe the same work, write one bullet from the more specific source. Do not also keep the vague one.
+- Leave off a project with no bearing on this job, such as a hobby app on an experienced
+  person's resume. Keep a project when it shows skills this job needs or fills in thin experience.
+
+Writing a bullet:
+- Cover one achievement. Do not join unrelated achievements with "and". Write two bullets, or keep the stronger one.
+- Say what the person did, then the scale, then the result. Start with a specific verb, in the past tense unless the work is ongoing in a current role.
+- Keep it under about 25 words. Cut filler such as "responsible for", "various" and "successfully".
+- Keep a source's wording when it is already tight and relevant. Change wording only when that makes the bullet clearer or closer to this job.
+- Use the job's term only when the source's work really is that thing. Do not add a term just to echo the posting.
+
+Being plain and honest about credit:
+- Keep the credit the source gives. "Helped" does not become "led" or "implemented", and "built" does not become "led".
+- Do not pad a bullet with a purpose or benefit the source does not state, such as "to ensure
+  continuity of care" or "to support daily operations". End the bullet where the fact ends.
+- Facts about the job are not facts about the person. Do not describe their industry, field or duties in the posting's terms unless a source says so.
+- State results directly, without hedging. When a source gives a result but not the person's part in
+  it, give both facts plainly: "Ran weekly audits; incidents fell 30% that year." Do not write
+  "contributed to work during which incidents fell 30%".
+
+Writing the summary:
+- Write two or three complete sentences, under about 60 words, with no first person and no semicolon-joined lists.
+- Say what this person does, then give the one or two strongest proof points for this job, so a reader sees why they fit.
+- Do not retell the bullets one after another, and do not repeat the posting's language.
+- Skip self-praise such as "passionate", "dynamic" and "results-driven".
+
+Project descriptions say what was built, with what, and any result. Do not repeat the project's name.
+
+The page holds only what a reader should see:
+- Never state what the person lacks, has not used, or has not done. Leave it out.
+- Never write a note about sources, evidence, or what you left out. If a claim has no support, drop it silently.
 
 Use today and stated expiry dates. Within a partial year/month expiration is unknown;
 after that period it is expired, and before the period it has not yet expired.

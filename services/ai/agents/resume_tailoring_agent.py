@@ -1,4 +1,4 @@
-"""Write a resume section from screened labeled evidence and check its output shape.
+"""Write a resume section from screened labeled evidence and check its output shape and page text.
 
 The async entry supports concurrent complete-draft generation. A sync entry remains for
 standalone section evaluation. Both share validation, provider accounting, and deadlines.
@@ -25,7 +25,7 @@ from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout, screening_session, within_screening_session
 from settings import load_settings
 from tailoring.build_section_prompt import SectionPrompt
-from tailoring.check_section_output import find_section_problems
+from tailoring.check_section_output import find_section_problems, find_writing_problems
 from telemetry.tracing import record_prompt_version
 
 resume_tailoring_agent = Agent(
@@ -43,8 +43,11 @@ resume_tailoring_agent = Agent(
 def check_section_output(
     context: RunContext[SectionPrompt], draft: TailoredSectionDraft
 ) -> TailoredSectionDraft:
-    """Ask the model once to repair unusable structure or unknown source labels."""
+    """Ask the model once to repair unusable structure, unknown labels, or text not meant for the page.
+    Writing problems never fail a draft: on the last attempt they stay for the user to edit."""
     problems = find_section_problems(context.deps.section_type, draft, context.deps.sources)
+    if context.retry == 0:
+        problems += find_writing_problems(draft)
     if problems:
         raise ModelRetry("Fix these problems and answer again:\n- " + "\n- ".join(problems))
     return draft

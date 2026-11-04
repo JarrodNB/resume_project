@@ -170,7 +170,9 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   titles, tools, dates, metrics, or responsibilities. The model is instructed to cite
   evidence labels for its wording;
   the output checker accepts usable section shape and known labels, with at most one
-  repair attempt. It does not judge whether prose claims match the sources. Empty
+  repair attempt. That attempt also removes text never meant for the page, such as a note
+  about sources, but leftover text of that kind does not fail the draft. It does not judge
+  whether prose claims match the sources. Empty
   citation lists are accepted. The user reviews and edits the draft before saving.
   Empty sections skip generation. A successful optional writer may omit its section with
   an explanation when nothing fits. A failed writer or the shared task deadline cancels and

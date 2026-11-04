@@ -96,7 +96,7 @@ async def execute_chat_case(case, *, models=None):
     if owner.failure in {"screening_unavailable", "dependency_unavailable", "execution_timeout"}:
         raise RuntimeError(f"Chat evaluation could not execute: {owner.failure}")
     result = owner.result or {}
-    return ChatEvalOutput(career_context=result.get("career_context"), status="completed" if owner.result else "failed", reply=result.get("reply", ""),
+    return ChatEvalOutput(career_contexts=result.get("career_contexts", []), status="completed" if owner.result else "failed", reply=result.get("reply", ""),
         summary=(result.get("summary_update") or {}).get("text", ""), failure_code=owner.failure,
         known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
         accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()))

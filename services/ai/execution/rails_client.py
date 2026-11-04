@@ -159,4 +159,3 @@ class RailsExecutionClient:
         return await self._callback(
             claim, "usage", usage=usage, incomplete=incomplete, observation_id=observation_id
         )
-

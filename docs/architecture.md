@@ -157,3 +157,8 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   deploys may cause brief downtime. RDS, S3, and SQS keep saved data and queued work outside
   the server. Reconsider if the app needs high availability or outgrows one server, or if
   outbound data grows enough to make DigitalOcean's included bandwidth cheaper.
+
+The shared `execution/rails_client.py` module owns fixed-origin Rails HTTP limits,
+retry rules and lease/provider-accounting callbacks. Chat and interview clients
+inherit it directly and keep their own claim validation and domain acceptance
+methods; chat does not inherit interview audio or transcription operations.

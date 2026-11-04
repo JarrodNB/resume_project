@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
-from interviews.client import RailsInterviewClient, RailsTransportError
+from execution.rails_client import RailsExecutionClient, RailsTransportError
 
 
 class ChatMessage(BaseModel):
@@ -120,7 +120,7 @@ class ChatClaim(BaseModel):
         return {"attempt_id": self.attempt_id, "claim_generation": self.claim_generation}
 
 
-class RailsChatClient(RailsInterviewClient):
+class RailsChatClient(RailsExecutionClient):
     """Share bounded callbacks, while keeping chat's domain contract separate."""
 
     def __init__(self, origin, secret, **kwargs):

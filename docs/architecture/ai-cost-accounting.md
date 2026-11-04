@@ -88,3 +88,12 @@ Task outcomes and the original task-creation-month attribution stay intact.
 Original finalized reports cannot overwrite the verified receipt on redelivery.
 The command stops at the first invalid row; rerunning the corrected file safely
 skips already-applied receipts. Deploy both Rails migrations before new workers.
+
+## Entry and task total ownership
+
+`AiUsage::AttemptEntries.replace(attempt, entries, ai_task:)` replaces one
+attempt's typed rows and applies the difference to its locked task's known totals
+in one transaction. Callers hold the task lock and decide receipt finalization,
+replay acceptance and reconciliation policy; they do not calculate or apply deltas.
+This keeps live result delivery and verified imports on the same accounting path.
+The module owns the task total fields as well as the detailed entry fields.

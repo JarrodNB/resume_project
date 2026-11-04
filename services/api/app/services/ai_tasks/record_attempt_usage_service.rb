@@ -4,7 +4,7 @@
 #     known totals by the change, so a reopened incomplete report replaces its old rows
 module AiTasks
   class RecordAttemptUsageService < ApplicationService
-    COLUMNS = %w[input_tokens cached_input_tokens output_tokens cost_microdollars].freeze
+    COLUMNS = AiUsage::AttemptEntries::TOTAL_FIELDS
 
     # Receives the task already locked by result application.
     def initialize(ai_task:, message:)
@@ -25,8 +25,7 @@ module AiTasks
       report.update!(finalized: finalized,
                      incomplete: !finalized || @message["usage_incomplete"] == true ||
                        entries.any? { |entry| entry["cost_microdollars"].nil? })
-      change = AiUsage::AttemptEntries.replace(report, entries)
-      @ai_task.update!(COLUMNS.index_with { |column| @ai_task.public_send(column) + change[column] })
+      AiUsage::AttemptEntries.replace(report, entries, ai_task: @ai_task)
       success(true)
     end
   end

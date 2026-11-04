@@ -27,8 +27,7 @@ module AiUsage
           task.with_lock do
             report.reload.lock!
             reconcile(report, previous_usage: AiUsage::AttemptEntries.as_hashes(report)) do
-              change = AiUsage::AttemptEntries.replace(report, @usage)
-              task.update!(AiTasks::RecordAttemptUsageService::COLUMNS.index_with { |column| task.public_send(column) + change[column] })
+              AiUsage::AttemptEntries.replace(report, @usage, ai_task: task)
               report.update!(incomplete: false, finalized: true)
               reconcile_verification_reservation
             end

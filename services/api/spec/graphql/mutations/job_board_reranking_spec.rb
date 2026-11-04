@@ -61,6 +61,15 @@ RSpec.describe "Job Board reranking" do
     expect(Shoryuken::Client).not_to have_received(:queues)
   end
 
+  it "tells the user when the site-wide daily AI limit stops new work" do
+    add_embeddings
+    stub_const("SITE_DAILY_AI_BUDGET_MICRODOLLARS", 100)
+    create(:ai_task, :completed_resume_parse, cost_microdollars: 100)
+    expect(request.dig("data", "rerankJobBoardListings", "errors")).to eq([ AiUsage::CheckAiTaskAllowanceService::SITE_LIMIT_MESSAGE ])
+    expect(user.ai_tasks.reload).to be_empty
+    expect(Shoryuken::Client).not_to have_received(:queues)
+  end
+
   it "keeps only IDs even when the selected catalogue contains large multibyte text" do
     add_embeddings
     ids = 100.times.map { create(:job_board_listing, payload: { title: "開発者", description: "資料" * 4000 }).id }

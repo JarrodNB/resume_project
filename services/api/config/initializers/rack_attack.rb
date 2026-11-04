@@ -7,8 +7,9 @@
 # Index:
 #   - RackAttackRequestKeys.client_ip: the address or IPv6 network that IP limits count against
 #   - RackAttackRequestKeys.account_email: normalized email from accepted Rails parameters
+#   - RackAttackRequestKeys.sign_up_mailbox: the email without its +tag, so tagged addresses share a limit
 #   - RackAttackRequestKeys.session_user_id: user id from a valid persisted session
-#   - throttles: auth/sign_in (IP, email), auth/sign_up (IP), graphql (user, IP)
+#   - throttles: auth/sign_in (IP, email), auth/sign_up (IP, mailbox), graphql (user, IP)
 #   - throttled_responder: JSON 429 response
 module RackAttackRequestKeys
   # Public proxy ranges, such as Cloudflare's, that sit in front of the app. Private ranges are
@@ -52,6 +53,11 @@ module RackAttackRequestKeys
     nil
   end
 
+  def self.sign_up_mailbox(request)
+    email = account_email(request)
+    Accounts::SignUpEmailRules.mailbox(email) if email
+  end
+
   # Use the same persisted session boundary as HTTP and Cable; IP limits still cover guests.
   def self.session_user_id(request)
     result = BrowserSessions::ResolveSessionIdentityService.call(session_id: request.session.id)
@@ -83,6 +89,15 @@ end
 
 Rack::Attack.throttle("auth/sign_up/ip", limit: 5, period: 1.hour) do |request|
   RackAttackRequestKeys.client_ip(request) if RackAttackRequestKeys.action(request) == "auth/registrations#create"
+end
+
+# Counts attempts whether or not an account exists, so hitting either limit reveals nothing.
+Rack::Attack.throttle("auth/sign_up/mailbox/hour", limit: 5, period: 1.hour) do |request|
+  RackAttackRequestKeys.sign_up_mailbox(request) if RackAttackRequestKeys.action(request) == "auth/registrations#create"
+end
+
+Rack::Attack.throttle("auth/sign_up/mailbox/day", limit: 10, period: 1.day) do |request|
+  RackAttackRequestKeys.sign_up_mailbox(request) if RackAttackRequestKeys.action(request) == "auth/registrations#create"
 end
 
 Rack::Attack.throttle("auth/confirmation/ip", limit: 5, period: 1.hour) do |request|

@@ -446,6 +446,7 @@ DEPENDENCIES
   nokogiri
   openai (~> 0.99.0)
   pg (~> 1.1)
+  public_suffix (~> 7.0)
   puma (>= 5.0)
   rack-attack (~> 6.8)
   rack-cors

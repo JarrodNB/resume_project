@@ -133,6 +133,22 @@ the original token. `POST /auth/confirmation` accepts `{ user: { email } }` and
 returns the same 202 for unknown, confirmed and unconfirmed accounts. Email requests
 are queued, so SMTP latency/failure cannot disclose account existence. Rack::Attack
 bounds signup/resend by IP, resend by normalized email, and verification by IP.
+
+Sign-up has extra limits on the email address (`Accounts::SignUpEmailRules`), none of which
+change the stored address:
+
+- **Disposable domains** (`config/disposable_email_domains.txt`, including subdomains) get a 422
+  asking for a permanent address. This runs before the duplicate check and depends only on the
+  domain, so it reveals nothing about accounts. The list covers well-known services, not all of them.
+- **One mailbox.** Rack::Attack counts `person+a@example.com` and `person+b@example.com` as
+  `person@example.com`: 5 attempts an hour and 10 a day. It counts attempts, so a 429 means the same whether or not an account exists.
+  Gmail's ignored dots are not folded, so `p.erson@gmail.com` counts as its own mailbox.
+- **Domain cap.** A non-public domain may create `SIGN_UP_DOMAIN_DAILY_LIMIT` new accounts
+  (fallback 20) per fixed one-day window, counted by registrable domain so subdomains share a cap. Large public providers are exempt.
+  Over the cap, sign-up returns the usual 202 without creating an account or sending mail, then logs the domain.
+  This keeps duplicates indistinguishable and tells a bot nothing. A real person affected gets no email
+  and must retry later. The count happens in the service, after the bot check,
+  so nobody can use up a company's cap with unverified requests. It lives in `Rails.cache`, so an eviction restarts it.
 IP limits use `RackAttackRequestKeys.client_ip`: IPv6 counts per /64, the `Forwarded`
 header is ignored, and `TRUSTED_PROXY_CIDRS` names public proxies to skip in
 `X-Forwarded-For`. Accounts unverified for a week, with no newer verification email, are

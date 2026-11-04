@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_03_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_010000) do
     t.boolean "finalized", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_ai_embedding_requests_on_created_at"
     t.index ["user_id", "created_at"], name: "index_ai_embedding_requests_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_embedding_requests_on_user_id"
     t.check_constraint "cost_microdollars IS NULL OR cost_microdollars >= 0", name: "embedding_cost_nonnegative"
@@ -128,6 +129,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_010000) do
     t.uuid "hourly_admission_task_id"
     t.boolean "awaiting_queue_publish", default: false, null: false
     t.index ["created_at"], name: "index_ai_tasks_awaiting_queue_publish", where: "awaiting_queue_publish"
+    t.index ["created_at"], name: "index_ai_tasks_on_created_at"
     t.index ["hourly_admission_task_id"], name: "index_ai_tasks_on_hourly_admission_task_id"
     t.index ["subject_type", "subject_id"], name: "index_ai_tasks_on_subject"
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"

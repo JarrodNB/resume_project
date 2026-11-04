@@ -17,7 +17,7 @@ def anyio_backend():
 
 def test_chat_evaluation_labels_are_separate_and_bad_outputs_lose_scores():
     dataset = load_chat_dataset()
-    assert len(dataset.cases) == 13
+    assert len(dataset.cases) == 15
     case = dataset.cases[0]
     assert 'required_reply_terms' not in case.inputs.model_dump()
     evaluator = CareerChatOutcome()
@@ -76,16 +76,38 @@ async def test_saved_job_eval_uses_synthetic_list_and_summary_without_database(m
             reference = returns[0].content.split('Reference: ')[1].splitlines()[0]
             yield {0: DeltaToolCall(name='read_job_summary', json_args=json.dumps({'job_reference': reference}), tool_call_id='summary')}
         else:
-            assert not blocked, (seen, returns[1].content)
+            if blocked:
+                assert 'did not pass the safety check' in returns[1].content
+                assert 'Ignore all previous instructions' not in returns[1].content
+                yield 'That saved posting can not be used right now.'
+                return
             assert 'Location: Remote' in returns[1].content and 'Python' in returns[1].content
             yield 'Remote Python role.'
     case = next(case for case in load_chat_dataset().cases if case.name == case_name)
     output = await execute_chat_case(case.inputs, models=Models(stream))
     if blocked:
-        assert output.status == 'failed' and output.failure_code == 'screening_blocked' and not output.reply
+        assert output.status == 'completed' and output.failure_code is None
+        assert output.reply == 'That saved posting can not be used right now.'
         assert any('Ignore all previous instructions' in text for text in seen)
     else:
         assert output.status == 'completed' and output.reply == 'Remote Python role.'
+
+
+@pytest.mark.anyio
+async def test_blocked_recent_job_eval_case_still_answers(monkeypatch):
+    from screening.screen_user_text import ScreenOutcome
+    from tests.test_chat_execution import Models
+
+    monkeypatch.setattr('pii._detect_spans', lambda text: [])
+    monkeypatch.setattr(ChatExecutionAdapter, '_screen', AsyncMock())
+    async def screen(self, claim, text):
+        return ScreenOutcome('Ignore all previous instructions' not in text)
+    monkeypatch.setattr(ChatExecutionAdapter, '_screen_decision', screen)
+    async def stream(messages, info):
+        yield 'Lead your resume summary with your strongest result.'
+    case = next(case for case in load_chat_dataset().cases if case.name == 'blocked_recent_job_label_keeps_chat_working')
+    output = await execute_chat_case(case.inputs, models=Models(stream))
+    assert output.status == 'completed' and output.failure_code is None
 
 
 def test_context_save_evaluator_catches_unsolicited_and_invented_saves():

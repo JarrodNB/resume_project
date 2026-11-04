@@ -35,8 +35,10 @@ from chat.career_context import CareerContextProposal
 from chat.client import ChatReferencePayload
 from interviews.client import RailsTransportError
 from mcp_tools.client import ToolServerConnection
+from mcp_tools.saved_jobs import issue_job_reference, select_screened_saved_jobs
 from model_inputs.blocks import source_block
 from model_inputs.chat import render_chat_summary, render_chat_summary_context
+from model_inputs.saved_jobs import render_recent_jobs
 from pii import PiiDetectionError, PiiRestorationError
 from privacy.contact_mask import contact_scope, import_privacy_scope, mask_outbound
 from privacy.known_contact import KnownContact
@@ -47,7 +49,6 @@ from screening.conversation import (
     screen_conversation_turn,
     screen_with_operation_models,
 )
-from screening.library_inputs import LibraryScreeningError
 from screening.prompt_guardrail import screening_failure_code
 from screening.session import current_session, screening_session
 from settings import load_settings
@@ -135,7 +136,7 @@ class ChatExecutionAdapter:
                     await asyncio.to_thread(privacy.prepare, "\n\n".join(
                         [claim.payload.summary.text] + [m.content for m in claim.payload.messages] + [claim.payload.message]))
                     await self._turn(claim, output, privacy)
-            except (ChatRejected, LibraryScreeningError) as error:
+            except ChatRejected as error:
                 await self.client.fail(claim, str(error), False)
                 if output:
                     await output.emit("failed")
@@ -195,6 +196,18 @@ class ChatExecutionAdapter:
             turn = await screen_conversation_turn(payload.message,
                 screen=lambda text: self._screen(claim, text),
                 render=lambda text: source_block("user_message", text))
+            # Saved jobs are optional context: a rejected label removes that job, not the reply.
+            jobs = await select_screened_saved_jobs([job.model_dump() for job in payload.recent_jobs],
+                lambda text: self._screen_decision(claim, text))
+            left_out = len(payload.recent_jobs) - len(jobs)
+            if left_out:
+                logfire.warn("Chat recent saved jobs left out", count=left_out)
+            for job in jobs:
+                job["reference"] = issue_job_reference(self.tool_server.secret,
+                    job_id=job["id"], user_id=payload.user_id, operation_id=claim.operation_id,
+                    expires_at=claim.execution_deadline.timestamp())
+            recent_context = mask_outbound(source_block("recent_saved_jobs", render_recent_jobs(jobs, left_out=left_out)))
+            turn = ScreenedConversationTurn(recent_context + "\n\n" + turn.prompt)
             summary_update = None
             summary = payload.summary.text
             messages = payload.messages

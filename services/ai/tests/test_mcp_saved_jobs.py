@@ -337,3 +337,36 @@ async def test_summary_overflow_is_rejected_before_screening_and_missing_is_expl
     with pytest.raises(LibraryScreeningError, match='context_limit'):
         await render_job_summary_result(oversized, {}, screen)
     assert 'no longer available' in await render_job_summary_result(missing, {}, screen)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("outcome,expected", [({"allowed": False}, "did not pass the safety check"),
+    ({"allowed": False, "unchecked": True}, "safety check is unavailable"),
+    ({"allowed": False, "too_long": True}, "too large")])
+@pytest.mark.parametrize("tool,result", [
+    ("list_saved_jobs", {"jobs": [{"id": "job-1", "title": "Hidden label", "company": "", "reference": "J-test",
+                                   "screened_fields": []}]}),
+    ("read_job_summary", {"job": {"id": "job-1", "title": "Hidden label", "company": "", "location": "",
+                                  "requirements": [], "responsibilities": [], "nice_to_haves": [],
+                                  "screened_fields": []}})])
+async def test_rejected_saved_job_results_become_a_tool_response(tool, result, outcome, expected):
+    from mcp_tools.client import _ResultHandler
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import current_session, screening_session
+    async def call(*_):
+        return result
+    async def screen(_):
+        return ScreenOutcome(**outcome)
+    with screening_session():
+        text = await _ResultHandler(screen)(None, call, tool, {})
+        assert not current_session().record_screening
+    assert expected in text and "Hidden label" not in text
+
+
+@pytest.mark.anyio
+async def test_unreadable_saved_job_result_becomes_a_tool_response_without_details():
+    from mcp_tools.client import _ResultHandler
+    async def unavailable(*_):
+        raise RuntimeError("private details")
+    text = await _ResultHandler(None)(None, unavailable, "read_job_summary", {"job_reference": "J-bad"})
+    assert "could not be read" in text and "private details" not in text

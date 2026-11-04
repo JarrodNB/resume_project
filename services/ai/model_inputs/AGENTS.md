@@ -31,4 +31,4 @@ if model-facing text changes.
 - `career_library.py` — readable labeled sections, one per screened library entry, for the chat library tool; no IDs or JSON.
 
 - `saved_jobs.py` — readable title, company and selection-reference labels for screened active saved jobs.
-- `saved_jobs.py` also renders selected posting facts with explicit absent fields.
+- `saved_jobs.py` also renders selected posting facts with explicit absent fields, and chat's five recent saved jobs with a note when any were left out.

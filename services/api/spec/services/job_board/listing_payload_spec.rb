@@ -1,0 +1,34 @@
+# Check admitted catalogue fields without loading Rails, a database or HTTP transport.
+require "spec_helper"
+require_relative "../../../app/services/job_board/listing_payload"
+
+RSpec.describe JobBoard::ListingPayload do
+  let(:listing) { { "id" => "42", "title" => "Engineer", "locations" => [ { "country_code" => "US", "city_name" => "Austin", "state_code" => "TX" } ] } }
+
+  it "requires structured US evidence and a valid title and identity" do
+    [ nil, {}, listing.merge("id" => 0), listing.merge("title" => " "), listing.merge("title" => "Engineer\n"),
+      listing.merge("locations" => [], "location" => "United States"),
+      listing.merge("locations" => [ { "country_code" => "CA" } ]) ].each do |raw|
+      expect(described_class.call(raw)).to be_nil
+    end
+  end
+
+  it "keeps only allowed typed fields and US locations without mutating the input" do
+    raw = listing.merge("locations" => [ { "country_code" => "CA" }, *listing["locations"] ],
+      "description" => nil, "company" => { "name" => "Team", "private" => "discard" },
+      "has_remote" => false, "is_active" => "yes", "application_url" => "https://jobs.test/apply", "private" => "discard")
+    original = Marshal.load(Marshal.dump(raw))
+    result = described_class.call(raw)
+    expect(result).to eq("id" => 42, "title" => "Engineer", "locations" => listing["locations"],
+      "location" => "Austin, TX, US", "description" => nil, "company" => { "name" => "Team" },
+      "has_remote" => false, "application_url" => "https://jobs.test/apply")
+    expect(raw).to eq(original)
+    expect(result).not_to have_key("salary_text")
+  end
+
+  it "does not pass credential-bearing, executable or malformed application URLs" do
+    [ "https://user:password@jobs.test/apply", "javascript:alert(1)", "https://bad host", nil ].each do |url|
+      expect(described_class.call(listing.merge("application_url" => url))["application_url"]).to be_nil
+    end
+  end
+end

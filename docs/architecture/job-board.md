@@ -22,6 +22,10 @@ career library also clears these imported suggestions, returning the board to de
 ## Ownership and provider access
 
 Rails calls CleanJobData's list endpoint through `JobBoard::SearchCleanJobDataService`.
+`ListingPayload.call` owns normalization of each provider listing: required IDs/titles,
+confirmed US rows, allowed optional fields and safe application URLs. The HTTP
+client owns credentials, retries and page validation, and passes each raw listing
+through that module before returning a page.
 `CLEANJOBDATA_API_KEY` stays in the API environment. Requests include descriptions;
 there are no per-listing detail calls. Only structured US country confirmation is
 accepted. Unknown countries are excluded, including for remote listings.

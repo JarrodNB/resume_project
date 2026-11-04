@@ -577,3 +577,23 @@ def test_pdf_link_labels_allow_either_rectangle_corner_order(rectangle: tuple) -
     text = extract_document_text(buffer.getvalue(), "application/pdf")
 
     assert '[hyperlink label="Portfolio" url="https://portfolio.example/me"]' in text
+
+
+@pytest.mark.parametrize("indirect", [False, True])
+def test_pdf_null_annotation_entry_preserves_other_links(indirect: bool) -> None:
+    """An absent annotation must not abort extraction of usable links on the page."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+    from pypdf.generic import NullObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=200, height=200)
+    writer.add_annotation(0, Link(rect=(10, 10, 100, 30), url="https://github.com/example"))
+    null = NullObject()
+    page["/Annots"].insert(0, writer._add_object(null) if indirect else null)
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert 'url="https://github.com/example"' in text

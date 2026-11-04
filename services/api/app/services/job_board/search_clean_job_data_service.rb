@@ -3,7 +3,7 @@
 require "net/http"
 require "json"
 require "timeout"
-require_relative "listing_location"
+require_relative "listing_payload"
 require_relative "experience_levels"
 require_relative "search_filters"
 
@@ -13,7 +13,6 @@ module JobBoard
     TRANSIENT_RATE_LIMIT = "Too many requests. Please slow down and retry.".freeze
     UNAVAILABLE = "Job search is temporarily unavailable. Please retry.".freeze
     INVALID_PAGE = "Job search returned an invalid page.".freeze
-    STRING_FIELDS = %w[description published remote_type expired_at employment_type salary_text salary_currency].freeze
 
     # @param keyword [String] nonblank title/keyword search, at most 200 characters
     # @param remote_only [Boolean] require the provider's remote filter
@@ -110,43 +109,7 @@ module JobBoard
       cursor = pagination["next_page"]
       return failure(INVALID_PAGE) unless cursor.nil? || valid_text?(cursor, 4096)
 
-      success(listings: page["data"].filter_map { |listing| normalize_listing(listing) }, next_cursor: cursor)
-    end
-
-    def safe_application_url(value)
-      return unless value.is_a?(String)
-      uri = URI.parse(value)
-      value if %w[http https].include?(uri.scheme) && uri.host && !uri.userinfo
-    rescue URI::InvalidURIError
-      nil
-    end
-
-    def normalize_listing(listing)
-      return unless listing.is_a?(Hash) && valid_text?(listing["title"], 1000)
-      provider_id = if listing["id"].is_a?(Integer)
-        listing["id"]
-      elsif listing["id"].is_a?(String) && listing["id"].match?(/\A[0-9]+\z/)
-        listing["id"].to_i
-      end
-      return unless provider_id&.positive?
-      return unless listing["locations"].is_a?(Array)
-      # Never infer country from free text or numeric IDs. A multi-country listing
-      # qualifies when it has a resolved US row; only those US rows leave this boundary.
-      locations = listing["locations"].select { |row| row.is_a?(Hash) && row["country_code"] == "US" }
-      return if locations.empty?
-
-      normalized = listing.slice("title").merge("id" => provider_id)
-      normalized["locations"] = locations.map { |row| row.slice("country_code", "display_label", "city_name", "state_name", "state_code") }
-      normalized["location"] = ListingLocation.call(listing)
-      STRING_FIELDS.each { |key| normalized[key] = listing[key] if listing.key?(key) && (listing[key].nil? || listing[key].is_a?(String)) }
-      %w[has_remote is_active].each { |key| normalized[key] = listing[key] if [ true, false ].include?(listing[key]) }
-      normalized["application_url"] = safe_application_url(listing["application_url"]) if listing.key?("application_url")
-      if listing["company"].is_a?(Hash)
-        normalized["company"] = listing["company"].slice("name").select { |_key, value| value.nil? || value.is_a?(String) }
-      elsif listing.key?("company") && listing["company"].nil?
-        normalized["company"] = nil
-      end
-      normalized
+      success(listings: page["data"].filter_map { |listing| ListingPayload.call(listing) }, next_cursor: cursor)
     end
   end
 end

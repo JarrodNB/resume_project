@@ -34,7 +34,7 @@ module AiUsage
     # Prepared interview children share their root's hourly admission only; all other
     # tasks keep their existing count, including failures and finished work.
     def hourly_limit_reached?
-      limit = @interview ? DEFAULT_INTERVIEW_SESSIONS_PER_HOUR : (@user.ai_tasks_per_hour_limit || DEFAULT_AI_TASKS_PER_HOUR)
+      limit = @interview ? NewAccountLimits.interview_sessions_per_hour(@user) : (@user.ai_tasks_per_hour_limit || NewAccountLimits.ai_tasks_per_hour(@user))
       @tasks.hourly_admissions.where(created_at: 1.hour.ago..).count >= limit
     end
 

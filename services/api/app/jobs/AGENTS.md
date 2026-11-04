@@ -23,6 +23,8 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 - `interview_prep/` — question-specific saved Q&A vector jobs; after-commit enqueue, temporary provider retries, missing-key skip, no AI-task accounting.
 
+- `accounts/delete_unverified_accounts_job.rb` — hourly bounded removal of accounts never verified;
+  see `Accounts::DeleteUnverifiedAccountsService`.
 - `application_job.rb` — generated base class
 - `account_mail_delivery_job.rb` — Devise mail via Rails/Solid Queue; private arguments,
   sanitized SMTP errors, at most three attempts. Runs through `bin/jobs`.

@@ -19,6 +19,10 @@ General AI limits exclude spoken interview preparation, turns and speech:
 - **Tasks in flight** (fallback 3, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
+For the first 7 days after verifying email, an account has lower budgets and hourly starts so a
+batch of fake accounts costs less (`AiUsage::NewAccountLimits`, `NEW_ACCOUNT_*`, fallback $1.00
+general, $1.00 interview, 10 tasks/hour, 5 interview sessions/hour). These never raise a default.
+
 Nullable columns on `users` override each general AI default. The existing API `.env.example`
 explicitly configures $2/month, 10 tasks/hour and two in-flight tasks; those example values
 are overrides of the fallback defaults above, and are unchanged. The existing `me { aiUsage }` query exposes

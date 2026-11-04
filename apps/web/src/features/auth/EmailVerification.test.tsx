@@ -9,6 +9,15 @@ import { captureConfirmationToken } from './confirmationLink'
 import { SignUpPage } from './SignUpPage'
 import { StrictMode } from 'react'
 
+vi.mock('./TurnstileWidget', async () => {
+  const { useEffect } = await import('react')
+  return { TurnstileWidget: ({ onTokenChange }: { onTokenChange: (token: string | null) => void }) => {
+    useEffect(() => { onTokenChange(`token-${++issuedTurnstileTokens.count}`) }, [onTokenChange])
+    return null
+  } }
+})
+const issuedTurnstileTokens = vi.hoisted(() => ({ count: 0 }))
+
 afterEach(() => { vi.unstubAllGlobals(); history.replaceState(null, '', '/') })
 it('clears the fragment before bootstrap, waits for consent and does not sign in', async () => {
   history.replaceState(null, '', '/verify-email#confirmation_token=token-from-email')
@@ -40,6 +49,28 @@ it('shows signup next steps without creating an authenticated session', async ()
   expect(await screen.findByRole('status')).toHaveTextContent('Check your email')
   await user.click(screen.getByText("Didn't receive an email?"))
   expect(screen.getByRole('button', { name: 'Resend verification email' })).toBeInTheDocument()
+})
+
+it('sends the bot check token and fetches a new one after a refused sign-up', async () => {
+  const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+    if (url.endsWith('/auth/session')) return new Response(JSON.stringify({ user: null, csrfToken: 'csrf' }))
+    const accepted = fetcher.mock.calls.filter(([calledUrl]) => calledUrl.endsWith('/auth/sign_up')).length > 1
+    return accepted ? new Response(JSON.stringify({ message: 'Check email' }), { status: 202 })
+      : new Response(JSON.stringify({ errors: ['Password is too short'] }), { status: 422 })
+  })
+  vi.stubGlobal('fetch', fetcher)
+  render(<MemoryRouter><AuthProvider><SignUpPage /></AuthProvider></MemoryRouter>)
+  const user = userEvent.setup()
+  await user.type(await screen.findByLabelText('Email'), 'new@example.com')
+  await user.type(screen.getByLabelText('Password'), 'a quiet orchard after rain')
+  await user.click(screen.getByRole('button', { name: 'Create account' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Password is too short')
+  await user.click(screen.getByRole('button', { name: 'Create account' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('Check your email')
+  const sent = fetcher.mock.calls.filter(([url]) => url.endsWith('/auth/sign_up')).map(([, init]) => JSON.parse(String(init?.body)).turnstile_token)
+  expect(sent).toHaveLength(2)
+  expect(sent[0]).not.toEqual(sent[1])
+  expect(sent.every((token) => /^token-\d+$/.test(token))).toBe(true)
 })
 
 it('supports refresh recovery, pending resend, 429 and network retries', async () => {

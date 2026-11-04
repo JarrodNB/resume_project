@@ -33,8 +33,8 @@ export async function sessionRequest(signal?: AbortSignal): Promise<BrowserSessi
 export function signInRequest(credentials: AuthCredentials, csrfToken: string): Promise<BrowserSession> {
   return requestSession('/auth/sign_in', credentials, csrfToken)
 }
-export function signUpRequest(credentials: AuthCredentials, csrfToken: string): Promise<{ message: string }> {
-  return accountRequest('/auth/sign_up', { user: credentials }, csrfToken)
+export function signUpRequest(credentials: AuthCredentials, turnstileToken: string, csrfToken: string): Promise<{ message: string }> {
+  return accountRequest('/auth/sign_up', { user: credentials, turnstile_token: turnstileToken }, csrfToken)
 }
 export function resendConfirmationRequest(email: string, csrfToken: string): Promise<{ message: string }> {
   return accountRequest('/auth/confirmation', { user: { email } }, csrfToken)

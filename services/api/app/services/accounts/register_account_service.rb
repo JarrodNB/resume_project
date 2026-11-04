@@ -1,14 +1,17 @@
+# Checks for bots first, so duplicates look the same and bots cost no password hashing.
 # Validates signup before hiding duplicates. Devise owns passwords and tokens.
 module Accounts
   class RegisterAccountService < ApplicationService
     MESSAGE = "If this address can be registered, a verification email will arrive shortly. Check spam, or request another email."
 
-    def initialize(attributes:)
-      @attributes = attributes
+    def initialize(attributes:, challenge_token:, client_ip: nil)
+      @attributes, @challenge_token, @client_ip = attributes, challenge_token, client_ip
     end
 
     # Creates an unconfirmed account and attempts one delivery, without signing in.
     def call
+      challenge = VerifyBotChallengeService.call(token: @challenge_token, client_ip: @client_ip)
+      return challenge unless challenge.success?
       email = @attributes[:email]
       return failure([ "Email is invalid" ]) unless email.is_a?(String) && !email.include?("\0") && email.bytesize <= 254
       user = User.new(@attributes)

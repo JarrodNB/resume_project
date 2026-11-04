@@ -120,13 +120,23 @@ confirmed database default for future accounts. Apply this migration before the
 new code. Keep the columns on rollback; reverting to code without confirmation
 would allow unverified accounts to sign in and requires an explicit rollout decision.
 
-`POST /auth/sign_up` accepts `{ user: { email, password, name } }` and returns a
+`POST /auth/sign_up` accepts `{ user: { email, password, name }, turnstile_token }`.
+Rails first asks Cloudflare Turnstile about the token (`Accounts::VerifyBotChallengeService`)
+and returns 422 if it fails, before any validation, password hashing or duplicate check.
+It fails closed: a Cloudflare outage or a missing production secret stops sign-up, while
+existing users can still sign in. Tokens work once, so the page gets a new one after a
+failed submit. Local development and tests use Cloudflare's always-pass test keys, though
+local sign-up still needs internet access; specs stub the check. Other than that, it returns a
 generic 202 message for valid new/duplicate submissions, with no session. Invalid
 fields return 422. Duplicate signup never replaces credentials/profile or rotates
 the original token. `POST /auth/confirmation` accepts `{ user: { email } }` and
 returns the same 202 for unknown, confirmed and unconfirmed accounts. Email requests
 are queued, so SMTP latency/failure cannot disclose account existence. Rack::Attack
 bounds signup/resend by IP, resend by normalized email, and verification by IP.
+IP limits use `RackAttackRequestKeys.client_ip`: IPv6 counts per /64, the `Forwarded`
+header is ignored, and `TRUSTED_PROXY_CIDRS` names public proxies to skip in
+`X-Forwarded-For`. Accounts unverified for a week, with no newer verification email, are
+deleted hourly (`Accounts::DeleteUnverifiedAccountsService`).
 Malformed envelopes return 400; invalid fields return 422. All POSTs require CSRF.
 
 `POST /auth/confirmation/verify` accepts `{ confirmation_token }`, returning 200

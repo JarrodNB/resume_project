@@ -40,6 +40,83 @@ RSpec.describe "Rack::Attack throttling", type: :request do
     expect(response).to have_http_status(:too_many_requests)
   end
 
+  # Posts a valid sign-up with a new email, with the given request headers.
+  def sign_up(attempt, **headers)
+    post "/auth/sign_up",
+         params: { user: { email: "bot#{attempt}@example.com", password: "a quiet orchard after rain" }, turnstile_token: "token" },
+         as: :json, headers: headers
+    response.status
+  end
+
+  describe "sign-up limits" do
+    it "allows 5 accounts per hour from one IP, then refuses without creating more" do
+      statuses = 6.times.map { |attempt| sign_up(attempt, "REMOTE_ADDR" => "8.8.8.8") }
+
+      expect(statuses).to eq([ 202 ] * 5 + [ 429 ])
+      expect(User.count).to eq(5)
+      expect(response.headers["retry-after"].to_i).to be_between(1, 3600)
+    end
+
+    it "shares a limit across format aliases" do
+      5.times { |attempt| sign_up(attempt, "REMOTE_ADDR" => "8.8.8.8") }
+      post "/auth/sign_up.json", params: { user: { email: "alias@example.com" } }, as: :json, headers: { "REMOTE_ADDR" => "8.8.8.8" }
+      expect(response).to have_http_status(:too_many_requests)
+    end
+
+    it "counts every address in one IPv6 /64 together" do
+      statuses = 6.times.map { |attempt| sign_up(attempt, "REMOTE_ADDR" => "2001:db8:1:1::#{attempt + 1}") }
+      expect(statuses.last).to eq(429)
+    end
+
+    it "keeps separate IPv6 /64 networks apart" do
+      5.times { |attempt| sign_up(attempt, "REMOTE_ADDR" => "2001:db8:1:1::#{attempt + 1}") }
+      expect(sign_up(9, "REMOTE_ADDR" => "2001:db8:1:2::1")).to eq(202)
+    end
+
+    it "counts IPv4 written in IPv6 form with plain IPv4" do
+      5.times { |attempt| sign_up(attempt, "REMOTE_ADDR" => "8.8.8.8") }
+      expect(sign_up(9, "REMOTE_ADDR" => "::ffff:8.8.8.8")).to eq(429)
+    end
+
+    it "ignores a Forwarded header set by the client behind a private proxy" do
+      statuses = 6.times.map do |attempt|
+        sign_up(attempt, "REMOTE_ADDR" => "10.0.0.5", "HTTP_X_FORWARDED_FOR" => "8.8.8.8", "HTTP_FORWARDED" => "for=1.2.3.#{attempt}")
+      end
+      expect(statuses.last).to eq(429)
+    end
+
+    it "ignores X-Forwarded-For values the client added before the proxy's" do
+      statuses = 6.times.map do |attempt|
+        sign_up(attempt, "REMOTE_ADDR" => "10.0.0.5", "HTTP_X_FORWARDED_FOR" => "1.2.3.#{attempt}, 8.8.8.8")
+      end
+      expect(statuses.last).to eq(429)
+    end
+
+    context "behind a trusted public proxy" do
+      before { stub_const("RackAttackRequestKeys::TRUSTED_PROXY_CIDRS", [ IPAddr.new("172.64.0.0/13") ]) }
+
+      it "gives clients behind one edge IP separate limits" do
+        5.times { |attempt| sign_up(attempt, "REMOTE_ADDR" => "10.0.0.5", "HTTP_X_FORWARDED_FOR" => "9.9.9.9, 172.70.1.1") }
+        expect(sign_up(8, "REMOTE_ADDR" => "10.0.0.5", "HTTP_X_FORWARDED_FOR" => "9.9.9.9, 172.70.1.1")).to eq(429)
+        expect(sign_up(9, "REMOTE_ADDR" => "10.0.0.5", "HTTP_X_FORWARDED_FOR" => "9.9.9.10, 172.70.1.1")).to eq(202)
+      end
+
+      it "still counts the real client when it forges earlier hops" do
+        statuses = 6.times.map do |attempt|
+          sign_up(attempt, "REMOTE_ADDR" => "10.0.0.5", "HTTP_X_FORWARDED_FOR" => "1.2.3.#{attempt}, 9.9.9.9, 172.70.1.1")
+        end
+        expect(statuses.last).to eq(429)
+      end
+
+      it "does not treat a forged, unparseable hop as a proxy" do
+        statuses = 6.times.map do |attempt|
+          sign_up(attempt, "REMOTE_ADDR" => "8.8.8.8", "HTTP_X_FORWARDED_FOR" => "not-an-ip-#{attempt}")
+        end
+        expect(statuses.last).to eq(429)
+      end
+    end
+  end
+
   it "throttles GraphQL per signed-in user across routed JSON format aliases" do
     user = create(:user)
     post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }.to_json, headers: json_headers

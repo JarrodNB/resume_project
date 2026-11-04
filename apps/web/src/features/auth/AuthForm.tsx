@@ -2,7 +2,7 @@
  * Collects login or signup credentials and shows server errors. Signup explains
  * the server's new-password policy; login leaves existing passwords unrestricted.
  */
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,10 +15,13 @@ interface AuthFormProps {
   submitLabel: string
   includeName?: boolean
   onSubmit: (credentials: AuthCredentials) => Promise<void>
+  /** Shown just above the submit button, such as a bot check. */
+  beforeSubmit?: ReactNode
+  submitDisabled?: boolean
 }
 
 /** Collects credentials, calls `onSubmit`, and lists any errors it throws. */
-export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFormProps) {
+export function AuthForm({ submitLabel, includeName = false, onSubmit, beforeSubmit, submitDisabled = false }: AuthFormProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -73,7 +76,8 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
           <PasswordGuidance id="password-guidance" />
         )}
       </div>
-      <Button type="submit" size="lg" disabled={submitting}>
+      {beforeSubmit}
+      <Button type="submit" size="lg" disabled={submitting || submitDisabled}>
         {submitting ? 'Please wait…' : submitLabel}
       </Button>
     </form>

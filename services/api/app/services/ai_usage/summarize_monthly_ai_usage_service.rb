@@ -22,11 +22,11 @@ module AiUsage
       month_start = Time.now.utc.beginning_of_month
       tasks, budget = case @scope
       when :all
-        [ @user.ai_tasks, general_budget + DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS ]
+        [ @user.ai_tasks, general_budget + NewAccountLimits.interview_monthly_budget(@user) ]
       when :general
         [ @user.ai_tasks.general_ai, general_budget ]
       when :interview
-        [ @user.ai_tasks.spoken_interview, DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS ]
+        [ @user.ai_tasks.spoken_interview, NewAccountLimits.interview_monthly_budget(@user) ]
       else
         raise ArgumentError, "Unknown AI usage scope: #{@scope.inspect}"
       end
@@ -39,13 +39,13 @@ module AiUsage
         incomplete += embeddings.where(incomplete: true).count
       end
       success(MonthlyAiUsage.new(spent_microdollars: spent, budget_microdollars: budget,
-                                resets_at: month_start.next_month, incomplete_attempts: incomplete))
+                                resets_at: [ month_start.next_month, NewAccountLimits.ends_at(@user) ].compact.min, incomplete_attempts: incomplete))
     end
 
     private
 
     def general_budget
-      @user.monthly_ai_budget_microdollars || DEFAULT_MONTHLY_AI_BUDGET_MICRODOLLARS
+      @user.monthly_ai_budget_microdollars || NewAccountLimits.general_monthly_budget(@user)
     end
   end
 end

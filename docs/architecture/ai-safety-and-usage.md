@@ -49,7 +49,7 @@ development honors this mode: spoken-interview monthly/hourly and verification s
 gates are skipped, while cost records, concurrency, execution limits and all general AI
 admission stay intact. It does not forgive, erase or assign zero to unknown costs.
 
-One limit sits above every user: the **site-wide daily budget** (fallback $25.00,
+One limit sits above every user: the **site-wide daily budget** (fallback $5.00,
 `AI_SITE_DAILY_BUDGET_USD`; 0 stops all new AI work). `AiUsage::SiteDailySpend` adds known general AI, spoken interview and
 embedding costs from rows created this UTC day, across all users. Once the total reaches the
 budget, the allowance check refuses general AI and spoken interview work, including the next

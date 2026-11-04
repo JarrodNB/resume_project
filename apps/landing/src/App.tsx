@@ -1,120 +1,115 @@
+/** The Careergrind landing page: one ride from a person’s history to an interview, then sign-up.
+ * Static and public. Its only state is the scripted gap answer in the worked example, and its
+ * only ways out are links to the web app and the source code.
+ */
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { SIGN_IN_URL, SIGN_UP_URL, SOURCE_CODE_URL } from './appLinks'
+import { LineStrip } from './LineStrip'
+import { GapsStop, InterviewStop, JobStop, LibraryStop, ResumeStop } from './RideStops'
+import { SearchMap } from './SearchMap'
+import { PERSON_NAME } from './workedExample'
+
+function Hero() {
+  return (
+    <section className="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">One job.<br />One real resume.</h1>
+      <div className="hero-action">
+        <p>
+          Careergrind helps you write a resume for the job in front of you, from what you have
+          actually done. You review every word.
+        </p>
+        <a className="button button-primary button-huge" href={SIGN_UP_URL}>Sign up and start</a>
+      </div>
+      <a className="hero-next" href="#library">
+        <span className="hero-next-bullet" aria-hidden />
+        <strong>First stop: your library</strong>
+        <span>Follow {PERSON_NAME}, a made-up job seeker, from her saved history to an interview.</span>
+      </a>
+    </section>
+  )
+}
+
+function Limits() {
+  return (
+    <section className="limits" aria-labelledby="limits-title">
+      <h2 id="limits-title">What it won’t do.</h2>
+      <dl className="limits-list">
+        <div>
+          <dt>Make things up.</dt>
+          <dd>It writes only from your library and your answers, and checks drafts for claims they don’t support. Read every draft anyway, because a check can miss something.</dd>
+        </div>
+        <div>
+          <dt>Send 500 applications.</dt>
+          <dd>It never applies for you. It’s built for fewer, better applications, and you decide what goes out.</dd>
+        </div>
+        <div>
+          <dt>Promise you a job.</dt>
+          <dd>AI gets things wrong, so everything it writes is a draft for you to check. The hiring decision stays with the hiring team.</dd>
+        </div>
+      </dl>
+      <div className="honest-note">
+        <h3>How the AI is kept honest</h3>
+        <p>
+          Writing is checked for unsupported claims and retried when a check fails. Text from
+          postings and uploads is screened for hidden instructions before it reaches a model.
+          Prompts and models are tested against labelled, made-up examples, and every run is traced.
+          These checks reduce mistakes rather than remove them, which is why you review the result.
+        </p>
+        <a className="text-link" href={SOURCE_CODE_URL}>Read the source code</a>
+      </div>
+    </section>
+  )
+}
+
+function Close() {
+  return (
+    <section className="close" aria-labelledby="close-title">
+      <h2 id="close-title">Start with the job you want most.</h2>
+      <div className="close-arrival">
+        <span className="close-track" aria-hidden><span className="close-terminal" /></span>
+        <a className="button button-inverse button-huge" href={SIGN_UP_URL}>Sign up and start</a>
+      </div>
+    </section>
+  )
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [gapAnswered, setGapAnswered] = useState(false)
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <a className="skip-link" href="#library">Skip to how it works</a>
+      <header className="band">
+        <a className="brand" href="#top" aria-label="Careergrind, back to top">
+          <span className="brand-bullet" aria-hidden />
+          Careergrind
+        </a>
+        <nav className="band-links" aria-label="Main">
+          <a className="band-link band-link-optional" href="#library">How it works</a>
+          <a className="band-link" href={SIGN_IN_URL}>Sign in</a>
+          <a className="button button-inverse" href={SIGN_UP_URL}>Sign up</a>
+        </nav>
+      </header>
+      <LineStrip gapNeedsAnswer={!gapAnswered} />
+      <main id="top">
+        <Hero />
+        <LibraryStop />
+        <JobStop />
+        <GapsStop gapAnswered={gapAnswered} onToggleGapAnswer={() => setGapAnswered((answered) => !answered)} />
+        <ResumeStop gapAnswered={gapAnswered} />
+        <InterviewStop />
+        <SearchMap />
+        <Limits />
+        <Close />
+      </main>
+      <footer className="footer">
+        <p>Careergrind</p>
+        <p>Maya Okafor, her jobs and every company on this page are made up.</p>
+        <nav aria-label="Footer">
+          <a href={SIGN_IN_URL}>Sign in</a>
+          <a href={SOURCE_CODE_URL}>Source code</a>
+        </nav>
+      </footer>
     </>
   )
 }

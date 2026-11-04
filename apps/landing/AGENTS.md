@@ -14,10 +14,20 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 - Keep it fast and simple.
 - Follow the root documentation rules; use JSDoc for public contracts and non-obvious behavior.
 
+## Local Design Rules
+
+- The look comes from `DESIGN.md` (Transit Line). The page's strategy lives in
+  `.impeccable/surfaces/apps-landing.md`.
+- Sample people, jobs and companies live in `src/workedExample.ts` and stay labeled as made up.
+- Claims must match `PRODUCT.md`. No testimonials, user numbers, prices or job outcomes.
+
 ## Contents
 
-Generated with `create-vite` (React + TypeScript template, Vite 8, oxlint).
-
-- `src/` — still the Vite starter; replaced when the landing page step begins
+- `src/App.tsx` — page order, band, opening, limits and closing sections
+- `src/LineStrip.tsx` — pinned line of stops that follows the scroll
+- `src/RideStops.tsx` — the five worked-example stops
+- `src/SearchMap.tsx` — the whole search as a map, like the app's Home
+- `src/appLinks.ts` — where sign-up, sign-in and source links lead
 - `vite.config.ts` — dev server on `0.0.0.0:5174`
 - `Dockerfile.dev` — local dev image; `node_modules` lives in a container volume
+- `VITE_APP_URL` — web app address for sign-up links; required for production builds

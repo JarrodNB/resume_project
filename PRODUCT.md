@@ -54,7 +54,8 @@ mass-generated, mass-sent resumes.
 - Career evidence belongs to the current user. Preserve user boundaries when
   displaying, retrieving, or generating content.
 - The React web app and marketing landing page are separate apps. The landing
-  page currently contains starter content, not approved marketing claims.
+  page explains the product with a labeled, made-up worked example and makes no
+  customer or outcome claims.
 - Public-launch name availability remains an open decision in docs/mvp_plan.md.
 - No product-specific accessibility standard has been confirmed yet.
 

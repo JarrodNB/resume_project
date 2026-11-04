@@ -62,4 +62,26 @@ RSpec.describe Accounts::VerifyBotChallengeService, :real_bot_challenge do
     expect(described_class.call(token: "token").errors).to eq([ described_class::UNAVAILABLE ])
     expect(http).not_to have_received(:request)
   end
+
+  [ "1x0000000000000000000000000000000AA", "2x0000000000000000000000000000000AA", "3x0000000000000000000000000000000AA" ].each do |secret|
+    it "refuses the configured test secret #{secret} in production without calling Cloudflare" do
+      allow(Rails.env).to receive(:production?).and_return(true)
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("TURNSTILE_SECRET_KEY").and_return(secret)
+
+      expect(described_class.call(token: "token").errors).to eq([ described_class::UNAVAILABLE ])
+      expect(http).not_to have_received(:request)
+    end
+  end
+
+  it "verifies tokens with a configured production secret" do
+    allow(Rails.env).to receive(:production?).and_return(true)
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("TURNSTILE_SECRET_KEY").and_return("production-secret")
+
+    expect(described_class.call(token: "token")).to be_success
+    expect(http).to have_received(:request) do |request|
+      expect(URI.decode_www_form(request.body).to_h["secret"]).to eq("production-secret")
+    end
+  end
 end

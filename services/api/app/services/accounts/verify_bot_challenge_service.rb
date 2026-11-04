@@ -6,6 +6,7 @@ module Accounts
     ENDPOINT = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
     # Cloudflare's published always-pass test secret. It proves nothing, so production never uses it.
     NON_PRODUCTION_SECRET = "1x0000000000000000000000000000000AA"
+    TEST_SECRETS = [ NON_PRODUCTION_SECRET, "2x0000000000000000000000000000000AA", "3x0000000000000000000000000000000AA" ].freeze
     MAX_TOKEN_BYTES = 2048
     FAILED = "Please complete the security check and try again."
     UNAVAILABLE = "We couldn't run the security check. Please try again in a moment."
@@ -19,7 +20,7 @@ module Accounts
       return failure(FAILED) unless @token.is_a?(String) && @token.present? && @token.bytesize <= MAX_TOKEN_BYTES
       secret = configured_secret
       unless secret
-        Rails.logger.error("Sign-up bot check has no TURNSTILE_SECRET_KEY")
+        Rails.logger.error("Sign-up bot check has no valid TURNSTILE_SECRET_KEY")
         return failure(UNAVAILABLE)
       end
 
@@ -38,7 +39,12 @@ module Accounts
     private
 
     def configured_secret
-      ENV["TURNSTILE_SECRET_KEY"].presence || (NON_PRODUCTION_SECRET unless Rails.env.production?)
+      secret = ENV["TURNSTILE_SECRET_KEY"].presence
+      if Rails.env.production?
+        secret unless TEST_SECRETS.include?(secret)
+      else
+        secret || NON_PRODUCTION_SECRET
+      end
     end
 
     def post_to_cloudflare(secret)

@@ -12,6 +12,33 @@
         ],
         "createdAt": "2026-10-28T13:14:17.149Z",
         "reason": "Approved surface brief specifies a 4px underline for active navigation; this rule targets a navigation link, not a rounded card."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "archivo",
+        "files": [
+          ".impeccable/mocks/decision/door-strip.html"
+        ],
+        "createdAt": "2026-11-04T09:45:58.455Z",
+        "reason": "agent: decision sketch loads the documented Archivo family from Google Fonts per sketch rules"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "archivo",
+        "files": [
+          ".impeccable/mocks/decision/service-notice.html"
+        ],
+        "createdAt": "2026-11-04T09:45:58.511Z",
+        "reason": "agent: decision sketch loads the documented Archivo family from Google Fonts per sketch rules"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "archivo",
+        "files": [
+          ".impeccable/mocks/decision/trace-the-line.html"
+        ],
+        "createdAt": "2026-11-04T09:45:58.557Z",
+        "reason": "agent: decision sketch loads the documented Archivo family from Google Fonts per sketch rules"
       }
     ]
   }

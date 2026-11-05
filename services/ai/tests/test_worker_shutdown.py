@@ -40,6 +40,7 @@ def shutdown_deadline():
 
 def configure_fake_worker(monkeypatch, dependencies, task_queue, result_queue):
     """Keep the real worker entry point and polling loop, replacing external boundaries."""
+    dependencies.settings.worker_concurrency = 1  # These tests exercise the main-thread loop.
     monkeypatch.setattr(main, "load_settings", lambda: dependencies.settings)
     monkeypatch.setattr(main, "configure_tracing", lambda: None)
     monkeypatch.setattr(main, "SqsQueueClient", lambda settings, name:
@@ -135,3 +136,109 @@ def test_idle_stop_flushes_once_and_repeated_signals_do_not_interrupt_cleanup(
     assert events == ["flush started", "flush finished"]
     assert result_queue.sent_bodies == []
     assert task_queue.deleted_receipts == []
+
+
+import threading
+import time
+from uuid import uuid4
+
+
+class BlockingTaskQueue(FakeTaskQueue):
+    """Hands out one message per receive, then idles like a long poll. Thread safe."""
+
+    def __init__(self, messages, when_idle=None):
+        super().__init__([])
+        self.messages = list(messages)
+        self.lock = threading.Lock()
+        self.when_idle = when_idle
+
+    def receive_messages(self):
+        with self.lock:
+            if self.messages:
+                return [self.messages.pop(0)]
+        if self.when_idle:
+            self.when_idle(self)
+        time.sleep(0.02)
+        return []
+
+
+def task_message(receipt):
+    return build_sqs_message(receipt, body=json.dumps({
+        "ai_task_id": str(uuid4()), "user_id": str(uuid4()), "task_type": "analyze_gaps", "input": {},
+    }))
+
+
+def test_loops_run_tasks_at_the_same_time(monkeypatch, task_dependencies):
+    """With four loops, four tasks overlap instead of waiting in line."""
+    stopped = threading.Event()
+
+    def stop_once_all_deleted(queue):
+        if len(queue.deleted_receipts) == 4 and not stopped.is_set():
+            stopped.set()
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    task_queue = BlockingTaskQueue([task_message(f"r{n}") for n in range(4)], stop_once_all_deleted)
+    configure_fake_worker(monkeypatch, task_dependencies, task_queue, FakeResultQueue())
+    task_dependencies.settings.worker_concurrency = 4
+    everyone_started = threading.Barrier(4, timeout=5)
+
+    def handler(task, dependencies):
+        everyone_started.wait()  # Only passes if all four tasks are running together.
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result={})
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    main.run_worker()
+
+    assert sorted(task_queue.deleted_receipts) == ["r0", "r1", "r2", "r3"]
+
+
+def test_stop_lets_a_helper_thread_finish_its_task(monkeypatch, task_dependencies):
+    """The main loop is interrupted at once; a helper finishes, publishes and deletes."""
+    task_queue = BlockingTaskQueue([task_message("first"), task_message("second")])
+    result_queue = FakeResultQueue()
+    configure_fake_worker(monkeypatch, task_dependencies, task_queue, result_queue)
+    task_dependencies.settings.worker_concurrency = 2
+    both_running = threading.Barrier(2, timeout=5)
+
+    def handler(task, dependencies):
+        both_running.wait()
+        if threading.current_thread() is threading.main_thread():
+            os.kill(os.getpid(), signal.SIGTERM)
+        time.sleep(0.3)  # Still working when the stop arrives.
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result={})
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    main.run_worker()
+
+    assert len(task_queue.deleted_receipts) == 1  # The helper's task; the main one was interrupted.
+    statuses = [json.loads(body)["status"] for body in result_queue.sent_bodies]
+    assert statuses.count("completed") == 1
+
+
+def test_stop_interrupts_a_helper_task_that_outlasts_the_window(monkeypatch, task_dependencies):
+    """A helper still busy after the window is interrupted; its message stays for retry."""
+    task_queue = BlockingTaskQueue([task_message("first"), task_message("second")])
+    result_queue = FakeResultQueue()
+    configure_fake_worker(monkeypatch, task_dependencies, task_queue, result_queue)
+    task_dependencies.settings.worker_concurrency = 2
+    monkeypatch.setattr(main, "HELPER_JOIN_SECONDS", 0.2)
+    both_running = threading.Barrier(2, timeout=5)
+    interrupted = threading.Event()
+
+    def handler(task, dependencies):
+        both_running.wait()
+        if threading.current_thread() is threading.main_thread():
+            os.kill(os.getpid(), signal.SIGTERM)
+        try:
+            while True:
+                time.sleep(0.01)
+        except main.WorkerShutdown:
+            interrupted.set()
+            raise
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    main.run_worker()
+
+    assert interrupted.is_set()
+    assert task_queue.deleted_receipts == []
+    assert [json.loads(body)["status"] for body in result_queue.sent_bodies] == ["usage", "usage"]

@@ -2,6 +2,7 @@
  * Each tab reads the job (and the shared comparison) from `useJobWorkspace`. A tab's main
  * content stays open; only the long full description collapses.
  */
+import { Button } from '@/components/ui/button'
 import { FormattedDescription } from '@/components/FormattedDescription'
 import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { StudyGuidePanel } from '@/features/study-guides/StudyGuidePanel'
@@ -11,7 +12,7 @@ import { useJobWorkspace } from './useJobWorkspace'
 
 /** How the career library matches this job, with gap answers. */
 export function JobFitTab() {
-  const { job, comparison } = useJobWorkspace()
+  const { job, comparison, onEditJob } = useJobWorkspace()
   return (
     <div className="grid gap-7">
       <GapAnalysisCard
@@ -19,21 +20,23 @@ export function JobFitTab() {
         comparison={comparison}
         gapResponses={job.gapResponses}
         dismissedRequirements={job.dismissedRequirements}
+        hasDescription={Boolean(job.description?.trim())}
+        onAddDescription={onEditJob}
       />
-      <SkillMatches description={job.description} />
+      <SkillMatches description={job.description} onAddDescription={onEditJob} />
     </div>
   )
 }
 
 /** Study guides built from this job's description. */
 export function JobStudyTab() {
-  const { job } = useJobWorkspace()
-  return <StudyGuidePanel jobId={job.id} description={job.description} />
+  const { job, onEditJob } = useJobWorkspace()
+  return <StudyGuidePanel jobId={job.id} description={job.description} onAddDescription={onEditJob} />
 }
 
 /** What the posting asks for, the user's notes, and the full description. */
 export function JobPostingTab() {
-  const { job } = useJobWorkspace()
+  const { job, onEditJob } = useJobWorkspace()
   return (
     <div className="job-posting">
       <PostingList title="Requirements" items={job.requirements} emptyText="No requirements were found in the posting." />
@@ -43,6 +46,13 @@ export function JobPostingTab() {
         <section>
           <h2>Notes</h2>
           <p className="whitespace-pre-line">{job.notes}</p>
+        </section>
+      )}
+      {!job.description?.trim() && (
+        <section>
+          <h2>Description</h2>
+          <p className="text-muted-foreground">This job has no description yet. Fit and Study need one.</p>
+          <Button type="button" variant="outline" className="mt-3" onClick={onEditJob}>Add description</Button>
         </section>
       )}
       {job.description && (

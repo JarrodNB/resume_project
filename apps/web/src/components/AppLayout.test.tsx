@@ -129,3 +129,14 @@ it('keeps a saved chat under the Chat navigation section', () => {
   expect(within(main).getByRole('link', { name: 'Chat' })).toHaveAttribute('aria-current', 'page')
   expect(within(main).getByRole('link', { name: 'Chat' })).toHaveAttribute('href', '/chat')
 })
+
+it('shows a not found page with a link home for unknown signed-in URLs', async () => {
+  const { NotFoundPage } = await import('./NotFoundPage')
+  const router = createMemoryRouter([
+    { element: <AppLayout />, children: [{ index: true, element: <p>Home body</p> }, { path: '*', element: <NotFoundPage /> }] },
+  ], { initialEntries: ['/no/such/page'] })
+  render(<RouterProvider router={router} />)
+  expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+  await userEvent.setup().click(screen.getByRole('link', { name: 'Go to Home' }))
+  expect(router.state.location.pathname).toBe('/')
+})

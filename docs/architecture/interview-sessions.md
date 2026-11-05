@@ -185,7 +185,7 @@ it requires no storage capability. New starts default to eight main questions an
 5, 8 or 12. Rails saves this separately from provider execution configuration in `setup_config`;
 public snapshots expose the safe setup, so reload and retry preserve the selected length.
 The setup also freezes `question_format`: Mixed cycles behavioral/technical/knowledge;
-Behavioural uses behavioral questions only; Technical / Role alternates technical and knowledge;
+Behavioral uses behavioral questions only; Technical / Role alternates technical and knowledge;
 HR Screening uses the explicit screening category for motivation, background, logistics and
 culture fit. Both Python and Rails validate the saved count and exact ordered categories.
 Missing format in an older length-only setup means Mixed. This question format does not change

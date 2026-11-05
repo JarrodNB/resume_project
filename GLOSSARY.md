@@ -63,7 +63,7 @@ _Avoid_: Basic Interview when referring to the shared session concept
 The format of an interview session. Basic is the only supported type today.
 
 **Question format**:
-The kinds of questions chosen for a practice interview: Mixed, Behavioural, Technical / Role,
+The kinds of questions chosen for a practice interview: Mixed, Behavioral, Technical / Role,
 or HR Screening. It is separate from the session's interview type.
 
 **Basic Interview**:

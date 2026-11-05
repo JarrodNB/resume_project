@@ -8,6 +8,7 @@ import { useRef, useState } from 'react'
 import { CREATE_CAREER_CONTEXT_MUTATION, UPDATE_CAREER_CONTEXT_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { BULLET_TEXT, PROSE_TEXT } from '@/lib/textLimits'
+import { requiredFieldErrors } from './libraryFormValues'
 import { LibraryField } from './LibraryField'
 import type { CareerContext } from './CareerContextList'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -34,12 +35,15 @@ function CareerContextForm({ context, initialValues, onSaved, onClose }: Pick<Ca
 
   const submitting = useRef(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   /** Creates or updates the context. Both fields are required. */
   async function submit() {
     if (submitting.current) return
     const problems = []
-    if (!requirement.trim() || !response.trim()) problems.push('Requirement and response are required.')
+    const missing = requiredFieldErrors({ requirement: { label: 'Requirement', value: requirement }, response: { label: 'Response', value: response } })
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     if (requirement.trim().length > BULLET_TEXT) problems.push(`Requirement must be ${BULLET_TEXT} characters or fewer. Edit the question before saving.`)
     if (response.trim().length > PROSE_TEXT) problems.push(`Response must be ${PROSE_TEXT} characters or fewer. Edit the answer before saving.`)
     setValidationErrors(problems)
@@ -63,8 +67,8 @@ function CareerContextForm({ context, initialValues, onSaved, onClose }: Pick<Ca
       busy={busy}
       errors={[...validationErrors, ...errors]}
     >
-      <LibraryField label="Requirement" required value={requirement} onChange={setRequirement} maxLength={BULLET_TEXT} />
-      <LibraryField label="Response" required multiline value={response} onChange={setResponse} maxLength={PROSE_TEXT} />
+      <LibraryField label="Requirement" required error={fieldErrors.requirement} value={requirement} onChange={setRequirement} maxLength={BULLET_TEXT} />
+      <LibraryField label="Response" required error={fieldErrors.response} multiline value={response} onChange={setResponse} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )
 }

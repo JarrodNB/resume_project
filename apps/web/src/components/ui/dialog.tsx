@@ -5,6 +5,21 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+// The last button or link the user activated outside any menu or dialog. That is what opened the
+// next dialog, even when the dialog was opened from a menu item that disappears afterwards.
+let lastOpener: HTMLElement | null = null
+if (typeof document !== "undefined") {
+  const remember = (event: Event) => {
+    if (!(event.target instanceof Element)) return
+    const control = event.target.closest<HTMLElement>('button, a[href], [role="button"]')
+    if (control && !control.closest('[role="menu"], [role="dialog"], [role="alertdialog"]')) lastOpener = control
+  }
+  document.addEventListener("pointerdown", remember, true)
+  document.addEventListener("keydown", remember, true)
+  // Assistive technology can activate a control with only a click event.
+  document.addEventListener("click", remember, true)
+}
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -45,23 +60,42 @@ function DialogOverlay({
   )
 }
 
-function DialogContent({
-  className,
-  children,
-  showCloseButton = true,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+function DialogContent(props: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
   return (
     <DialogPortal>
       <DialogOverlay />
+      <DialogSurface {...props} />
+    </DialogPortal>
+  )
+}
+
+// Only mounted while the dialog is open (inside the portal), so the opener is read at open time.
+function DialogSurface({
+  className,
+  children,
+  showCloseButton = true,
+  onCloseAutoFocus,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
+  // Read during the first render, before focus moves into the dialog.
+  const [opener] = React.useState<HTMLElement | null>(() => lastOpener)
+  return (
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          if (event.defaultPrevented || !opener?.isConnected) return
+          event.preventDefault()
+          opener.focus()
+        }}
         {...props}
       >
         {children}
@@ -79,7 +113,6 @@ function DialogContent({
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
-    </DialogPortal>
   )
 }
 

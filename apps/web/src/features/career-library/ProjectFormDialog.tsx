@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_PROJECT_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
-import { blankToNull } from './libraryFormValues'
+import { blankToNull, requiredFieldErrors, normalizeWebAddress } from './libraryFormValues'
 import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -32,18 +32,24 @@ function ProjectForm({ project, onClose }: { project: Project | null; onClose: (
   const [name, setName] = useState(project?.name ?? '')
   const [role, setRole] = useState(project?.role ?? '')
   const [url, setUrl] = useState(project?.url ?? '')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [startDate, setStartDate] = useState(project?.startDate ?? '')
   const [endDate, setEndDate] = useState(project?.endDate ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
 
   /** Creates or updates the project, sending every field so a cleared one is removed. */
   async function submit() {
+    const missing = requiredFieldErrors({ name: { label: 'Name', value: name } })
+    const address = normalizeWebAddress(url)
+    if (address.error) missing.url = address.error
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     const saved = await save(project ? UPDATE_PROJECT_MUTATION : CREATE_PROJECT_MUTATION, {
       ...(project ? { id: project.id } : {}),
       attributes: {
         name: name.trim(),
         role: blankToNull(role),
-        url: blankToNull(url),
+        url: address.value,
         startDate: blankToNull(startDate),
         endDate: blankToNull(endDate),
         description: blankToNull(description),
@@ -63,9 +69,9 @@ function ProjectForm({ project, onClose }: { project: Project | null; onClose: (
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Name" required value={name} onChange={setName} maxLength={SHORT_TEXT} />
+        <LibraryField label="Name" required error={fieldErrors.name} value={name} onChange={setName} maxLength={SHORT_TEXT} />
         <LibraryField label="Role" value={role} onChange={setRole} maxLength={SHORT_TEXT} />
-        <LibraryField label="URL" type="url" value={url} onChange={setUrl} maxLength={SHORT_TEXT} />
+        <LibraryField label="URL" error={fieldErrors.url} value={url} onChange={setUrl} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
         <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} />
       </div>

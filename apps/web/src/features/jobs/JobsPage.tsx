@@ -1,12 +1,12 @@
 /**
- * Description: Saved jobs list (/jobs), newest first, with ways to add one from a link, a pasted
+ * Description: Saved jobs list (/jobs), grouped by stage, newest first, with ways to add one from a link, a pasted
  * ad, or by hand. Each row shows the job's line through the stages and, once Home's pipeline has
  * loaded, its next step as the same signal bullet Home uses.
  * Index:
  *   - JobsPage: page component
  */
 import { ContentSkeleton } from '@/components/ContentSkeleton'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { ArrowUpRight, BriefcaseBusiness, ClipboardPaste, ExternalLink, Link2 } from 'lucide-react'
 import { JOB_PIPELINE_QUERY } from '@/features/home/homeOperations'
@@ -17,13 +17,21 @@ import { Button } from '@/components/ui/button'
 import { PageHeading } from '@/components/PageHeading'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JobFormDialog } from './JobFormDialog'
+import { JOB_STAGE_ORDER } from './jobStageLabels'
 import { JobStopLine } from './JobStopLine'
 import { useJobs } from './useJobs'
+
+/** Orders jobs by pipeline stage (Rejected last), then newest first inside each stage. */
+export function sortJobsByStage<T extends { stage: (typeof JOB_STAGE_ORDER)[number]; createdAt: string }>(jobs: T[]) {
+  return [...jobs].sort((a, b) =>
+    JOB_STAGE_ORDER.indexOf(a.stage) - JOB_STAGE_ORDER.indexOf(b.stage) || b.createdAt.localeCompare(a.createdAt))
+}
 
 /** Lists the user's jobs, each linking to its detail page. */
 export function JobsPage() {
   const navigate = useNavigate()
-  const { jobs, loading, error } = useJobs()
+  const { jobs: loadedJobs, loading, error } = useJobs()
+  const jobs = useMemo(() => (loadedJobs ? sortJobsByStage(loadedJobs) : null), [loadedJobs])
   const [adding, setAdding] = useState(false)
   // The pipeline only adds next steps; the list still works if it fails or is slow.
   const { data: pipeline } = useQuery(JOB_PIPELINE_QUERY, { fetchPolicy: 'cache-and-network' })
@@ -56,7 +64,7 @@ export function JobsPage() {
         <ul className="record-list">
           {jobs.map((job) => (
             <li key={job.id} className="job-record">
-              <Link to={`/jobs/${job.id}`} className="record-link focus-visible:outline-2 focus-visible:outline-ring">
+              <Link to={`/jobs/${job.id}`} aria-label={`Open ${job.title} at ${job.company ?? 'Unknown company'}`} className="record-link focus-visible:outline-2 focus-visible:outline-ring">
                 <div className="record-text">
                   <p className="font-medium">{job.title}</p>
                   <p className="text-sm text-muted-foreground">

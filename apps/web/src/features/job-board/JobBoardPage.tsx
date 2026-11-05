@@ -104,10 +104,9 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
       <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
       <JobPreferences />
       {!submittedSearch && <div className="board-introduction">
-        <h2>Find a role worth your next step.</h2>
         <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
         <div className="board-search-ideas" aria-label="Search ideas">
-          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
+          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); submitSearch({ keyword: idea, remoteOnly: false, experienceLevels: [] }) }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
         </div>
       </div>}
       <JobBoardSearchForm key={location.key} initialSearch={urlSearch} keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch}>
@@ -124,7 +123,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
       </div>}
       {board.providerListings.length > 0 && <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" disabled={board.loading || preferenceCheck.busy || preferenceCheck.completed || preferenceCheck.limitReached} onClick={() => { void preferenceCheck.check(); setOrdering('preferences') }}>Check these results</Button>
+          <Button type="button" disabled={board.loading || preferenceCheck.busy || preferenceCheck.completed || preferenceCheck.limitReached} onClick={() => { void preferenceCheck.check(); setOrdering('preferences') }}>Check against my preferences</Button>
           <Label htmlFor="job-board-result-order">Result order</Label>
           <select id="job-board-result-order" className="rounded border bg-background px-3 py-2 text-sm" value={ordering} onChange={(event) => setOrdering(event.target.value as typeof ordering)}>
             <option value="provider">Search order</option>
@@ -135,7 +134,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
         <p className="text-sm text-muted-foreground">Fit percentages are independent model estimates from the posting, not verified facts. Preference order uses the must-have average, then the nice-to-have average.</p>
         {preferenceCheck.busy && <p role="status">Checking loaded roles against your preferences…</p>}
         {preferenceCheck.completed && <p role="status">Loaded roles checked against your confirmed preferences.</p>}
-        {preferenceCheck.stale && <p role="status">These results or confirmed preferences changed. Check these results again for a current assessment.</p>}
+        {preferenceCheck.stale && <p role="status">These results or confirmed preferences changed. Check against my preferences again for a current assessment.</p>}
         {preferenceCheck.limitReached && <p role="status">Preference checks support up to 100 loaded roles. Narrow your search before checking.</p>}
         {preferenceCheck.disconnected && <div className="grid gap-3">
           <p role="status">Preference check updates disconnected. Reconnect to recover the result.</p>

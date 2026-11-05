@@ -55,7 +55,7 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, sourceText, d
     }
   }
 
-  return <section aria-label="Improve this career detail" className="library-edit-panel grid gap-5 text-sm">
+  return <section aria-label="Rewrite this career detail" className="library-edit-panel grid gap-5 text-sm">
     <ErrorAlert title="Could not complete this edit" messages={edit.errors} />
     {!edit.loading && showAnswerForm && reviewQuestion && <ReviewAnswerForm key={reviewQuestion.reviewTaskId} questions={reviewQuestions} stale={reviewQuestion.stale} disabled={edit.busy || disabled} onSubmit={(answers) => edit.answerReview(reviewQuestion.reviewTaskId, answers)} />}
     {showAnswerForm && reviewActions}

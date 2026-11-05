@@ -337,7 +337,7 @@ Answers use the existing individual editing task and selected-detail workspace. 
 answered field is screened; each exact generated question is trusted guidance, not evidence
 that its premise happened. Regeneration proposes wording from known facts without pausing
 for another question. It changes only the selected field when the user accepts. Independent
-Improve with AI keeps its existing feedback and deferred-question workflow.
+Rewrite with AI keeps its existing feedback and deferred-question workflow.
 
 Revisions use supplied qualitative outcomes without appending claims that missing metrics or
 other unsupplied results are unknown. Remaining evidence gaps belong in the assessment reason,

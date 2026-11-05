@@ -3,9 +3,12 @@
  * shared lifecycle. Once a comparison finishes, the summary leads and "How you match" stays as a
  * heading for screen readers only.
  */
-import { LoaderCircle, RefreshCw } from 'lucide-react'
-import { type ReactNode } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { AiWaitingLine } from '@/components/AiWaitingLine'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { TransientAlert } from '@/components/TransientAlert'
+import { AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { GapAnalysisResultView } from './GapAnalysisResultView'
 import { parseGapAnalysisResult } from './parseGapAnalysisResult'
@@ -18,14 +21,33 @@ interface GapAnalysisCardProps {
   comparison: ReturnType<typeof useGapAnalysis>
   gapResponses: SavedGapResponse[]
   dismissedRequirements: string[]
+  /** False when the job has no description; the comparison needs one. Defaults to true. */
+  hasDescription?: boolean
+  /** Opens the job's edit form so the user can add a description. */
+  onAddDescription?: () => void
 }
 
+const COMPARING_CAPTIONS = [
+  'Reading the job requirements',
+  'Searching your career library',
+  'Weighing each requirement against your evidence',
+  'Writing up the comparison',
+]
+
 /** Displays the lifecycle owned by the page, so its writing controls see the same state. */
-export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequirements }: GapAnalysisCardProps) {
+export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequirements, hasDescription = true, onAddDescription }: GapAnalysisCardProps) {
   const { task, starting, errors, subscriptionError, start } = comparison
   const runButton = (currentTask: GapAnalysisTask | null) => (
-    <RunButton task={currentTask} starting={starting} onRun={() => void start()} />
+    <RunButton task={currentTask} starting={starting} onRun={() => void start()} hasDescription={hasDescription} onAddDescription={onAddDescription} />
   )
+
+  // Tell the user when a comparison they were waiting on finishes (adjust state during render).
+  const [seen, setSeen] = useState({ id: task?.id ?? null, status: task?.status ?? null })
+  const [finishedNotice, setFinishedNotice] = useState<string | null>(null)
+  if (task && (seen.id !== task.id || seen.status !== task.status)) {
+    setSeen({ id: task.id, status: task.status })
+    if (seen.id === task.id && seen.status !== 'COMPLETED' && seen.status !== 'FAILED' && task.status === 'COMPLETED') setFinishedNotice(task.id)
+  }
 
   const finished = task?.status === 'COMPLETED'
 
@@ -37,6 +59,11 @@ export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequ
           Each requirement compared with your career library. Only what your library says counts.
         </p>
       </div>
+      {finishedNotice && finishedNotice === task?.id && (
+        <TransientAlert key={finishedNotice} role="status">
+          <AlertDescription>Comparison finished. Your results are below.</AlertDescription>
+        </TransientAlert>
+      )}
       <ErrorAlert messages={errors} title="Couldn't start the comparison" />
       {subscriptionError && <ErrorAlert title="Couldn't follow the comparison" messages={[subscriptionError.message]} />}
       <GapAnalysisTaskView task={task} jobId={jobId} gapResponses={gapResponses} dismissedRequirements={dismissedRequirements} renderRunButton={runButton} />
@@ -71,9 +98,10 @@ function GapAnalysisTaskView({
 
   if (task.status !== 'COMPLETED' && task.status !== 'FAILED') {
     return (
-      <p className="flex items-center gap-2 text-muted-foreground">
-        <LoaderCircle className="size-4 animate-spin" /> Comparing this job with your career library…
-      </p>
+      <div className="grid gap-1">
+        <AiWaitingLine captions={COMPARING_CAPTIONS} statusLabel="Comparing this job with your career library…" captionSeconds={6} />
+        <p className="text-sm text-muted-foreground">This usually takes 20 to 40 seconds. You can leave this page; the result will be saved.</p>
+      </div>
     )
   }
 
@@ -107,15 +135,23 @@ function GapAnalysisTaskView({
 }
 
 /** "Compare" for a first run, "Try again" after a failure, "Compare again" with the last run's date. */
-function RunButton({ task, starting, onRun }: { task: GapAnalysisTask | null; starting: boolean; onRun: () => void }) {
+function RunButton({ task, starting, onRun, hasDescription, onAddDescription }: {
+  task: GapAnalysisTask | null; starting: boolean; onRun: () => void; hasDescription: boolean; onAddDescription?: () => void
+}) {
   const label = !task ? 'Compare with my career library' : task.status === 'FAILED' ? 'Try again' : 'Compare again'
   const analyzedOn = task?.status === 'COMPLETED' && task.createdAt ? new Date(task.createdAt).toLocaleDateString() : null
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant={task ? 'outline' : 'default'} size={task ? 'sm' : 'default'} disabled={starting} onClick={onRun}>
+      <Button variant={task ? 'outline' : 'default'} size={task ? 'sm' : 'default'} disabled={starting || !hasDescription} onClick={onRun}>
         {task && <RefreshCw />}
         {starting ? 'Starting…' : label}
       </Button>
+      {!hasDescription && (
+        <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          The comparison needs a job description.
+          {onAddDescription && <Button type="button" variant="outline" size="sm" onClick={onAddDescription}>Add description</Button>}
+        </span>
+      )}
       {analyzedOn && (
         <span className="text-sm text-muted-foreground">
           Compared on {analyzedOn}. Run it again after you update your library.

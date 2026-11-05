@@ -39,16 +39,16 @@ it('keeps AI editing separate from the source and restores the saved draft after
   const scrollIntoView = vi.fn()
   source.scrollIntoView = scrollIntoView
   const focus = vi.spyOn(HTMLElement.prototype, 'focus')
-  await user.click(screen.getByRole('button', { name: 'Improve with AI' }))
+  await user.click(screen.getByRole('button', { name: 'Rewrite with AI' }))
   expect(await screen.findByText('Built and deployed the billing API.')).toBeInTheDocument()
   expect(screen.getByText('Built the billing service.')).toBeInTheDocument()
   expect(document.getElementById('library-detail-experience_highlight:h1')).toHaveAttribute('data-selected', 'true')
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Improve with AI' })).toHaveFocus())
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Rewrite with AI' })).toHaveFocus())
   expect(scrollIntoView).not.toHaveBeenCalled()
   expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
   expect(source).toContainElement(screen.getByRole('complementary', { name: 'AI workspace' }))
   await user.click(screen.getByRole('button', { name: 'Close AI workspace' }))
-  const trigger = screen.getByRole('button', { name: 'Improve with AI' })
+  const trigger = screen.getByRole('button', { name: 'Rewrite with AI' })
   await waitFor(() => expect(trigger).toHaveFocus())
   expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
   await user.click(trigger)
@@ -57,7 +57,7 @@ it('keeps AI editing separate from the source and restores the saved draft after
 
 it('removes the panel when the selected detail is deleted', async () => {
   const { rerender } = render(<Workspace />)
-  await userEvent.click(screen.getByRole('button', { name: 'Improve with AI' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Rewrite with AI' }))
   expect(await screen.findByRole('button', { name: 'Accept revision' })).toBeEnabled()
   rerender(<Workspace removed />)
   expect(screen.queryByRole('button', { name: 'Accept revision' })).not.toBeInTheDocument()
@@ -67,7 +67,7 @@ it('opens AI work in a mobile dialog and returns focus to the source on close', 
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener() {}, removeEventListener() {} })))
   render(<Workspace />)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  const trigger = screen.getByRole('button', { name: 'Improve with AI' })
+  const trigger = screen.getByRole('button', { name: 'Rewrite with AI' })
   await userEvent.click(trigger)
   const dialog = await screen.findByRole('dialog', { name: 'Career library AI workspace' })
   expect(await within(dialog).findByText('Built and deployed the billing API.')).toBeInTheDocument()
@@ -86,7 +86,7 @@ it('runs section review directly without opening an overview or duplicating libr
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
-it('opens review answering in the same selected-detail workspace while keeping Improve with AI', async () => {
+it('opens review answering in the same selected-detail workspace while keeping Rewrite with AI', async () => {
   const reviewMocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'),
     { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } }, result: { data: { libraryReview: {
       __typename: 'LibraryReview', aiTask: { __typename: 'AiTask', id: 'review-newer-failed', status: 'FAILED', errorMessage: null }, assessments: [
@@ -106,6 +106,6 @@ it('opens review answering in the same selected-detail workspace while keeping I
   expect(await within(panel).findByLabelText('Your answer to question 1 (optional)')).toBeEnabled()
   expect(within(panel).getAllByRole('textbox')).toHaveLength(3)
   expect(within(panel).getByText('Which part did you build?')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Improve with AI' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Rewrite with AI' })).toBeEnabled()
   expect(document.getElementById('library-detail-experience_highlight:h1')).toHaveAttribute('data-selected', 'true')
 })

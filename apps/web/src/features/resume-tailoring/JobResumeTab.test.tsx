@@ -89,7 +89,7 @@ function workspaceJobMock(resume: Record<string, unknown> | null = null) {
     request: { query: JOB_QUERY, variables: { id: 'job-1' } },
     result: { data: { job: {
       __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme', location: null, stage: 'UNAPPLIED', url: null,
-      description: null, notes: null, appliedAt: null, requirements: [], responsibilities: [], niceToHaves: [],
+      description: 'Build APIs.', notes: null, appliedAt: null, requirements: [], responsibilities: [], niceToHaves: [],
       gapResponses: [], dismissedRequirements: [], latestGapAnalysis: null, resume: resume && { __typename: 'Resume', includeSummary: true, id: resume.id },
     } } },
   }
@@ -98,8 +98,9 @@ function workspaceJobMock(resume: Record<string, unknown> | null = null) {
 type Mocks = NonNullable<Parameters<typeof renderPage>[0]['mocks']>
 
 /** Renders the workspace with both resume routes; defaults to the write route, which may start a draft. */
-function renderResume(mocks: Mocks, { url = '/jobs/job-1/resume/write', resume = null as Record<string, unknown> | null } = {}) {
-  return renderPage({
+function renderResume(mocks: Mocks, { url = '/jobs/job-1/resume/write', resume = null as Record<string, unknown> | null, confirmStart = false } = {}) {
+  // Writing a fresh draft waits for the user's confirmation; this clicks it once the prompt appears.
+  const rendered = renderPage({
     path: '/jobs/:id', url, element: <JobWorkspaceLayout />,
     children: [
       { path: 'resume', element: <JobResumeTab /> },
@@ -107,6 +108,8 @@ function renderResume(mocks: Mocks, { url = '/jobs/job-1/resume/write', resume =
     ],
     mocks: [workspaceJobMock(resume), ...mocks],
   })
+  if (confirmStart) void screen.findByRole('button', { name: 'Start writing' }).then((button) => userEvent.setup().click(button))
+  return rendered
 }
 
 function startMock(result: Mocks[number]['result']) {
@@ -207,7 +210,7 @@ it('lets the user retry after starting the draft fails', async () => {
       result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } },
     },
     subscription({}),
-  ])
+  ], { confirmStart: true })
 
   expect(await screen.findByText('Queue unavailable.')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Try again' }))
@@ -372,7 +375,7 @@ it('starts fresh from accepted history without exposing the old editable draft',
   nextSubscription.request.variables.id = 'task-2'
   renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start, delay: 200 }, nextSubscription,
-    { ...oldSubscription, result: oldResultReceived }])
+    { ...oldSubscription, result: oldResultReceived }], { confirmStart: true })
   await screen.findByRole('heading', { name: 'Engineer' })
   expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Summary' })).not.toBeInTheDocument()
@@ -389,7 +392,7 @@ it('regenerates an unsaved result in the retired draft format instead of showing
     jobMock(task({ status: 'COMPLETED', result: { drafts: [], markdown: 'Old draft' } })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
     nextSubscription,
-  ])
+  ], { confirmStart: true })
 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   expect(start).toHaveBeenCalledOnce()
@@ -410,7 +413,7 @@ it.each([
     jobMock(task({ status: 'COMPLETED', result: { sections: [section] } })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
     nextSubscription,
-  ])
+  ], { confirmStart: true })
 
   expect(await screen.findByRole('button', { name: 'Edit sections' })).toBeInTheDocument()
   await userEvent.setup().click(screen.getByRole('button', { name: 'Edit sections' }))
@@ -425,7 +428,7 @@ it('allows retry when starting after accepted history fails', async () => {
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Queue unavailable.'] } } } },
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } } },
     subscription({}),
-  ])
+  ], { confirmStart: true })
   expect(await screen.findByText('Queue unavailable.')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Try again' }))
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
@@ -448,5 +451,31 @@ it('deletes an edited resume and returns to the Resume tab without another disca
   expect(await screen.findByRole('heading', { name: 'No resume for this job yet' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Delete resume' })).not.toBeInTheDocument()
   expect(router.state.location.pathname).toBe('/jobs/job-1/resume')
+  expect(start).not.toHaveBeenCalled()
+})
+
+it('asks before starting paid generation on the write route', async () => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } }))
+  renderResume([jobMock(null), startMock(start), subscription({})])
+
+  expect(await screen.findByRole('heading', { name: 'Write a resume for this job?' })).toBeInTheDocument()
+  expect(start).not.toHaveBeenCalled()
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Start writing' }))
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(start).toHaveBeenCalledOnce()
+})
+
+it('disables writing and links to the Posting tab when the job has no description', async () => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
+  const noDescription = workspaceJobMock()
+  noDescription.result.data.job.description = ''
+  renderPage({
+    path: '/jobs/:id', url: '/jobs/job-1/resume', element: <JobWorkspaceLayout />,
+    children: [{ path: 'resume', element: <JobResumeTab /> }],
+    mocks: [noDescription, jobMock(null), startMock(start)],
+  })
+
+  expect(await screen.findByRole('button', { name: 'Write resume' })).toBeDisabled()
+  expect(screen.getByRole('link', { name: 'Add one on the Posting tab' })).toHaveAttribute('href', '/jobs/job-1/posting')
   expect(start).not.toHaveBeenCalled()
 })

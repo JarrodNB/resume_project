@@ -59,7 +59,7 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
   return <form className={step === 'round' ? 'interview-setup' : 'interview-setup interview-setup-settings'} onSubmit={(event) => { event.preventDefault(); if (step === 'round') setStep('settings'); else void prepare() }}>
     {onChangeRole && step === 'round' && <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={onChangeRole}><ArrowLeft aria-hidden /> Change role</Button>}
     {step === 'round'
-      ? <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round for this saved job.' : 'Choose the round you want to practise.'}</p></div>
+      ? <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round for this saved job.' : 'Choose the round you want to practice.'}</p></div>
       : <h2 className="text-xl font-extrabold tracking-tight">How you’ll answer</h2>}
     <fieldset disabled={busy} className="interview-setup-fields">
       {step === 'round' ? <div className="interview-setup-panel">

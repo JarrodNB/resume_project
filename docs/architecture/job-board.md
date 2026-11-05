@@ -137,7 +137,7 @@ an all-hidden page keeps Load more available and explains how to reveal saved re
 `importJobBoardListing(input: { listingId: })` delegates to `ImportListingService` and returns
 the saved or existing private Job plus field-omission warnings. The UI prevents
 concurrent save clicks, invalidates a cached private Jobs list after success, and
-keeps the listing in place with an Open saved job action. Both the row and preview share the visit save lock and feedback. Errors and field-omission warnings are visible inside an open preview. A View original posting link is available only for an absolute HTTP(S) application URL without embedded credentials. Warnings travel with saved-job navigation and remain visible
+keeps the listing in place with an Open saved job action. Both the row and preview share the visit save lock and feedback. Errors and field-omission warnings are visible inside an open preview. A View posting link is available only for an absolute HTTP(S) application URL without embedded credentials. Warnings travel with saved-job navigation and remain visible
 on the matching saved Job's workspace. Import errors keep the search results for retry.
 
 ## Next-job preference profile
@@ -243,7 +243,7 @@ revision changes. Normal already-loaded page navigation and hiding already-saved
 preserve the snapshot. Draft-only preference edits do not invalidate a confirmed check.
 No per-row query/subscription hooks are mounted: the one batch task supplies pure row views.
 
-“Check these results” explicitly assesses all raw loaded candidates, before local hiding or
+“Check against my preferences” explicitly assesses all raw loaded candidates, before local hiding or
 20-row paging. Preference fit ordering compares the mean must-have probability first,
 then the mean nice-to-have probability, both descending; provider order breaks ties.
 An absent priority group contributes zero uniformly, so an all-nice-to-have profile sorts

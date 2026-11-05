@@ -9,10 +9,10 @@ it('explains a current color and replaces stale grades with a review prompt', ()
   expect(screen.getByText('Needs work')).toBeInTheDocument()
   expect(screen.getByText('Explain your contribution.')).toBeInTheDocument()
   rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} />)
-  expect(screen.getByText('Needs review')).toBeInTheDocument()
+  expect(screen.getByText('Review out of date')).toBeInTheDocument()
   expect(screen.queryByText('Needs work')).not.toBeInTheDocument()
   rerender(<LibraryAssessment />)
-  expect(screen.getByText('Not reviewed')).toBeInTheDocument()
+  expect(screen.getByText('No AI review yet')).toBeInTheDocument()
 })
 
 it('shows a saved review question beside the detail and hides it when its assessment is stale', () => {

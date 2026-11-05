@@ -21,7 +21,7 @@ export const NEXT_STEPS: Record<JobNextStepEnum, NextStepView | null> = {
   WRITE_RESUME: { label: 'Write resume', signal: 'action', tab: 'resume' },
   READY_TO_APPLY: { label: 'Ready to apply', signal: 'action', tab: 'posting' },
   AWAITING_RESPONSE: { label: 'Waiting to hear back', signal: 'wait', tab: null },
-  PRACTICE_INTERVIEW: { label: 'Practise interview', signal: 'action', tab: 'interview' },
+  PRACTICE_INTERVIEW: { label: 'Practice interview', signal: 'action', tab: 'interview' },
   NONE: null,
 }
 

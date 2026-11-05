@@ -33,7 +33,7 @@ export function LibraryAssessment({ assessment, action, answerAction }: { assess
       <div className="library-assessment-grade">
         <span className={`inline-flex items-center gap-2 font-semibold ${grade?.className ?? 'text-muted-foreground'}`}>
           <span className={`signal-dot ${grade?.dot ?? 'is-off'}`} aria-hidden />
-          {grade?.label ?? (assessment?.stale ? 'Needs review' : 'Not reviewed')}
+          {grade?.label ?? (assessment?.stale ? 'Review out of date' : 'No AI review yet')}
         </span>
         {action}
       </div>

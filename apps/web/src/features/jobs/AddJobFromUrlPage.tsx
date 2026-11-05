@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { JOB_URL_TEXT } from '@/lib/textLimits'
+import { normalizeJobUrl } from './jobFormValues'
 import { useScrapeJob } from './useScrapeJob'
 
 /** A URL form that calls scrapeJob and opens the new task's page. */
@@ -19,10 +20,17 @@ export function AddJobFromUrlPage() {
   const navigate = useNavigate()
   const { scrapeJob, submitting, errors } = useScrapeJob()
   const [url, setUrl] = useState('')
+  const [urlError, setUrlError] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const aiTaskId = await scrapeJob(url.trim())
+    const checked = normalizeJobUrl(url)
+    if (!checked) {
+      setUrlError('Enter a web address like https://company.com/careers/job-title.')
+      return
+    }
+    setUrlError(null)
+    const aiTaskId = await scrapeJob(checked)
     if (aiTaskId) navigate(`/jobs/new/${aiTaskId}`)
   }
 
@@ -43,19 +51,23 @@ export function AddJobFromUrlPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
+          <form noValidate className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
             <ErrorAlert messages={errors} title="Couldn't add this job" />
             <div className="grid gap-2">
-              <Label htmlFor="job-url">Link</Label>
+              <Label htmlFor="job-url" className="after:ml-0.5 after:content-['*']">Link</Label>
               <Input
                 id="job-url"
-                type="url"
+                type="text"
+                inputMode="url"
                 maxLength={JOB_URL_TEXT}
-                required
+                aria-required="true"
+                aria-invalid={urlError ? true : undefined}
+                aria-describedby={urlError ? 'job-url-error' : undefined}
                 placeholder="https://company.com/careers/job-title"
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
               />
+              {urlError && <p id="job-url-error" role="alert" className="text-sm text-destructive">{urlError}</p>}
             </div>
             <Button type="submit" disabled={submitting || url.trim() === ''} className="justify-self-start">
               {submitting ? 'Adding…' : 'Add job'}

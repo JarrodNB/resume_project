@@ -25,7 +25,7 @@ it.each([['questions', 'Nothing to add'], ['review', 'Dismiss review']])('saves 
   await waitFor(() => {
     expect(screen.queryByText(assessment.question)).not.toBeInTheDocument()
     expect(screen.getByText(record.description)).toBeInTheDocument()
-    if (scope === 'review') expect(screen.getByText('Not reviewed')).toBeInTheDocument()
+    if (scope === 'review') expect(screen.getByText('No AI review yet')).toBeInTheDocument()
     else expect(screen.getByText(assessment.reason)).toBeInTheDocument()
   })
 })

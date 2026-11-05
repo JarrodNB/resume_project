@@ -8,7 +8,7 @@ import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { editableCertificationDate, certificationDateAttributes } from './certificationDateValues'
-import { blankToNull } from './libraryFormValues'
+import { blankToNull, normalizeWebAddress, requiredFieldErrors } from './libraryFormValues'
 import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -30,6 +30,7 @@ export function CertificationFormDialog({ open, onOpenChange, certification }: C
 /** The certification fields and the save action. */
 function CertificationForm({ certification, onClose }: { certification: Certification | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [name, setName] = useState(certification?.name ?? '')
   const [issuer, setIssuer] = useState(certification?.issuer ?? '')
   const [issuedDate, setIssuedDate] = useState(editableCertificationDate(certification?.issuedDate, certification?.issuedDatePrecision))
@@ -40,6 +41,11 @@ function CertificationForm({ certification, onClose }: { certification: Certific
 
   /** Creates or updates the certification, sending every field so a cleared one is removed. */
   async function submit() {
+    const missing = requiredFieldErrors({ name: { label: 'Certification name', value: name } })
+    const address = normalizeWebAddress(credentialUrl)
+    if (address.error) missing.credentialUrl = address.error
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     const saved = await save(certification ? UPDATE_CERTIFICATION_MUTATION : CREATE_CERTIFICATION_MUTATION, {
       ...(certification ? { id: certification.id } : {}),
       attributes: {
@@ -50,7 +56,7 @@ function CertificationForm({ certification, onClose }: { certification: Certific
         expiryDate: certificationDateAttributes(expiryDate).date,
         expiryDatePrecision: certificationDateAttributes(expiryDate).precision,
         credentialId: blankToNull(credentialId),
-        credentialUrl: blankToNull(credentialUrl),
+        credentialUrl: address.value,
         description: blankToNull(description),
       },
     })
@@ -68,12 +74,12 @@ function CertificationForm({ certification, onClose }: { certification: Certific
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Certification name" required value={name} onChange={setName} maxLength={SHORT_TEXT} />
+        <LibraryField label="Certification name" required error={fieldErrors.name} value={name} onChange={setName} maxLength={SHORT_TEXT} />
         <LibraryField label="Issuer" value={issuer} onChange={setIssuer} maxLength={SHORT_TEXT} />
         <LibraryField label="Issued (YYYY, YYYY-MM, or YYYY-MM-DD)" value={issuedDate} onChange={setIssuedDate} />
         <LibraryField label="Expires (YYYY, YYYY-MM, or YYYY-MM-DD)" value={expiryDate} onChange={setExpiryDate} />
         <LibraryField label="Credential ID" value={credentialId} onChange={setCredentialId} maxLength={SHORT_TEXT} />
-        <LibraryField label="Credential URL" value={credentialUrl} onChange={setCredentialUrl} maxLength={SHORT_TEXT} />
+        <LibraryField label="Credential URL" error={fieldErrors.credentialUrl} value={credentialUrl} onChange={setCredentialUrl} maxLength={SHORT_TEXT} />
       </div>
       <LibraryField label="Description" multiline value={description} onChange={setDescription} maxLength={PROSE_TEXT} />
     </EntryFormDialog>

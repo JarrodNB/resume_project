@@ -27,7 +27,7 @@ function job(overrides: Record<string, unknown> = {}) {
     location: 'Remote',
     stage: 'UNAPPLIED',
     url: null,
-    description: null,
+    description: 'Build things.',
     notes: null,
     appliedAt: null,
     requirements: ['Python'],
@@ -70,7 +70,7 @@ const savedAttributes = {
   location: null,
   url: null,
   notes: null,
-  description: null,
+  description: 'Build things.',
   requirements: ['Python'],
   responsibilities: [],
   niceToHaves: [],
@@ -136,7 +136,7 @@ it('shows the posting content as open sections with the full description collaps
 })
 
 it('explains empty requirements and leaves out empty optional posting sections', async () => {
-  renderWorkspace({ url: '/jobs/job-1/posting', mocks: [jobQuery(job({ requirements: [] }))] })
+  renderWorkspace({ url: '/jobs/job-1/posting', mocks: [jobQuery(job({ requirements: [], description: null }))] })
 
   expect(await screen.findByText('No requirements were found in the posting.')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'Responsibilities' })).not.toBeInTheDocument()
@@ -162,7 +162,7 @@ it('offers the saved website in a new tab without changing the application stage
     ],
   })
 
-  const website = await screen.findByRole('link', { name: 'Visit website' })
+  const website = await screen.findByRole('link', { name: 'View posting' })
   expect(website).toHaveAttribute('href', 'https://example.com/careers/engineer')
   expect(website).toHaveAttribute('target', '_blank')
   expect(website).toHaveAttribute('rel', 'noreferrer')
@@ -177,7 +177,7 @@ it('omits the website link when no URL is saved', async () => {
 
   await openActionsMenu(user)
   expect(screen.getByRole('menuitem', { name: 'Edit job' })).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: 'Visit website' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'View posting' })).not.toBeInTheDocument()
 })
 
 it('saves an edit and clears an optional field', async () => {
@@ -523,4 +523,50 @@ it('shows literal skill counts in Fit without a completed comparison and ignores
   ] })
   expect(await screen.findByText('3 mentions')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Compare with my career library' })).toBeEnabled()
+})
+
+it('offers Add description on Posting and Fit when the job has none, opening the edit form', async () => {
+  const user = userEvent.setup()
+  renderWorkspace({ url: '/jobs/job-1/posting', mocks: [jobQuery(job({ description: null }))] })
+
+  await user.click(await screen.findByRole('button', { name: 'Add description' }))
+  expect(screen.getByRole('heading', { name: 'Edit job' })).toBeInTheDocument()
+})
+
+it('disables Compare with a reason and an Add description action when the job has no description', async () => {
+  renderWorkspace({ mocks: [jobQuery(job({ description: null }))] })
+
+  expect(await screen.findByRole('button', { name: 'Compare with my career library' })).toBeDisabled()
+  expect(screen.getByText('The comparison needs a job description.')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Add description' }).length).toBeGreaterThan(0)
+})
+
+it('shows inline errors instead of browser validation, and adds https:// to a bare link', async () => {
+  const user = userEvent.setup()
+  renderWorkspace({
+    mocks: [
+      jobQuery(job()),
+      {
+        request: { query: UPDATE_JOB_MUTATION, variables: { id: 'job-1', attributes: { ...savedAttributes, title: 'Engineer', location: 'Remote', url: 'https://acme.example/jobs/1' } } },
+        result: { data: { updateJob: { __typename: 'UpdateJobPayload', errors: [] } } },
+      },
+      jobQuery(job({ url: 'https://acme.example/jobs/1' })),
+    ],
+  })
+
+  await openActionsMenu(user)
+  await user.click(screen.getByRole('menuitem', { name: 'Edit job' }))
+  await user.clear(screen.getByLabelText('Title'))
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Enter a job title.')).toBeInTheDocument()
+
+  await user.type(screen.getByLabelText('Title'), 'Engineer')
+  await user.type(screen.getByLabelText('Link'), 'not a link')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText(/Enter a web address/)).toBeInTheDocument()
+
+  await user.clear(screen.getByLabelText('Link'))
+  await user.type(screen.getByLabelText('Link'), 'acme.example/jobs/1')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByRole('link', { name: 'View posting' })).toHaveAttribute('href', 'https://acme.example/jobs/1')
 })

@@ -15,7 +15,7 @@ import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 const cases = [
   { section: 'summary', title: 'Summary', kind: 'user', field: 'summary', id: 'user-1',
     library: { ...emptyReviewLibrary, me: { ...emptyReviewLibrary.me, name: 'Jane', summary: 'I build useful tools.' } },
-    element: <SummarySection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], includeSummary: true, summary: 'I build useful tools.' }} /> },
+    element: <SummarySection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], includeSummary: true, summary: 'I build useful tools.' }} libraryHasContent /> },
   { section: 'projects', title: 'Projects', kind: 'project', field: 'description', id: 'project-1',
     library: { ...emptyReviewLibrary, projects: [{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }] },
     element: <ProjectSection projects={[{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }]} /> },
@@ -39,7 +39,7 @@ for (const item of cases) {
     expect(screen.getByRole('button', { name: `Review ${item.title}` })).toBeEnabled()
     expect((await screen.findAllByText('Could improve')).length).toBeGreaterThan(0)
     expect(screen.getByText('What was your own contribution?')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Improve with AI' }))
+    await user.click(screen.getByRole('button', { name: 'Rewrite with AI' }))
     expect(await screen.findByLabelText('What would you like to improve? (optional)')).toBeEnabled()
     expect(screen.getAllByText('What was your own contribution?')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Generate revision' })).toBeEnabled()

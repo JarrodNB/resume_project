@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { skillMentionCount } from './skillMentionCounts'
 import { useSkillMatches } from './useSkillMatches'
 
-export function SkillMatches({ description }: { description: string | null | undefined }) {
+export function SkillMatches({ description, onAddDescription }: { description: string | null | undefined; onAddDescription?: () => void }) {
   const { data, loading, error } = useSkillMatches(Boolean(description?.trim()))
   const mentioned = (data?.skills ?? [])
     .map(skill => ({ skill, count: skillMentionCount(description ?? '', skill.name) }))
@@ -11,7 +11,10 @@ export function SkillMatches({ description }: { description: string | null | und
   return (
     <section className="grid gap-2 border-t pt-3.5 text-sm">
       <h2 className="font-bold">Your skills this posting mentions</h2>
-      {!description?.trim() ? <p className="text-muted-foreground">Add a job description to see skill matches.</p>
+      {!description?.trim() ? <p className="text-muted-foreground">
+        Add a job description to see skill matches.{' '}
+        {onAddDescription && <button type="button" className="text-foreground underline" onClick={onAddDescription}>Add description</button>}
+      </p>
         : error ? <p role="alert">Couldn't load your skills. Reopen Fit to try again.</p>
         : loading || !data ? <p role="status" className="text-muted-foreground">Loading your skills…</p>
         : data.skills.length === 0 ? <p className="text-muted-foreground"><Link className="text-foreground underline" to="/library">Add skills to your career library</Link> to see their mentions here.</p>

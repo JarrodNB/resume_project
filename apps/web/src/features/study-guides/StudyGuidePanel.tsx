@@ -7,17 +7,17 @@ import { useStudyGuide } from './useStudyGuide'
 import { StudyAnswerDiagram } from './StudyAnswerDiagram'
 
 /** The job workspace's Study tab: saved questions and generation, always open. */
-export function StudyGuidePanel({ jobId, description }: { jobId: string; description: string | null }) {
+export function StudyGuidePanel({ jobId, description, onAddDescription }: { jobId: string; description: string | null; onAddDescription?: () => void }) {
   return <section className="grid gap-5" aria-labelledby={`study-guides-${jobId}`}>
     <div className="grid gap-1">
       <h2 id={`study-guides-${jobId}`} className="text-base font-medium">Study guides</h2>
       <p className="text-sm text-muted-foreground">Questions from this job's description. Think each one through, then reveal the explanation and worked example.</p>
     </div>
-    <StudyGuideContent key={jobId} jobId={jobId} description={description} />
+    <StudyGuideContent key={jobId} jobId={jobId} description={description} onAddDescription={onAddDescription} />
   </section>
 }
 
-function StudyGuideContent({ jobId, description }: { jobId: string; description: string | null }) {
+function StudyGuideContent({ jobId, description, onAddDescription }: { jobId: string; description: string | null; onAddDescription?: () => void }) {
   const state = useStudyGuide(jobId, description)
   const hasDescription = Boolean(description?.trim())
   return <div className="grid gap-5">
@@ -31,7 +31,10 @@ function StudyGuideContent({ jobId, description }: { jobId: string; description:
     {state.retryReady && !state.starting && <p role="status" className="max-w-prose text-sm text-muted-foreground">This batch is taking longer than expected. You can retry without losing saved questions.</p>}
     {state.questions.length > 0 && <StudyGuideView guide={{ title: 'Study questions', version: 1, questions: state.questions }}
       totalQuestions={state.totalQuestions} loadMore={state.loadMore} loadingMore={state.loadingMore} freshness={state.questions.map((question) => question.outOfDate)} />}
-    {!hasDescription && <p className="text-sm text-muted-foreground">Add a job description to generate study questions.</p>}
+    {!hasDescription && <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+      <p>Study questions come from the job description, and this job has none yet.</p>
+      {onAddDescription && <Button type="button" variant="outline" size="sm" onClick={onAddDescription}>Add description</Button>}
+    </div>}
     <Button className="justify-self-start" variant={state.questions.length ? 'outline' : 'default'} disabled={!hasDescription || state.busy || state.loading || Boolean(state.loadError)}
       onClick={() => void state.start()}>{state.starting ? 'Starting…' : state.retryReady ? 'Retry 5 questions' : state.totalQuestions ? 'Generate 5 more' : 'Generate 5 questions'}</Button>
   </div>

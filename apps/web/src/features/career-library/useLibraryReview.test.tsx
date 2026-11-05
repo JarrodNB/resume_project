@@ -61,7 +61,7 @@ it('hides old green advice if a source change cannot refresh freshness', async (
   expect(await screen.findByText('Looks good')).toBeInTheDocument()
   expect(screen.getByText('How did you establish the scope?')).toBeInTheDocument()
   rerender(<MockedProvider mocks={mocks}><Harness source="after" /></MockedProvider>)
-  await waitFor(() => expect(screen.getByText('Needs review')).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByText('Review out of date')).toBeInTheDocument())
   expect(await screen.findByText('Could not load the assessments. Reload to try again.')).toBeInTheDocument()
   expect(screen.queryByText('Looks good')).not.toBeInTheDocument()
   expect(screen.queryByText('How did you establish the scope?')).not.toBeInTheDocument()

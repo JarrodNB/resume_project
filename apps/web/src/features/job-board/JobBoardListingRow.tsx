@@ -17,6 +17,7 @@ import { FormattedDescription } from '@/components/FormattedDescription'
 import { Button } from '@/components/ui/button'
 import { employmentTypeOptions, remoteOptions } from './searchFilters'
 import type { BoardListing } from './jobBoardVisit'
+import { formatPostedDate, formatSalary, stripRecruiterTags } from './listingDisplay'
 
 interface Props {
   assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }
@@ -34,20 +35,22 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
   const skillSection = useOpenSection('job-board:skill-mentions')
   const titleOpener = useRef<HTMLButtonElement | null>(null)
   const previewOpener = useRef<HTMLButtonElement | null>(null)
-  const hasDescription = Boolean(listing.description?.trim())
+  const description = listing.description ? stripRecruiterTags(listing.description) : null
+  const salary = formatSalary(listing.salaryText, listing.salaryCurrency)
+  const hasDescription = Boolean(description?.trim())
   const unavailable = !hasDescription ? 'Skill mentions unavailable: no description.' : skillsMessage
-  const mentions = hasDescription && skills?.length ? skills.map(skill => ({ ...skill, count: skillMentionCount(listing.description, skill.name) })) : null
+  const mentions = hasDescription && skills?.length ? skills.map(skill => ({ ...skill, count: skillMentionCount(description ?? '', skill.name) })) : null
   const matched = mentions?.filter(skill => skill.count > 0).sort((a, b) => b.count - a.count)
   const published = listing.published ? new Date(listing.published) : null
   const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
   const employmentLabel = employmentTypeOptions.find(([value]) => value === listing.employmentType)?.[1]
-  const metadata = (listing.location || listing.hasRemote || employmentLabel || listing.salaryText || (published && !Number.isNaN(published.getTime()))) && (
+  const metadata = (listing.location || listing.hasRemote || employmentLabel || salary || (published && !Number.isNaN(published.getTime()))) && (
     <div className="board-listing-meta">
       {listing.location && <span><MapPin size={14} aria-hidden />{listing.location}</span>}
       {listing.hasRemote && <span className="board-remote-tag"><Radio size={13} aria-hidden />{remoteLabel}</span>}
       {employmentLabel && <span>{employmentLabel}</span>}
-      {listing.salaryText && <span>{listing.salaryText}{listing.salaryCurrency && ` · ${listing.salaryCurrency}`}</span>}
-      {published && !Number.isNaN(published.getTime()) && <span>Posted <time dateTime={listing.published!}>{published.toLocaleDateString()}</time></span>}
+      {salary && <span>{salary}</span>}
+      {published && !Number.isNaN(published.getTime()) && <span>Posted <time dateTime={listing.published!}>{formatPostedDate(published)}</time></span>}
     </div>
   )
   const sourceUrl = originalPostingUrl(listing.applicationUrl)
@@ -67,7 +70,7 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
         <div className="board-listing-header">
           <div className="board-listing-identity">
             <h2 id={`listing-${listing.id}`} className="board-listing-title"><DialogTrigger asChild><button type="button" className="board-preview-trigger" ref={titleOpener} onClick={event => { previewOpener.current = event.currentTarget }}>{listing.title}</button></DialogTrigger></h2>
-            <p className="board-listing-company">{listing.company ?? 'Unknown company'}</p>
+            {listing.company && <p className="board-listing-company">{listing.company}</p>}
             {metadata}
             {!hasDescription && <p className="board-skill-summary">{unavailable}</p>}
             {matched && <div className="board-skill-summary">
@@ -83,11 +86,11 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
       <DialogContent className="board-preview" aria-describedby={`preview-company-${listing.id}`} onCloseAutoFocus={event => { event.preventDefault(); (previewOpener.current?.isConnected ? previewOpener.current : titleOpener.current)?.focus() }}>
         <div className="board-preview-heading">
           <DialogTitle className="board-preview-title">{listing.title}</DialogTitle>
-          <DialogDescription id={`preview-company-${listing.id}`}>{listing.company ?? 'Unknown company'}{listing.location && ` · ${listing.location}`}</DialogDescription>
+          <DialogDescription id={`preview-company-${listing.id}`}>{[listing.company, listing.location].filter(Boolean).join(' · ')}</DialogDescription>
         </div>
         {metadata}
         <div className="board-preview-actions">{action}
-          {sourceUrl && <Button asChild variant="outline"><a href={sourceUrl} target="_blank" rel="noopener noreferrer">View original posting<ArrowUpRight aria-hidden /></a></Button>}
+          {sourceUrl && <Button asChild variant="outline"><a href={sourceUrl} target="_blank" rel="noopener noreferrer">View posting<ArrowUpRight aria-hidden /></a></Button>}
         </div>
         <ErrorAlert title="Couldn't create this job" messages={errors} />
         {savedHere && savedHere.warnings.length > 0 && <div role="status" className="board-preview-warnings"><p>Saved with a few changes:</p><ul>{savedHere.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div>}
@@ -100,7 +103,7 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
         </div>
         <div className="board-preview-description">
           <h3>Description</h3>
-          {listing.description ? <FormattedDescription className="board-description" text={listing.description} /> : <p className="board-description-missing">No description provided.</p>}
+          {description ? <FormattedDescription className="board-description" text={description} /> : <p className="board-description-missing">No description provided.</p>}
         </div>
       </DialogContent></Dialog>
     </li>

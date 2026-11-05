@@ -109,6 +109,13 @@ class AISettings(BaseSettings):
         default=DEFAULT_INTERVIEW_REFERENCE_MIN_SIMILARITY, ge=0, le=1, allow_inf_nan=False
     )
     job_page_fetch_timeout_seconds: float = 20
+    # Concurrency caps. Each is the most that can run at once inside one worker process.
+    # Listings assessed at once in one job preference check (each is a model call).
+    job_preference_concurrency: int = Field(default=8, ge=1)
+    # Local Llama screening chunks queued or running at once. Inference itself is serialized.
+    local_screen_chunk_concurrency: int = Field(default=4, ge=1)
+    # DNS lookups in flight when reading a job URL. Extra lookups fail fast with "busy".
+    dns_lookup_concurrency: int = Field(default=4, ge=1)
     # Read-only ai_reader role (see infra/postgres and services/api/lib/ai_reader_access.rb).
     db_host: str = "localhost"
     db_port: int = 5432

@@ -11,10 +11,11 @@ from time import monotonic
 from urllib.parse import urlsplit, urlunsplit
 
 from scrapers.job_page import JobPageUnreadableError, UnsupportedJobUrlError
+from settings import load_settings
 from text_limits import MAX_JOB_URL
 
 MAX_JOB_URL_LENGTH = MAX_JOB_URL
-_dns_slots = BoundedSemaphore(4)
+_dns_slots = BoundedSemaphore(load_settings().dns_lookup_concurrency)
 _transition_networks = tuple(ipaddress.ip_network(net) for net in (
     "64:ff9b::/96", "64:ff9b:1::/48", "2002::/16", "2001::/32",
 ))

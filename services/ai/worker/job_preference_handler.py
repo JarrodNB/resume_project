@@ -14,18 +14,18 @@ from llm.model_prices import build_model_usage
 from llm.usage import model_request_budget
 from schemas.job_preferences import PreferenceCheckInput
 from screening.session import within_screening_session
+from settings import load_settings
 from worker.queue_messages import AiResultMessage
 
 MAX_MODEL_REQUESTS = 240  # Includes decision and validation requests.
 MAX_TASK_TOKENS = 600_000
-MAX_CONCURRENT_DECISIONS = 4
 MAX_RESULT_BYTES = 160_000  # Leave queue space for concrete model usage and execution metadata.
 MAX_ENVELOPE_BYTES = 240_000
 
 
 async def assess_listings(criteria, listings):
     """Keep source order, bound concurrency, and finish cancellation before returning a failure."""
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_DECISIONS)
+    semaphore = asyncio.Semaphore(load_settings().job_preference_concurrency)
     async def assess(listing):
         async with semaphore:
             return await assess_preference_listing(criteria, listing)

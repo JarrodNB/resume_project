@@ -15,3 +15,10 @@ it('changes the visible caption over time while screen readers hear one steady s
   for (let step = 0; step < 6; step += 1) act(() => { vi.advanceTimersByTime(3200) })
   expect(screen.getByText(/Still working on it/)).toBeInTheDocument()
 })
+
+it('shows how long the wait has been once it runs past a few seconds', () => {
+  render(<ChatReplyWaiting />)
+  expect(screen.queryByText(/Waiting \d+s/)).not.toBeInTheDocument()
+  act(() => { vi.advanceTimersByTime(12000) })
+  expect(screen.getByText(/Waiting 12s/)).toBeInTheDocument()
+})

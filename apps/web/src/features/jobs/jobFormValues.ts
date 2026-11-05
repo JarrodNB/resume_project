@@ -3,6 +3,7 @@
  * Index:
  *   - JobDraft: the fields the form reads from a saved job
  *   - blankToNull: trims a string and returns null when nothing is left
+ *   - normalizeJobUrl: adds https:// when missing and returns null for text that is not a web address
  *   - jobAttributes: the JobAttributesInput sent on create and update
  */
 
@@ -23,6 +24,20 @@ export interface JobDraft {
 export function blankToNull(value: string) {
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+/** Accepts "company.com/jobs" by adding https://. Returns null when it still is not a web address. */
+export function normalizeJobUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  try {
+    const parsed = new URL(withScheme)
+    const webAddress = ['http:', 'https:'].includes(parsed.protocol) && /\.[^.]{2,}$/.test(parsed.hostname)
+    return webAddress && !/\s/.test(trimmed) ? withScheme : null
+  } catch {
+    return null
+  }
 }
 
 interface JobFormFields {

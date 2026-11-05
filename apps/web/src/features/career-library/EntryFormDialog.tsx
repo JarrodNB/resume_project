@@ -34,7 +34,7 @@ export function EntryFormDialog({ open, onOpenChange, title, description, onSubm
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <form className="grid gap-4" onSubmit={submit}>
+        <form className="grid gap-4" noValidate onSubmit={submit}>
           {children}
           <ErrorAlert title="Couldn't save" messages={errors} />
           <DialogFooter>

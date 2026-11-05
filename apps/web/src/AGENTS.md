@@ -9,7 +9,7 @@ Source of the web app, organized by feature.
 - `main.tsx` — entry point (applies the saved color theme before rendering); `App.tsx` —
   AuthProvider > SessionApolloProvider > router
 - `appRoutes.tsx` — route table (public auth pages; signed-in pages inside `AppLayout`, grouped
-  under Home (`/`), `/jobs`, `/library`, and `/practice`; old paths redirect to their new homes)
+  under Home (`/`), `/jobs`, `/library`, and `/practice`; old paths redirect to their new homes; unknown URLs show a 404 page)
 - `index.css` — Tailwind + shadcn theme variables: warm paper and forest ink in light
   mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system

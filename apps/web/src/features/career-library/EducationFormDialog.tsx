@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_EDUCATION_MUTATION, UPDATE_EDUCATION_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
-import { blankToNull } from './libraryFormValues'
+import { blankToNull, requiredFieldErrors } from './libraryFormValues'
 import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -29,6 +29,7 @@ export function EducationFormDialog({ open, onOpenChange, education }: Education
 /** The education fields and the save action. */
 function EducationForm({ education, onClose }: { education: Education | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [institution, setInstitution] = useState(education?.institution ?? '')
   const [degree, setDegree] = useState(education?.degree ?? '')
   const [fieldOfStudy, setFieldOfStudy] = useState(education?.fieldOfStudy ?? '')
@@ -38,6 +39,9 @@ function EducationForm({ education, onClose }: { education: Education | null; on
 
   /** Creates or updates the education, sending every field so a cleared one is removed. */
   async function submit() {
+    const missing = requiredFieldErrors({ institution: { label: 'Institution', value: institution } })
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     const saved = await save(education ? UPDATE_EDUCATION_MUTATION : CREATE_EDUCATION_MUTATION, {
       ...(education ? { id: education.id } : {}),
       attributes: {
@@ -63,7 +67,7 @@ function EducationForm({ education, onClose }: { education: Education | null; on
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Institution" required value={institution} onChange={setInstitution} maxLength={SHORT_TEXT} />
+        <LibraryField label="Institution" required error={fieldErrors.institution} value={institution} onChange={setInstitution} maxLength={SHORT_TEXT} />
         <LibraryField label="Degree" value={degree} onChange={setDegree} maxLength={SHORT_TEXT} />
         <LibraryField label="Field of study" value={fieldOfStudy} onChange={setFieldOfStudy} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />

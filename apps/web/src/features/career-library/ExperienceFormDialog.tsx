@@ -10,7 +10,7 @@ import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_EXPERIENCE_MUTATION, UPDATE_EXPERIENCE_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { HighlightEditor } from './HighlightEditor'
-import { blankToNull, highlightsToSave } from './libraryFormValues'
+import { blankToNull, highlightsToSave, requiredFieldErrors } from './libraryFormValues'
 import { BULLET_TEXT, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -33,6 +33,7 @@ export function ExperienceFormDialog({ open, onOpenChange, experience }: Experie
 function ExperienceForm({ experience, onClose }: { experience: Experience | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
   const [company, setCompany] = useState(experience?.company ?? '')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [title, setTitle] = useState(experience?.title ?? '')
   const [location, setLocation] = useState(experience?.location ?? '')
   const [startDate, setStartDate] = useState(experience?.startDate ?? '')
@@ -49,6 +50,9 @@ function ExperienceForm({ experience, onClose }: { experience: Experience | null
 
   /** Creates or updates the role. Unchanged bullets are left out of an update. */
   async function submit() {
+    const missing = requiredFieldErrors({ title: { label: 'Title', value: title }, company: { label: 'Company', value: company } })
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     const highlightsToSend = highlightsToSave(highlights, experience ? experience.highlights.map((highlight) => highlight.content) : null)
     const saved = await save(experience ? UPDATE_EXPERIENCE_MUTATION : CREATE_EXPERIENCE_MUTATION, {
       ...(experience ? { id: experience.id } : {}),
@@ -76,8 +80,8 @@ function ExperienceForm({ experience, onClose }: { experience: Experience | null
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Title" required value={title} onChange={setTitle} maxLength={SHORT_TEXT} />
-        <LibraryField label="Company" required value={company} onChange={setCompany} maxLength={SHORT_TEXT} />
+        <LibraryField label="Title" required error={fieldErrors.title} value={title} onChange={setTitle} maxLength={SHORT_TEXT} />
+        <LibraryField label="Company" required error={fieldErrors.company} value={company} onChange={setCompany} maxLength={SHORT_TEXT} />
         <LibraryField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
         <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} disabled={currentRole} />

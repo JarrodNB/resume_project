@@ -2,8 +2,8 @@
  * An interviewer's sample line is illustrative copy for the setup tile, not a prompt instruction.
  */
 export const typeOptions = [
-  { value: 'mixed', label: 'Mixed Interview', description: 'Behavioural + role questions. Closest to a real loop.' },
-  { value: 'behavioral', label: 'Behavioural', description: 'Past experience, teamwork, conflict, leadership. STAR-focused.' },
+  { value: 'mixed', label: 'Mixed Interview', description: 'Behavioral + role questions. Closest to a real loop.' },
+  { value: 'behavioral', label: 'Behavioral', description: 'Past experience, teamwork, conflict, leadership. STAR-focused.' },
   { value: 'technical', label: 'Technical / Role', description: 'Role knowledge, judgement and problem-solving depth.' },
   { value: 'screening', label: 'HR Screening', description: 'Motivation, background, logistics and culture fit.' },
 ]

@@ -1422,7 +1422,7 @@ describe('choosing who the interview is for', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeVisible()
   })
-  it('points to job search when there are no saved jobs to practise for', async () => {
+  it('points to job search when there are no saved jobs to practice for', async () => {
     renderInterview('/practice/interviews', [], jobsMock([savedJobs[2]]))
     expect(await screen.findByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
     expect(screen.getAllByRole('radio')).toHaveLength(1)
@@ -1460,7 +1460,7 @@ describe('choosing who the interview is for', () => {
     await screen.findByRole('radio', { name: /Laboratory technician/ })
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
   })
-  it('starts at round setup with the saved choices when practising again', () => {
+  it('starts at round setup with the saved choices when practicing again', () => {
     renderInterview('/practice/interviews', [], jobsMock(), { practiceSetup: { ...snapshot.setup, difficulty: 'stretch' } })
     expect(screen.getByRole('radio', { name: /Stretch/ })).toBeChecked()
     expect(screen.getByRole('button', { name: 'Change role' })).toBeVisible()

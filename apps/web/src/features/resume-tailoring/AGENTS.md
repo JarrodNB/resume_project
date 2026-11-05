@@ -13,7 +13,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `JobResumeTab.tsx` — `JobResumeTab` (`/jobs/:id/resume`, inside the job workspace) never starts
   paid generation: it shows the saved resume (`SavedResumeEditor.tsx`, also used by
   `/resumes/:id`), a draft in progress or failed, or an empty state with Write resume.
-  `WriteJobResumePage` (`/jobs/:id/resume/write`) starts a tailor task when none exists,
+  `WriteJobResumePage` (`/jobs/:id/resume/write`) asks the user to confirm ("Start writing"; needs a job description, otherwise a disabled button links to the Posting tab) before it starts a tailor task when none exists, shows `AiWaitingLine` while writing,
   redirects to the Resume tab when a resume exists, and returns there after saving. The old
   `/jobs/:id/tailor` redirects to the Resume tab, so old links never start generation
 - `FinalResumeEditor.tsx` — edit, exclude/restore, preview, and save the finished sections; each

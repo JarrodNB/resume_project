@@ -75,7 +75,7 @@ function JobWorkspace({ id }: { id: string }) {
       <JobBoardImportNotice jobId={id} />
       <header className="job-workspace-header">
         <div className="job-workspace-title">
-          <h1>{job.title}</h1>
+          <h1 title={job.title}>{job.title}</h1>
           <p>{[job.company ?? 'Unknown company', job.location].filter(Boolean).join(' · ')}</p>
           {job.appliedAt && <p>Applied {new Date(job.appliedAt).toLocaleDateString()}</p>}
         </div>
@@ -88,12 +88,13 @@ function JobWorkspace({ id }: { id: string }) {
               resumeId={null}
               comparisonFinished={comparison.completed}
               comparisonBusy={comparison.busy}
+              hasDescription={Boolean(job.description?.trim())}
               onCompare={() => void comparison.start()}
             />
           )}
           {job.url && (
             <Button asChild variant="outline">
-              <a href={job.url} target="_blank" rel="noreferrer"><ExternalLink aria-hidden /> Visit website</a>
+              <a href={job.url} target="_blank" rel="noreferrer"><ExternalLink aria-hidden /> View posting</a>
             </Button>
           )}
           <JobActionsMenu
@@ -130,7 +131,7 @@ function JobWorkspace({ id }: { id: string }) {
         errors={errors}
       />
       <div className="job-workspace-panel">
-        <Outlet context={{ job, comparison } satisfies JobWorkspaceContext} />
+        <Outlet context={{ job, comparison, onEditJob: () => setEditing(true) } satisfies JobWorkspaceContext} />
       </div>
     </div>
   )

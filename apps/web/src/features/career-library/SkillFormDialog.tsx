@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { CREATE_SKILL_MUTATION, UPDATE_SKILL_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
-import { blankToNull } from './libraryFormValues'
+import { blankToNull, requiredFieldErrors } from './libraryFormValues'
 import { SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import type { CategorizedSkill } from './groupSkillsByCategory'
@@ -27,11 +27,15 @@ export function SkillFormDialog({ open, onOpenChange, skill }: SkillFormDialogPr
 /** The skill fields and the save action. */
 function SkillForm({ skill, onClose }: { skill: CategorizedSkill | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [name, setName] = useState(skill?.name ?? '')
   const [category, setCategory] = useState(skill?.category ?? '')
 
   /** Creates or updates the skill. An empty category clears it. */
   async function submit() {
+    const missing = requiredFieldErrors({ name: { label: 'Name', value: name } })
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     const saved = await save(skill ? UPDATE_SKILL_MUTATION : CREATE_SKILL_MUTATION, {
       ...(skill ? { id: skill.id } : {}),
       attributes: { name: name.trim(), category: blankToNull(category) },
@@ -49,7 +53,7 @@ function SkillForm({ skill, onClose }: { skill: CategorizedSkill | null; onClose
       busy={busy}
       errors={errors}
     >
-      <LibraryField label="Name" required value={name} onChange={setName} maxLength={SHORT_TEXT} />
+      <LibraryField label="Name" required error={fieldErrors.name} value={name} onChange={setName} maxLength={SHORT_TEXT} />
       <LibraryField label="Category" value={category} onChange={setCategory} maxLength={SHORT_TEXT} />
     </EntryFormDialog>
   )

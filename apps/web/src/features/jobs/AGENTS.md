@@ -10,7 +10,7 @@ be edited, moved between application stages, and archived.
 
 ## Contents
 
-- `JobsPage.tsx` (`/jobs`) — job list with stage badges, "Paste a job ad", "Add job from link",
+- `JobsPage.tsx` (`/jobs`) — job list sorted by stage (pipeline order, Rejected last), newest first within a stage, each row link named "Open <title> at <company>", with stage badges, "Paste a job ad", "Add job from link",
   and "Add manually"
 - `AddJobFromUrlPage.tsx` (`/jobs/new`) — public HTTP(S) job URL form calling `scrapeJob`, with paste fallback for blocked sites
 - `AddJobFromTextPage.tsx` (`/jobs/paste`) — textarea calling `parseJobPosting`
@@ -23,7 +23,7 @@ be edited, moved between application stages, and archived.
 - `JobWorkspaceLayout.tsx` (`/jobs/:id`) — loads the job and owns the live comparison
   (`useGapAnalysis`), shared with every tab. The header shows title, company · location, the
   applied date once set, `JobStageSelect` (`moveJobToStage`), `WriteResumeAction` (only when the
-  job has no resume and the Resume tab isn't open), a visible "Visit website" link when a URL is
+  job has no resume and the Resume tab isn't open), a visible "View posting" link when a URL is
   saved (opens a new tab, does not change the stage), and `JobActionsMenu.tsx` ("More job
   actions": Edit job, Archive job). Below it, the "Job sections" tabs:
   Fit (`/jobs/:id`), Resume (`/jobs/:id/resume`, `features/resume-tailoring/`), Study
@@ -59,5 +59,7 @@ be edited, moved between application stages, and archived.
 - A job requires a title. Company is nullable: show **Unknown company** in saved-job labels,
   leave its edit input empty, and send null when the field is cleared.
 - Archiving hides a job from saved jobs and Home; answers, resumes, interviews, and AI history stay linked.
+- A job without a description shows an "Add description" button on Posting, Fit and Study (and disables Compare and question generation) that opens the edit form through the workspace context's `onEditJob`.
+- Forms use `noValidate` with inline field errors; links are normalized with `normalizeJobUrl` (adds `https://`).
 - A tab's main content stays open; only long extras (the full description) collapse.
 - The task page must work on reload: the subscription sends the task's current state first.

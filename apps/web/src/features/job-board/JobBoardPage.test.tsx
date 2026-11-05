@@ -15,22 +15,16 @@ import { JobBoardPage } from './JobBoardPage'
 
 afterEach(() => vi.restoreAllMocks())
 
-it('uses imported title chips without searching or changing selected filters', async () => {
+it('searches immediately when an imported title chip is chosen', async () => {
   const user = userEvent.setup()
   const fetched = vi.fn(() => ({ data: { jobBoardSearch: page() } }))
   renderBoard([
     { request: { query: JOB_BOARD_SEARCH_IDEAS_QUERY }, result: { data: { me: { __typename: 'User', id: 'me', jobTitleSuggestions: ['Backend engineer', 'API developer'] } } } },
-    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('Backend engineer', true) }, result: fetched },
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('Backend engineer') }, result: fetched },
   ])
-  await user.selectOptions(screen.getByRole('combobox', { name: 'Remote arrangement' }), 'remote')
   await user.click(await screen.findByRole('button', { name: 'Backend engineer' }))
-  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('Backend engineer')
-  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveFocus()
-  expect(screen.getByRole('combobox', { name: 'Remote arrangement' })).toHaveValue('remote')
-  expect(screen.queryByRole('button', { name: 'Software engineer' })).not.toBeInTheDocument()
-  expect(fetched).not.toHaveBeenCalled()
-  await user.click(screen.getByRole('button', { name: 'Search jobs' }))
   await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('Backend engineer')
   expect(fetched).toHaveBeenCalledTimes(1)
 })
 
@@ -46,7 +40,6 @@ it.each([false, true])('keeps default chips when suggestions are unavailable (er
     await act(async () => { await vi.advanceTimersByTimeAsync(50) })
     fireEvent.click(screen.getByRole('button', { name: 'Software engineer' }))
     expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('Software engineer')
-    expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveFocus()
     expect(screen.getByRole('button', { name: 'Search jobs' })).toBeEnabled()
   } finally {
     vi.useRealTimers()
@@ -57,7 +50,7 @@ it('starts with a keyword invitation without requesting listings', async () => {
   const fetched = vi.fn(() => ({ data: { jobBoardSearch: page() } }))
   renderBoard([{ request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables() }, result: fetched, delay: 0 }])
   expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('')
-  expect(screen.getByRole('heading', { name: 'Find a role worth your next step.' })).toBeInTheDocument()
+  expect(screen.getByText(/Start with a job title or a skill/)).toBeInTheDocument()
   expect(screen.queryByText(/Loading/)).not.toBeInTheDocument()
   await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
   expect(fetched).not.toHaveBeenCalled()
@@ -421,7 +414,7 @@ it('opens an accessible preview by keyboard, closes to its title, and opens the 
   renderBoard([queryMock(searchVariables(), page([{ ...listing(), company: null, description: '<img src=x onerror=alert(1)> Role details', savedJob: { __typename: 'Job', id: 'existing' } }]))])
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
-  expect(screen.getByText('Unknown company')).toBeInTheDocument()
+  expect(screen.queryByText('Unknown company')).not.toBeInTheDocument()
   expect(screen.getByText('United States')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Open saved job' })).toHaveAttribute('href', '/jobs/existing')
   expect(screen.queryByRole('button', { name: 'Save job' })).not.toBeInTheDocument()
@@ -569,12 +562,19 @@ it('hides only owned saved results while preserving pagination and an accurate e
   expect(screen.getByRole('heading', { name: 'New role' })).toBeInTheDocument()
 })
 
+it('runs the search when a search idea is chosen', async () => {
+  const user = userEvent.setup()
+  renderBoard([queryMock(searchVariables('Data analyst'), page([listing()]))])
+  await user.click(await screen.findByRole('button', { name: /Data analyst/ }))
+  expect(await screen.findByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
+})
+
 it('shows salary, employment, remote restrictions and a valid posting date', async () => {
   const user = userEvent.setup()
   renderBoard([queryMock(searchVariables(), page([{ ...listing(), remoteType: 'remote_country', employmentType: 'CONTRACT', salaryText: '$60 per hour', salaryCurrency: 'USD', published: '2026-10-26T00:00:00Z' }]))])
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
-  expect(screen.getByText('$60 per hour · USD')).toBeInTheDocument()
+  expect(screen.getByText('$60 / hour')).toBeInTheDocument()
   expect(screen.getByText('Remote — country restricted', { selector: 'span' })).toBeInTheDocument()
   expect(within(screen.getByRole('list', { name: 'Job listings' })).getByText('Contract')).toBeInTheDocument()
   expect(screen.getAllByRole('time').some((item) => item.getAttribute('datetime') === '2026-10-26T00:00:00Z')).toBe(true)
@@ -659,7 +659,7 @@ it('pushes submitted searches and restores them with Back and Forward while draf
   await act(() => router.navigate(1))
   await screen.findByRole('heading', { name: 'Designer' })
   await act(() => router.navigate(-2))
-  expect(await screen.findByText('Find a role worth your next step.')).toBeInTheDocument()
+  expect(await screen.findByText(/Start with a job title or a skill/)).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'Designer' })).not.toBeInTheDocument()
 })
 
@@ -889,12 +889,12 @@ it.each([null, '', 'javascript:alert(1)', '/relative', 'https://user:secret@exam
   await search(user)
   await user.click(await screen.findByRole('button', { name: 'Platform Engineer' }))
   const preview = within(screen.getByRole('dialog'))
-  expect(preview.getByText('120,000 per year · USD')).toBeInTheDocument()
+  expect(preview.getByText('$120,000 / year')).toBeInTheDocument()
   expect(preview.getByRole('time')).toHaveAttribute('datetime', '2026-10-20T00:00:00Z')
   if (applicationUrl === 'https://example.com/job') {
-    expect(preview.getByRole('link', { name: 'View original posting' })).toHaveAttribute('href', applicationUrl)
-    expect(preview.getByRole('link', { name: 'View original posting' })).toHaveAttribute('rel', 'noopener noreferrer')
-  } else expect(preview.queryByRole('link', { name: 'View original posting' })).not.toBeInTheDocument()
+    expect(preview.getByRole('link', { name: 'View posting' })).toHaveAttribute('href', applicationUrl)
+    expect(preview.getByRole('link', { name: 'View posting' })).toHaveAttribute('rel', 'noopener noreferrer')
+  } else expect(preview.queryByRole('link', { name: 'View posting' })).not.toBeInTheDocument()
   await user.click(preview.getByRole('button', { name: 'Close' }))
   expect(screen.getByRole('button', { name: 'Platform Engineer' })).toHaveFocus()
 })

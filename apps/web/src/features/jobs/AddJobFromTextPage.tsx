@@ -39,13 +39,13 @@ export function AddJobFromTextPage() {
           <CardDescription>Copy the posting from the job site and paste it here, including the title. The company can be unknown.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
+          <form noValidate className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
             <ErrorAlert messages={errors} title="Couldn't add this job" />
             <div className="grid gap-2">
-              <Label htmlFor="job-ad">Job ad</Label>
+              <Label htmlFor="job-ad" className="after:ml-0.5 after:content-['*']">Job ad</Label>
               <Textarea
                 id="job-ad"
-                required
+                aria-required="true"
                 rows={12}
                 placeholder="Paste the job title and description"
                 value={text}

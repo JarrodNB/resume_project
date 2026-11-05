@@ -74,7 +74,7 @@
 .board-filter-grid > div { min-width: 0; }
 .board-filter-grid label { margin-bottom: 8px; font-weight: 700; }
 .board-filter-grid input, .board-filter-grid select { min-height: 44px; }
-.board-filter-grid select { width: 100%; min-width: 0; border: 1.5px solid var(--input); border-radius: 4px; padding: 8px 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; }
+.board-filter-grid select { width: 100%; min-width: 0; border: 1.5px solid var(--input); border-radius: 4px; padding: 8px 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; text-overflow: ellipsis; }
 .board-filter-grid select:focus-visible, .board-location-choices input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 /* The find / clear action lives inside the field, on its right edge, like the keyword search icon. */
 .board-location-field { position: relative; }
@@ -103,7 +103,7 @@
   .board-filters-panel > .board-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
   .board-filters-panel > .board-filter-grid > .board-location-picker { grid-column: span 2; order: 1; }
 }
-@media (min-width: 1200px) {
+@media (min-width: 1500px) {
   .board-filters-panel > .board-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
   .board-filters-panel > .board-filter-grid > .board-location-picker { grid-column: auto; order: 0; }
 }

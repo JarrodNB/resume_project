@@ -37,7 +37,7 @@ it('lists saved chats and opens a newly saved empty conversation', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/chat/chat-2'))
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
-  expect(screen.getAllByText(/cannot read your saved career details or take actions/).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/can read your saved career library and job postings to answer, but it cannot change anything/).length).toBeGreaterThan(0)
   expect(screen.getByRole('textbox', { name: 'Your message' })).toBeInTheDocument()
 })
 

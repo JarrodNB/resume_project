@@ -25,7 +25,7 @@ export function ResumesPage() {
         <div className="empty-records">
             <FileText size={30} strokeWidth={1.4} aria-hidden />
             <h2>Your next resume starts with a job</h2>
-            <p>No resumes yet. Write one from a job after you've compared it with your library.</p>
+            <p>No resumes yet. Write one from a saved job that has a description. Comparing the job with your library first is optional but recommended.</p>
             <Button asChild>
               <Link to="/jobs">Go to jobs</Link>
             </Button>

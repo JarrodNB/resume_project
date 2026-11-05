@@ -57,7 +57,7 @@ it('groups jobs by stage on a board, each linking its next step to the right job
   expect(within(notApplied).getByRole('link', { name: 'Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1')
   expect(within(notApplied).getByRole('link', { name: 'Write resume: Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1/resume')
   const interviewing = screen.getByRole('region', { name: /Interviewing/ })
-  expect(within(interviewing).getByRole('link', { name: 'Practise interview: Backend Developer' })).toHaveAttribute('href', '/jobs/job-4/interview')
+  expect(within(interviewing).getByRole('link', { name: 'Practice interview: Backend Developer' })).toHaveAttribute('href', '/jobs/job-4/interview')
   const applied = screen.getByRole('region', { name: /^Applied/ })
   expect(within(applied).getByText('Waiting to hear back')).toBeInTheDocument()
   expect(within(screen.getByRole('region', { name: /Offer/ })).getByText('No jobs')).toBeInTheDocument()

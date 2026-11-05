@@ -1,5 +1,5 @@
 /** Keeps saved evidence, its review note, and its next action together on one line of the page.
- * The note sits in a margin beside the text, with Improve next to the grade and answering inside
+ * The note sits in a margin beside the text, with Rewrite next to the grade and answering inside
  * the box that holds the questions. On wider screens the selected detail's AI work opens right
  * under it, so a revision is read next to the words it would replace. */
 import { LibraryReviewDismissActions } from './LibraryReviewDismissActions'

@@ -33,5 +33,5 @@ it('selects the Find jobs tab inside Jobs for signed-in users', async () => {
   expect(within(tabs).getByRole('link', { name: 'Find jobs' })).toHaveAttribute('aria-current', 'page')
   expect(within(tabs).getByRole('link', { name: 'Saved jobs' })).toHaveAttribute('href', '/jobs')
   expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page')
-  expect(screen.getByText('Find a role worth your next step.')).toBeInTheDocument()
+  expect(screen.getByText(/Start with a job title or a skill/)).toBeInTheDocument()
 })

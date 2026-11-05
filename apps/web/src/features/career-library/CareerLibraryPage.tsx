@@ -6,7 +6,8 @@
  * Section tabs can be dragged, which sets the default section order for new resumes. The
  * profile stays first and career context stays last, because it never prints on a resume.
  * Every section shows its records on one long page, with sticky tabs for jumping between them.
- * The whole library can be deleted so a new resume import starts fresh.
+ * The whole library can be deleted so a new resume import starts fresh (the button is hidden
+ * while the library is empty). Saves show a toast and scroll to the changed section.
  * Index:
  *   - CareerLibraryPage: page component
  */
@@ -22,6 +23,7 @@ import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
 import { LibraryTabs } from './LibraryTabs'
+import { LibrarySaveNoticeProvider } from './LibrarySaveNotice'
 import { ClearLibraryButton } from './ClearLibraryButton'
 import { CertificationSection } from './CertificationSection'
 import { EducationSection } from './EducationSection'
@@ -48,7 +50,7 @@ export function CareerLibraryPage() {
   function renderSection(section: MovableSectionType) {
     if (!library) return null
     switch (section) {
-      case 'summary': return <SummarySection profile={library.me} />
+      case 'summary': return <SummarySection profile={library.me} libraryHasContent={libraryHasContent(library)} />
       case 'experience': return <ExperienceSection experiences={library.experiences} highlightsOf={highlightsOf} movingHighlight={reordering.movingHighlight} />
       case 'projects': return <ProjectSection projects={library.projects} />
       case 'education': return <EducationSection educations={library.educations} />
@@ -58,6 +60,7 @@ export function CareerLibraryPage() {
   }
 
   return (
+    <LibrarySaveNoticeProvider>
     <div className="library-page">
       {(!library || sectionOrder.loading) && <div className="section-tabs library-tabs" aria-hidden />}
       <PageHeading title="Career library" description="Your experience, all in one place. The foundation for every application." />
@@ -82,12 +85,13 @@ export function CareerLibraryPage() {
               <ProfileSection profile={library.me} />
               {sectionOrder.order.map((section) => <Fragment key={section}>{renderSection(section)}</Fragment>)}
               <CareerContextSection careerContexts={library.careerContexts} />
-              <div className="library-clear"><ClearLibraryButton /></div>
+              {libraryHasContent(library) && <div className="library-clear"><ClearLibraryButton /></div>}
             </div>
           </DragDropProvider>
           <LibraryAiWorkspace />
         </LibraryWorkspace>
       )}
     </div>
+    </LibrarySaveNoticeProvider>
   )
 }

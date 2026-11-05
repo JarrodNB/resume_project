@@ -1,12 +1,15 @@
 /** The job workspace's resume: the saved resume, a draft in progress, or a way to start one.
  *
  * The Resume tab (`/jobs/:id/resume`) only shows what exists; it never starts paid generation.
- * The write route (`/jobs/:id/resume/write`) starts a whole-draft tailor task when there isn't
- * one, follows it live, and returns to the Resume tab once the draft is saved.
+ * The write route (`/jobs/:id/resume/write`) asks the user to confirm (and needs a job
+ * description) before it starts a whole-draft tailor task when there isn't one, follows it live,
+ * and returns to the Resume tab once the draft is saved.
  */
 import { ContentSkeleton } from '@/components/ContentSkeleton'
-import { FileText, LoaderCircle } from 'lucide-react'
-import { Navigate, useNavigate } from 'react-router'
+import { useState } from 'react'
+import { FileText } from 'lucide-react'
+import { Link, Navigate, useNavigate } from 'react-router'
+import { AiWaitingLine } from '@/components/AiWaitingLine'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,7 +36,10 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
   const { job: workspaceJob, comparison } = useJobWorkspace()
   const id = workspaceJob.id
   const navigate = useNavigate()
-  const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id, { autoStart })
+  // Writing uses paid AI, so the write route waits for an explicit confirmation before starting.
+  const [confirmed, setConfirmed] = useState(false)
+  const hasDescription = Boolean(workspaceJob.description?.trim())
+  const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id, { autoStart: autoStart && confirmed })
   const actions = useTailorActions(task?.id ?? '', () => {
     void refetch()
     if (autoStart) void navigate(`/jobs/${id}/resume`, { replace: true })
@@ -74,15 +80,53 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
           <FileText size={28} strokeWidth={1.6} aria-hidden />
           <h2>No resume for this job yet</h2>
           <p>Write a complete draft from your career library. You review and edit every section before it's saved.</p>
-          <WriteResumeAction
-            jobId={id}
-            resumeId={null}
-            comparisonFinished={comparison.completed}
-            comparisonBusy={comparison.busy}
-            onCompare={() => void comparison.start()}
-          />
+          {hasDescription ? (
+            <WriteResumeAction
+              jobId={id}
+              resumeId={null}
+              comparisonFinished={comparison.completed}
+              comparisonBusy={comparison.busy}
+              hasDescription
+              onCompare={() => void comparison.start()}
+            />
+          ) : (
+            <MissingDescriptionNotice jobId={id} />
+          )}
         </div>
       )}
+      {job && !job.resume && !task && autoStart && !confirmed && !loading && startErrors.length === 0 && (
+        <Card>
+          <CardContent className="grid gap-4">
+            <h2 className="text-lg font-medium">Write a resume for this job?</h2>
+            {hasDescription ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  The AI will write a complete draft from your career library and this job's description. It uses AI time and usually takes under a minute. You review and edit every section before anything is saved.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => setConfirmed(true)}>Start writing</Button>
+                  <Button asChild variant="outline"><Link to={resumeTab}>Cancel</Link></Button>
+                </div>
+              </>
+            ) : (
+              <MissingDescriptionNotice jobId={id} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+/** Why writing is unavailable without a job description, with a way to add one. */
+function MissingDescriptionNotice({ jobId }: { jobId: string }) {
+  return (
+    <div className="grid justify-items-center gap-2">
+      <Button type="button" disabled aria-describedby={`resume-description-needed-${jobId}`}>Write resume</Button>
+      <p id={`resume-description-needed-${jobId}`} className="text-sm text-muted-foreground">
+        A resume is tailored to the job description, and this job doesn't have one yet.{' '}
+        <Link to={`/jobs/${jobId}/posting`} className="underline underline-offset-4">Add one on the Posting tab</Link>.
+      </p>
     </div>
   )
 }
@@ -128,10 +172,12 @@ function TailorProgress({
   return (
     <Card className="border-dashed bg-transparent shadow-none">
       <CardContent className="grid gap-2">
-        <p className="flex items-center gap-2 font-medium" role="status">
-          <LoaderCircle className="size-4 animate-spin text-section-skills-accent" aria-hidden /> Writing your complete draft…
-        </p>
-        <p className="text-sm text-muted-foreground">Your sections will appear together when the draft is ready to review. You can leave this page; we'll notify you when it's done.</p>
+        <AiWaitingLine
+          statusLabel="Writing your complete draft…"
+          captions={['Reading the job description', 'Picking the strongest library entries', 'Drafting each section', 'Checking the draft against your library', 'Almost there']}
+          captionSeconds={6}
+        />
+        <p className="text-sm text-muted-foreground">This usually takes under a minute. Your sections will appear together when the draft is ready to review. You can leave this page; the draft will be waiting on this job's Resume tab.</p>
       </CardContent>
     </Card>
   )

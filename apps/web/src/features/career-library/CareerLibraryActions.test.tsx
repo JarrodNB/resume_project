@@ -9,7 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
-import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_CAREER_CONTEXT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
+import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_CAREER_CONTEXT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION, CREATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { emptyLibraryReviewMocks } from './libraryReviewTestFixtures'
 import { CareerLibraryPage } from './CareerLibraryPage'
@@ -57,14 +57,14 @@ const libraryMock = {
 }
 
 function renderLibrary(
-  mutationMock: MockLink.MockedResponse,
+  mutationMock?: MockLink.MockedResponse,
   library: MockLink.MockedResponse = libraryMock,
 ) {
   renderPage({
     path: '/library',
     url: '/library',
     element: <CareerLibraryPage />,
-    mocks: [...emptyLibraryReviewMocks, library, mutationMock, library],
+    mocks: [...emptyLibraryReviewMocks, library, ...(mutationMock ? [mutationMock] : []), library],
   })
 }
 
@@ -220,6 +220,35 @@ it('adds a skill', async () => {
   await user.type(within(dialog).getByLabelText('Name'), 'Go')
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(await screen.findByText('Skill added.')).toBeInTheDocument()
+})
+
+it('shows inline required-field messages instead of browser bubbles', async () => {
+  const user = userEvent.setup()
+  renderLibrary()
+  await user.click(await screen.findByRole('button', { name: 'Add skill' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Add skill' })
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+  expect(await within(dialog).findByText('Name is required.')).toBeInTheDocument()
+  expect(within(dialog).getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true')
+})
+
+it('adds https:// to a project link typed without it and explains an unusable one', async () => {
+  const user = userEvent.setup()
+  renderLibrary({
+    request: { query: CREATE_PROJECT_MUTATION, variables: { attributes: { name: 'Site', role: null, url: 'https://example.com/site', startDate: null, endDate: null, description: null } } },
+    result: { data: { createProject: { __typename: 'CreateProjectPayload', errors: [] } } },
+  })
+  await user.click(await screen.findByRole('button', { name: 'Add project' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Add project' })
+  await user.type(within(dialog).getByLabelText('Name'), 'Site')
+  await user.type(within(dialog).getByLabelText('URL'), 'not a link')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+  expect(await within(dialog).findByText('Enter a web address like example.com/your-page.')).toBeInTheDocument()
+  await user.clear(within(dialog).getByLabelText('URL'))
+  await user.type(within(dialog).getByLabelText('URL'), 'example.com/site')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 

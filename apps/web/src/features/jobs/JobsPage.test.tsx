@@ -36,7 +36,7 @@ it.each(['Acme', null])('lists saved jobs with their stage and company %s', asyn
   expect(await screen.findByText('AI Engineer')).toBeInTheDocument()
   expect(screen.getByText(`${company ?? 'Unknown company'} · Remote`)).toBeInTheDocument()
   expect(screen.getByText('Not applied')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /^AI Engineer/ })).toHaveAttribute('href', '/jobs/job-1')
+  expect(screen.getByRole('link', { name: `Open AI Engineer at ${company ?? 'Unknown company'}` })).toHaveAttribute('href', '/jobs/job-1')
   expect(screen.getByRole('link', { name: 'Open AI Engineer application page' })).toHaveAttribute('href', 'https://acme.example/apply')
 })
 
@@ -94,4 +94,24 @@ it.each(['Acme', null])('adds a job manually with company %s and opens it', asyn
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-9'))
+})
+
+it('orders jobs by pipeline stage with rejected last, newest first within a stage', async () => {
+  const row = (id: string, stage: string, createdAt: string) => ({ __typename: 'Job', id, title: id, company: 'Acme', location: null, stage, url: null, createdAt })
+  renderPage({
+    path: '/jobs',
+    url: '/jobs',
+    element: <JobsPage />,
+    mocks: [jobsMock([
+      row('rejected', 'REJECTED', '2026-10-05T00:00:00Z'),
+      row('applied', 'APPLIED', '2026-10-01T00:00:00Z'),
+      row('new-unapplied', 'UNAPPLIED', '2026-10-04T00:00:00Z'),
+      row('old-unapplied', 'UNAPPLIED', '2026-10-02T00:00:00Z'),
+      row('interviewing', 'INTERVIEWING', '2026-10-03T00:00:00Z'),
+    ])],
+  })
+
+  await screen.findByText('rejected')
+  const order = screen.getAllByRole('link', { name: /^Open / }).map((link) => link.getAttribute('aria-label')?.replace(/^Open | at Acme$/g, ''))
+  expect(order).toEqual(['new-unapplied', 'old-unapplied', 'applied', 'interviewing', 'rejected'])
 })

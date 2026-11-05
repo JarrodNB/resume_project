@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { UPDATE_PROFILE_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
-import { blankToNull } from './libraryFormValues'
+import { blankToNull, normalizeWebAddress } from './libraryFormValues'
 import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LinkListField } from '@/features/resume-import/review/LinkListField'
 import { LibraryField } from './LibraryField'
@@ -30,6 +30,7 @@ export function ProfileFormDialog({ open, onOpenChange, profile }: ProfileFormDi
 /** The profile fields and the save action. */
 function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [name, setName] = useState(profile.name ?? '')
   const [contactEmail, setContactEmail] = useState(profile.contactEmail ?? '')
   const [phone, setPhone] = useState(profile.phone ?? '')
@@ -39,13 +40,20 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
 
   /** Saves every profile field. Blank text and incomplete links are dropped. */
   async function submit() {
+    const missing: Record<string, string> = {}
+    if (contactEmail.trim() && !/^\S+@\S+\.\S+$/.test(contactEmail.trim())) missing.contactEmail = 'Enter an email like name@example.com.'
+    const filledLinks = links.filter((link) => link.label.trim() && link.url.trim())
+    const badLink = filledLinks.find((link) => normalizeWebAddress(link.url).error)
+    if (badLink) missing.links = `"${badLink.label.trim()}" needs a web address like example.com/your-page.`
+    setFieldErrors(missing)
+    if (Object.keys(missing).length) return
     const saved = await save(UPDATE_PROFILE_MUTATION, {
       attributes: {
         name: blankToNull(name),
         contactEmail: blankToNull(contactEmail),
         phone: blankToNull(phone),
         location: blankToNull(location),
-        links: links.filter((link) => link.label.trim() && link.url.trim()).map((link) => ({ label: link.label.trim(), url: link.url.trim() })),
+        links: filledLinks.map((link) => ({ label: link.label.trim(), url: normalizeWebAddress(link.url).value ?? link.url.trim() })),
         summary: blankToNull(summary),
       },
     })
@@ -64,11 +72,12 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <LibraryField label="Name" value={name} onChange={setName} maxLength={SHORT_TEXT} />
-        <LibraryField label="Contact email" type="email" value={contactEmail} onChange={setContactEmail} maxLength={SHORT_TEXT} />
+        <LibraryField label="Contact email" type="email" error={fieldErrors.contactEmail} value={contactEmail} onChange={setContactEmail} maxLength={SHORT_TEXT} />
         <LibraryField label="Phone" type="tel" value={phone} onChange={setPhone} maxLength={SHORT_TEXT} />
         <LibraryField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
       </div>
       <LinkListField links={links} onChange={setLinks} maxLength={SHORT_TEXT} />
+      {fieldErrors.links && <p className="text-sm text-destructive" role="alert">{fieldErrors.links}</p>}
       <LibraryField label="Summary" multiline value={summary} onChange={setSummary} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )

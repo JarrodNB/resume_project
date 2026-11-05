@@ -24,7 +24,7 @@ it('keeps grades neutral while a highlight save and assessment refetch are pendi
   expect(await screen.findByText('Looks good')).toBeInTheDocument()
   expect(screen.getByText('Which services did you build?')).toBeInTheDocument()
   rerender(view(true))
-  expect(screen.getByText('Needs review')).toBeInTheDocument()
+  expect(screen.getByText('Review out of date')).toBeInTheDocument()
   expect(screen.queryByText('Looks good')).not.toBeInTheDocument()
   expect(screen.queryByText('Which services did you build?')).not.toBeInTheDocument()
 })

@@ -644,14 +644,16 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 /* One saved job: header, job tabs, and the selected tab's work. */
 .job-workspace { max-width: 1040px; display: grid; min-width: 0; }
 .job-workspace-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 24px; padding-bottom: 24px; }
-.job-workspace-title { min-width: 0; flex: 1 1 320px; }
-.job-workspace-title h1 { font-size: 2.5rem; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; overflow-wrap: anywhere; }
+.job-workspace-title { min-width: 0; flex: 1 1 min(100%, 420px); }
+.job-workspace-title h1 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font-size: 2.5rem; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; overflow-wrap: anywhere; }
 .job-workspace-title p { margin-top: 10px; color: var(--muted-foreground); font-size: 16px; }
 .job-workspace-title p + p { margin-top: 2px; font-size: 13px; }
 .job-workspace-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .job-tabs { display: flex; gap: 32px; border-bottom: 2px solid var(--rule-strong); overflow-x: auto; scrollbar-width: none; font-size: 15px; color: var(--tab-idle); }
 .job-tabs::-webkit-scrollbar { display: none; }
 .job-tabs .section-tab { min-height: 48px; margin-bottom: -2px; border-bottom-width: 4px; }
+.job-workspace-panel [id] { scroll-margin-top: 96px; }
+.job-workspace-title { overflow-wrap: anywhere; }
 .job-workspace-panel { padding-top: 28px; display: grid; gap: 24px; min-width: 0; }
 .job-posting { display: grid; gap: 28px; max-width: 72ch; font-size: 14px; line-height: 1.7; }
 .job-posting h2 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }

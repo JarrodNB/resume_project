@@ -14,11 +14,12 @@ interface WriteResumeActionProps {
   resumeId: string | null
   comparisonFinished: boolean
   comparisonBusy: boolean
+  hasDescription: boolean
   onCompare: () => void
 }
 
 /** Opens the saved resume, or starts writing one, asking first when no comparison has finished. */
-export function WriteResumeAction({ jobId, resumeId, comparisonFinished, comparisonBusy, onCompare }: WriteResumeActionProps) {
+export function WriteResumeAction({ jobId, resumeId, comparisonFinished, comparisonBusy, hasDescription, onCompare }: WriteResumeActionProps) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
 
@@ -28,6 +29,14 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
         <Link to={`/jobs/${jobId}/resume`}>
           Open resume
         </Link>
+      </Button>
+    )
+  }
+
+  if (!hasDescription) {
+    return (
+      <Button disabled title="Add a job description first (Posting tab)">
+        Write resume
       </Button>
     )
   }

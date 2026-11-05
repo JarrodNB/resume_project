@@ -27,8 +27,9 @@ sets the default section order for new resumes.
   `CareerContextSection.tsx` — one section each, owning its add/edit dialog
 - `ExperienceFormDialog.tsx`, `ProjectFormDialog.tsx`, `EducationFormDialog.tsx`,
   `ProfileFormDialog.tsx`, `SkillFormDialog.tsx`, `CareerContextFormDialog.tsx` — save dialogs
-- `EntryFormDialog.tsx` — shared dialog shell; `LibraryField.tsx` — labelled input
-- `libraryFormValues.ts` — `blankToNull` and `highlightsToSave` (an unchanged bullet list is
+- `EntryFormDialog.tsx` — shared dialog shell (`noValidate`, so no browser bubbles); `LibraryField.tsx` — labelled input with a red `*` for required fields and an inline `error` message
+- `LibrarySaveNotice.tsx` — toast after a save (`useSaveLibraryRecord` reports it by mutation name) that also scrolls the changed section into view without moving focus, using instant scroll for reduced motion
+- `libraryFormValues.ts` — `requiredFieldErrors`, `normalizeWebAddress` (adds `https://` to links), `blankToNull` and `highlightsToSave` (an unchanged bullet list is
   omitted so highlight ids stay put)
 - `HighlightEditor.tsx` — add, edit, remove, and reorder a role's bullets inside the form
 - `SortableHighlightList.tsx` — a role's draggable highlights (drop area works when empty)
@@ -117,3 +118,6 @@ sets the default section order for new resumes.
 - `LibraryReviewDismissActions` exposes Nothing to add and Dismiss review from the detail and
   review-answer workspace. `useLibraryReview.dismiss` saves the decision and refreshes the section.
   Identical proposals compare against the selected field text and offer Keep saved text.
+
+- While the library has no content, Delete all and summary generation are hidden (a hint points to import/add), and Include summary is unchecked and disabled when there is no summary.
+- Review labels: "No AI review yet" / "Review out of date"; the per-detail AI button is "Rewrite with AI" (it proposes a rewrite you accept or discard).

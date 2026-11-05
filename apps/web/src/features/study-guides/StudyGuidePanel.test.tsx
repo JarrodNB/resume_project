@@ -119,7 +119,7 @@ it('queues a final freshness read when description edits overlap', async () => {
 it('keeps saved questions readable with a blank description and disables generation', async () => {
   render([page()], null); await ready()
   expect(screen.getByRole('button', { name: 'Generate 5 more' })).toBeDisabled()
-  expect(screen.getByText('Add a job description to generate study questions.')).toBeInTheDocument()
+  expect(screen.getByText(/this job has none yet/)).toBeInTheDocument()
 })
 
 it('resets reader state when switching jobs', async () => {

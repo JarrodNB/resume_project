@@ -1,12 +1,14 @@
 /**
  * Description: Route table for the web app (shared by the browser router and tests).
  * Index:
+ *   - unknown URLs: NotFoundPage inside AppLayout when signed in (signed-out visitors are sent to sign in by RequireAuth)
  *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Chat, Jobs, Library, and Practice
  *     (one saved job is a workspace with Fit, Resume, Study, Interview, and Posting tabs),
  *     plus redirects that keep old bookmarks (`/job-board`, `/import`, `/interview-prep`, `/interviews`) working
  */
 import { Navigate, type RouteObject } from 'react-router'
 import { AppLayout } from '@/components/AppLayout'
+import { NotFoundPage } from '@/components/NotFoundPage'
 import { RedirectToPath } from '@/components/RedirectToPath'
 import { RequireAuth, RequireSignedOut } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
@@ -87,9 +89,9 @@ export const appRoutes: RouteObject[] = [
           { path: '/import/:aiTaskId?', element: <RedirectToPath to="/library/import/:aiTaskId?" /> },
           { path: '/interview-prep/:id?', element: <RedirectToPath to="/practice/questions/:id?" /> },
           { path: '/interviews/:id?', element: <RedirectToPath to="/practice/interviews/:id?" /> },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],
   },
-  { path: '*', element: <Navigate to="/" replace /> },
 ]

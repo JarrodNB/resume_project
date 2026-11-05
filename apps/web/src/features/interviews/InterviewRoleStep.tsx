@@ -44,7 +44,7 @@ export function InterviewRoleStep({ onPracticeRole }: { onPracticeRole: () => vo
     <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); continueSetup() }}>
       <div className="grid gap-2">
         <h2 className="text-xl font-medium">Who is this interview for?</h2>
-        <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Practise for a job you saved, or for a practice role built from your career library. Next, you’ll choose the kind of round.</p>
+        <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Practice for a job you saved, or for a practice role built from your career library. Next, you’ll choose the kind of round.</p>
       </div>
       <fieldset className="interview-setup-section">
         <legend>Interview for</legend>
@@ -71,9 +71,9 @@ export function InterviewRoleStep({ onPracticeRole }: { onPracticeRole: () => vo
           </p>
         )}
         {loading && !jobs && <p role="status" className="text-sm text-muted-foreground">Loading saved jobs…</p>}
-        {error && <p role="alert" className="text-sm">Couldn’t load saved jobs. You can still practise with a practice role.</p>}
+        {error && <p role="alert" className="text-sm">Couldn’t load saved jobs. You can still practice with a practice role.</p>}
         {jobs && openJobs.length === 0 && (
-          <p className="text-sm text-muted-foreground">No saved jobs to practise for yet. <Link to="/jobs/find" className="underline underline-offset-4">Find jobs</Link> to add one.</p>
+          <p className="text-sm text-muted-foreground">No saved jobs to practice for yet. <Link to="/jobs/find" className="underline underline-offset-4">Find jobs</Link> to add one.</p>
         )}
       </fieldset>
       <Button type="submit" size="lg" className="justify-self-start">Continue</Button>

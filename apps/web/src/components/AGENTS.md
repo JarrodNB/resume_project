@@ -18,7 +18,8 @@ Shared UI used by more than one feature.
   one-page section shows its name instead of tabs. A page selects
   the tab whose path is its longest prefix (`/jobs/42/resume` → Saved jobs). Find jobs is shared
   listing discovery; Saved jobs is the private list
-- `AccountMenu.tsx` — account dropdown: email label, Account security link, light/dark switch
+- `NotFoundPage.tsx` — 404 for unknown signed-in URLs (rendered inside `AppLayout`, link home)
+- `AccountMenu.tsx` — account dropdown: "Signed in as" name/email header, Account security link, light/dark switch
   (uses `lib/colorTheme.ts`), and Sign out
 - `RedirectToPath.tsx` — route element that keeps old bookmarks working by redirecting to the new
   path, carrying route params along
@@ -33,7 +34,7 @@ Shared UI used by more than one feature.
   collapse it until opened
 - `sectionTones.ts` — per-section classes (quiet card/header, icon accent, ruled entry) and icon
 - `dnd/` — drag-and-drop building blocks (see `dnd/AGENTS.md`)
-- `ui/` — generated shadcn/ui components (generated; excluded from lint)
+- `ui/` — generated shadcn/ui components (generated; excluded from lint). `dialog.tsx` is hand-edited: closing a dialog returns focus to its opener, including a dropdown menu's trigger; `dialog.test.tsx` covers it
 
 ## Local Rules
 

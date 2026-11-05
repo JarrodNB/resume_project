@@ -43,7 +43,7 @@ export function LibraryInlineWorkspace() {
   return <aside id="library-ai-workspace" className="library-ai-inline" aria-label="AI workspace">
     <div className="library-ai-heading">
       <div className="min-w-0">
-        <h4 id="library-ai-heading" tabIndex={-1}>Improve with AI</h4>
+        <h4 id="library-ai-heading" tabIndex={-1}>Rewrite with AI</h4>
         <p>{selected.fieldLabel} · {selected.title}</p>
       </div>
       <CloseButton />
@@ -58,7 +58,7 @@ function MobileWorkspaceContent() {
   const assessment = selected && workspace.reviews[selected.section].assessments.find((item) => item.kind === selected.kind && item.recordId === selected.recordId)
   return <div id="library-ai-workspace">
     <div className="library-ai-heading">
-      <h2 id="library-ai-heading" tabIndex={-1}>Improve with AI</h2>
+      <h2 id="library-ai-heading" tabIndex={-1}>Rewrite with AI</h2>
       <CloseButton />
     </div>
     <div className="library-ai-body">

@@ -48,8 +48,10 @@ module CareerLibrary
 
     def visible_assessment(task, item)
       dismissal = task.result.fetch("dismissed_assessments", {})[ReviewSources.target_key(item).join(":")]
-      return item unless dismissal && dismissal["source_digest"] == item["source_digest"]
+      return item unless dismissal
+      # A dismissed review stays hidden after the text changes; otherwise it would come back as "Needs review".
       return nil if dismissal["scope"] == "review"
+      return item unless dismissal["source_digest"] == item["source_digest"]
 
       item.merge("questions" => [], "question" => nil)
     end

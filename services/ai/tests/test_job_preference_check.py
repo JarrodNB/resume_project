@@ -99,7 +99,7 @@ def test_oversized_serialized_batch_is_rejected_before_any_model_request(task_de
 def test_batch_concurrency_is_bounded_and_all_runs_finish_before_return(task_dependencies, offline_model_resolution):
     import asyncio
 
-    from worker.job_preference_handler import MAX_CONCURRENT_DECISIONS
+    from settings import load_settings
     active = 0
     peak = 0
     async def answer(messages, info):
@@ -117,7 +117,7 @@ def test_batch_concurrency_is_bounded_and_all_runs_finish_before_return(task_dep
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(answer, model_name="jev-1.13.0"))
     result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
     assert result.status == "completed"
-    assert peak == MAX_CONCURRENT_DECISIONS
+    assert peak == load_settings().job_preference_concurrency
     assert active == 0
 
 

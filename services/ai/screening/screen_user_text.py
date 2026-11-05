@@ -39,9 +39,9 @@ from text_limits import MAX_SCREENED_TEXT
 
 logger = logging.getLogger(__name__)
 _local_inference_lock = threading.Lock()
-_local_chunk_slots = threading.BoundedSemaphore(4)
+MAX_LOCAL_CHUNKS_IN_FLIGHT = load_settings().local_screen_chunk_concurrency
+_local_chunk_slots = threading.BoundedSemaphore(MAX_LOCAL_CHUNKS_IN_FLIGHT)
 _chunk_observer: ContextVar[Callable[[], None] | None] = ContextVar("screen_chunk_observer", default=None)
-MAX_LOCAL_CHUNKS_IN_FLIGHT = 4
 
 
 def _is_jev_model(model: str) -> bool:

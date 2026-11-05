@@ -168,6 +168,41 @@ def task_message(receipt):
     }))
 
 
+def test_stop_during_helper_receive_does_not_start_a_new_task(monkeypatch, task_dependencies):
+    """A helper's outstanding receive may return work after the stop signal arrives."""
+    task_queue = FakeTaskQueue([])
+    result_queue = FakeResultQueue()
+    configure_fake_worker(monkeypatch, task_dependencies, task_queue, result_queue)
+    task_dependencies.settings.worker_concurrency = 2
+    helper_receiving = threading.Event()
+    release_receive = threading.Event()
+    started_tasks = []
+
+    def receive_messages():
+        if threading.current_thread() is threading.main_thread():
+            assert helper_receiving.wait(5)
+            try:
+                os.kill(os.getpid(), signal.SIGTERM)
+            finally:
+                release_receive.set()
+        helper_receiving.set()
+        assert release_receive.wait(5)
+        return [task_message("received-after-stop")]
+
+    def handler(task, dependencies):
+        started_tasks.append(task.ai_task_id)
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result={})
+
+    monkeypatch.setattr(task_queue, "receive_messages", receive_messages)
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    main.run_worker()
+
+    assert started_tasks == []
+    assert result_queue.sent_bodies == []
+    assert task_queue.deleted_receipts == []
+    assert task_queue.delayed == []
+
+
 def test_loops_run_tasks_at_the_same_time(monkeypatch, task_dependencies):
     """With four loops, four tasks overlap instead of waiting in line."""
     stopped = threading.Event()

@@ -118,7 +118,8 @@ def test_keeps_polling_after_a_queue_error(
     task_queue = FakeTaskQueue([ConnectionError("SQS unreachable"), [build_sqs_message("next")]])
     result_queue = FakeResultQueue()
 
-    poll_until_stopped(task_queue, result_queue, task_dependencies, stop_after(2))
+    poll_until_stopped(task_queue, result_queue, task_dependencies,
+                       lambda: bool(task_queue.deleted_receipts))
 
     assert completing_handler_without_backoff == [main.POLL_ERROR_BACKOFF_SECONDS]
     assert task_queue.deleted_receipts == ["next"]

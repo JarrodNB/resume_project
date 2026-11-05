@@ -179,11 +179,15 @@ def _publish_usage(task, usage, queue, *, finished=True):
 
 
 def poll_task_queue_once(
-    task_queue: SqsQueueClient, result_queue: SqsQueueClient, dependencies: TaskDependencies
+    task_queue: SqsQueueClient, result_queue: SqsQueueClient, dependencies: TaskDependencies,
+    *, should_stop: Callable[[], bool] | None = None,
 ) -> None:
     """Receives at most one task message, handles it, and deletes it once its result is out.
-    A kept message is redelivered after a delay that grows with each attempt."""
+    A kept message is redelivered after a delay that grows with each attempt.
+    Work received after a stop request stays unacknowledged for redelivery."""
     for message in task_queue.receive_messages():
+        if should_stop is not None and should_stop():
+            return
         receive_count = int(message.get("Attributes", {}).get("ApproximateReceiveCount", 1))
         if process_task_message(message["Body"], receive_count, result_queue, dependencies):
             task_queue.delete_message(message["ReceiptHandle"])
@@ -202,7 +206,7 @@ def poll_until_stopped(
     after a pause instead of ending the worker; an undeleted task is redelivered by SQS."""
     while not should_stop():
         try:
-            poll_task_queue_once(task_queue, result_queue, dependencies)
+            poll_task_queue_once(task_queue, result_queue, dependencies, should_stop=should_stop)
         except Exception:
             logger.exception(
                 "Polling the task queue failed, retrying in %d seconds", POLL_ERROR_BACKOFF_SECONDS

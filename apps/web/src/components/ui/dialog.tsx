@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-// The last button or link the user pressed outside any menu or dialog. That is what opened the
+// The last button or link the user activated outside any menu or dialog. That is what opened the
 // next dialog, even when the dialog was opened from a menu item that disappears afterwards.
 let lastOpener: HTMLElement | null = null
 if (typeof document !== "undefined") {
@@ -16,6 +16,8 @@ if (typeof document !== "undefined") {
   }
   document.addEventListener("pointerdown", remember, true)
   document.addEventListener("keydown", remember, true)
+  // Assistive technology can activate a control with only a click event.
+  document.addEventListener("click", remember, true)
 }
 
 function Dialog({

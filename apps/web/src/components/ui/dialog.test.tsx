@@ -1,5 +1,5 @@
 /** Checks that closing a dialog puts keyboard focus back on whatever opened it. */
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expect, it } from 'vitest'
@@ -12,6 +12,18 @@ it('returns focus to its own trigger button', async () => {
   await user.click(screen.getByRole('button', { name: 'Open it' }))
   await user.keyboard('{Escape}')
   expect(screen.getByRole('button', { name: 'Open it' })).toHaveFocus()
+})
+
+it('returns focus to a trigger activated with only a click event', async () => {
+  const user = userEvent.setup()
+  render(<><button>Previous action</button><Dialog><DialogTrigger>Open it</DialogTrigger><DialogContent><DialogTitle>Hi</DialogTitle></DialogContent></Dialog></>)
+  await user.click(screen.getByRole('button', { name: 'Previous action' }))
+  const trigger = screen.getByRole('button', { name: 'Open it' })
+  trigger.focus()
+  fireEvent.click(trigger)
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  await user.keyboard('{Escape}')
+  await waitFor(() => expect(trigger).toHaveFocus())
 })
 
 it('returns focus to the menu button when opened from a dropdown menu item', async () => {

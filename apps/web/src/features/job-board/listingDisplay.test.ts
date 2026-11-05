@@ -1,6 +1,22 @@
 import { expect, it } from 'vitest'
 import { formatPostedDate, formatSalary, stripRecruiterTags } from './listingDisplay'
 
+it('preserves hourly cents and decimal ranges', () => {
+  expect(formatSalary('$17.50 per hour', 'USD')).toBe('$17.50 / hour')
+  expect(formatSalary('$17.50 - $22.75 hourly', 'USD')).toBe('$17.50 – $22.75 / hour')
+  expect(formatSalary('80.123k per year', 'USD')).toBe('$80,123 / year')
+})
+
+it.each([
+  'Up to $150,000 per year',
+  'From $60 per hour',
+  '$120k+ per year',
+  '$60 per hour + 10% bonus',
+  '$120k base, $150k OTE',
+])('preserves salary qualifications in %s', (salary) => {
+  expect(formatSalary(salary, 'USD')).toBe(`${salary} · USD`)
+})
+
 it('shows pay in one format with the currency named once', () => {
   expect(formatSalary('$103,000 - $171,000 USD', 'USD')).toBe('$103,000 – $171,000')
   expect(formatSalary('120,000 per year', 'USD')).toBe('$120,000 / year')

@@ -8,17 +8,22 @@ const PERIODS: [RegExp, string][] = [
   [/\b(month|monthly)\b/i, 'month'], [/\b(week|weekly)\b/i, 'week'], [/\b(day|daily)\b/i, 'day'],
 ]
 
-/** Show pay as "$103,000 – $171,000 / year": one format, currency named once. */
+/** Normalize plain amounts and ranges. Keep qualified or compound pay text intact. */
 export function formatSalary(text: string | null, currency: string | null): string | null {
   const raw = text?.trim()
   if (!raw) return null
   const code = (currency?.trim() || raw.match(/\b[A-Z]{3}\b/)?.[0] || 'USD').toUpperCase()
-  const amounts = [...raw.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kK])?\b/g)]
-    .map(([, digits, k]) => Number(digits.replace(/,/g, '')) * (k ? 1000 : 1))
-    .filter(Number.isFinite)
-  if (amounts.length === 0 || amounts.length > 2) return raw.replace(new RegExp(`\\s*[·,-]?\\s*\\b${code}\\b\\s*$`, 'i'), '').concat(` · ${code}`)
+  if (!/^[A-Z]{3}$/.test(code)) return raw
+  const amount = `(?:\\$\\s*|${code}\\s*)?(\\d+(?:,\\d{3})*(?:\\.\\d+)?\\s*[kK]?)(?:\\s*${code})?`
+  const match = raw.match(new RegExp(`^${amount}(?:\\s*(?:[-–—]|to)\\s*${amount})?(?:\\s*(?:/|per\\s+|an?\\s+)?(hour|hr|hourly|year|yr|annual|annum|yearly|month|monthly|week|weekly|day|daily))?$`, 'i'))
+  if (!match) return raw.replace(new RegExp(`\\s*[·,-]?\\s*\\b${code}\\b\\s*$`, 'i'), '').concat(` · ${code}`)
+  const values = [match[1], match[2]].filter(Boolean)
+  const amounts = values.map((value) => Number(value.replace(/[,kK\s]/g, '')) * (/[kK]$/.test(value) ? 1000 : 1))
+  // Limit formatting to the supplied precision, avoiding floating-point multiplication noise.
+  const fractionDigits = Math.max(0, ...values.map((value) => (value.match(/\.(\d+)/)?.[1].length ?? 0) - (/[kK]$/.test(value) ? 3 : 0)))
+  if (!amounts.every(Number.isFinite)) return raw
   let formatter: Intl.NumberFormat
-  try { formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: code, maximumFractionDigits: 0, currencyDisplay: code === 'USD' ? 'symbol' : 'code' }) } catch { return raw }
+  try { formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: code, minimumFractionDigits: fractionDigits > 0 ? 2 : 0, maximumFractionDigits: Math.max(2, fractionDigits), currencyDisplay: code === 'USD' ? 'symbol' : 'code' }) } catch { return raw }
   const period = PERIODS.find(([pattern]) => pattern.test(raw))?.[1]
   const range = [...new Set(amounts)].map((amount) => formatter.format(amount)).join(' – ')
   return period ? `${range} / ${period}` : range

@@ -1,5 +1,6 @@
 # Saves an owner's decision to stop answering questions or hide one assessment.
-# Dismissals belong to the exact completed result and source digest, so a new review starts fresh.
+# Dismissals belong to the exact completed result, so a new review starts fresh. Dismissing questions
+# also holds only for the same source digest; dismissing the whole review holds after edits.
 module CareerLibrary
   class DismissReviewService < ApplicationService
     def initialize(user:, review_task_id:, kind:, record_id:, scope:)

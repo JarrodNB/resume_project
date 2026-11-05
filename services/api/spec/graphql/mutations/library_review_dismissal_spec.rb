@@ -45,6 +45,12 @@ RSpec.describe "Career library review dismissal" do
     expect(dismiss("review")["errors"]).to include("This review is no longer current. Reload to see the latest feedback.")
   end
 
+  it "keeps a dismissed review hidden after the entry text changes" do
+    expect(dismiss("review")["errors"]).to eq([])
+    highlight.update!(content: "Led the service migration")
+    expect(assessments.map { |item| item["recordId"] }).to eq([ role.id ])
+  end
+
   it "rejects foreign reviews, foreign targets, invalid scopes, and changed sources" do
     expect(dismiss(owner: create(:user))["errors"]).to eq([ "Record not found" ])
     expect(dismiss(record_id: create(:experience_highlight).id)["errors"]).to eq([ "Record not found" ])

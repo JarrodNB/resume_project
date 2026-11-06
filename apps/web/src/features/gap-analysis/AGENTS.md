@@ -39,6 +39,9 @@ Adding it to the career library creates a career context entry, listed on the ca
   so they stay when the comparison is run again. Dismissals (`Job.dismissedRequirements`) match the
   same way, only shape this tab, and lose to a "met" verdict.
 - Answering or dismissing moves a row between groups. It never changes the AI's verdict.
+  While saved answers match non-met assessments, hide the broad summary (which can still claim
+  missing evidence) and label the row findings as the last comparison. Keep this true on reload;
+  a later comparison with met verdicts can show its summary again.
 - Evidence text is copied from the library by the AI service; display it as-is. Leave out
   `kind: summary` evidence: that text is the whole profile summary, and showing it under a
   requirement repeats the biography.

@@ -60,7 +60,8 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 
 ## Local Rules
 
-- Reload reads `Job.latestTailoring`; live status and completed results come from
+- Each resume-route visit reloads `Job.latestTailoring` from Rails, bypassing a stale
+  cached job/task link after generation starts. Live status and completed results come from
   `aiTaskUpdated`. There is no token streaming or per-section approval flow.
 - An accepted task without a saved resume is history. A new write-route visit starts a
   fresh task; the Resume tab never does; removing a saved resume during the current visit never starts one or restores

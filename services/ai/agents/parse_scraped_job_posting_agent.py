@@ -12,7 +12,6 @@ from pydantic_ai.settings import ThinkingLevel
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
 from agents.parse_job_posting_agent import (
-    JobPostingParseRun,
     check_copied_from_ad,
     fence_job_ad,
     run_job_ad_parser,
@@ -61,7 +60,7 @@ parse_scraped_job_posting_agent.output_validator(check_copied_from_ad)
 @within_screening_session
 def parse_scraped_job_posting(
     text: str, model: str, thinking: ThinkingLevel, timeout_seconds: float, fallback_model: str,
-) -> JobPostingParseRun:
+) -> ParsedJobPosting:
     """Run the source-only parser with the normal deadline, usage limits and tracing."""
     return run_job_ad_parser(
         parse_scraped_job_posting_agent, text, model, thinking, timeout_seconds, fallback_model,

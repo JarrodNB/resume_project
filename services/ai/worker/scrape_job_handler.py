@@ -6,13 +6,11 @@ saving the result. Repeated deliveries remain read-only here.
 """
 
 from pydantic import BaseModel
-from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai_harness import InputBlocked
 
 from agents.parse_scraped_job_posting_agent import parse_scraped_job_posting
 from job_postings.scraped_job_ad import posting_from_scraped_ad, scraped_job_ad_text
-from llm.model_prices import build_model_usage
-from schemas.model_usage import ModelUsage
+from llm.run_generative_agent import GenerativeOutputInvalid
 from scrapers.job_page import (
     JobPageUnreadableError,
     JobPostingNotFoundError,
@@ -62,35 +60,32 @@ def handle_scrape_job_task(task: AiTaskMessage, dependencies: TaskDependencies) 
     model = settings.job_posting_parse_model
     if len(text) > MAX_SCREENED_TEXT:
         return _failed(task, JOB_AD_TOO_LONG_MESSAGE)
-    usage: list[ModelUsage] = []
 
     try:
-        run = parse_scraped_job_posting(
+        parsed = parse_scraped_job_posting(
             text, model=model, thinking=settings.job_posting_parse_thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
         )
-    except UnexpectedModelBehavior:
-        return _failed(task, UNFAITHFUL_PAGE_MESSAGE, usage=usage)
+    except GenerativeOutputInvalid:
+        return _failed(task, UNFAITHFUL_PAGE_MESSAGE)
     except InputBlocked as error:
-        return _failed(task, str(error), usage=usage)
-    usage.insert(0, build_model_usage(run.model or model, run.usage))
+        return _failed(task, str(error))
     try:
-        posting = posting_from_scraped_ad(page, run.parsed)
+        posting = posting_from_scraped_ad(page, parsed)
     except JobPageUnreadableError:
-        return _failed(task, UNREADABLE_PAGE_MESSAGE, usage=usage)
+        return _failed(task, UNREADABLE_PAGE_MESSAGE)
     except ValueError:
-        return _failed(task, UNFAITHFUL_PAGE_MESSAGE, usage=usage)
+        return _failed(task, UNFAITHFUL_PAGE_MESSAGE)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"scraped_job": posting.model_dump(mode="json")},
-        usage=usage,
     )
 
 
-def _failed(task: AiTaskMessage, error_message: str, *, usage: list[ModelUsage] | None = None) -> AiResultMessage:
+def _failed(task: AiTaskMessage, error_message: str) -> AiResultMessage:
     """A failed result with a message the user sees."""
     return AiResultMessage(
-        ai_task_id=task.ai_task_id, status="failed", error_message=error_message, usage=usage or [],
+        ai_task_id=task.ai_task_id, status="failed", error_message=error_message,
     )

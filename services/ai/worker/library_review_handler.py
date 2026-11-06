@@ -2,7 +2,6 @@
 
 from agents.library_review_agent import review_library_section
 from database.library_review_reader import build_database_review_reader
-from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from schemas.library_review import LibraryReviewCommand
 from screening.prompt_guardrail import TOO_LONG_MESSAGE
@@ -76,8 +75,8 @@ def handle_library_review_task(task, dependencies):
                                    error_message=record_failure_message(outcome))
     prompt = bind_screened_prompt([source], lambda values: render_review(values[0]))
     labels = [target.label for target in snapshot.targets]
-    run = review_library_section(prompt, labels, dependencies.settings)
-    by_label = {item.target_label: item for item in run.draft.assessments}
+    draft = review_library_section(prompt, labels, dependencies.settings)
+    by_label = {item.target_label: item for item in draft.assessments}
     assessments = [
         {**target.model_dump(exclude={"label"}), "color": by_label[target.label].color,
          "reason": by_label[target.label].reason.strip(),
@@ -87,5 +86,5 @@ def handle_library_review_task(task, dependencies):
     ]
     return AiResultMessage(
         ai_task_id=task.ai_task_id, status="completed", result={"assessments": assessments},
-        usage=[*usage, build_model_usage(run.model, run.usage)],
+        usage=usage,
     )

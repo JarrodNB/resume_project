@@ -9,7 +9,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.interview_clarification_agent import generate_interview_clarification
-from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.blocks import source_block
 from screening.session import bind_screened_prompt, screening_session, trust_generated_source
 from worker.queue_messages import AiResultMessage
@@ -33,18 +32,9 @@ def explain_claimed_question(task, dependencies, saved):
         prompt = bind_screened_prompt(
             [question], lambda values: source_block("interview_question", values[0])
         )
-        run = generate_interview_clarification(prompt, settings)
+        clarification = generate_interview_clarification(prompt, settings)
         return AiResultMessage(
             ai_task_id=task.ai_task_id,
             status="completed",
-            result=run.output.model_dump(),
-            usage=[
-                build_model_usage(
-                    reported_model_name(
-                        run.response.model_name or settings.interview_questions_model,
-                        settings.interview_questions_model,
-                    ),
-                    run.usage,
-                )
-            ],
+            result=clarification.model_dump(),
         )

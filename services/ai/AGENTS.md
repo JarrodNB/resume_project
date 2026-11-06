@@ -122,7 +122,8 @@ skip it. Export indexes are not required.
   profile/tracing adapters (see `worker/AGENTS.md`)
 - `settings.py` — `AISettings` for reusable model, screening, limits and read-only retrieval
   options; `worker/settings.py` extends it with queue/storage delivery settings
-- `llm/` — generative model selection, per-request usage accounting, pricing and run limits
+- `llm/` — generative model selection, the shared agent run (`run_generative_agent.py`),
+  per-request usage accounting, pricing and run limits
 - `privacy/` — explicit known-contact/import masking for model input, output and embeddings
 - `telemetry/` — process-independent Logfire instrumentation, privacy processors, prompt
   labels and bounded export flushing

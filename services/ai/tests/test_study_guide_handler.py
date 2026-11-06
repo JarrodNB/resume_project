@@ -6,6 +6,7 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from schemas.study_guide import StudyGuideInput
+from tests.fakes import accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -54,11 +55,11 @@ def test_injection_like_description_generates_without_classification(task_depend
 
 
 def test_prompt_uses_only_loaded_sources_and_output_failures_are_recoverable(task_dependencies, monkeypatch):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
+    from llm.run_generative_agent import GenerativeOutputInvalid
     seen = []
     def reject(prompt, settings):
         seen.append(prompt)
-        raise UnexpectedModelBehavior("bad shape")
+        raise GenerativeOutputInvalid("bad shape")
     monkeypatch.setattr("worker.study_guide_handler.generate_study_guide", reject)
     result = handle_ai_task(task("Frozen description with stock reconciliation."), task_dependencies)
     assert seen == ["Create study material for this job description (source data):\n\n<job_description>\nFrozen description with stock reconciliation.\n</job_description>"]
@@ -110,25 +111,24 @@ def test_description_and_prior_questions_skip_classification(task_dependencies, 
 def test_invalid_model_output_exhausts_repair_with_usage_retained(task_dependencies):
     from agents.study_guide_agent import study_guide_agent
 
-    with study_guide_agent.override(model=TestModel(custom_output_args={"title": "Invalid", "topics": []})):
+    with accounted_override(study_guide_agent, TestModel(custom_output_args={"title": "Invalid", "topics": []})) as usage:
         result = handle_ai_task(task(), task_dependencies)
     assert result.status == "failed"
     assert result.result is None
-    assert result.usage
-    assert result.usage[-1].output_tokens > 0
+    assert usage.entries[-1].output_tokens > 0
 
 
 def test_unusable_description_fails_clearly_without_inventing_questions(task_dependencies):
     from agents.study_guide_agent import study_guide_agent
 
-    with study_guide_agent.override(model=TestModel(seed=1, custom_output_args={
+    with accounted_override(study_guide_agent, TestModel(seed=1, custom_output_args={
         "cannot_generate_reason": "Add a meaningful job description with duties to study.",
-    })):
+    })) as usage:
         result = handle_ai_task(task("The clouds were beautiful."), task_dependencies)
     assert result.status == "failed"
     assert result.result == {"failure_code": "insufficient_description"}
     assert "job description" in result.error_message
-    assert result.usage[-1].output_tokens > 0
+    assert usage.entries[-1].output_tokens > 0
 
 
 @pytest.mark.parametrize("count", [4, 6])
@@ -137,21 +137,21 @@ def test_incomplete_or_oversized_batch_cannot_complete(task_dependencies, count)
 
     question = {"question": "How do you reconcile stock?", "why_it_matters": "The role reconciles stock.",
                 "answer": "Compare counts and check receipts to explain discrepancies.", "example": "10 recorded minus 8 counted leaves 2 to investigate."}
-    with study_guide_agent.override(model=TestModel(custom_output_args={
+    with accounted_override(study_guide_agent, TestModel(custom_output_args={
         "version": 1, "title": "Stock", "questions": [question] * count,
-    })):
+    })) as usage:
         result = handle_ai_task(task(), task_dependencies)
     assert result.status == "failed"
     assert result.result is None
-    assert result.usage[-1].output_tokens > 0
+    assert usage.entries[-1].output_tokens > 0
 
 @pytest.mark.real_guardrail
 def test_saved_questions_are_readable_trusted_context_without_repeat_screening(task_dependencies, monkeypatch):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
+    from llm.run_generative_agent import GenerativeOutputInvalid
     seen = []
     def generate(prompt, settings):
         seen.append(prompt)
-        raise UnexpectedModelBehavior("test stop after observing context")
+        raise GenerativeOutputInvalid("test stop after observing context")
     monkeypatch.setattr("worker.study_guide_handler.generate_study_guide", generate)
     request = task()
     request.input["previous_questions"] = ["How do you count stock?", "Why investigate count differences?"]
@@ -218,11 +218,11 @@ def test_invalid_diagram_cannot_complete_and_retains_usage(task_dependencies, ch
         diagram["edges"] *= 2
     question = {"question": "How do you reconcile stock?", "why_it_matters": "The role reconciles stock.",
                 "answer": "Compare physical and recorded counts.", "example": "A count of 10 differs from 12 by 2.", "diagram": diagram}
-    with study_guide_agent.override(model=TestModel(custom_output_args={"version": 1, "title": "Stock", "questions": [question] * 5})):
+    with accounted_override(study_guide_agent, TestModel(custom_output_args={"version": 1, "title": "Stock", "questions": [question] * 5})) as usage:
         result = handle_ai_task(task(), task_dependencies)
     assert result.status == "failed"
     assert result.result is None
-    assert result.usage[-1].output_tokens > 0
+    assert usage.entries[-1].output_tokens > 0
 
 
 def test_reference_task_reads_current_sources_and_ignores_legacy_copies(task_dependencies, monkeypatch):

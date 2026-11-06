@@ -8,7 +8,6 @@ Index:
 from pathlib import Path
 
 from pydantic_ai import capture_run_messages
-from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import RetryPromptPart
 from pydantic_evals import Dataset
 
@@ -21,6 +20,7 @@ from evals.interview_evaluators import (
     feedback_context,
 )
 from evals.report_capture import override_settings
+from llm.run_generative_agent import GenerativeOutputInvalid
 from prompts.interview_feedback_instructions import INTERVIEW_FEEDBACK_PROMPT_VERSION
 from schemas.interview_feedback import InterviewFeedback
 from settings import load_settings
@@ -56,8 +56,8 @@ def run_interview_feedback_evals(model_override: str | None = None) -> None:
                     thinking=settings.interview_feedback_thinking,
                     timeout_seconds=settings.llm_run_timeout_seconds,
                     fallback_model=settings.generative_fallback_model,
-                ).feedback
-            except UnexpectedModelBehavior:
+                )
+            except GenerativeOutputInvalid:
                 for message in messages:
                     for part in message.parts:
                         if isinstance(part, RetryPromptPart):

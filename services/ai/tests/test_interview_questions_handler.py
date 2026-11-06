@@ -29,6 +29,7 @@ from schemas.gap_analysis_context import (
 )
 from schemas.interview_questions import QUESTION_CATEGORIES
 from screening.screen_user_text import ScreenOutcome
+from tests.fakes import accounted_override
 from worker import interview_questions_handler
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
@@ -176,11 +177,11 @@ def test_sparse_library_generates_questions(task_dependencies, replacement, set_
         return generate(prompt, **kwargs)
 
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
-    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1 if replacement else 5, set_type or "general"))):
+    with accounted_override(interview_questions_agent, TestModel(custom_output_args=_output(1 if replacement else 5, set_type or "general"))) as usage:
         result = handle_ai_task(_task(replacement, set_type), deps)
     assert result.status == "completed"
     assert len(result.result["interview_questions"]["questions"]) == (1 if replacement else 5)
-    assert result.usage
+    assert usage.entries
 
 
 @pytest.mark.parametrize("set_type, output_type", [("technical", "general"), ("general", "technical"),
@@ -189,10 +190,10 @@ def test_sparse_library_generates_questions(task_dependencies, replacement, set_
 def test_wrong_scope_categories_fail(task_dependencies, set_type, output_type):
     """Five distinct but wrong-scope categories cannot be persisted."""
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
-    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(set_type=output_type))):
+    with accounted_override(interview_questions_agent, TestModel(custom_output_args=_output(set_type=output_type))) as usage:
         result = handle_ai_task(_task(set_type=set_type), deps)
     assert result.status == "failed"
-    assert result.usage
+    assert usage.entries
 
 
 @pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
@@ -202,10 +203,10 @@ def test_category_prefix_is_not_question_text(task_dependencies, set_type):
     draft = _output(set_type=set_type)
     first = draft["questions"][0]
     first["question_text"] = first["category"] + ": " + first["question_text"]
-    with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
+    with accounted_override(interview_questions_agent, TestModel(custom_output_args=draft)) as usage:
         result = handle_ai_task(_task(set_type=set_type), deps)
     assert result.status == "failed"
-    assert result.usage
+    assert usage.entries
 
 
 @pytest.mark.parametrize("replacement", [False, True])
@@ -305,13 +306,13 @@ def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
         output = _output(1, set_type)
         output["questions"][0]["question_text"] = (_task(True).input["question_text"] if problem == "old_question"
                                                     else _task(True).input["other_questions"][-1])
-    with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
+    with accounted_override(interview_questions_agent, TestModel(custom_output_args=output)) as usage:
         result = handle_ai_task(_task(replacement, set_type), deps)
     assert result.status == "failed"
     assert "valid, distinct" in result.error_message
-    assert result.usage
-    assert sum(entry.input_tokens for entry in result.usage) > 0
-    assert sum(entry.output_tokens for entry in result.usage) > 0
+    assert usage.entries
+    assert sum(entry.input_tokens for entry in usage.entries) > 0
+    assert sum(entry.output_tokens for entry in usage.entries) > 0
 
 
 def test_oversized_context_fails_before_model(task_dependencies, monkeypatch):

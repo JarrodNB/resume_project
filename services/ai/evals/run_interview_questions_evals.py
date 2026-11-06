@@ -48,7 +48,7 @@ def run_interview_questions_evals(model_override: str | None = None) -> None:
             thinking=settings.interview_questions_thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
-        ).questions
+        )
 
     report_interview_evals(load_interview_questions_dataset(), generate,
                           "evals.interview_questions", settings.interview_questions_model,

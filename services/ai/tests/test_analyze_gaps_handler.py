@@ -20,7 +20,7 @@ from agents.gap_analysis_agent import gap_analysis_agent
 from schemas.gap_analysis import GapAnalysisResult
 from schemas.gap_analysis_context import CareerContext
 from screening.screen_user_text import ScreenOutcome
-from tests.fakes import FakeGapAnalysisContextReader, build_gap_analysis_context
+from tests.fakes import FakeGapAnalysisContextReader, accounted_override, build_gap_analysis_context
 from worker.analyze_gaps_handler import (
     EMPTY_LIBRARY_MESSAGE,
     JOB_NOT_FOUND_MESSAGE,
@@ -95,14 +95,14 @@ def test_returns_the_analysis_with_library_evidence(
 def test_reports_token_usage(
     task_dependencies: TaskDependencies, fake_context_reader: FakeGapAnalysisContextReader
 ) -> None:
-    """The result carries the run's tokens and cost for the configured model."""
+    """The run's requests are recorded with tokens and cost for the configured model."""
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
 
-    with gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT,
-        model_name=task_dependencies.settings.gap_analysis_model)):
-        result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
+    with accounted_override(gap_analysis_agent, TestModel(custom_output_args=VALID_OUTPUT,
+        model_name=task_dependencies.settings.gap_analysis_model)) as usage:
+        handle_ai_task(build_analyze_gaps_task(), task_dependencies)
 
-    [model_usage] = result.usage
+    [model_usage] = usage.entries
     assert model_usage.model == task_dependencies.settings.gap_analysis_model
     assert model_usage.cost_microdollars > 0
 

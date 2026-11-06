@@ -52,9 +52,7 @@ def test_labels_pass_the_production_scraped_ad_builder() -> None:
 
 def test_extraction_runner_uses_shared_parser_and_scraped_conversion(monkeypatch):
     """The maintained quality runner follows the production parsing path, not legacy sorting."""
-    from pydantic_ai.usage import RunUsage
 
-    from agents.parse_job_posting_agent import JobPostingParseRun
     from evals import run_job_posting_extraction_evals as runner
 
     case = next(
@@ -66,10 +64,10 @@ def test_extraction_runner_uses_shared_parser_and_scraped_conversion(monkeypatch
 
     def parse(text, **kwargs):
         calls.append((text, kwargs))
-        return JobPostingParseRun(ParsedJobPosting(
+        return ParsedJobPosting(
             title=expected.title, company=expected.company,
             requirements=expected.requirements, responsibilities=expected.responsibilities,
-        ), RunUsage())
+        )
 
     def evaluate(load_dataset, task, **kwargs):
         return task(case.inputs)
@@ -101,7 +99,6 @@ def test_injection_labels_are_consistent_and_source_supported():
 def test_source_only_extraction_keeps_validation_without_a_classifier(
     invented, task_dependencies, monkeypatch,
 ):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
     from pydantic_ai.models.test import TestModel
     from pydantic_ai_harness import InputGuardrail
 
@@ -111,6 +108,7 @@ def test_source_only_extraction_keeps_validation_without_a_classifier(
     )
     from evals.run_job_posting_extraction_evals import with_extraction_screening
     from job_postings.scraped_job_ad import scraped_job_ad_text
+    from llm.run_generative_agent import GenerativeOutputInvalid
 
     def never_screen(*args, **kwargs):
         raise AssertionError("Screening was not disabled in the eval experiment")
@@ -129,19 +127,19 @@ def test_source_only_extraction_keeps_validation_without_a_classifier(
     assert guards[0].guard is original_guard
     with parse_scraped_job_posting_agent.override(model=TestModel(custom_output_args=output)):
         if invented:
-            with pytest.raises(UnexpectedModelBehavior):
+            with pytest.raises(GenerativeOutputInvalid):
                 parse_scraped_job_posting(
                     scraped_job_ad_text(page), model=task_dependencies.settings.job_posting_parse_model,
                     thinking=False, timeout_seconds=10,
                 fallback_model=task_dependencies.settings.job_posting_parse_model,
                 )
         else:
-            run = parse_scraped_job_posting(
+            parsed = parse_scraped_job_posting(
                 scraped_job_ad_text(page), model=task_dependencies.settings.job_posting_parse_model,
                 thinking=False, timeout_seconds=10,
                 fallback_model=task_dependencies.settings.job_posting_parse_model,
             )
-            assert posting_from_scraped_ad(page, run.parsed).requirements == output["requirements"]
+            assert posting_from_scraped_ad(page, parsed).requirements == output["requirements"]
     assert guards[0].guard is original_guard
 
 

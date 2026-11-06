@@ -6,8 +6,10 @@ import type { useJob } from './useJobs'
 export interface JobWorkspaceContext {
   job: NonNullable<ReturnType<typeof useJob>['job']>
   comparison: ReturnType<typeof useGapAnalysis>
-  /** Opens the edit-job form (used by the "Add description" buttons). */
+  /** Opens the complete edit-job form. */
   onEditJob: () => void
+  /** Opens the form with Description focused and scrolled into view. */
+  onAddDescription?: () => void
 }
 
 /** The loaded job and its shared comparison, for a tab rendered inside `JobWorkspaceLayout`. */

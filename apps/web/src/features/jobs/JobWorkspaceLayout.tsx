@@ -6,6 +6,7 @@
  * one live comparison, handed to each tab through `useJobWorkspace`.
  */
 import { ContentSkeleton } from '@/components/ContentSkeleton'
+import { CombinedGraphQLErrors } from '@apollo/client/errors'
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -46,9 +47,15 @@ function JobWorkspace({ id }: { id: string }) {
   const comparison = useGapAnalysis(id, job?.latestGapAnalysis ?? null)
   const { archive, busy, errors, clearErrors } = useArchiveJob()
   const [editing, setEditing] = useState(false)
+  const [focusDescription, setFocusDescription] = useState(false)
   const [confirmingArchive, setConfirmingArchive] = useState(false)
   const base = `/jobs/${id}`
   const currentTab = pathname.slice(base.length + 1).split('/')[0]
+
+  function openJobEditor(description = false) {
+    setFocusDescription(description)
+    setEditing(true)
+  }
 
   /** Hides the job from cached lists and returns to saved jobs. */
   async function archiveJob() {
@@ -57,6 +64,16 @@ function JobWorkspace({ id }: { id: string }) {
     navigate('/jobs')
   }
 
+  const missingJob = CombinedGraphQLErrors.is(error)
+    && error.errors.some((item) => item.message === 'Record not found')
+  if (missingJob || (!loading && !error && !job)) {
+    return (
+      <div className="grid gap-3">
+        <ErrorAlert title="This job is unavailable" messages={['It may have been removed, or you may not have access to it.']} />
+        <Button asChild variant="outline" className="justify-self-start"><Link to="/jobs">All saved jobs</Link></Button>
+      </div>
+    )
+  }
   if (error) {
     return (
       <div className="grid gap-3">
@@ -99,7 +116,7 @@ function JobWorkspace({ id }: { id: string }) {
             </Button>
           )}
           <JobActionsMenu
-            onEdit={() => setEditing(true)}
+            onEdit={() => openJobEditor()}
             onArchive={() => {
               clearErrors()
               setConfirmingArchive(true)
@@ -122,7 +139,7 @@ function JobWorkspace({ id }: { id: string }) {
           )
         })}
       </nav>
-      <JobFormDialog open={editing} job={job} onOpenChange={setEditing} />
+      <JobFormDialog open={editing} job={job} focusDescription={focusDescription} onOpenChange={setEditing} />
       <ArchiveJobDialog
         open={confirmingArchive}
         onOpenChange={setConfirmingArchive}
@@ -132,7 +149,12 @@ function JobWorkspace({ id }: { id: string }) {
         errors={errors}
       />
       <div className="job-workspace-panel">
-        <Outlet context={{ job, comparison, onEditJob: () => setEditing(true) } satisfies JobWorkspaceContext} />
+        <Outlet context={{
+          job,
+          comparison,
+          onEditJob: () => openJobEditor(),
+          onAddDescription: () => openJobEditor(true),
+        } satisfies JobWorkspaceContext} />
       </div>
     </div>
   )

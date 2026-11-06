@@ -328,8 +328,12 @@ rare SQS redelivery). We handle this instead of trying to prevent it:
 - **Rails result handling is idempotent.** Every message carries the `ai_task_id`. Results for
   an `AiTask` that is already `completed` or `failed` are ignored. The check runs under a row
   lock, so two copies processed at the same moment can't both apply.
-- **Workers receive one message at a time**, so no message sits in a local batch while its
-  visibility timeout runs out. Scale by adding workers.
+- **Each poll loop receives one message at a time**, so no message sits in a local batch while
+  its visibility timeout runs out. A worker process runs `WORKER_CONCURRENCY` loops (default 4)
+  on separate threads, each owning its message until it is done. Scale further by adding workers.
+  On a stop signal the main loop's task is interrupted at once; the other loops stop polling
+  and get 20 seconds to finish and publish, then any still running are interrupted. Their
+  unacknowledged messages are redelivered.
 - **Long tasks extend their visibility timeout** (heartbeat) if real runs approach the
   300-second limit. Add this once actual task durations are known.
 - FIFO queues are not used: their 5-minute deduplication window doesn't cover these cases

@@ -15,7 +15,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   request observation to the independent `conversation_logging/` package. Settings gate
   this filesystem logging on `WORKER_ENVIRONMENT=local` and allow an explicit opt-out.
 
-- `main.py` — entry point and polling loop (`python -m worker.main`); `process_task_message`
+- `main.py` — entry point and polling loops (`python -m worker.main`; `WORKER_CONCURRENCY` loops
+  per process, the main thread plus helper threads, each with its own queue clients); `process_task_message`
   wraps each task in a Logfire trace and publishes the result before the task message may be
   deleted; `poll_until_stopped` logs and retries errors (5s pause) instead of exiting
 - SIGTERM/SIGINT interrupt the current execution with `WorkerShutdown` (a `SystemExit`

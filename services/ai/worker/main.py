@@ -1,16 +1,22 @@
 """
 Description: Entry point for the AI worker. Long-polls the ai_tasks queue, handles each task, and
-publishes its result to ai_results. Stop signals unwind active task traces and leave interrupted
-messages unacknowledged for redelivery.
+publishes its result to ai_results. One process runs WORKER_CONCURRENCY poll loops: the main
+thread plus helper threads, each receiving one message and finishing it before polling again.
+A stop signal interrupts the main thread's task at once, unwinding its trace and leaving its
+message unacknowledged for redelivery. Helper threads stop polling and get a short window to
+finish their task and publish normally; any still running after that are interrupted.
 Index:
     - process_task_message: handles one raw task message; says whether it can be deleted
     - poll_task_queue_once: receives at most one task, handles it, and deletes it if allowed
     - poll_until_stopped: polls repeatedly, surviving errors, until asked to stop
+    - run_helper_polling_loop: one extra poll loop on its own thread with its own queue clients
     - run_worker: wires up the queues and polls until SIGTERM/SIGINT
 """
 
+import ctypes
 import logging
 import signal
+import threading
 import time
 from collections.abc import Callable
 from contextlib import ExitStack
@@ -53,6 +59,7 @@ from worker.task_tracing import trace_ai_task
 logger = logging.getLogger(__name__)
 
 POLL_ERROR_BACKOFF_SECONDS = 5
+HELPER_JOIN_SECONDS = 20  # Inside the 30 second shutdown grace period of the container.
 
 
 class WorkerShutdown(SystemExit):
@@ -172,11 +179,15 @@ def _publish_usage(task, usage, queue, *, finished=True):
 
 
 def poll_task_queue_once(
-    task_queue: SqsQueueClient, result_queue: SqsQueueClient, dependencies: TaskDependencies
+    task_queue: SqsQueueClient, result_queue: SqsQueueClient, dependencies: TaskDependencies,
+    *, should_stop: Callable[[], bool] | None = None,
 ) -> None:
     """Receives at most one task message, handles it, and deletes it once its result is out.
-    A kept message is redelivered after a delay that grows with each attempt."""
+    A kept message is redelivered after a delay that grows with each attempt.
+    Work received after a stop request stays unacknowledged for redelivery."""
     for message in task_queue.receive_messages():
+        if should_stop is not None and should_stop():
+            return
         receive_count = int(message.get("Attributes", {}).get("ApproximateReceiveCount", 1))
         if process_task_message(message["Body"], receive_count, result_queue, dependencies):
             task_queue.delete_message(message["ReceiptHandle"])
@@ -195,12 +206,50 @@ def poll_until_stopped(
     after a pause instead of ending the worker; an undeleted task is redelivered by SQS."""
     while not should_stop():
         try:
-            poll_task_queue_once(task_queue, result_queue, dependencies)
+            poll_task_queue_once(task_queue, result_queue, dependencies, should_stop=should_stop)
         except Exception:
             logger.exception(
                 "Polling the task queue failed, retrying in %d seconds", POLL_ERROR_BACKOFF_SECONDS
             )
             time.sleep(POLL_ERROR_BACKOFF_SECONDS)
+
+
+def interrupt_thread(thread: threading.Thread) -> None:
+    """Raise WorkerShutdown inside a helper thread, as the signal does in the main thread.
+
+    Python cannot signal a single thread. Delivery waits for the thread's next bytecode, so a
+    blocking network call finishes first; a task stuck in one may outlast the process, and its
+    unacknowledged message is redelivered like any other lost worker's.
+    """
+    if thread.is_alive() and thread.ident is not None:
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_ulong(thread.ident), ctypes.py_object(WorkerShutdown)
+        )
+
+
+def stop_helper_threads(helpers: list[threading.Thread]) -> None:
+    """Let running helper tasks finish within the window, then interrupt any that remain."""
+    deadline = time.monotonic() + HELPER_JOIN_SECONDS
+    for helper in helpers:
+        helper.join(max(0, deadline - time.monotonic()))
+    for helper in helpers:
+        interrupt_thread(helper)
+    for helper in helpers:
+        helper.join(1)  # Gives interrupted tasks a moment to close their spans.
+
+
+def run_helper_polling_loop(
+    settings, dependencies: TaskDependencies, should_stop: Callable[[], bool]
+) -> None:
+    """Poll on this thread with queue clients of its own until stopped or interrupted."""
+    try:
+        task_queue = SqsQueueClient(settings, settings.ai_tasks_queue_name)
+        result_queue = SqsQueueClient(settings, settings.ai_results_queue_name)
+        poll_until_stopped(task_queue, result_queue, dependencies, should_stop)
+    except WorkerShutdown:
+        pass
+    except Exception:
+        logger.exception("Polling thread failed and has stopped; the worker keeps fewer loops")
 
 
 def run_worker() -> None:
@@ -226,6 +275,7 @@ def run_worker() -> None:
     )
 
     stop_requested = False
+    helpers: list[threading.Thread] = []
 
     def request_stop(signal_number: int, _frame: object) -> None:
         """Interrupt once; repeated signals must not interrupt span cleanup or flushing."""
@@ -239,12 +289,22 @@ def run_worker() -> None:
         number: signal.signal(number, request_stop) for number in (signal.SIGTERM, signal.SIGINT)
     }
     try:
-        logger.info("Worker polling queue %s", settings.ai_tasks_queue_name)
+        logger.info("Worker polling queue %s with %d loops",
+                    settings.ai_tasks_queue_name, settings.worker_concurrency)
+        for number in range(1, settings.worker_concurrency):
+            helper = threading.Thread(
+                target=run_helper_polling_loop, args=(settings, dependencies, lambda: stop_requested),
+                name=f"worker-poll-{number}", daemon=True,
+            )
+            helpers.append(helper)
+            helper.start()
         poll_until_stopped(task_queue, result_queue, dependencies, lambda: stop_requested)
     except WorkerShutdown:
         logger.info("Worker stopping; interrupted messages remain available for redelivery")
     finally:
+        stop_requested = True
         try:
+            stop_helper_threads(helpers)
             flush_tracing()
         finally:
             for number, handler in previous_handlers.items():

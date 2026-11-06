@@ -47,7 +47,7 @@ module CareerLibrary
       when "projects"
         records = user.projects.where(nil)
         records = records.where(id: record_id) if record_id
-        values = records.map { |record| record.attributes.slice("id", "name", "role", "start_date", "end_date", "description", "screened_fields") }
+        values = records.map { |record| record.attributes.slice("id", "name", "role", "start_date", "end_date", "ongoing", "description", "screened_fields") }
         values.each { |record| targets << narrative_target("project", record, "description") if record["description"].present? }
         { "projects" => values }
       when "career_contexts"

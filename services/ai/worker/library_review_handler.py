@@ -38,8 +38,9 @@ def render_review(source) -> str:
         rows.append(f"Target T{target} — professional summary:\n{library.summary}")
     for project in library.projects:
         rows.append(f"Project: {project.name}\nRole: {project.role or 'not stated'}")
-        if project.start_date or project.end_date:
-            rows.append(f"Dates: {project.start_date or 'not stated'} to {project.end_date or 'not stated'}")
+        if project.start_date or project.end_date or project.ongoing:
+            finish = project.end_date or ("present" if project.ongoing else "not stated")
+            rows.append(f"Dates: {project.start_date or 'not stated'} to {finish}")
         if project.description and project.description.strip():
             target += 1
             rows.append(f"Target T{target} — project description:\n{project.description}")

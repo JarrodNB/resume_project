@@ -41,10 +41,10 @@ function CareerContextForm({ context, initialValues, onSaved, onClose }: Pick<Ca
   async function submit() {
     if (submitting.current) return
     const problems = []
-    const missing = requiredFieldErrors({ requirement: { label: 'Requirement', value: requirement }, response: { label: 'Response', value: response } })
+    const missing = requiredFieldErrors({ requirement: { label: 'Topic or question', value: requirement }, response: { label: 'Response', value: response } })
     setFieldErrors(missing)
     if (Object.keys(missing).length) return
-    if (requirement.trim().length > BULLET_TEXT) problems.push(`Requirement must be ${BULLET_TEXT} characters or fewer. Edit the question before saving.`)
+    if (requirement.trim().length > BULLET_TEXT) problems.push(`Topic or question must be ${BULLET_TEXT} characters or fewer. Edit the question before saving.`)
     if (response.trim().length > PROSE_TEXT) problems.push(`Response must be ${PROSE_TEXT} characters or fewer. Edit the answer before saving.`)
     setValidationErrors(problems)
     if (problems.length) return
@@ -62,12 +62,12 @@ function CareerContextForm({ context, initialValues, onSaved, onClose }: Pick<Ca
       open
       onOpenChange={(next) => !next && !submitting.current && onClose()}
       title={context ? 'Edit career context' : 'Add career context'}
-      description="A requirement and your answer. Later comparisons can use this."
+      description="Give these career details a topic or keep the question you answered. Later comparisons can use this."
       onSubmit={submit}
       busy={busy}
       errors={[...validationErrors, ...errors]}
     >
-      <LibraryField label="Requirement" required error={fieldErrors.requirement} value={requirement} onChange={setRequirement} maxLength={BULLET_TEXT} />
+      <LibraryField label="Topic or question" required error={fieldErrors.requirement} value={requirement} onChange={setRequirement} maxLength={BULLET_TEXT} />
       <LibraryField label="Response" required error={fieldErrors.response} multiline value={response} onChange={setResponse} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )

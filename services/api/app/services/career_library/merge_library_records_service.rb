@@ -62,6 +62,7 @@ module CareerLibrary
     # Copies each fillable field that is blank on the target and present on the source.
     def fill_blank_fields
       FILLABLE_FIELDS.fetch(@target.class).each do |field|
+        next if field == "end_date" && @target.respond_to?(:ongoing) && @target.ongoing?
         next unless @target[field].blank? && @source[field].present?
 
         @target[field] = @source[field]

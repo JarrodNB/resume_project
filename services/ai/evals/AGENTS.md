@@ -85,12 +85,13 @@ score attached, so runs can be compared across prompt and model changes.
 - `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):
   `docker compose run --rm ai-worker python -m evals.run_gap_analysis_evals`
 - `datasets/tailoring_cases.yaml` — every production writer (summary, experience, projects,
-  skill selection): relevance and sections that should be omitted. Summary
+  skill selection): relevance and sections that should be omitted. Gap-answer and saved-career-context
+  cases independently check that leadership evidence and an existing churn achievement both survive. Summary
   cases include degree-only and credential-only evidence. Copied education/certification
   identity, descriptions, and date precision are checked deterministically by
   `tests/test_certifications.py` and `tests/test_complete_resume_draft.py`, without paid generation.
   A skill draft has no prose, so relevance uses the chosen skill name
-- `tailoring_evaluators.py` — relevance and omission checks for a written section;
+- `tailoring_evaluators.py` — relevance, omission and cited evidence coverage for a written section;
   these scores do not establish that generated claims are faithful to the library
 - `run_tailoring_evals.py` — runner:
   `docker compose run --rm ai-worker python -m evals.run_tailoring_evals`. This section quality

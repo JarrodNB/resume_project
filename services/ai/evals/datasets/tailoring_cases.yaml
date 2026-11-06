@@ -241,3 +241,80 @@ cases:
     evaluators:
       - SectionRelevance
       - OmitsWhenAsked
+
+  - name: gap_answer_preserves_existing_churn_evidence
+    inputs:
+      section_type: experience
+      context:
+        job:
+          id: job-analytics
+          title: Senior Data Analyst
+          company: Harbor Analytics
+          requirements:
+            - Present findings to senior leaders
+            - Build churn reports that inform retention decisions
+        career_library:
+          experiences:
+            - id: exp-analytics
+              company: Ledgerly
+              title: Data Analyst
+              start_date: 2022-01-01
+              highlights:
+                - id: hl-churn
+                  content: Built a monthly churn report that identified at-risk accounts and informed retention outreach, reducing churn by 12%.
+                - id: hl-maintenance
+                  content: Maintained the team calendar.
+      gap_responses:
+        - requirement: Present findings to senior leaders
+          body: At Ledgerly, I presented quarterly retention findings to senior leaders.
+    metadata:
+      nothing_fits: false
+      entry_label: E1
+      prose: Presented quarterly retention findings to senior leaders at Ledgerly. Built monthly churn reports that informed retention outreach and reduced churn by 12%.
+      source_labels: [H1, GR1]
+      job_terms: [senior leaders, churn]
+      evidence_terms: [[senior leaders, leadership, executives], [churn, retention]]
+      evidence_sources: [[GR1], [H1]]
+    evaluators:
+      - SectionRelevance
+      - OmitsWhenAsked
+      - EvidenceCoverage
+
+  - name: saved_career_context_preserves_existing_churn_evidence
+    inputs:
+      section_type: experience
+      context:
+        job:
+          id: job-analytics
+          title: Senior Data Analyst
+          company: Harbor Analytics
+          requirements:
+            - Present findings to senior leaders
+            - Build churn reports that inform retention decisions
+        career_library:
+          experiences:
+            - id: exp-analytics
+              company: Ledgerly
+              title: Data Analyst
+              start_date: 2022-01-01
+              highlights:
+                - id: hl-churn
+                  content: Built a monthly churn report that identified at-risk accounts and informed retention outreach, reducing churn by 12%.
+                - id: hl-maintenance
+                  content: Maintained the team calendar.
+          career_contexts:
+            - id: context-leaders
+              requirement: Present findings to senior leaders
+              response: At Ledgerly, I presented quarterly retention findings to senior leaders.
+    metadata:
+      nothing_fits: false
+      entry_label: E1
+      prose: Presented quarterly retention findings to senior leaders at Ledgerly. Built monthly churn reports that informed retention outreach and reduced churn by 12%.
+      source_labels: [H1, F1]
+      job_terms: [senior leaders, churn]
+      evidence_terms: [[senior leaders, leadership, executives], [churn, retention]]
+      evidence_sources: [[F1], [H1]]
+    evaluators:
+      - SectionRelevance
+      - OmitsWhenAsked
+      - EvidenceCoverage

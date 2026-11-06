@@ -87,6 +87,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
               comparisonFinished={comparison.completed}
               comparisonBusy={comparison.busy}
               hasDescription
+              hasRequirements={workspaceJob.requirements.length > 0 || workspaceJob.niceToHaves.length > 0}
               onCompare={() => void comparison.start()}
             />
           ) : (

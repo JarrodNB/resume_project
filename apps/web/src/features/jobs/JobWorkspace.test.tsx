@@ -570,3 +570,32 @@ it('shows inline errors instead of browser validation, and adds https:// to a ba
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByRole('link', { name: 'View posting' })).toHaveAttribute('href', 'https://acme.example/jobs/1')
 })
+
+
+it('keeps comparison disabled for a manually entered description without saved requirements', async () => {
+  const user = userEvent.setup()
+  renderWorkspace({ mocks: [jobQuery(job({ requirements: [], niceToHaves: [] }))] })
+  const compare = await screen.findByRole('button', { name: 'Compare with my career library' })
+  expect(compare).toBeDisabled()
+  expect(screen.getByText(/Add requirements or nice-to-haves/)).toBeInTheDocument()
+  await user.click(compare)
+  expect(screen.queryByText(/Couldn't start the comparison/)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Edit requirements' }))
+  expect(screen.getByRole('heading', { name: 'Edit job' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Add requirement' })).toBeInTheDocument()
+})
+
+it('keeps Compare first disabled without requirements and allows writing from the description', async () => {
+  const user = userEvent.setup()
+  const { router } = renderWorkspace({ mocks: [jobQuery(job({ requirements: [], niceToHaves: [] }))] })
+  await user.click(await screen.findByRole('button', { name: 'Write resume' }))
+  expect(screen.getByRole('button', { name: 'Compare first' })).toBeDisabled()
+  expect(screen.getByText(/This job needs saved requirements/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Write resume anyway' }))
+  expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write')
+})
+
+it('allows comparison when the job has only nice-to-haves', async () => {
+  renderWorkspace({ mocks: [jobQuery(job({ requirements: [], niceToHaves: ['Python'] }))] })
+  expect(await screen.findByRole('button', { name: 'Compare with my career library' })).toBeEnabled()
+})

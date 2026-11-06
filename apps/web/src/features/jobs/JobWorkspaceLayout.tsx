@@ -89,6 +89,7 @@ function JobWorkspace({ id }: { id: string }) {
               comparisonFinished={comparison.completed}
               comparisonBusy={comparison.busy}
               hasDescription={Boolean(job.description?.trim())}
+              hasRequirements={job.requirements.length > 0 || job.niceToHaves.length > 0}
               onCompare={() => void comparison.start()}
             />
           )}

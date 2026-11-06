@@ -21,7 +21,9 @@ export function JobFitTab() {
         gapResponses={job.gapResponses}
         dismissedRequirements={job.dismissedRequirements}
         hasDescription={Boolean(job.description?.trim())}
+        hasRequirements={job.requirements.length > 0 || job.niceToHaves.length > 0}
         onAddDescription={onEditJob}
+        onEditRequirements={onEditJob}
       />
       <SkillMatches description={job.description} onAddDescription={onEditJob} />
     </div>

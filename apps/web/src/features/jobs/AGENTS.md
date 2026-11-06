@@ -11,7 +11,7 @@ be edited, moved between application stages, and archived.
 ## Contents
 
 - `JobsPage.tsx` (`/jobs`) — job list sorted by stage (pipeline order, Rejected last), newest first within a stage, each row link named "Open <title> at <company>", with stage badges, "Paste a job ad", "Add job from link",
-  and "Add manually"
+  and "Add manually". Next-step labels follow running AI tasks live through the shared Home task subscriptions
 - `AddJobFromUrlPage.tsx` (`/jobs/new`) — public HTTP(S) job URL form calling `scrapeJob`, with paste fallback for blocked sites
 - `AddJobFromTextPage.tsx` (`/jobs/paste`) — textarea calling `parseJobPosting`
 - `JobImportTaskPage.tsx` — shared live status for a job import

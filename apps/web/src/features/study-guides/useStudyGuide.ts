@@ -1,4 +1,5 @@
-/** Reads one ordered job collection in bounded batches and follows generation without moving the reader. */
+/** Reads one ordered job collection in bounded batches and follows generation without moving the reader.
+ * Live subscriptions handle normal progress; returning to the pane checks saved state in case a completion was missed. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
@@ -34,7 +35,9 @@ export function useStudyGuide(jobId: string, description: string | null) {
   const latest = query.data?.job.latestStudyGuideTask ?? null
   const active = latest && latest.status !== 'COMPLETED' && latest.status !== 'FAILED'
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(active ? latest.id : '')
-  const task = aiTask?.id === latest?.id ? aiTask : latest
+  // A fresh terminal read takes precedence over an older subscription snapshot.
+  const task = latest?.status === 'COMPLETED' || latest?.status === 'FAILED'
+    ? latest : aiTask?.id === latest?.id ? aiTask : latest
   const retryAfterSeconds = latest?.studyGuideRetryAfterSeconds
   const retryReady = task?.status === 'QUEUED' && (retryAfterSeconds === 0 || task.id === retryReadyId)
   const busy = starting || Boolean(task && task.status !== 'COMPLETED' && task.status !== 'FAILED' && !retryReady)
@@ -60,7 +63,12 @@ export function useStudyGuide(jobId: string, description: string | null) {
       let failure: unknown
       do {
         revision = refreshRevision.current
-        try { await refetch(); failure = undefined } catch (error) { failure = error }
+        try {
+          const response = await refetch()
+          const savedTask = response.data?.job.latestStudyGuideTask
+          if (savedTask?.status === 'COMPLETED') refreshed.current = savedTask.id
+          failure = undefined
+        } catch (error) { failure = error }
       } while (mounted.current && revision !== refreshRevision.current)
       if (failure) throw failure
     }
@@ -68,6 +76,24 @@ export function useStudyGuide(jobId: string, description: string | null) {
     refreshInFlight.current = pending
     return pending
   }, [refetch])
+
+  // A suspended pane can miss live delivery without a reload or a new subscription.
+  // Recover on browser activity, never on a timer, and only while following unfinished work.
+  useEffect(() => {
+    if (!active) return
+    function recover() {
+      if (document.visibilityState === 'hidden' || refreshInFlight.current) return
+      void refresh().catch(() => { if (mounted.current) setPageError("Couldn't refresh saved questions. Reload to try again.") })
+    }
+    document.addEventListener('visibilitychange', recover)
+    window.addEventListener('focus', recover)
+    window.addEventListener('online', recover)
+    return () => {
+      document.removeEventListener('visibilitychange', recover)
+      window.removeEventListener('focus', recover)
+      window.removeEventListener('online', recover)
+    }
+  }, [active, refresh])
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => {
@@ -84,8 +110,16 @@ export function useStudyGuide(jobId: string, description: string | null) {
   useEffect(() => { if (active && latest) followed.current = latest.id }, [active, latest])
   useEffect(() => {
     if (task?.status !== 'COMPLETED' || task.id !== followed.current || task.id === refreshed.current) return
-    refreshed.current = task.id
-    void refresh().catch(() => { if (mounted.current) setPageError("Couldn't refresh saved questions. Reload to try again.") })
+    const completedId = task.id
+    function readCompleted() {
+      if (!mounted.current || refreshed.current === completedId) return
+      refreshed.current = completedId
+      void refresh().catch(() => { if (mounted.current) setPageError("Couldn't refresh saved questions. Reload to try again.") })
+    }
+    // An activity recovery may already be returning these saved questions. If an
+    // older read was in flight instead, fetch once more after that read finishes.
+    if (refreshInFlight.current) void refreshInFlight.current.then(readCompleted, readCompleted)
+    else readCompleted()
   }, [task, refresh])
 
   async function loadMore() {

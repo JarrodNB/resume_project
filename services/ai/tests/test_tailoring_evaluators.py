@@ -67,7 +67,7 @@ def test_copied_sections_cannot_enter_paid_eval_inputs(section) -> None:
         TailorEvalInput(section_type=section, context=context)
 
 
-@pytest.mark.parametrize("retained", ["answer", "highlight", "citation_only"])
+@pytest.mark.parametrize("retained", ["answer", "highlight", "citation_only", "wrong_citation"])
 def test_evidence_coverage_detects_lost_facts(retained) -> None:
     """Either missing achievement lowers recall; citations without wording prove nothing."""
     from types import SimpleNamespace
@@ -81,9 +81,10 @@ def test_evidence_coverage_detects_lost_facts(retained) -> None:
         "answer": ("Presented retention findings to senior leaders.", ["GR1"]),
         "highlight": ("Built churn reports reducing churn 12%.", ["H1"]),
         "citation_only": ("Maintained the team calendar.", ["H1", "GR1"]),
+        "wrong_citation": ("Presented findings to senior leaders.", ["H2"]),
     }
     text, sources = texts[retained]
     draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="E1", prose=[
         CitedProse(text=text, source_labels=sources)])])
     context = SimpleNamespace(inputs=case.inputs, metadata=case.metadata, output=draft)
-    assert EvidenceCoverage().evaluate(context) == (0 if retained == "citation_only" else 0.5)
+    assert EvidenceCoverage().evaluate(context) == (0 if retained in {"citation_only", "wrong_citation"} else 0.5)

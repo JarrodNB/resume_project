@@ -1,9 +1,6 @@
-# Reloads under the row lock so field edits and screening invalidation stay atomic.
-# Description: Updates a career library role. When highlights are given, they replace the
-# existing bullet points (in the given order). Exact unchanged text retains its saved
-# screening/generated coverage; user changes start unchecked. Queues an embedding sync.
-# Index:
-#   - call: updates in one transaction; returns the experience, or validation errors
+# Updates a career library role under its row lock and queues an embedding sync.
+# Submitted bullets replace the list in order, but exact unchanged text keeps its
+# record identity, saved reviews, and screening coverage. Changed text starts unchecked.
 module Experiences
   class UpdateExperienceService < ApplicationService
     def initialize(experience:, attributes:, highlights: nil)
@@ -28,14 +25,21 @@ module Experiences
 
     private
 
-    # Deletes the current highlights and builds the new list.
+    # Match each saved bullet at most once, including when content is duplicated.
+    # Review and edit tasks refer to these IDs, so unchanged bullets must survive saves.
     def replace_highlights
-      covered = @experience.highlights.where("screened_fields @> ARRAY['content']::text[]").pluck(:content).to_set
-      @experience.highlights.destroy_all
+      existing = @experience.highlights.to_a.group_by(&:content)
+      covered = @experience.highlights.select { |item| item.screened_fields.include?("content") }.map(&:content).to_set
       @highlights.each_with_index do |content, position|
-        @experience.highlights.build(content: content, position: position,
-          screened_fields: covered.include?(content) ? [ "content" ] : [])
+        highlight = existing[content]&.shift
+        if highlight
+          highlight.update!(position: position)
+        else
+          @experience.highlights.build(content: content, position: position,
+            screened_fields: covered.include?(content) ? [ "content" ] : [])
+        end
       end
+      existing.each_value { |items| items.each(&:destroy!) }
     end
   end
 end

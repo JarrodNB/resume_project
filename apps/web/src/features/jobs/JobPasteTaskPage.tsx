@@ -12,7 +12,7 @@ export function JobPasteTaskPage() {
       retryTo="/jobs/paste"
       retryLabel="Try another ad"
       progressTitle="Reading the job ad…"
-      progressBody="This usually takes a few seconds. You can leave this page open; it updates by itself."
+      progressBody="Reading and saving the job can take a little while. This page updates automatically when it is ready."
     />
   )
 }

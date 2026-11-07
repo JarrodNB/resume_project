@@ -1,9 +1,10 @@
 /**
- * Description: Dialog that adds a job by hand or edits one.
+ * Adds a job by hand or edits one. Description actions focus that field so users can
+ * start typing immediately; normal edits begin at the first field.
  * Index:
  *   - JobFormDialog: opens the form for a job, or a blank one when job is null
  */
-import { useId, useState, type ChangeEvent } from 'react'
+import { useId, useRef, useState, type ChangeEvent, type Ref } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -21,16 +22,18 @@ interface JobFormDialogProps {
   onOpenChange: (open: boolean) => void
   job: JobDraft | null
   onCreated?: (jobId: string) => void
+  focusDescription?: boolean
 }
 
 /** Shows the job form while `open` is true. Closing throws away unsaved edits. */
-export function JobFormDialog({ open, onOpenChange, job, onCreated }: JobFormDialogProps) {
+export function JobFormDialog({ open, onOpenChange, job, onCreated, focusDescription = false }: JobFormDialogProps) {
   if (!open) return null
-  return <JobForm key={job?.id ?? 'new'} job={job} onClose={() => onOpenChange(false)} onCreated={onCreated} />
+  return <JobForm key={job?.id ?? 'new'} job={job} onClose={() => onOpenChange(false)} onCreated={onCreated} focusDescription={focusDescription} />
 }
 
 /** The job fields and the save action. Every field is sent. */
-function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: () => void; onCreated?: (jobId: string) => void }) {
+function JobForm({ job, onClose, onCreated, focusDescription }: { job: JobDraft | null; onClose: () => void; onCreated?: (jobId: string) => void; focusDescription: boolean }) {
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const { save, busy, errors } = useSaveJob()
   const [title, setTitle] = useState(job?.title ?? '')
   const [company, setCompany] = useState(job?.company ?? '')
@@ -77,7 +80,15 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
 
   return (
     <Dialog open onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="flex max-h-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-lg">
+      <DialogContent
+        className="flex max-h-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-lg"
+        onOpenAutoFocus={(event) => {
+          if (focusDescription) {
+            event.preventDefault()
+            descriptionRef.current?.focus()
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{job ? 'Edit job' : 'Add a job'}</DialogTitle>
           <DialogDescription>
@@ -101,7 +112,7 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
           <JobField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
           <JobField label="Link" value={url} onChange={setUrl} error={fieldErrors.url} maxLength={JOB_URL_TEXT} />
           <JobField label="Notes" value={notes} onChange={setNotes} multiline maxLength={PROSE_TEXT} />
-          <JobField label="Description" value={description} onChange={setDescription} multiline maxLength={JOB_DESCRIPTION_TEXT} />
+          <JobField label="Description" textareaRef={descriptionRef} value={description} onChange={setDescription} multiline maxLength={JOB_DESCRIPTION_TEXT} />
           <StringListField legend="Requirements" addLabel="Add requirement" itemLabel="Requirement" items={requirements} onChange={setRequirements} />
           <StringListField
             legend="Responsibilities"
@@ -138,6 +149,7 @@ function JobField({
   multiline,
   error,
   maxLength,
+  textareaRef,
 }: {
   label: string
   value: string
@@ -146,6 +158,7 @@ function JobField({
   multiline?: boolean
   error?: string
   maxLength?: number
+  textareaRef?: Ref<HTMLTextAreaElement>
 }) {
   const id = useId()
   const shared = {
@@ -160,7 +173,7 @@ function JobField({
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id} className={required ? "after:ml-0.5 after:content-['*']" : undefined}>{label}</Label>
-      {multiline ? <Textarea {...shared} rows={3} /> : <Input {...shared} type="text" />}
+      {multiline ? <Textarea {...shared} ref={textareaRef} rows={3} /> : <Input {...shared} type="text" />}
       {error && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   )

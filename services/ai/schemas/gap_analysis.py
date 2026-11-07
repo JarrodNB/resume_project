@@ -45,7 +45,7 @@ class GapAnalysis(BaseModel):
 
     assessments: list[RequirementAssessment]
     summary: str = Field(
-        description="Two or three sentences: the strongest matches and the most important gaps."
+        description="One or two short sentences (under 35 words): the strongest match and the biggest gap."
     )
 
 

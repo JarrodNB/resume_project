@@ -1,7 +1,9 @@
 /**
  * A finished comparison on the Fit tab: the summary, then requirements grouped by what needs the
  * user, starting with gaps to fill. Saving or dismissing moves a row to another group, which removes
- * the button that was pressed, so keyboard focus returns to the top of the results.
+ * the button that was pressed, so keyboard focus returns to the top of the results. Saved answers
+ * do not change the AI verdict; hide the broad summary while answered gaps remain to avoid
+ * presenting its missing-evidence claims as current facts.
  */
 import { useRef, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +29,9 @@ export function GapAnalysisResultView({
 }) {
   const resultsRef = useRef<HTMLDivElement>(null)
   const groups = groupAssessments(analysis.assessments, responses.map((item) => item.requirement), dismissedRequirements)
+  const hasAnsweredGaps = analysis.assessments.some((assessment) =>
+    assessment.verdict !== 'met' && responses.some((response) => response.requirement === assessment.requirement),
+  )
   const responseFor = (assessment: AssessedRequirement) => responses.find((item) => item.requirement === assessment.requirement) ?? null
   const onMoved = () => resultsRef.current?.focus({ preventScroll: true })
   const rowProps = (assessment: AssessedRequirement) => ({ jobId, assessment, response: responseFor(assessment), onMoved })
@@ -43,7 +48,11 @@ export function GapAnalysisResultView({
         </div>
       )}
       <section aria-label="Comparison summary" className="grid gap-3 border-l-4 border-foreground bg-muted py-4 pr-4 pl-5">
-        {analysis.summary && <p className="max-w-[60ch] text-lg leading-snug font-semibold">{analysis.summary}</p>}
+        {hasAnsweredGaps ? (
+          <p className="max-w-[65ch]" role="status">
+            Your saved answers are shown below and are available when writing your resume. The findings are from your last comparison.
+          </p>
+        ) : analysis.summary && <p className="max-w-[60ch] text-lg leading-snug font-semibold">{analysis.summary}</p>}
         <p className="flex flex-wrap items-center gap-2">
           {groups.gaps.length > 0 && <Badge variant="outline" className="border-signal-action text-signal-action-text">{groups.gaps.length} {groups.gaps.length === 1 ? 'gap' : 'gaps'}</Badge>}
           {groups.couldBeStronger.length > 0 && <Badge variant="outline" className="border-foreground text-foreground">{groups.couldBeStronger.length} partly met</Badge>}

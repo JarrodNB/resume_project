@@ -57,7 +57,7 @@ it('loads selection from the route again on reload, then starts practice for tha
 
 it('keeps unavailable jobs out of setup instead of offering generic preparation', async () => {
   mount(false)
-  expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this job")
+  expect(await screen.findByRole('alert')).toHaveTextContent('This job is unavailable')
   expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
   expect(start).not.toHaveBeenCalled()
 })

@@ -13,15 +13,25 @@ export function MultiSelect<Value extends string>({ id, labelId, emptyLabel, opt
   selected: Value[]; onChange: (values: Value[]) => void
 }) {
   const chosen = options.filter((option) => selected.includes(option.value))
-  const summary = chosen.length === 0 ? emptyLabel : chosen.length <= 2 ? chosen.map((option) => option.label).join(', ') : `${chosen.length} selected`
+  let summary = emptyLabel
+  if (chosen.length > 2) summary = `${chosen.length} selected`
+  else if (chosen.length > 0) summary = chosen.map((option) => option.label).join(', ')
+
+  function updateSelection(value: Value, checked: boolean | 'indeterminate') {
+    // Emit values in option order, regardless of the order they were picked in.
+    const nextSelected = options.filter((option) => {
+      if (option.value === value) return checked === true
+      return selected.includes(option.value)
+    })
+    onChange(nextSelected.map((option) => option.value))
+  }
   return <Popover>
     <PopoverTrigger asChild><button type="button" id={id} className="multiselect-trigger" aria-labelledby={`${labelId} ${id}`}>
       <span>{summary}</span><ChevronDown size={16} aria-hidden />
     </button></PopoverTrigger>
     <PopoverContent align="start" collisionPadding={16} aria-labelledby={labelId} className="multiselect-options">
       {options.map((option) => <Label key={option.value}>
-        {/* Keep the option order stable no matter which order they were picked in. */}
-        <Checkbox checked={selected.includes(option.value)} onCheckedChange={(checked) => onChange(options.filter((item) => item.value === option.value ? checked === true : selected.includes(item.value)).map((item) => item.value))} />{option.label}
+        <Checkbox checked={selected.includes(option.value)} onCheckedChange={(checked) => updateSelection(option.value, checked)} />{option.label}
       </Label>)}
     </PopoverContent>
   </Popover>

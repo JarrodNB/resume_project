@@ -16,7 +16,7 @@ Missing DOCX package parts are rejected before text traversal.
 
 from io import BytesIO
 from math import ceil
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import urlparse
 from zipfile import BadZipFile, ZipFile
 
@@ -29,6 +29,16 @@ from pypdf.errors import PdfReadError
 from pypdf.generic import NullObject
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
+
+
+class _PdfTextFragment(NamedTuple):
+    """Visible text and its rendered origin and size for hyperlink label matching."""
+
+    text: str
+    x: float
+    y: float
+    font_size: float
+
 
 MAX_PDF_LINKS_PER_PAGE = 100
 PDF_CONTENT_TYPE = "application/pdf"
@@ -73,7 +83,7 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
 
 def _extract_pdf_page(page: Any) -> str:
     """Returns one page's text followed by explicit markers for its URI annotations."""
-    fragments: list[tuple[str, float, float, float]] = []
+    fragments: list[_PdfTextFragment] = []
 
     def remember_text(
         text: str,
@@ -86,7 +96,7 @@ def _extract_pdf_page(page: Any) -> str:
         x = text_matrix[4] * current_matrix[0] + text_matrix[5] * current_matrix[2] + current_matrix[4]
         y = text_matrix[4] * current_matrix[1] + text_matrix[5] * current_matrix[3] + current_matrix[5]
         if text.strip():
-            fragments.append((text.strip(), x, y, font_size))
+            fragments.append(_PdfTextFragment(text.strip(), x, y, font_size))
 
     text = page.extract_text(visitor_text=remember_text) or ""
     markers = _pdf_hyperlink_markers(page, fragments)
@@ -94,7 +104,7 @@ def _extract_pdf_page(page: Any) -> str:
 
 
 def _pdf_hyperlink_markers(
-    page: Any, fragments: list[tuple[str, float, float, float]]
+    page: Any, fragments: list[_PdfTextFragment]
 ) -> list[str]:
     """Turns external PDF link annotations into label-and-URL markers for the parser."""
     markers: list[str] = []
@@ -128,7 +138,7 @@ def _pdf_hyperlink_markers(
 def _pdf_link_label(
     uri: str,
     rectangle: tuple[float, float, float, float],
-    fragments: list[tuple[str, float, float, float]],
+    fragments: list[_PdfTextFragment],
 ) -> str:
     """Finds the visible label within an annotation, avoiding the rest of its text line."""
     branded_label = _known_link_label(uri)
@@ -141,10 +151,10 @@ def _pdf_link_label(
     overlapping = [
         fragment
         for fragment in fragments
-        if fragment[1] <= x2 + 2
-        and fragment[1] + max(len(fragment[0]), 1) * fragment[3] * 0.6 >= x1 - 2
-        and fragment[2] <= y2 + fragment[3]
-        and fragment[2] + fragment[3] >= y1 - 2
+        if fragment.x <= x2 + 2
+        and fragment.x + max(len(fragment.text), 1) * fragment.font_size * 0.6 >= x1 - 2
+        and fragment.y <= y2 + fragment.font_size
+        and fragment.y + fragment.font_size >= y1 - 2
     ]
     pieces = [_text_inside_rectangle(fragment, x1, x2) for fragment in overlapping]
     return " ".join(piece for piece in pieces if piece).strip(" ·|,-") or uri
@@ -163,14 +173,13 @@ def _known_link_label(uri: str) -> str | None:
     return None
 
 def _text_inside_rectangle(
-    fragment: tuple[str, float, float, float], x1: float, x2: float
+    fragment: _PdfTextFragment, x1: float, x2: float
 ) -> str:
     """Approximates which characters of one PDF text fragment sit inside a link rectangle."""
-    text, x, _y, font_size = fragment
-    character_width = max(font_size * 0.6, 1)
-    start = max(0, int((x1 - x) / character_width))
-    end = min(len(text), ceil((x2 - x) / character_width))
-    return text[start:end].strip(" ·|,-")
+    character_width = max(fragment.font_size * 0.6, 1)
+    start = max(0, int((x1 - fragment.x) / character_width))
+    end = min(len(fragment.text), ceil((x2 - fragment.x) / character_width))
+    return fragment.text[start:end].strip(" ·|,-")
 
 
 def _extract_docx_text(file_bytes: bytes) -> str:

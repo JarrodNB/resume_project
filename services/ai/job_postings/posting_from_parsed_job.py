@@ -1,12 +1,9 @@
-"""
-Description: Turns a validated ad parse into the posting Rails saves.
-The description is selected source text. Scraped ads keep acquired metadata; pasted
-ads drop locations and URLs unsupported by their text.
-URLs retain exact source spelling because paths and query values can be case-sensitive.
-Index:
-    - NO_REQUIREMENTS_WARNING / DROPPED_LOCATION_WARNING / DROPPED_URL_WARNING: user-facing notes
-    - posting_from_parsed_job: builds the posting and fits Rails' length limits
-    - fit_posting_to_saved_limits: drops text Rails would refuse, and says so
+"""Turn a source-checked ad parse into the posting Rails saves.
+
+Pasted and generic HTML ads use parsed identity; structured scrapes keep acquired
+metadata. When parsed identity is used, an optional location must appear in the
+source, and so must a pasted link. Saved length limits apply after selection.
+Links keep their exact spelling because paths and query values can be case-sensitive.
 """
 
 import text_limits
@@ -31,9 +28,13 @@ def posting_from_parsed_job(
     warnings: list[str] = []
     use_parsed_identity = scraped_page is None or not scraped_page.metadata_is_authoritative
     if use_parsed_identity:
+        title = parsed.title.strip()
+        company = parsed.company.strip() if parsed.company is not None else None
         location = _kept_optional(parsed.location, source_text, DROPPED_LOCATION_WARNING, warnings)
         url = scraped_page.source_url if scraped_page else _kept_url(parsed.url, source_text, warnings)
     else:
+        title = scraped_page.title.strip()
+        company = scraped_page.company.strip() or None
         location = scraped_page.location.strip() if scraped_page.location else None
         url = scraped_page.source_url
     requirements = _unique_items(parsed.requirements)
@@ -45,10 +46,8 @@ def posting_from_parsed_job(
     posting = ScrapedJobPosting(
         source=scraped_page.source if scraped_page else "pasted_text",
         source_url=url or "",
-        title=(parsed.title if use_parsed_identity else scraped_page.title).strip(),
-        company=(scraped_page.company.strip() or None) if not use_parsed_identity else (
-            parsed.company.strip() if parsed.company is not None else None
-        ),
+        title=title,
+        company=company,
         location=location,
         description=source_text.strip(),
         requirements=requirements,

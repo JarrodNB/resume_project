@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { ArchiveJobDialog } from './ArchiveJobDialog'
 import { JobActionsMenu } from './JobActionsMenu'
 import { JobBoardImportNotice } from './JobBoardImportNotice'
+import { JobImportCheckNotice } from './JobImportCheckNotice'
 import { JobFormDialog } from './JobFormDialog'
 import { JobStageSelect } from './JobStageSelect'
 import { useArchiveJob } from './useArchiveJob'
@@ -73,6 +74,7 @@ function JobWorkspace({ id }: { id: string }) {
   return (
     <div className="job-workspace">
       <JobBoardImportNotice jobId={id} />
+      <JobImportCheckNotice jobId={id} />
       <header className="job-workspace-header">
         <div className="job-workspace-title">
           <h1 title={job.title}>{job.title}</h1>

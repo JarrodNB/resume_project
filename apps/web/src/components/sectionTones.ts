@@ -1,9 +1,6 @@
-/**
- * Description: Quiet section surfaces with a distinct icon color for each resume section. Class names are written out in full
- * so Tailwind can find them (it can't see classes built from template strings).
- * Index:
- *   - SectionTone: the resume section a piece of UI belongs to
- *   - SECTION_TONES: per-tone classes (card accent, header band, icon, entry tint) and icon
+/** Shared resume-section styles, with a distinct icon and accent for each section.
+ * Common surface classes live together so a shared style change stays consistent.
+ * Accent classes stay written out in full so Tailwind can find them.
  */
 import { Award, Briefcase, FileText, FolderKanban, GraduationCap, MessageSquareText, Sparkles, UserRound, type LucideIcon } from 'lucide-react'
 
@@ -17,61 +14,51 @@ interface SectionToneStyle {
   Icon: LucideIcon
 }
 
+const SHARED_SECTION_STYLE: Pick<SectionToneStyle, 'card' | 'header' | 'entry'> = {
+  card: 'border-border',
+  header: 'bg-card',
+  entry: 'border-border bg-transparent',
+}
+
 export const SECTION_TONES: Record<SectionTone, SectionToneStyle> = {
   contact: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-contact-accent',
-    entry: 'border-border bg-transparent',
     Icon: UserRound,
   },
   summary: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-summary-accent',
-    entry: 'border-border bg-transparent',
     Icon: FileText,
   },
   experience: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-experience-accent',
-    entry: 'border-border bg-transparent',
     Icon: Briefcase,
   },
   projects: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-projects-accent',
-    entry: 'border-border bg-transparent',
     Icon: FolderKanban,
   },
   education: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-education-accent',
-    entry: 'border-border bg-transparent',
     Icon: GraduationCap,
   },
   certifications: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-certifications-accent',
-    entry: 'border-border bg-transparent',
     Icon: Award,
   },
   skills: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-skills-accent',
-    entry: 'border-border bg-transparent',
     Icon: Sparkles,
   },
   career_contexts: {
-    card: 'border-border',
-    header: 'bg-card',
+    ...SHARED_SECTION_STYLE,
     icon: 'text-section-career-context-accent',
-    entry: 'border-border bg-transparent',
     Icon: MessageSquareText,
   },
 }

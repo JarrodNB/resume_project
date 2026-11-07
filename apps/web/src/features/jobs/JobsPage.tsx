@@ -18,15 +18,9 @@ import { Button } from '@/components/ui/button'
 import { PageHeading } from '@/components/PageHeading'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JobFormDialog } from './JobFormDialog'
-import { JOB_STAGE_ORDER } from './jobStageLabels'
+import { sortJobsByStage } from './jobStageLabels'
 import { JobStopLine } from './JobStopLine'
 import { useJobs } from './useJobs'
-
-/** Orders jobs by pipeline stage (Rejected last), then newest first inside each stage. */
-export function sortJobsByStage<T extends { stage: (typeof JOB_STAGE_ORDER)[number]; createdAt: string }>(jobs: T[]) {
-  return [...jobs].sort((a, b) =>
-    JOB_STAGE_ORDER.indexOf(a.stage) - JOB_STAGE_ORDER.indexOf(b.stage) || b.createdAt.localeCompare(a.createdAt))
-}
 
 /** Lists the user's jobs, each linking to its detail page. */
 export function JobsPage() {

@@ -62,7 +62,9 @@ def handle_rerank_job_listings_task(task, dependencies):
     usage = [build_model_usage(dependencies.settings.embedding_model, embedded.usage)]
     if len(embedded.embeddings) != len(snapshot.listings):
         return _failed(
-            task, "The embedding provider returned an incomplete ranking. Please retry.", usage=usage,
+            task,
+            "The embedding provider returned an incomplete ranking. Please retry.",
+            usage=usage,
         )
     candidates = [
         (str(item.id), list(vector))
@@ -73,7 +75,9 @@ def handle_rerank_job_listings_task(task, dependencies):
     )
     if not similarities:
         return _failed(
-            task, "Add career-library details and let them finish indexing before reranking.", usage=usage,
+            task,
+            "Add career-library details and let them finish indexing before reranking.",
+            usage=usage,
         )
     ordered = hybrid_listing_order(
         [(str(item.id), item.text) for item in snapshot.listings], similarities, snapshot.keyword
@@ -91,5 +95,8 @@ def _failed(
 ) -> AiResultMessage:
     """Build a failed result, retaining any embedding usage already incurred."""
     return AiResultMessage(
-        ai_task_id=task.ai_task_id, status="failed", error_message=error_message, usage=usage or [],
+        ai_task_id=task.ai_task_id,
+        status="failed",
+        error_message=error_message,
+        usage=usage or [],
     )

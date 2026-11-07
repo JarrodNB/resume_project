@@ -101,7 +101,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
             {hasDescription ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  The AI will write a complete draft from your career library and this job's description. It uses AI time and usually takes under a minute. You review and edit every section before anything is saved.
+                  The AI will write a complete draft from your career library and this job's description. It usually takes under a minute. You review and edit every section before anything is saved.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" onClick={() => setConfirmed(true)}>Start writing</Button>

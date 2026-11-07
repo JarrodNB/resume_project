@@ -4,6 +4,8 @@
  * (the Resume tab) it never starts paid generation on its own. Accepted tasks are history, not editable drafts. A saved resume
  * prevents generation and old-draft restoration for this visit, including when deletion
  * removes its cached link before the task's accepted timestamp reaches the cache.
+ * Each route visit reloads the durable job/task link so a draft started during a previous
+ * visit is recoverable even when Apollo still has a null latestTailoring link.
  * Index:
  *   - TailorTaskView: the task fields the page renders
  *   - useResumeTailoring: job, task, start errors, and retry
@@ -27,7 +29,12 @@ export interface TailorTaskView {
 
 /** The job's tailoring task (live when one is running) and its saved resume. */
 export function useResumeTailoring(jobId: string, { autoStart = true }: { autoStart?: boolean } = {}) {
-  const { data, loading, error, refetch } = useQuery(TAILOR_JOB_QUERY, { variables: { id: jobId } })
+  const { data, loading, error, refetch } = useQuery(TAILOR_JOB_QUERY, {
+    variables: { id: jobId },
+    // Starting a task does not return Job.latestTailoring. Reload that relationship
+    // on entry instead of treating a cached null as proof that no paid draft exists.
+    fetchPolicy: 'network-only',
+  })
   const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
   const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
   const [startErrors, setStartErrors] = useState<string[]>([])

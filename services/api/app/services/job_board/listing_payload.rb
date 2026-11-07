@@ -18,20 +18,13 @@ module JobBoard
 
     def self.call(listing)
       return unless listing.is_a?(Hash) && valid_title?(listing["title"])
-      provider_id = if listing["id"].is_a?(Integer)
-        listing["id"]
-      elsif listing["id"].is_a?(String) && listing["id"].match?(/\A[0-9]+\z/)
-        listing["id"].to_i
-      end
+      provider_id = parse_provider_id(listing["id"])
       return unless provider_id&.positive?
-      return unless listing["locations"].is_a?(Array)
-      # Never infer country from free text or numeric IDs. A multi-country listing
-      # qualifies when it has a resolved US row; only those US rows leave this boundary.
-      locations = listing["locations"].select { |row| row.is_a?(Hash) && row["country_code"] == "US" }
+      locations = normalized_us_locations(listing["locations"])
       return if locations.empty?
 
       normalized = listing.slice("title").merge("id" => provider_id)
-      normalized["locations"] = locations.map { |row| row.slice("country_code", "display_label", "city_name", "state_name", "state_code") }
+      normalized["locations"] = locations
       normalized["location"] = ListingLocation.call(listing)
       STRING_FIELDS.each { |key| normalized[key] = listing[key] if listing.key?(key) && (listing[key].nil? || listing[key].is_a?(String)) }
       %w[has_remote is_active].each { |key| normalized[key] = listing[key] if [ true, false ].include?(listing[key]) }
@@ -47,6 +40,24 @@ module JobBoard
     def self.valid_title?(value)
       value.is_a?(String) && value.valid_encoding? && !value.strip.empty? && value.length <= 1000 && !value.match?(/[[:cntrl:]]/)
     end
-    private_class_method :safe_application_url, :valid_title?
+
+    def self.parse_provider_id(value)
+      if value.is_a?(Integer)
+        value
+      elsif value.is_a?(String) && value.match?(/\A[0-9]+\z/)
+        value.to_i
+      end
+    end
+
+    def self.normalized_us_locations(value)
+      return [] unless value.is_a?(Array)
+
+      # Never infer country from free text or numeric IDs. A multi-country listing
+      # qualifies when it has a resolved US row; only those US rows leave this boundary.
+      value.filter_map do |row|
+        row.slice("country_code", "display_label", "city_name", "state_name", "state_code") if row.is_a?(Hash) && row["country_code"] == "US"
+      end
+    end
+    private_class_method :safe_application_url, :valid_title?, :parse_provider_id, :normalized_us_locations
   end
 end

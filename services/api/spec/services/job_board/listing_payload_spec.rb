@@ -31,4 +31,23 @@ RSpec.describe JobBoard::ListingPayload do
       expect(described_class.call(listing.merge("application_url" => url))["application_url"]).to be_nil
     end
   end
+
+  it "accepts only positive integer identities or strings containing only digits" do
+    [ 42, "42", "0042" ].each do |id|
+      expect(described_class.call(listing.merge("id" => id))["id"]).to eq(42)
+    end
+    [ nil, 0, -1, 42.0, true, "0", "-42", "42.0", " 42", "42\n" ].each do |id|
+      expect(described_class.call(listing.merge("id" => id))).to be_nil
+    end
+  end
+
+  it "rejects malformed location collections and projects only confirmed US rows" do
+    [ nil, "US", { "country_code" => "US" } ].each do |locations|
+      expect(described_class.call(listing.merge("locations" => locations))).to be_nil
+    end
+    locations = [ nil, "US", { "country_code" => "CA" },
+      { "country_code" => "US", "city_name" => "Austin", "private" => "discard" } ]
+    expect(described_class.call(listing.merge("locations" => locations))["locations"])
+      .to eq([ { "country_code" => "US", "city_name" => "Austin" } ])
+  end
 end

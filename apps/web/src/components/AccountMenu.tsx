@@ -1,4 +1,4 @@
-/** The signed-in account menu: who is signed in (name if set, email), account security, light/dark theme, and sign out.
+/** The signed-in account menu: who is signed in (name if set, email), account security and data, light/dark theme, and sign out.
  * Sits at the right of the signage band; phones show an icon instead of the email. Signing out
  * replaces the session; a failure stays visible next to the menu.
  */
@@ -46,7 +46,7 @@ export function AccountMenu() {
             <span className="block break-all font-normal">{user.email}</span>
           </DropdownMenuLabel>}
           <DropdownMenuItem asChild>
-            <Link to="/account/security"><ShieldCheck aria-hidden /> Account security</Link>
+            <Link to="/account/security"><ShieldCheck aria-hidden /> Account and data</Link>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={toggleTheme}>
             {theme === 'dark' ? <Sun aria-hidden /> : <Moon aria-hidden />} Switch to {nextTheme} theme

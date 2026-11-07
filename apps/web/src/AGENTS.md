@@ -14,6 +14,8 @@ Source of the web app, organized by feature.
   mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
+- `features/account/` — data export download and password-confirmed account deletion on `/account/security`, plus `/account-deleted`
+- `features/legal/` — public `/privacy` and `/terms`; retention numbers in `legalDetails.ts` must match Rails
 - `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?` (`/chat` reopens the most recent chat); generation and streaming use separate execution state; assistant replies render as Markdown (`ChatMarkdown`)
 - `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in
   localStorage), each with the next step Rails suggests (`jobPipeline`) linked to the job tab that

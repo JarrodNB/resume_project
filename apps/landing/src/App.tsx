@@ -3,7 +3,7 @@
  * only ways out are links to the web app.
  */
 import { useState } from 'react'
-import { SIGN_IN_URL, SIGN_UP_URL } from './appLinks'
+import { PRIVACY_URL, SIGN_IN_URL, SIGN_UP_URL, TERMS_URL } from './appLinks'
 import { LineStrip } from './LineStrip'
 import { ExamplePreview } from './ExamplePreview'
 import { GapsStop, InterviewStop, JobStop, LibraryStop, ResumeStop } from './RideStops'
@@ -106,6 +106,8 @@ function App() {
         <p>Maya Okafor, her jobs and every company on this page are made up.</p>
         <nav aria-label="Footer">
           <a href={SIGN_IN_URL}>Sign in</a>
+          <a href={PRIVACY_URL}>Privacy</a>
+          <a href={TERMS_URL}>Terms</a>
         </nav>
       </footer>
     </>

@@ -15,6 +15,7 @@ when changing a contract or feature:
 | [Interview sessions](architecture/interview-sessions.md) | Spoken interview records, atomic acceptance, HTTP boundary and recovery ownership |
 | [Study guides](architecture/study-guides.md) | Job-description learning material, queued generation and retained results |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
+| [Privacy and account data](architecture/privacy-and-data.md) | Retention periods, account deletion, data export, outside data processors |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |
 | [AI cost accounting](architecture/ai-cost-accounting.md) | Combined spend, background embedding receipts, price checks, verified reconciliation |
 | [Career library](architecture/career-library.md) | Imports, merging, retrieval, embeddings, gap analysis, tailoring, job ingestion |

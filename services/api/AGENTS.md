@@ -51,7 +51,8 @@ Configuration must work in Docker development and production. Preserve owned dat
   question-specific interview embedding sync, account email); run `bin/jobs` separately
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
-- `config/routes.rb` — `/auth/*` (REST, cookie sessions), `/graphql`, `/up`
+- `config/routes.rb` — `/auth/*` (REST, cookie sessions, including `DELETE /auth/account`), `/graphql`, `/up`.
+  Retention, deletion and export rules: `docs/architecture/privacy-and-data.md`
 - `config/initializers/devise.rb` — Devise settings; `session_store.rb` — session serialization;
   `cors.rb` — explicit credentialed origins
   (also used for WebSocket origins in `config/application.rb`)

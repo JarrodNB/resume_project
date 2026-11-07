@@ -18,6 +18,8 @@ review database; preserve any real data and investigate its schema separately.
 
 ## Before production traffic
 
+Also complete the [privacy and legal launch checklist](privacy-and-legal-launch.md).
+
 1. Back up the primary database and test restore access. Rehearse additive migrations
    against a representative sanitized database. `20261020010000` adds the session
    table/indexes; `20261020020000` adds confirmation columns/index and confirms only

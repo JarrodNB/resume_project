@@ -9,7 +9,8 @@
 #   - RackAttackRequestKeys.account_email: normalized email from accepted Rails parameters
 #   - RackAttackRequestKeys.sign_up_mailbox: the email without its +tag, so tagged addresses share a limit
 #   - RackAttackRequestKeys.session_user_id: user id from a valid persisted session
-#   - throttles: auth/sign_in (IP, email), auth/sign_up (IP, mailbox), graphql (user, IP)
+#   - throttles: auth/sign_in (IP, email), auth/sign_up (IP, mailbox), auth/account deletion (IP, user),
+#     graphql (user, IP)
 #   - throttled_responder: JSON 429 response
 module RackAttackRequestKeys
   # Public proxy ranges, such as Cloudflare's, that sit in front of the app. Private ranges are
@@ -130,6 +131,14 @@ end
 
 Rack::Attack.throttle("auth/password/change/user", limit: 5, period: 10.minutes) do |request|
   RackAttackRequestKeys.session_user_id(request) if RackAttackRequestKeys.action(request) == "auth/passwords#change"
+end
+
+Rack::Attack.throttle("auth/account/destroy/ip", limit: 5, period: 10.minutes) do |request|
+  RackAttackRequestKeys.client_ip(request) if RackAttackRequestKeys.action(request) == "auth/accounts#destroy"
+end
+
+Rack::Attack.throttle("auth/account/destroy/user", limit: 5, period: 10.minutes) do |request|
+  RackAttackRequestKeys.session_user_id(request) if RackAttackRequestKeys.action(request) == "auth/accounts#destroy"
 end
 
 Rack::Attack.throttle("graphql/user", limit: 120, period: 1.minute) do |request|

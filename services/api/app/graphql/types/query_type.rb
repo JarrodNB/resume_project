@@ -5,7 +5,7 @@
 # Index:
 #   - interview_session, recent_interview_sessions
 #   - interview_question_sets, interview_question_set(id:), interview_questions (question bank)
-#   - me
+#   - me, account_export (a downloadable copy of the user's saved data)
 #   - experiences, projects, educations, certifications, skills, career_contexts (career library)
 #   - jobs(stage:), job(id:), job_pipeline (each job's suggested next step)
 #   - resumes, resume(id:)
@@ -102,6 +102,8 @@ module Types
     end
 
     field :me, Types::UserType, null: false
+    field :account_export, GraphQL::Types::JSON, null: false, complexity: 250,
+      description: "Everything the signed-in user saved, for download. Heavy, so one per request."
 
     field :experiences, [ Types::ExperienceType ], null: false
     field :projects, [ Types::ProjectType ], null: false
@@ -190,6 +192,8 @@ module Types
 
     # Returns the signed-in user.
     def me = current_user
+
+    def account_export = ::Accounts::ExportAccountDataService.call(user: current_user).value
 
     # Returns the user's experiences with highlights preloaded.
     def experiences = current_user.experiences.includes(:highlights)

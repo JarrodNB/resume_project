@@ -14,6 +14,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  query AccountExport {\n    accountExport\n  }\n": typeof types.AccountExportDocument,
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": typeof types.AiTaskUpdatedDocument,
     "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": typeof types.TaskOutcomeDocument,
     "\n  query TaskOutcomes($after: String!, $through: String!) {\n    taskOutcomes(after: $after, through: $through) {\n      cursor\n      hasMore\n      outcomes {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": typeof types.TaskOutcomesDocument,
@@ -137,6 +138,7 @@ type Documents = {
     "\n  mutation DiscardSummaryGeneration($aiTaskId: ID!) {\n    discardSummaryGeneration(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.DiscardSummaryGenerationDocument,
 };
 const documents: Documents = {
+    "\n  query AccountExport {\n    accountExport\n  }\n": types.AccountExportDocument,
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": types.AiTaskUpdatedDocument,
     "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": types.TaskOutcomeDocument,
     "\n  query TaskOutcomes($after: String!, $through: String!) {\n    taskOutcomes(after: $after, through: $through) {\n      cursor\n      hasMore\n      outcomes {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": types.TaskOutcomesDocument,
@@ -274,6 +276,10 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query AccountExport {\n    accountExport\n  }\n"): (typeof documents)["\n  query AccountExport {\n    accountExport\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

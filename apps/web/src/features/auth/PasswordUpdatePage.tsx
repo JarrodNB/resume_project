@@ -1,10 +1,12 @@
-/** Collects a replacement password for recovery or a signed-in account change.
+/** Collects a replacement password for recovery or a signed-in account change. The signed-in
+ * page also holds the data export and account deletion (features/account).
  * Tokens stay in memory, server validation owns policy, and success refreshes every tab's session. */
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { AccountDataSection } from '@/features/account/AccountDataSection'
 import { AuthPageShell } from './AuthPageShell'
 import { PasswordInput } from './PasswordInput'
 import { PasswordGuidance } from './PasswordGuidance'
@@ -65,13 +67,14 @@ export function PasswordUpdatePage({ change = false }: { change?: boolean }) {
     </form>
 
   if (change) return <div className="account-security-page">
-    <header className="mb-8"><h1 className="text-3xl font-semibold tracking-tight">Account security</h1><p className="mt-3 text-muted-foreground">Manage the password you use to sign in.</p></header>
+    <header className="mb-8"><h1 className="text-3xl font-semibold tracking-tight">Account security</h1><p className="mt-3 text-muted-foreground">Manage your password and your data.</p></header>
     <div className="security-account-identity"><span className="text-sm text-muted-foreground">Signed in as</span><p className="mt-1 break-words font-medium">{user?.email}</p></div>
     <section aria-labelledby="change-password-title" className="security-password-section">
       <h2 id="change-password-title" className="mb-2 text-xl font-semibold tracking-tight">Change your password</h2>
       <p className="mb-6 text-sm text-muted-foreground">Enter your current password, then choose a new one.</p>
       {form}
     </section>
+    <AccountDataSection />
   </div>
 
   return <AuthPageShell title="Choose a new password"

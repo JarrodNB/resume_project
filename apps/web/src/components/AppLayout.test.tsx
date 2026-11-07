@@ -48,7 +48,7 @@ it('offers account security, theme, and sign out from the account menu', async (
   renderWorkspace('/practice/questions')
   const user = userEvent.setup()
   await user.click(screen.getByRole('button', { name: 'Account menu' }))
-  expect(screen.getByRole('menuitem', { name: 'Account security' })).toHaveAttribute('href', '/account/security')
+  expect(screen.getByRole('menuitem', { name: 'Account and data' })).toHaveAttribute('href', '/account/security')
   expect(screen.getByRole('menuitem', { name: /Switch to (dark|light) theme/ })).toBeInTheDocument()
   await user.click(screen.getByRole('menuitem', { name: 'Sign out' }))
   expect(signOut).toHaveBeenCalled()

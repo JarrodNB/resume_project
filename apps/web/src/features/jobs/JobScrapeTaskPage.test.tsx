@@ -1,6 +1,6 @@
 /**
- * Description: The scrape task page shows progress and failures, opens the saved job, and shows the
- * scraper's warnings first when there are any.
+ * Description: The scrape task page shows progress and failures and opens the saved job, passing the
+ * scraper's warnings along for the job's check note.
  */
 import { screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
@@ -65,24 +65,16 @@ it('opens the saved job when there are no warnings', async () => {
   expect(router.state.location.pathname).toBe('/jobs/job-1')
 })
 
-it('shows a too-long sorting warning before opening the job', async () => {
-  renderTaskPage({
+it('opens the saved job and passes its warnings along for the check note', async () => {
+  const { router } = renderTaskPage({
     status: 'COMPLETED',
     result: { scraped_job: { warnings: ['This posting is too long to sort into requirements. Add them by hand.'] } },
     job: { __typename: 'Job', id: 'job-1' },
   })
 
-  expect(await screen.findByText('This posting is too long to sort into requirements. Add them by hand.')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'View job' })).toHaveAttribute('href', '/jobs/job-1')
-})
-
-it('shows warnings before opening the job', async () => {
-  renderTaskPage({
-    status: 'COMPLETED',
-    result: { scraped_job: { warnings: ['AI sorted the requirements. Check them.'] } },
-    job: { __typename: 'Job', id: 'job-1' },
+  expect(await screen.findByText('Job page')).toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/jobs/job-1')
+  expect(router.state.location.state).toEqual({
+    jobImportCheck: { jobId: 'job-1', warnings: ['This posting is too long to sort into requirements. Add them by hand.'] },
   })
-
-  expect(await screen.findByText('AI sorted the requirements. Check them.')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'View job' })).toHaveAttribute('href', '/jobs/job-1')
 })

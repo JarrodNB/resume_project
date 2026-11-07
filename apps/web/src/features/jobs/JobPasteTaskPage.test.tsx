@@ -1,6 +1,6 @@
 /**
- * Description: The paste task page shows progress and failures, opens the saved job, and shows
- * warnings first when there are any.
+ * Description: The paste task page shows progress and failures and opens the saved job, passing any
+ * warnings along for the job's check note.
  */
 import { screen } from '@testing-library/react'
 import { expect, it } from 'vitest'

@@ -14,11 +14,12 @@ be edited, moved between application stages, and archived.
   and "Add manually"
 - `AddJobFromUrlPage.tsx` (`/jobs/new`) — public HTTP(S) job URL form calling `scrapeJob`, with paste fallback for blocked sites
 - `AddJobFromTextPage.tsx` (`/jobs/paste`) — textarea calling `parseJobPosting`
-- `JobImportTaskPage.tsx` — shared live status for a job import
+- `JobImportTaskPage.tsx` — shared live status for a job import; once the job exists it always opens it, passing any warnings in navigation state
 - `JobScrapeTaskPage.tsx` (`/jobs/new/:aiTaskId`) — scrape status; redirects to the saved job
-  (`aiTask.job`), or shows warnings first; failures offer "Try another link"
+  (`aiTask.job`); failures offer "Try another link"
 - `JobPasteTaskPage.tsx` (`/jobs/paste/:aiTaskId`) — paste status; same redirect, failures offer
   "Try another ad"
+- `JobImportCheckNotice.tsx` — red "Job saved. Check what the AI found." note above the job header for a link or paste import with warnings, with "Check them" (Posting tab) and "Dismiss"; route state only, so it belongs to that visit
 - `JobBoardImportNotice.tsx` — displays import warnings from navigation state only for the matching saved Job
 - `JobWorkspaceLayout.tsx` (`/jobs/:id`) — loads the job and owns the live comparison
   (`useGapAnalysis`), shared with every tab. The header shows title, company · location, the

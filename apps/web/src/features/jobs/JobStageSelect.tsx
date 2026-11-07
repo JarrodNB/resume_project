@@ -1,5 +1,5 @@
 /** Save a job's application stage immediately when it changes.
- * Explain the pending save while the selector is locked; failures allow retry.
+ * Reserve space for save feedback so the selector stays put; failures allow retry.
  */
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Label } from '@/components/ui/label'
@@ -33,7 +33,9 @@ export function JobStageSelect({ jobId, stage }: { jobId: string; stage: JobStag
           </option>
         ))}
       </select>
-      {busy && <p role="status" className="text-sm text-muted-foreground">Saving stage…</p>}
+      <p role="status" className="min-h-5 text-sm whitespace-nowrap text-muted-foreground">
+        {busy ? 'Saving stage…' : ''}
+      </p>
       <ErrorAlert title="Couldn't update the stage" messages={errors} />
     </div>
   )

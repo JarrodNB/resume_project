@@ -1,11 +1,11 @@
 /**
- * Description: Live status for a job-import AI task. Once the job is saved it opens the job, or
- * first shows warnings from result.scraped_job. Safe to reload at any point.
+ * Description: Live status for a job-import AI task. Once the job is saved it opens the job, passing
+ * any warnings from result.scraped_job along for the job's "check" note. Safe to reload at any point.
  * Index:
  *   - JobImportTaskPage: page component, with copy for the scrape and paste flows
  */
 import type { ReactNode } from 'react'
-import { CircleCheck, CircleX, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { CircleX, LoaderCircle } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { scrapedJobWarnings } from './scrapedJobWarnings'
 
-/** Renders the task's current state, redirecting to the saved job when there's nothing to warn about. */
+/** Renders the task's current state, opening the saved job once it exists. */
 export function JobImportTaskPage({
   retryTo,
   retryLabel,
@@ -51,27 +51,8 @@ export function JobImportTaskPage({
   }
 
   const warnings = scrapedJobWarnings(aiTask.result)
-  if (warnings.length === 0) return <Navigate to={`/jobs/${jobId}`} replace />
-
-  return (
-    <StatusCard
-      icon={<CircleCheck className="size-10 text-signal-done-text" />}
-      title="Job saved"
-      body="A few things to check before you rely on it:"
-    >
-      <ul className="grid max-w-md gap-2 text-left text-sm">
-        {warnings.map((warning) => (
-          <li key={warning} className="flex gap-2">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
-            {warning}
-          </li>
-        ))}
-      </ul>
-      <Button asChild>
-        <Link to={`/jobs/${jobId}`}>View job</Link>
-      </Button>
-    </StatusCard>
-  )
+  const jobImportCheck = warnings.length > 0 ? { jobId, warnings } : undefined
+  return <Navigate to={`/jobs/${jobId}`} replace state={jobImportCheck && { jobImportCheck }} />
 }
 
 /** Centered card with an icon, title, optional explanation, and actions. */

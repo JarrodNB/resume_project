@@ -54,6 +54,28 @@ RSpec.describe "Career library review results" do
     GQL
   end
 
+  it "keeps current reviews when a role is saved without text changes" do
+    apply(task)
+
+    result = Experiences::UpdateExperienceService.call(experience: role, attributes: {}, highlights: [ highlight.content ])
+
+    expect(result).to be_success
+    grade = state["assessments"].find { |item| item["recordId"] == highlight.id }
+    expect(grade).to include("color" => "yellow", "stale" => false)
+  end
+
+  it "retains reviewed unchanged bullets as out of date after another bullet changes" do
+    edited = create(:experience_highlight, experience: role, content: "Another bullet", position: 1)
+    apply(task)
+
+    result = Experiences::UpdateExperienceService.call(experience: role, attributes: {}, highlights: [ highlight.content, "Revised bullet" ])
+
+    expect(result).to be_success
+    grades = state["assessments"].index_by { |item| item["recordId"] }
+    expect(grades[highlight.id]).to include("color" => "yellow", "stale" => true)
+    expect(grades).not_to have_key(edited.id)
+  end
+
   it "exposes saved questions with their assessed targets while old questionless results remain readable" do
     result = result_for(task)
     result["assessments"].last["question"] = "What did you personally do during the migration?"

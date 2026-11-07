@@ -1,15 +1,16 @@
 /**
  * Description: Saved jobs list (/jobs), grouped by stage, newest first, with ways to add one from a link, a pasted
- * ad, or by hand. Each row shows the job's line through the stages and, once Home's pipeline has
- * loaded, its next step as the same signal bullet Home uses.
+ * ad, or by hand. Each row shows the job's line through the stages and, its next step as the same signal bullet Home uses. Running work updates these steps live.
  * Index:
  *   - JobsPage: page component
  */
 import { ContentSkeleton } from '@/components/ContentSkeleton'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { ArrowUpRight, BriefcaseBusiness, ClipboardPaste, ExternalLink, Link2 } from 'lucide-react'
 import { JOB_PIPELINE_QUERY } from '@/features/home/homeOperations'
+import { useRunningAiTasks } from '@/features/home/useRunningAiTasks'
+import { RunningTaskSubscription } from '@/features/home/RunningTaskSubscription'
 import { NextStep } from '@/features/home/NextStepSignal'
 import { Link, useNavigate } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -34,11 +35,14 @@ export function JobsPage() {
   const jobs = useMemo(() => (loadedJobs ? sortJobsByStage(loadedJobs) : null), [loadedJobs])
   const [adding, setAdding] = useState(false)
   // The pipeline only adds next steps; the list still works if it fails or is slow.
-  const { data: pipeline } = useQuery(JOB_PIPELINE_QUERY, { fetchPolicy: 'cache-and-network' })
+  const { data: pipeline, refetch: refetchPipeline } = useQuery(JOB_PIPELINE_QUERY, { fetchPolicy: 'cache-and-network' })
+  const reloadPipeline = useCallback(() => { void refetchPipeline().catch(() => { /* Next steps remain optional. */ }) }, [refetchPipeline])
+  const { running, checkAgain } = useRunningAiTasks(reloadPipeline)
   const pipelineByJob = new Map(pipeline?.jobPipeline.map((entry) => [entry.job.id, entry]))
 
   return (
     <div className="grid max-w-5xl gap-6">
+      {running.map((task) => <RunningTaskSubscription key={task.id} id={task.id} onSettled={checkAgain} />)}
       <PageHeading title="Jobs" description="Keep the opportunities that matter in view. Prepare each application with intention." actions={
         <>
           <Button asChild><Link to="/jobs/new"><Link2 /> Add job from link</Link></Button>

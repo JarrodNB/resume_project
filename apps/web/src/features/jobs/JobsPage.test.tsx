@@ -1,11 +1,13 @@
 /**
- * Description: The jobs page lists saved jobs, shows an empty state, and adds one by hand.
+ * Description: The jobs page lists saved jobs, shows an empty state, adds one by hand, and updates comparison progress live.
  */
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { CREATE_JOB_MUTATION, JOBS_QUERY } from './jobsOperations'
+import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
+import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from '@/features/home/homeOperations'
 import { JobsPage } from './JobsPage'
 
 function jobsMock(jobs: Record<string, unknown>[]) {
@@ -114,4 +116,26 @@ it('orders jobs by pipeline stage with rejected last, newest first within a stag
   await screen.findByText('rejected')
   const order = screen.getAllByRole('link', { name: /^Open / }).map((link) => link.getAttribute('aria-label')?.replace(/^Open | at Acme$/g, ''))
   expect(order).toEqual(['new-unapplied', 'old-unapplied', 'applied', 'interviewing', 'rejected'])
+})
+
+it.each([
+  ['COMPLETED', 'WRITE_RESUME', 'Write resume'],
+  ['FAILED', 'COMPARISON_FAILED', 'Comparison failed'],
+])('updates the comparison label when analysis is %s without reloading', async (status, nextStep, label) => {
+  const job = { __typename: 'Job', id: 'job-1', title: 'AI Engineer', company: 'Acme', location: 'Remote', stage: 'UNAPPLIED', url: null, createdAt: '2026-10-01T00:00:00Z' }
+  const pipelineMock = (step: string) => ({ request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [{ __typename: 'JobPipelineEntry', job, nextStep: step }] } } })
+  renderPage({ path: '/jobs', url: '/jobs', element: <JobsPage />, mocks: [
+    jobsMock([job]),
+    pipelineMock('COMPARISON_RUNNING'),
+    { request: { query: RUNNING_AI_TASKS_QUERY }, result: { data: { runningAiTasks: [{ __typename: 'RunningAiTask', id: 'task-1', label: 'Comparison: AI Engineer', destination: '/jobs/job-1' }] } } },
+    { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, delay: 100, result: { data: { aiTaskUpdated: {
+      __typename: 'AiTask', id: 'task-1', taskType: 'ANALYZE_GAPS', status, result: null, input: {}, pendingQuestions: [],
+      errorMessage: null, acceptedAt: null, createdAt: '2026-10-01T00:00:00Z', job: null,
+    } } } },
+    { request: { query: RUNNING_AI_TASKS_QUERY }, result: { data: { runningAiTasks: [] } } },
+    pipelineMock(nextStep),
+  ] })
+  expect(await screen.findByText('Comparing with library')).toBeInTheDocument()
+  expect(await screen.findByText(label)).toBeInTheDocument()
+  expect(screen.queryByText('Comparing with library')).not.toBeInTheDocument()
 })

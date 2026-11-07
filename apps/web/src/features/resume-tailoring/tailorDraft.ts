@@ -1,9 +1,5 @@
-/**
- * Description: Turns one tailored section's JSON into the draft the resume-import review fields
- * edit, and back into the JSON the save mutation stores. Draft keys never leave the browser.
- * Index:
- *   - sectionDraftFromContent / contentFromSectionDraft: one section, both ways
- *   - SectionDraft: the editable form of one section
+/** Turns one tailored section's JSON into the draft the resume-import review fields edit,
+ * and back into the JSON the save mutation stores. Draft keys never leave the browser.
  */
 import type { ParsedCertification, ParsedContactInfo, ParsedEducation, ParsedExperience, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
 import { emptyCertification, emptyEducation, emptyExperience, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'

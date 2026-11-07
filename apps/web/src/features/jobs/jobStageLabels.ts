@@ -1,8 +1,5 @@
-/**
- * Description: Display text and order for job application stages.
- * Index:
- *   - JOB_STAGE_LABELS: stage enum -> label
- *   - JOB_STAGE_ORDER: stages in the order an application moves (Rejected last, as a branch)
+/** Display names and ordering rules for job application stages.
+ * Jobs follow the pipeline order, with rejected jobs last and newer jobs first within a stage.
  */
 import type { JobsQuery } from '@/graphql/generated/graphql'
 
@@ -17,3 +14,9 @@ export const JOB_STAGE_LABELS: Record<JobStage, string> = {
 }
 
 export const JOB_STAGE_ORDER: JobStage[] = ['UNAPPLIED', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED']
+
+/** Orders jobs by pipeline stage (Rejected last), then newest first inside each stage. */
+export function sortJobsByStage<T extends { stage: JobStage; createdAt: string }>(jobs: T[]) {
+  return [...jobs].sort((a, b) =>
+    JOB_STAGE_ORDER.indexOf(a.stage) - JOB_STAGE_ORDER.indexOf(b.stage) || b.createdAt.localeCompare(a.createdAt))
+}

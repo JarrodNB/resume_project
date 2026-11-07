@@ -49,7 +49,7 @@ be edited, moved between application stages, and archived.
   `SCRAPE_JOB_MUTATION`, `PARSE_JOB_POSTING_MUTATION`, `CREATE_JOB_MUTATION`,
   `UPDATE_JOB_MUTATION`, `MOVE_JOB_TO_STAGE_MUTATION`, `ARCHIVE_JOB_MUTATION`; hooks `useJobs.ts`
   (`useJobs`, `useJob`), `useScrapeJob.ts`, `useParseJobPosting.ts`
-- `jobStageLabels.ts` — stage labels; `scrapedJobWarnings.ts` — warnings from
+- `jobStageLabels.ts` — stage labels and saved-job list ordering; `scrapedJobWarnings.ts` — warnings from
   `result.scraped_job` (mirror of `services/ai/schemas/scraped_job_posting.py`)
 - `*.test.tsx` — list, manual add, workspace header and tabs, edit, stage, archive, URL form, task page states
 

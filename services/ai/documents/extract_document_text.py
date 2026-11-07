@@ -30,16 +30,6 @@ from pypdf.generic import NullObject
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
 
-
-class _PdfTextFragment(NamedTuple):
-    """Visible text and its rendered origin and size for hyperlink label matching."""
-
-    text: str
-    x: float
-    y: float
-    font_size: float
-
-
 MAX_PDF_LINKS_PER_PAGE = 100
 PDF_CONTENT_TYPE = "application/pdf"
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -51,6 +41,15 @@ class UnsupportedDocumentError(Exception):
 
 class DocumentTooLongError(Exception):
     """The file has too many pages or too much text to import."""
+
+
+class _PdfTextFragment(NamedTuple):
+    """Visible text and its rendered origin and size for hyperlink label matching."""
+
+    text: str
+    x: float
+    y: float
+    font_size: float
 
 
 def extract_document_text(file_bytes: bytes, content_type: str) -> str:

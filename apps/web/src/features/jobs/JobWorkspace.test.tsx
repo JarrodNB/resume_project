@@ -524,6 +524,30 @@ it.each([
 })
 
 
+it('shows the import check note, links to Posting, and stays gone once dismissed', async () => {
+  const { router } = renderWorkspace({
+    historyState: { jobImportCheck: { jobId: 'job-1', warnings: ['AI identified the requirements and duties from this posting. Check them.'] } },
+    mocks: [jobQuery(job())],
+  })
+  await screen.findByRole('heading', { name: 'Engineer' })
+  expect(screen.getByText('Job saved. Check what the AI found.')).toBeInTheDocument()
+  expect(screen.getByText('AI identified the requirements and duties from this posting. Check them.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Check them' })).toHaveAttribute('href', '/jobs/job-1/posting')
+
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Dismiss' }))
+  expect(screen.queryByText('Job saved. Check what the AI found.')).not.toBeInTheDocument()
+  expect(router.state.location.state).toBeNull()
+})
+
+it.each([
+  { jobId: 'another-job', warnings: ['Only for another job'] },
+  { jobId: 'job-1', warnings: { unexpected: 'shape' } },
+])('does not show an unrelated or malformed import check note: %j', async (jobImportCheck) => {
+  renderWorkspace({ historyState: { jobImportCheck }, mocks: [jobQuery(job())] })
+  await screen.findByRole('heading', { name: 'Engineer' })
+  expect(screen.queryByText('Job saved. Check what the AI found.')).not.toBeInTheDocument()
+})
+
 it('shows literal skill counts in Fit without a completed comparison and ignores extracted lists', async () => {
   renderWorkspace({ mocks: [
     jobQuery(job({ description: 'Python, PYTHON and python', requirements: ['Python', 'Python'], responsibilities: ['Python'] })),

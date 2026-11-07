@@ -9,14 +9,10 @@ from uuid import UUID
 
 import logfire
 from pydantic import BaseModel, Field
-from pydantic_ai import capture_run_messages
-from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import ModelResponse
-from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
-from llm.model_prices import build_model_usage, reported_model_name
+from llm.run_generative_agent import GenerativeOutputInvalid
 from schemas.interview_questions import InterviewSetType
 from screening.interview_question_inputs import prepare_interview_question_context
 from screening.library_inputs import LibraryScreeningError, screen_library_inputs
@@ -110,22 +106,13 @@ def handle_interview_questions_task(
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message="Your career library and saved question preferences are too long for interview questions. Shorten your library entries and try again.")
     try:
-        with capture_run_messages() as messages:
-            run = generate_interview_questions(prompt, model=settings.interview_questions_model,
-                thinking=settings.interview_questions_thinking,
-                timeout_seconds=settings.llm_run_timeout_seconds,
-                fallback_model=settings.generative_fallback_model)
-    except UnexpectedModelBehavior:
-        # Validation retries still consume tokens, even when no valid output is returned.
-        by_model: dict[str, RunUsage] = {}
-        for message in messages:
-            if isinstance(message, ModelResponse):
-                model = reported_model_name(message.model_name or settings.interview_questions_model,
-                                            settings.interview_questions_model)
-                by_model.setdefault(model, RunUsage()).incr(message.usage)
-        usage.extend(build_model_usage(model, tokens) for model, tokens in by_model.items())
+        questions = generate_interview_questions(prompt, model=settings.interview_questions_model,
+            thinking=settings.interview_questions_thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model)
+    except GenerativeOutputInvalid:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="The AI could not produce valid, distinct questions. Try generating again.")
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-        result={"interview_questions": run.questions.model_dump(mode="json"), "warnings": warnings},
-        usage=[*usage, build_model_usage(run.model or settings.interview_questions_model, run.usage)])
+        result={"interview_questions": questions.model_dump(mode="json"), "warnings": warnings},
+        usage=usage)

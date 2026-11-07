@@ -10,6 +10,7 @@ module Types
     field :description, String
     field :start_date, GraphQL::Types::ISO8601Date
     field :end_date, GraphQL::Types::ISO8601Date
+    field :ongoing, Boolean, null: false
     field :position, Integer, null: false
   end
 end

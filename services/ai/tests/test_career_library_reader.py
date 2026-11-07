@@ -108,8 +108,8 @@ def test_reads_the_job_and_library_in_rails_order(
         content="First",
         position=0,
     )
-    _insert(admin_connection, "projects", user_id=user_id, name="CLI tool")
-    _insert(admin_connection, "educations", user_id=user_id, institution="State University")
+    _insert(admin_connection, "projects", user_id=user_id, name="CLI tool", ongoing=True)
+    _insert(admin_connection, "educations", user_id=user_id, institution="State University", ongoing=True)
     certification_id = _insert(
         admin_connection, "certifications", user_id=user_id, name="AWS Solutions Architect",
         issuer="Amazon", issued_date="2024-01-01", issued_date_precision="year",
@@ -158,7 +158,9 @@ def test_reads_the_job_and_library_in_rails_order(
         "Second",
     ]
     assert [project.name for project in library.projects] == ["CLI tool"]
+    assert library.projects[0].ongoing is True
     assert [education.institution for education in library.educations] == ["State University"]
+    assert library.educations[0].ongoing is True
     assert len(library.certifications) == 1
     certification = library.certifications[0]
     assert certification.id == str(certification_id)

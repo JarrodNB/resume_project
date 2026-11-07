@@ -41,6 +41,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       url
       startDate
       endDate
+      ongoing
       description
     }
     educations {
@@ -50,6 +51,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       fieldOfStudy
       startDate
       endDate
+      ongoing
       description
     }
     certifications {

@@ -1,9 +1,13 @@
 /**
  * Description: Dialog that adds an education entry or edits one.
+ * Selecting the ongoing option clears the end date and saves that status explicitly.
+ * A blank end date alone stays unknown, including entries saved before ongoing status existed.
  * Index:
  *   - EducationFormDialog: opens the form for a school, or a blank one when education is null
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_EDUCATION_MUTATION, UPDATE_EDUCATION_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
@@ -29,6 +33,8 @@ export function EducationFormDialog({ open, onOpenChange, education }: Education
 /** The education fields and the save action. */
 function EducationForm({ education, onClose }: { education: Education | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const ongoingId = useId()
+  const [currentlyStudying, setOngoing] = useState(education?.ongoing ?? false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [institution, setInstitution] = useState(education?.institution ?? '')
   const [degree, setDegree] = useState(education?.degree ?? '')
@@ -49,7 +55,8 @@ function EducationForm({ education, onClose }: { education: Education | null; on
         degree: blankToNull(degree),
         fieldOfStudy: blankToNull(fieldOfStudy),
         startDate: blankToNull(startDate),
-        endDate: blankToNull(endDate),
+        endDate: currentlyStudying ? null : blankToNull(endDate),
+        ongoing: currentlyStudying,
         description: blankToNull(description),
       },
     })
@@ -71,8 +78,16 @@ function EducationForm({ education, onClose }: { education: Education | null; on
         <LibraryField label="Degree" value={degree} onChange={setDegree} maxLength={SHORT_TEXT} />
         <LibraryField label="Field of study" value={fieldOfStudy} onChange={setFieldOfStudy} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
-        <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} />
+        <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} disabled={currentlyStudying} />
+        <div className="flex items-center gap-2 self-end">
+          <Checkbox id={ongoingId} checked={currentlyStudying} onCheckedChange={(checked) => {
+            setOngoing(checked === true)
+            if (checked === true) setEndDate('')
+          }} />
+          <Label htmlFor={ongoingId}>Currently studying</Label>
+        </div>
       </div>
+      <p className="text-sm text-muted-foreground">Select Currently studying if this is still in progress. Otherwise, you can leave End blank if the date is unknown.</p>
       <LibraryField label="Description" multiline value={description} onChange={setDescription} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )

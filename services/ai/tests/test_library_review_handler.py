@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from tests.fakes import accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -30,11 +31,11 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
     from agents.library_review_agent import library_review_agent
 
-    with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
+    with accounted_override(library_review_agent, TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Explain what the services did."},
         {"target_label": "T2", "color": "red", "reason": "Describe your contribution to the migration.",
          "questions": ["What did you personally do during the migration?", "How did you approach that work?", "What changed afterward, if anything?"]},
-    ]})):
+    ]})) as usage:
         result = handle_loaded_review(task, task_dependencies)
 
     assert result.status == "completed"
@@ -47,7 +48,7 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
         "What did you personally do during the migration?", "How did you approach that work?", "What changed afterward, if anything?",
     ]
     assert result.result["assessments"][0].get("question") is None
-    assert result.usage
+    assert usage.entries
 
 
 def test_screening_covers_only_unchecked_source_not_generated_output(task_dependencies, monkeypatch):
@@ -118,15 +119,14 @@ def test_too_long_source_is_not_reported_as_unsafe(task_dependencies, monkeypatc
 
 @pytest.mark.parametrize("question", ["", "   ", "x" * 501, 123, ["What did you do?"]])
 def test_rejects_malformed_generated_questions(task_dependencies, question):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
-
     from agents.library_review_agent import library_review_agent
+    from llm.run_generative_agent import GenerativeOutputInvalid
 
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "question": question},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
-    ]})), pytest.raises(UnexpectedModelBehavior):
+    ]})), pytest.raises(GenerativeOutputInvalid):
         handle_loaded_review(task, task_dependencies)
 
 
@@ -135,15 +135,14 @@ def test_rejects_malformed_generated_questions(task_dependencies, question):
     [123], "What did you do?", ["What did you do?", " WHAT  did you do? "],
 ])
 def test_rejects_malformed_or_repeated_question_sets(task_dependencies, questions):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
-
     from agents.library_review_agent import library_review_agent
+    from llm.run_generative_agent import GenerativeOutputInvalid
 
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "questions": questions},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
-    ]})), pytest.raises(UnexpectedModelBehavior):
+    ]})), pytest.raises(GenerativeOutputInvalid):
         handle_loaded_review(task, task_dependencies)
 
 
@@ -161,15 +160,14 @@ def test_legacy_single_question_remains_a_one_item_set(task_dependencies):
 
 
 def test_rejects_disagreeing_scalar_and_array_questions(task_dependencies):
-    from pydantic_ai.exceptions import UnexpectedModelBehavior
-
     from agents.library_review_agent import library_review_agent
+    from llm.run_generative_agent import GenerativeOutputInvalid
 
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "questions": ["Which services?"], "question": "Another question?"},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
-    ]})), pytest.raises(UnexpectedModelBehavior):
+    ]})), pytest.raises(GenerativeOutputInvalid):
         handle_loaded_review(task, task_dependencies)
 
 

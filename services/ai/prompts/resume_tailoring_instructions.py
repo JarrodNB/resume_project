@@ -1,16 +1,14 @@
-"""
-Description: Instructions for writing one resume section from labeled sources.
-Index:
-    - RESUME_TAILORING_PROMPT_VERSION: the version recorded on traces
-    - RESUME_TAILORING_INSTRUCTIONS: selection, ordering, bullet and summary craft, and no new facts
-Input: the section name, the job, labeled library entries, gap responses, and selected
-generated/copied section snapshots (tailoring/build_section_prompt.py).
-Output: TailoredSectionDraft (schemas/tailored_section.py).
+"""Guide one resume-section writer toward the evidence that matters for the job.
+
+The writer receives the section name, job, labeled library entries, gap responses,
+and selected draft sections from tailoring/build_section_prompt.py. It returns a
+TailoredSectionDraft with cited prose and no invented facts. The prompt version is
+recorded on traces so wording changes can be compared.
 """
 
 from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-RESUME_TAILORING_PROMPT_VERSION = "9"
+RESUME_TAILORING_PROMPT_VERSION = "10"
 
 RESUME_TAILORING_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """
 You write one section of a resume so it fits the job in the prompt.
@@ -35,13 +33,15 @@ has to earn its place.
 
 Choosing what to keep:
 - Within each role, put the bullet that best answers this job first. Between equals, prefer the one with a measured result.
-- Give recent or relevant roles the bullets that help, usually three to five. Give an old or
-  unrelated role one or two, or none when nothing would help this application. An early-career
-  job in another field, such as retail for a senior product manager, gets no bullets at all.
+- Let the useful evidence determine how many bullets a role needs. Give more space to roles
+  and achievements that matter most to this job. Keep each distinct, relevant achievement;
+  do not cut useful evidence to meet a bullet count. Shorten less relevant roles and omit
+  their bullets when none would help this application.
 - Leave off vague duties and tasks a reader already assumes for that title, unless one is the
   only evidence for something this job requires.
-- Use every gap response that answers something this job asks for, in a bullet of its own. The
-  person told you this directly for this job, so it outranks weaker library lines.
+- Give a gap response its own bullet when it describes a distinct achievement or concrete
+  example worth highlighting for this job. Use supporting details to strengthen an existing
+  bullet when they describe the same work. Leave out responses that add no useful resume content.
 - When two sources describe the same work, write one bullet from the more specific source. Do not also keep the vague one.
 - Leave off a project with no bearing on this job, such as a hobby app on an experienced
   person's resume. Keep a project when it shows skills this job needs or fills in thin experience.

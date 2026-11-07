@@ -87,6 +87,10 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   Concrete generative/fallback and screening models use its adapter; query embeddings record
   their returned usage there. `main.py` publishes an unfinished usage marker before execution
   and a final report even when retrying. Never add handler aggregate usage to observed requests.
+  Handlers that run an agent through `../llm/run_generative_agent.py` report no generation usage
+  or model name; they catch `GenerativeOutputInvalid` only to choose their failure message.
+  Handler tests that need generation usage override the agent with
+  `tests.fakes.accounted_override`, which records requests as production does.
 
 - `process_task_message` collects capability screening usage even when the guard blocks.
   `InputBlocked` publishes a failed task with the safe error message.
@@ -103,9 +107,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   result with a user-facing `error_message` for expected problems (e.g. unreadable file);
   let unexpected exceptions propagate (main publishes a generic failure, or the run-limit
   message when a request, tool-call, or token cap was hit).
-- Completed results list a `ModelUsage` for every agent run (`build_model_usage`). The model
-  name is the one that answered when that name has a price, otherwise the configured primary.
-  A new model needs an entry in `MODEL_PRICES` (a test checks every configured model has one).
+- Published results list a `ModelUsage` for every real model request, recorded by `../llm/usage.py`.
+  The model name is the one that answered when that name has a price, otherwise the configured
+  primary. A new model needs an entry in `MODEL_PRICES` (a test checks every configured model has one).
 
 ## Certification support
 

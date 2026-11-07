@@ -99,7 +99,7 @@ function experienceEntry(item: Record<string, unknown>): ResumePdfEntry | null {
 function projectEntry(item: Record<string, unknown>): ResumePdfEntry | null {
   const name = text(item.name)
   const meta = [text(item.role), text(item.url)].filter(Boolean).join(' · ')
-  const dates = formatDateRange(textOrNull(item.start_date), textOrNull(item.end_date))
+  const dates = formatDateRange(textOrNull(item.start_date), textOrNull(item.end_date), { openEndedMeansPresent: item.is_current === true }) || (item.is_current === true ? 'Present' : '')
   const body = text(item.description)
   if (!name && !meta && !dates && !body) return null
   return { heading: name || 'Project', meta, dates, body, bullets: [] }
@@ -109,7 +109,7 @@ function projectEntry(item: Record<string, unknown>): ResumePdfEntry | null {
 function educationEntry(item: Record<string, unknown>): ResumePdfEntry | null {
   const institution = text(item.institution)
   const meta = [text(item.degree), text(item.field_of_study)].filter(Boolean).join(', ')
-  const dates = formatDateRange(textOrNull(item.start_date), textOrNull(item.end_date))
+  const dates = formatDateRange(textOrNull(item.start_date), textOrNull(item.end_date), { openEndedMeansPresent: item.is_current === true }) || (item.is_current === true ? 'Present' : '')
   const body = text(item.description)
   if (!institution && !meta && !dates && !body) return null
   return { heading: institution || 'Education', meta, dates, body, bullets: [] }

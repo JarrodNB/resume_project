@@ -10,6 +10,7 @@ from agents.parse_job_posting_agent import parse_job_posting_agent
 from agents.parse_scraped_job_posting_agent import parse_scraped_job_posting_agent
 from agents.user_text_screen_agent import user_text_screen_agent
 from scrapers.linkedin.fetch_linkedin_job import GUEST_JOB_URL
+from tests.fakes import accounted_override
 from tests.test_parse_job_posting_handler import AD, _parsed, build_parse_task
 from tests.test_scrape_job_handler import build_scrape_job_task, load_linkedin_fixture
 from worker.task_handlers import handle_ai_task
@@ -119,7 +120,7 @@ def test_scraped_ad_uses_source_only_parser_without_classifier(
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"title": title})])
 
     with (screening_session() as session,
-          parse_scraped_job_posting_agent.override(model=FunctionModel(parse))):
+          accounted_override(parse_scraped_job_posting_agent, FunctionModel(parse)) as usage):
         result = handle_ai_task(
             build_scrape_job_task("https://www.linkedin.com/jobs/view/4002"), task_dependencies,
         )
@@ -131,7 +132,7 @@ def test_scraped_ad_uses_source_only_parser_without_classifier(
     if replacement:
         assert replacement.strip() in requests[0][-1].parts[-1].content
     assert classifier == []
-    assert len(result.usage) == 1  # Parsing is still accounted even without classification.
+    assert len(usage.entries) == 1  # Parsing is still accounted even without classification.
 
 
 def test_long_allowed_pasted_ad_does_not_repeat_chunk_pass(task_dependencies, classifier):

@@ -84,7 +84,7 @@ def read_library_review(connection, user_id: UUID, section: str, *, record_id=No
                 library["experiences"].append(role)
         else:
             query, keys, kind, field = (
-                (PROJECTS_QUERY, "id name role start_date end_date description screened_fields", "project", "description")
+                (PROJECTS_QUERY, "id name role start_date end_date ongoing description screened_fields", "project", "description")
                 if section == "projects" else
                 (CAREER_CONTEXTS_QUERY, "id requirement response screened_fields", "career_context", "response")
             )

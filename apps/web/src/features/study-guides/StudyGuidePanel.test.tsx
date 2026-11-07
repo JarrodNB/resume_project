@@ -1,5 +1,5 @@
 /** Exercises the durable job collection, navigation, live append, freshness and manual recovery. */
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, beforeEach, vi } from 'vitest'
 import { useState } from 'react'
@@ -101,6 +101,7 @@ it('offers manual retry when the server wait expires in the open reader', async 
 function Editable() { const [description, setDescription] = useState('Original'); return <><button onClick={() => setDescription('Edited')}>Edit</button><button onClick={() => setDescription('Original')}>Restore</button><StudyGuidePanel jobId="job-1" description={description} /></> }
 it('refreshes freshness for loaded later batches without moving the current question', async () => {
   renderPage({ path: '/', url: '/', element: <Editable />, mocks: [page({ total: 10 }), page({ cursor: 'after-1', batches: [batch('batch-2', 6)], total: 10 }), page({ total: 10, fingerprint: 'edited' }), page({ total: 10 })] }); await ready(); await next(5)
+  await screen.findByRole('heading', { name: 'How do you count stock 6?' })
   await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
   expect(await screen.findByText(/This question is out of date/)).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'How do you count stock 6?' })).toBeInTheDocument()
@@ -209,4 +210,66 @@ it('renders long diagram labels as escaped text in both theme contexts', async (
   view.container.classList.add('dark')
   expect(screen.getByRole('figure', { name: 'Compare stock' })).toBeInTheDocument()
   expect(screen.getByText(literalLabel)).toBeInTheDocument()
+})
+
+
+it.each(['visibilitychange', 'focus', 'online'])('recovers saved questions after a missed completion on %s without regenerating', async (event) => {
+  const queued = { ...saved, id: 'missed', status: 'QUEUED', studyGuideRetryAfterSeconds: 900 }
+  const completed = page({ task: { ...queued, status: 'COMPLETED' } })
+  const read = vi.fn(() => completed.result)
+  const initialUpdate = subscription(queued)
+  const subscribed = vi.fn(() => initialUpdate.result)
+  render([page({ batches: [], total: 0, endCursor: null, task: queued }), { ...initialUpdate, result: subscribed }, { ...completed, result: read }])
+  await screen.findByText(/Generating five questions/)
+  // The subscription never delivers completion, as after a suspended pane misses a message.
+  await waitFor(() => expect(subscribed).toHaveBeenCalledTimes(1))
+  fireEvent(event === 'visibilitychange' ? document : window, new Event(event))
+  await ready()
+  expect(screen.queryByText(/Generating five questions/)).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Generate 5 more' })).toBeEnabled()
+  fireEvent(window, new Event('focus'))
+  expect(read).toHaveBeenCalledTimes(1)
+})
+
+it('does not refresh a hidden Study pane until it becomes visible', async () => {
+  const queued = { ...saved, id: 'hidden', status: 'QUEUED', studyGuideRetryAfterSeconds: 900 }
+  const completed = page({ task: { ...queued, status: 'COMPLETED' } })
+  const read = vi.fn(() => completed.result)
+  render([page({ batches: [], total: 0, endCursor: null, task: queued }), subscription(queued), { ...completed, result: read }])
+  await screen.findByText(/Generating five questions/)
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+  try {
+    fireEvent(document, new Event('visibilitychange'))
+    fireEvent(window, new Event('online'))
+    expect(read).not.toHaveBeenCalled()
+    visibility.mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
+    await ready()
+    expect(screen.queryByText(/Generating five questions/)).not.toBeInTheDocument()
+  } finally { visibility.mockRestore() }
+})
+
+
+it('coalesces activity while a recovery read is in flight', async () => {
+  const queued = { ...saved, id: 'coalesced', status: 'QUEUED', studyGuideRetryAfterSeconds: 900 }
+  const completed = page({ task: { ...queued, status: 'COMPLETED' } })
+  const read = vi.fn(() => completed.result)
+  render([page({ batches: [], total: 0, endCursor: null, task: queued }), subscription(queued), { ...completed, delay: 50, result: read }])
+  await screen.findByText(/Generating five questions/)
+  fireEvent(window, new Event('focus'))
+  fireEvent(window, new Event('online'))
+  fireEvent(document, new Event('visibilitychange'))
+  await ready()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Generate 5 more' })).toBeEnabled())
+  expect(read).toHaveBeenCalledTimes(1)
+})
+
+it('recovers a missed failure without starting another paid request', async () => {
+  const queued = { ...saved, id: 'failed-offline', status: 'QUEUED', studyGuideRetryAfterSeconds: 900 }
+  render([page({ task: queued }), subscription(queued), page({ task: { ...queued, status: 'FAILED', errorMessage: 'Provider unavailable.' } })])
+  await ready()
+  fireEvent(window, new Event('online'))
+  expect(await screen.findByText('Provider unavailable.')).toBeInTheDocument()
+  expect(screen.queryByText(/Generating five questions/)).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Generate 5 more' })).toBeEnabled()
 })

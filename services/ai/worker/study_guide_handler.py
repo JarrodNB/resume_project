@@ -2,13 +2,9 @@
 from hashlib import sha256
 
 from pydantic import ValidationError
-from pydantic_ai import capture_run_messages
-from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import ModelResponse
-from pydantic_ai.usage import RunUsage
 
 from agents.study_guide_agent import generate_study_guide
-from llm.model_prices import build_model_usage, reported_model_name
+from llm.run_generative_agent import GenerativeOutputInvalid
 from model_inputs.blocks import source_block
 from schemas.study_guide import StudyGuideInput, StudyGuideUnavailable
 from worker.queue_messages import AiResultMessage
@@ -29,7 +25,6 @@ def handle_study_guide_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
             error_message="Add a job description before generating a study guide.")
     settings = dependencies.settings
-    usage = []
     # Only owned successful batches supply generated variety guidance.
     previous = "\n".join(f"{number}. {question}" for number, question in enumerate(sources.previous_questions, 1))
     prompt = ("Create study material for this job description (source data):\n\n"
@@ -38,23 +33,13 @@ def handle_study_guide_task(task, dependencies):
         prompt += ("\n\nPrevious saved study questions (avoid these questions and closely repeated concepts):\n"
                    + source_block("previous_study_questions", previous))
     try:
-        with capture_run_messages() as messages:
-            run = generate_study_guide(prompt, settings)
-    except UnexpectedModelBehavior:
-        by_model = {}
-        for message in messages:
-            if isinstance(message, ModelResponse):
-                model = reported_model_name(message.model_name or settings.study_guide_model, settings.study_guide_model)
-                by_model.setdefault(model, RunUsage()).incr(message.usage)
-        usage.extend(build_model_usage(model, tokens) for model, tokens in by_model.items())
-        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-            error_message="The AI could not produce a valid study guide. Try again.")
-    model = reported_model_name(run.response.model_name or settings.study_guide_model, settings.study_guide_model)
-    if isinstance(run.output, StudyGuideUnavailable):
+        guide = generate_study_guide(prompt, settings)
+    except GenerativeOutputInvalid:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
-            result={"failure_code": "insufficient_description"}, error_message=run.output.cannot_generate_reason,
-            usage=[*usage, build_model_usage(model, run.usage)])
+            error_message="The AI could not produce a valid study guide. Try again.")
+    if isinstance(guide, StudyGuideUnavailable):
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+            result={"failure_code": "insufficient_description"}, error_message=guide.cannot_generate_reason)
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-        result={"study_guide": run.output.model_dump(mode="json"),
-                "source_description_fingerprint": sha256(sources.description.encode()).hexdigest()},
-        usage=[*usage, build_model_usage(model, run.usage)])
+        result={"study_guide": guide.model_dump(mode="json"),
+                "source_description_fingerprint": sha256(sources.description.encode()).hexdigest()})

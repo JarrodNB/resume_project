@@ -14,7 +14,7 @@ Adding it to the career library creates a career context entry, listed on the ca
 
 - `GapAnalysisCard.tsx` — the comparison on the Fit tab: run button, live progress, failure with
   retry, completed result (waiting line with stage captions while running, a brief notice when a watched run finishes; Compare is disabled with an "Add description" action when the job has no description; jobs without saved requirements or nice-to-haves stay disabled with an "Edit requirements" action), using shared lifecycle state from the job workspace
-- `GapAnalysisResultView.tsx` — summary, then the groups from `groupAssessments.ts`: Gaps to fill,
+- `GapAnalysisResultView.tsx` — summary panel (one or two sentences, count chips, hint, run button), then the groups from `groupAssessments.ts`: Gaps to fill,
   Could be stronger, Answered, Met, Nice to have, Dismissed
 - `RequirementAssessmentItem.tsx` — `VerdictBadge` and the row for each group. Gaps, partial
   matches and answered rows are always open. Met and nice-to-have rows start collapsed
@@ -39,6 +39,9 @@ Adding it to the career library creates a career context entry, listed on the ca
   so they stay when the comparison is run again. Dismissals (`Job.dismissedRequirements`) match the
   same way, only shape this tab, and lose to a "met" verdict.
 - Answering or dismissing moves a row between groups. It never changes the AI's verdict.
+  While saved answers match non-met assessments, hide the broad summary (which can still claim
+  missing evidence) and label the row findings as the last comparison. Keep this true on reload;
+  a later comparison with met verdicts can show its summary again.
 - Evidence text is copied from the library by the AI service; display it as-is. Leave out
   `kind: summary` evidence: that text is the whole profile summary, and showing it under a
   requirement repeats the biography.

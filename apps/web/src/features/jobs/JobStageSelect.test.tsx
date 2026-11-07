@@ -16,7 +16,7 @@ it.each([false, true])('explains a pending stage save and clears it (failure: %s
   expect(screen.getByRole('status')).toHaveTextContent('Saving stage…')
   expect(stage).toBeDisabled()
   await waitFor(() => expect(stage).toBeEnabled())
-  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.getByRole('status')).toBeEmptyDOMElement()
   if (fails) expect(screen.getByRole('alert')).toHaveTextContent('Could not save stage')
   else expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })

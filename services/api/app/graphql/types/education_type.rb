@@ -9,6 +9,7 @@ module Types
     field :field_of_study, String
     field :start_date, GraphQL::Types::ISO8601Date
     field :end_date, GraphQL::Types::ISO8601Date
+    field :ongoing, Boolean, null: false
     field :description, String
     field :position, Integer, null: false
   end

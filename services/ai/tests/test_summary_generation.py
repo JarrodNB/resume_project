@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from tests.fakes import accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -64,11 +65,10 @@ def test_rejected_or_unchecked_sources_never_reach_generation(task_dependencies,
 
 def test_invalid_citations_exhaust_repair_and_retain_provider_usage(task_dependencies):
     from agents.summary_generation_agent import summary_generation_agent
-    with summary_generation_agent.override(model=TestModel(custom_output_args={"text": "Uncited prose", "source_labels": ["UNKNOWN"]})):
+    with accounted_override(summary_generation_agent, TestModel(custom_output_args={"text": "Uncited prose", "source_labels": ["UNKNOWN"]})) as usage:
         result = handle_ai_task(task(), task_dependencies)
     assert result.status == "failed"
-    assert result.usage
-    assert result.usage[-1].output_tokens > 0
+    assert usage.entries[-1].output_tokens > 0
 
 
 def test_source_delimiters_cannot_inject_prompt_structure():

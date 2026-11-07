@@ -14,7 +14,6 @@ from pydantic import BaseModel
 from agents.gap_analysis_agent import analyze_gaps
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
-from llm.model_prices import build_model_usage
 from screening.session import within_screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -61,19 +60,19 @@ def handle_analyze_gaps_task(
         )
     prompt = prepared.prompt
     assert prompt is not None
-    run = analyze_gaps(
+    analysis = analyze_gaps(
         prompt,
         model=model,
         thinking=settings.gap_analysis_thinking,
         timeout_seconds=settings.llm_run_timeout_seconds,
         fallback_model=settings.generative_fallback_model,
     )
-    result = attach_evidence_text(run.gap_analysis, prompt)
+    result = attach_evidence_text(analysis, prompt)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"gap_analysis": result.model_dump(mode="json"), "warnings": prompt.warnings},
-        usage=[build_model_usage(run.model or model, run.usage), *prepared.usage],
+        usage=prepared.usage,
     )
 
 

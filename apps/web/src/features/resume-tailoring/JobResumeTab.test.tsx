@@ -5,7 +5,7 @@
  * and deletion are covered too. Both render inside the real workspace layout; the PDF preview is mocked.
  */
 import { downloadResumePdf, downloadResumeDocx } from './resumeDownload'
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
@@ -107,6 +107,7 @@ function renderResume(mocks: Mocks, { url = '/jobs/job-1/resume/write', resume =
       { path: 'resume/write', element: <WriteJobResumePage /> },
     ],
     mocks: [workspaceJobMock(resume), ...mocks],
+    extraRoutes: [{ path: '/library', element: <h1>Career library</h1> }],
   })
   if (confirmStart) void screen.findByRole('button', { name: 'Start writing' }).then((button) => userEvent.setup().click(button))
   return rendered
@@ -148,7 +149,7 @@ it('shows truthful ongoing work without claiming a generation stage when the Res
 
 it('sends the write route to the Resume tab when a resume is already saved', async () => {
   const resume = { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme', sections: [] }
-  const { router } = renderResume([jobMock(null, resume)], { resume })
+  const { router } = renderResume([{ ...jobMock(null, resume), maxUsageCount: 2 }], { resume })
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume'))
   expect(await screen.findByRole('button', { name: 'Download PDF' })).toBeInTheDocument()
@@ -250,7 +251,7 @@ it('saves the finished draft and returns to the Resume tab', async () => {
       },
       result: { data: { saveTailoredResume: { __typename: 'SaveTailoredResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme' }, errors: [] } } },
     },
-    jobMock(null, { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme', sections: [] }),
+    { ...jobMock(null, { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme', sections: [] }), maxUsageCount: 2 },
   ])
 
   const { router } = renderTailorSaved
@@ -480,4 +481,31 @@ it('disables writing and links to the Posting tab when the job has no descriptio
   expect(await screen.findByRole('button', { name: 'Write resume' })).toBeDisabled()
   expect(screen.getByRole('link', { name: 'Add one on the Posting tab' })).toHaveAttribute('href', '/jobs/job-1/posting')
   expect(start).not.toHaveBeenCalled()
+})
+
+it('recovers a newly generated unsaved draft after visiting the library without paying again', async () => {
+  const user = userEvent.setup()
+  const result = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Recoverable draft.' } }] }
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED', input: {} }, errors: [] } } }))
+  const completed = task({ status: 'COMPLETED', result })
+  const recovery = vi.fn(() => jobMock(completed).result)
+  const { router } = renderResume([
+    jobMock(null), startMock(start), subscription({ status: 'COMPLETED', result }),
+    { ...jobMock(completed), result: recovery },
+  ])
+
+  await user.click(await screen.findByRole('button', { name: 'Start writing' }))
+  expect(await screen.findByText('Your draft is ready to review')).toBeInTheDocument()
+  await act(async () => { await router.navigate('/library') })
+  expect(await screen.findByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Discard and leave' }))
+  expect(await screen.findByRole('heading', { name: 'Career library' })).toBeInTheDocument()
+  await act(async () => { await router.navigate('/jobs/job-1/resume') })
+
+  expect(await screen.findByText('Your draft is ready to review')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
+  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Recoverable draft.')
+  expect(recovery).toHaveBeenCalledOnce()
+  expect(start).toHaveBeenCalledOnce()
 })

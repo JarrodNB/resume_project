@@ -123,7 +123,59 @@ RSpec.describe "Career library editing mutations" do
       mutation { createSkill(input: { attributes: { name: "ruby" } }) { skill { id } errors } }
     GQL
     expect(duplicate.dig("data", "createSkill", "skill")).to be_nil
-    expect(duplicate.dig("data", "createSkill", "errors")).to include("Name has already been taken")
+    expect(duplicate.dig("data", "createSkill", "errors")).to eq([ "You already have a skill called Ruby" ])
+  end
+
+  it "explains duplicate skill names using the owner's saved capitalization without changing either skill" do
+    create(:skill, name: "sql") # A different account must not supply the display name.
+    existing = create(:skill, user: user, name: "SQL", category: "Databases")
+    editing = create(:skill, user: user, name: "Ruby", category: "Languages")
+
+    %w[SQL sql SqL].each do |name|
+      created = execute_graphql(<<~GQL, user: user, variables: { name: name })
+        mutation($name: String!) {
+          createSkill(input: { attributes: { name: $name } }) { skill { id } errors }
+        }
+      GQL
+      expect(created.dig("data", "createSkill")).to eq(
+        "skill" => nil, "errors" => [ "You already have a skill called SQL" ]
+      )
+
+      updated = execute_graphql(<<~GQL, user: user, variables: { id: editing.id, name: name })
+        mutation($id: ID!, $name: String!) {
+          updateSkill(input: { id: $id, attributes: { name: $name, category: "Changed" } }) { skill { id } errors }
+        }
+      GQL
+      expect(updated.dig("data", "updateSkill")).to eq(
+        "skill" => nil, "errors" => [ "You already have a skill called SQL" ]
+      )
+    end
+    expect(user.skills.count).to eq(2)
+    expect(existing.reload.attributes.slice("name", "category")).to eq("name" => "SQL", "category" => "Databases")
+    expect(editing.reload.attributes.slice("name", "category")).to eq("name" => "Ruby", "category" => "Languages")
+  end
+
+  it "allows skills with another user's name and case-only renames of the same skill" do
+    create(:skill, name: "SQL")
+    created = execute_graphql(<<~GQL, user: user)
+      mutation { createSkill(input: { attributes: { name: "sql" } }) { skill { id name } errors } }
+    GQL
+    expect(created.dig("data", "createSkill", "errors")).to eq([])
+    id = created.dig("data", "createSkill", "skill", "id")
+
+    updated = execute_graphql(<<~GQL, user: user, variables: { id: id })
+      mutation($id: ID!) {
+        updateSkill(input: { id: $id, attributes: { name: "SQL" } }) { skill { name } errors }
+      }
+    GQL
+    expect(updated.dig("data", "updateSkill")).to eq("skill" => { "name" => "SQL" }, "errors" => [])
+  end
+
+  it "keeps other skill validation errors readable" do
+    result = execute_graphql(<<~GQL, user: user)
+      mutation { createSkill(input: { attributes: { name: "" } }) { skill { id } errors } }
+    GQL
+    expect(result.dig("data", "createSkill")).to eq("skill" => nil, "errors" => [ "Name can't be blank" ])
   end
 
   it "updates a skill without moving it, and cannot update another user's skill" do

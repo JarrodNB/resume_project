@@ -1,11 +1,11 @@
 """
-Evaluate whether a tailored section is relevant and omits sections when expected.
+Evaluate section relevance, expected omissions, and recall of important evidence.
 
 These scores describe selection and wording against synthetic cases; they do not
 judge whether every claim in the prose is supported.
 Index:
     - TailorEvalInput / TailorEvalLabels: one case
-    - SectionRelevance / OmitsWhenAsked: the scores
+    - SectionRelevance / OmitsWhenAsked / EvidenceCoverage: the scores
     - labels_to_draft: the draft the hand labels describe
     - TAILORING_EVALUATORS: the classes Dataset.from_file needs
 """
@@ -17,6 +17,7 @@ from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from documents.text_matching import normalize_text
 from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.gap_response import GapResponseSnapshot
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
 from tailoring.section_catalog import WRITTEN_SECTIONS
@@ -27,6 +28,7 @@ class TailorEvalInput(BaseModel):
 
     section_type: str
     context: GapAnalysisContext
+    gap_responses: list[GapResponseSnapshot] = Field(default_factory=list)
 
     @field_validator("section_type")
     @classmethod
@@ -45,6 +47,8 @@ class TailorEvalLabels(BaseModel):
     prose: str | None = None
     source_labels: list[str] = Field(default_factory=list)
     job_terms: list[str] = Field(default_factory=list)
+    evidence_terms: list[list[str]] = Field(default_factory=list)
+    evidence_sources: list[list[str]] = Field(default_factory=list)
 
 
 TailorContext = EvaluatorContext[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]
@@ -73,7 +77,7 @@ def _sources(ctx: TailorContext):
     prompt = build_section_prompt(
         ctx.inputs.section_type,
         ctx.inputs.context,
-        [],
+        ctx.inputs.gap_responses,
         [],
         write_anyway=False,
         gap_analysis=None,
@@ -121,4 +125,30 @@ def _relevance_text(ctx: TailorContext) -> str:
     return _sources(ctx).text_for([entry.label for entry in ctx.output.entries])
 
 
-TAILORING_EVALUATORS = (SectionRelevance, OmitsWhenAsked)
+@dataclass
+class EvidenceCoverage(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
+    """Score each expected fact independently, including its citation and visible wording.
+
+    Each term/source group lists acceptable alternatives for one fact. A generic job
+    keyword or citation alone cannot hide a lost answer or an existing achievement.
+    This measures bounded selection recall, not full factual faithfulness.
+    """
+
+    def evaluate(self, ctx: TailorContext) -> float:
+        labels = ctx.metadata
+        assert labels is not None
+        if len(labels.evidence_terms) != len(labels.evidence_sources):
+            raise ValueError("Evidence term and source groups must align")
+        if not labels.evidence_terms:
+            return 1.0
+        prose = [ctx.output.summary] if ctx.output.summary else []
+        prose += [item for entry in ctx.output.entries for item in entry.prose]
+        covered = sum(any(
+            any(normalize_text(term) in normalize_text(item.text) for term in terms)
+            and bool(set(sources) & set(item.source_labels))
+            for item in prose
+        ) for terms, sources in zip(labels.evidence_terms, labels.evidence_sources, strict=True))
+        return covered / len(labels.evidence_terms)
+
+
+TAILORING_EVALUATORS = (SectionRelevance, OmitsWhenAsked, EvidenceCoverage)

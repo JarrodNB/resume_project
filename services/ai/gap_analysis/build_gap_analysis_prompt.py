@@ -62,12 +62,12 @@ class GapAnalysisPrompt:
     warnings: list[str] = field(default_factory=list)
 
 
-def format_date_range(start_date: date | None, end_date: date | None) -> str | None:
-    """Formats a date range as months, "present" for an ongoing entry; None if undated."""
-    if start_date is None and end_date is None:
+def format_date_range(start_date: date | None, end_date: date | None, *, ongoing: bool | None = None) -> str | None:
+    """Use explicit ongoing status for projects/degrees; roles retain legacy null-end semantics."""
+    if start_date is None and end_date is None and not ongoing:
         return None
     start = start_date.strftime("%b %Y") if start_date else "?"
-    end = end_date.strftime("%b %Y") if end_date else "present"
+    end = end_date.strftime("%b %Y") if end_date else ("present" if ongoing is not False else "?")
     return f"{start} – {end}"
 
 
@@ -158,7 +158,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         ref = _add_evidence(
             prompt, f"P{number}", EvidenceItem(kind="project", id=project.id, text=text)
         )
-        dates = format_date_range(project.start_date, project.end_date)
+        dates = format_date_range(project.start_date, project.end_date, ongoing=project.ongoing)
         lines.append(f"[{ref}] {_join(name, dates, separator=' | ')}")
         if project.description:
             lines.append(f"  {project.description}")
@@ -170,7 +170,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         ref = _add_evidence(
             prompt, f"ED{number}", EvidenceItem(kind="education", id=education.id, text=text)
         )
-        dates = format_date_range(education.start_date, education.end_date)
+        dates = format_date_range(education.start_date, education.end_date, ongoing=education.ongoing)
         lines.append(f"[{ref}] {_join(text, dates, separator=' | ')}")
         if education.description:
             lines.append(f"  {education.description}")

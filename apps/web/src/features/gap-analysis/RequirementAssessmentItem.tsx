@@ -5,7 +5,8 @@
  * way to respond without a click. Collapsed rows (met, nice to have) start closed to keep the page
  * short; their form stays mounted so unsaved text survives closing the row. Dismissed rows offer
  * Restore. Profile-summary evidence is left out: it is the whole biography, and citing it repeats
- * that paragraph under every requirement it mentions.
+ * that paragraph under every requirement it mentions. Answered gaps label the old findings as
+ * the last comparison, because saving an answer does not produce a new assessment.
  */
 import { CircleCheck, CircleDashed, CircleX } from 'lucide-react'
 import { useState } from 'react'
@@ -47,10 +48,11 @@ interface RowProps {
 }
 
 /** The AI's reason and the library entries it cited. */
-function RequirementFindings({ assessment }: { assessment: AssessedRequirement }) {
+function RequirementFindings({ assessment, hasAnswer = false }: { assessment: AssessedRequirement; hasAnswer?: boolean }) {
   const evidence = assessment.evidence.filter((item) => item.kind !== 'summary')
   return (
     <div className="grid content-start gap-3">
+      {hasAnswer && <p className="text-sm font-medium">At the last comparison</p>}
       {assessment.explanation && <p className="text-sm text-muted-foreground">{assessment.explanation}</p>}
       {evidence.length > 0 && (
         <ul className="grid gap-2 text-sm" aria-label="Evidence from your career library">
@@ -100,7 +102,7 @@ export function OpenRequirementRow({ jobId, assessment, response, onMoved }: Row
         <VerdictBadge verdict={verdict} quiet={verdict === 'missing' && response !== null} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-        <RequirementFindings assessment={assessment} />
+        <RequirementFindings assessment={assessment} hasAnswer={response !== null && verdict !== 'met'} />
         <div className="grid content-start gap-3">
           {showForm && (
             <GapResponseForm
@@ -149,7 +151,7 @@ export function CollapsedRequirementRow({ jobId, assessment, response, onMoved }
         </span>
       </CollapseToggle>
       <div id={panelId} hidden={!open} className={open ? 'grid gap-4 md:grid-cols-2 md:gap-6' : undefined}>
-        <RequirementFindings assessment={assessment} />
+        <RequirementFindings assessment={assessment} hasAnswer={response !== null && verdict !== 'met'} />
         {showResponse && (
           <GapResponseForm
             jobId={jobId}

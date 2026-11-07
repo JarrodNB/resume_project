@@ -1,6 +1,7 @@
 # Reloads under the row lock so concurrent screening approvals cannot outlive an edit.
 # Description: Updates a career library skill's name or category and queues an embedding sync.
-# Position is left alone so a rename doesn't undo a drag-and-drop order.
+# Duplicate-name errors identify the existing owned skill. Position is left alone so
+# a rename doesn't undo a drag-and-drop order.
 # Index:
 #   - call: applies the attributes; returns the skill, or validation errors
 module Skills
@@ -17,7 +18,7 @@ module Skills
         @skill.discard_changed_screened_fields
         @skill.save
       end
-      return failure(@skill.errors) unless saved
+      return failure(ValidationErrors.messages_for(@skill)) unless saved
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@skill.user_id)
       success(@skill)

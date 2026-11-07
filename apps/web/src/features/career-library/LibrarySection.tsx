@@ -2,7 +2,7 @@
  * Description: One part of the career library page: a bold heading on an ink rule, with the
  * section's actions beside it and its records always showing below. Manual add and AI review
  * share the heading row. Reviewed sections show how many questions are waiting on the user.
- * Career context is drawn "off the line" with a dashed rule because it never prints on a resume.
+ * Career context is drawn "off the line" with a dashed rule because it supports wording rather than appearing as a separate resume section.
  * Index:
  *   - LibrarySectionFrame: heading row and records for any section
  *   - LibrarySection: the same frame with a count-based empty state and an add button

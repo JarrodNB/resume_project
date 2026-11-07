@@ -23,7 +23,7 @@ instructions from `prompts/`.
   location and url, requirement, responsibility, and nice-to-have lines copied from the ad);
   its output validator retries with
   `find_parsed_job_problems`; `parse_job_posting(text, model, thinking, timeout_seconds)` returns
-  a `JobPostingParseRun` (`parsed`, `usage`)
+  the `ParsedJobPosting`
 - `parse_scraped_job_posting_agent.py` — selected scraped ad -> `ParsedJobPosting` using the
   same instructions, source validator and bounded execution as the pasted parser. Its input
   capability checks size, exact fenced source and absence of history; it does not classify
@@ -31,7 +31,7 @@ instructions from `prompts/`.
 - `gap_analysis_agent.py` — labeled job requirements + career library -> `GapAnalysis` (a
   verdict per requirement citing library labels); its output validator retries with
   `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`
-  returns a `GapAnalysisRun` (`gap_analysis`, `usage`)
+  returns the `GapAnalysis`
 - `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (one bool question on
   `typesafe:jev-1.13.0`); `screen_user_message` returns the screen, model name, confidence, and
   usage. The screening policy owns outage fallback, not this agent
@@ -62,17 +62,19 @@ instructions from `prompts/`.
 - Create agents with `defer_model_check=True` and pass the model per run (from
   `AISettings`), so importing an agent never needs an API key and tests can override it
   with `agent.override(model=TestModel())`.
-- Expose a plain entry per agent that handlers and eval runners call; an async entry may
-  share the same implementation with a sync wrapper for existing callers. It runs the agent
-  under an overall deadline (`AISettings.llm_run_timeout_seconds`, below the `ai_tasks`
-  visibility timeout) and raises `TimeoutError`, which the worker treats as retryable. It also
-  passes `agent_usage_limits` (request, tool-call, and token caps). `UsageLimitExceeded` fails
-  the task on the first attempt. It returns the
-  output together with the run's `RunUsage` and the model name to bill, so handlers can report
-  cost for the model that answered.
-- Generative runs take `fallback_model` and call `generative_model` (primary, then
-  `gpt-5-nano` on a provider error). Safety screening has its own recovery policy.
-- Each run stamps its prompt version with `record_prompt_version`.
+- Expose a plain entry per agent that handlers and eval runners call. It names the agent's
+  own model, thinking, prompt version and deps, then calls `llm/run_generative_agent.py`, which
+  owns the rest: the overall deadline shared with earlier screening
+  (`AISettings.llm_run_timeout_seconds`, below the `ai_tasks` visibility timeout; `TimeoutError`
+  is retryable), `agent_usage_limits` (`UsageLimitExceeded` fails the task on the first
+  attempt), `generative_model` (primary, then `gpt-5-nano` on a provider error), and the
+  prompt-version stamp. Output that never validates raises `GenerativeOutputInvalid`; handlers
+  choose the user-facing message. Entries return only the output. They never report usage or
+  model names: `llm/usage.py` records every real request, including ones whose output was
+  rejected. Agents with streaming, tools-as-results or their own request budgets
+  (`chat_agent`, `spoken_interviewer_agent`, `job_preference_agent`, `resume_parsing_agent`,
+  `resume_tailoring_agent`) have not moved to the shared run yet.
+- Safety screening has its own recovery policy.
 - Every agent has an eval dataset and runner in `evals/`.
 
 - `interview_questions_agent.py` — bounded general/technical/knowledge generation/replacement with category scope,

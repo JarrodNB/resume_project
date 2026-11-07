@@ -25,13 +25,13 @@ export function experienceLabel(experience: Experience) {
 
 /** "Side project (Jan 2023)". */
 export function projectLabel(project: Project) {
-  return withDates(project.name, formatDateRange(project.startDate, project.endDate))
+  return withDates(project.name, formatDateRange(project.startDate, project.endDate, { openEndedMeansPresent: project.ongoing }) || (project.ongoing ? 'Present' : ''))
 }
 
 /** "State University, BSc (Sep 2015 – Jun 2019)". */
 export function educationLabel(education: Education) {
   const name = [education.institution, education.degree].filter(Boolean).join(', ')
-  return withDates(name, formatDateRange(education.startDate, education.endDate))
+  return withDates(name, formatDateRange(education.startDate, education.endDate, { openEndedMeansPresent: education.ongoing }) || (education.ongoing ? 'Present' : ''))
 }
 
 /** A certification label, including its issuer to distinguish duplicate names. */

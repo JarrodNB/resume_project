@@ -15,6 +15,7 @@ from pydantic_ai.models.test import TestModel
 
 from agents.interview_clarification_agent import interview_clarification_agent
 from agents.interview_session_feedback_agent import interview_session_feedback_agent
+from llm.usage import accounted_model, collect_task_usage
 from schemas.gap_analysis_context import CareerLibrary
 from tests.test_process_task_message import FakeResultQueue
 from worker.main import process_task_message
@@ -110,20 +111,21 @@ def test_admitted_work_uses_owned_context_from_identity_only_claim(help_attempt,
         "improvements": ["Add the outcome."], "example_answer": "I planned a workshop.",
     }]}
     with ExitStack() as stack:
+        usage = stack.enter_context(collect_task_usage())
         stack.enter_context(interview_clarification_agent.override(
-            model=TestModel(custom_output_args=explanation),
+            model=accounted_model(TestModel(custom_output_args=explanation)),
         ))
         stack.enter_context(interview_session_feedback_agent.override(
-            model=TestModel(custom_output_args=feedback),
+            model=accounted_model(TestModel(custom_output_args=feedback)),
         ))
         result = handle_ai_task(task, deps)
     assert result.status == "completed"
     if task.task_type == "interview_clarification":
-        assert result.result == explanation and len(result.usage) == 1
+        assert result.result == explanation and len(usage.entries) == 1
     elif task.task_type == "interview_session_feedback":
-        assert result.result == {"interview_session_feedback": feedback} and len(result.usage) == 1
+        assert result.result == {"interview_session_feedback": feedback} and len(usage.entries) == 1
     else:
-        assert result.result["references"] == [] and result.usage == []
+        assert result.result["references"] == [] and usage.entries == []
     reader.assert_called_once_with(task, grant)
 
 

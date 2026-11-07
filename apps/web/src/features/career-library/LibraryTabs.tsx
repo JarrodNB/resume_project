@@ -8,8 +8,10 @@
  *   - LibraryTabs: the sticky row of section links
  */
 import { useEffect, useRef, useState } from 'react'
+import { KeyboardSensor, PointerSensor } from '@dnd-kit/react'
+import { useSortable } from '@dnd-kit/react/sortable'
 import { sortableId } from '@/components/dnd/moveItems'
-import { SortableItem } from '@/components/dnd/SortableItem'
+import { DragHandle } from '@/components/dnd/DragHandle'
 import { SECTION_TITLES, type MovableSectionType } from '@/features/resume-tailoring/sectionOrder'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { cn } from '@/lib/utils'
@@ -17,6 +19,29 @@ import { LIBRARY_SECTION_ANCHORS } from './librarySectionLinks'
 import { LIBRARY_SECTION_TYPE } from './useLibraryDragHandlers'
 import { useLibraryWorkspace } from './LibraryWorkspaceContext'
 import { hasOpenQuestion, targetElementId, type ReviewSection } from './libraryReviewTargets'
+
+// The whole tab accepts pointer drags; the grip remains the keyboard drag control.
+const tabSensors = [PointerSensor.configure({
+  activatorElements: (source) => [source.element],
+  preventActivation: () => false,
+}), KeyboardSensor]
+
+function SortableLibraryTab({ section, index, count, current }: {
+  section: MovableSectionType; index: number; count: number; current: string
+}) {
+  const { ref, handleRef, isDragging } = useSortable({
+    id: sortableId(LIBRARY_SECTION_TYPE, section), index,
+    type: LIBRARY_SECTION_TYPE, accept: LIBRARY_SECTION_TYPE, sensors: tabSensors,
+  })
+  const anchor = LIBRARY_SECTION_ANCHORS[section]
+  return <div ref={ref} className={cn('library-tab transition-opacity', isDragging && 'opacity-60')} data-dragging={isDragging || undefined}>
+    <DragHandle handleRef={handleRef} label={`${SECTION_TITLES[section]} section`} />
+    <a href={`#${anchor}`} draggable={false} aria-current={anchor === current ? 'location' : undefined}
+      className={cn('section-tab cursor-grab touch-none select-none active:cursor-grabbing', anchor === current && 'is-active')}>
+      {SECTION_TITLES[section]}{count > 0 && <span className="library-tab-count">{count}</span>}
+    </a>
+  </div>
+}
 
 /** How many records a movable section holds. The summary is one piece of text, so it has no count. */
 function sectionCount(library: CareerLibraryQuery, section: MovableSectionType) {
@@ -81,9 +106,7 @@ export function LibraryTabs({ library, order }: { library: CareerLibraryQuery; o
   return (
     <nav ref={tabsRef} className="section-tabs library-tabs" aria-label="Library sections">
       {order.map((section, index) => (
-        <SortableItem key={section} id={sortableId(LIBRARY_SECTION_TYPE, section)} index={index} type={LIBRARY_SECTION_TYPE} label={`${SECTION_TITLES[section]} section`} className="library-tab">
-          {(dragHandle) => <>{dragHandle}{tab(LIBRARY_SECTION_ANCHORS[section], SECTION_TITLES[section], sectionCount(library, section))}</>}
-        </SortableItem>
+        <SortableLibraryTab key={section} section={section} index={index} count={sectionCount(library, section)} current={current} />
       ))}
       <span className="library-tab-rule" aria-hidden />
       {tab(LIBRARY_SECTION_ANCHORS.career_contexts, 'Career context', library.careerContexts.length)}

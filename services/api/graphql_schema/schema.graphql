@@ -1299,6 +1299,7 @@ type Education {
   fieldOfStudy: String
   id: ID!
   institution: String!
+  ongoing: Boolean!
   position: Int!
   startDate: ISO8601Date
 }
@@ -1309,6 +1310,7 @@ input EducationAttributesInput {
   endDate: ISO8601Date
   fieldOfStudy: String
   institution: String
+  ongoing: Boolean
   startDate: ISO8601Date
 }
 
@@ -2796,6 +2798,7 @@ type Project {
   endDate: ISO8601Date
   id: ID!
   name: String!
+  ongoing: Boolean!
   position: Int!
   role: String
   startDate: ISO8601Date
@@ -2806,6 +2809,7 @@ input ProjectAttributesInput {
   description: String
   endDate: ISO8601Date
   name: String
+  ongoing: Boolean
   role: String
   startDate: ISO8601Date
   url: String

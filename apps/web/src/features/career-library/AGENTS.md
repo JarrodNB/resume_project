@@ -67,6 +67,11 @@ sets the default section order for new resumes.
 - `reorderSkills` needs every skill id, so skill drops send the whole skill list in display
   order (categories as `groupSkillsByCategory` shows them).
 - Don't sort roles, projects, or education on the client; the API's order is the display order.
+- Education’s Currently studying and projects’ Ongoing controls clear and disable End for the
+  current edit. Both persist `ongoing: true` with `endDate: null` and restore on reopening.
+  Existing entries default to false: a null end date alone stays unknown, never inferred current.
+- Career context’s “Topic or question” field uses the existing `requirement` API field, including
+  when prefilled from an interview or gap answer.
 - Edit forms send every field, so a cleared optional field is stored as null. An experience
   update omits `highlights` when the bullets are unchanged.
 - Sections are never collapsed, so every entry is always a drag target. Section dragging lives on the
@@ -75,7 +80,7 @@ sets the default section order for new resumes.
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
 - `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD.
 
-- `certificationDateValues.ts` restores partial certification dates from API precision metadata and normalizes edits with year/month/day precision.
+- `certificationDateValues.ts` restores partial certification dates from API precision metadata, validates real calendar dates before save, and normalizes edits with year/month/day precision. `CertificationDateField.tsx` offers year, native month, and native date input; increasing precision clears the value rather than inventing missing parts. Blank dates remain optional. Incomplete native picker input blocks save with a field error.
 
 ## AI section review
 

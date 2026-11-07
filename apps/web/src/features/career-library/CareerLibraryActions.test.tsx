@@ -153,7 +153,7 @@ it('edits a project and can clear a field', async () => {
             role: 'Author',
             url: null,
             startDate: null,
-            endDate: null,
+            endDate: null, ongoing: false,
             description: null,
           },
         ],
@@ -166,7 +166,7 @@ it('edits a project and can clear a field', async () => {
         query: UPDATE_PROJECT_MUTATION,
         variables: {
           id: 'project-1',
-          attributes: { name: 'CLI', role: null, url: null, startDate: null, endDate: null, description: null },
+          attributes: { name: 'CLI', role: null, url: null, startDate: null, endDate: null, ongoing: false, description: null },
         },
       },
       result: { data: { updateProject: { __typename: 'UpdateProjectPayload', errors: [] } } },
@@ -237,7 +237,7 @@ it('shows inline required-field messages instead of browser bubbles', async () =
 it('adds https:// to a project link typed without it and explains an unusable one', async () => {
   const user = userEvent.setup()
   renderLibrary({
-    request: { query: CREATE_PROJECT_MUTATION, variables: { attributes: { name: 'Site', role: null, url: 'https://example.com/site', startDate: null, endDate: null, description: null } } },
+    request: { query: CREATE_PROJECT_MUTATION, variables: { attributes: { name: 'Site', role: null, url: 'https://example.com/site', startDate: null, endDate: null, ongoing: false, description: null } } },
     result: { data: { createProject: { __typename: 'CreateProjectPayload', errors: [] } } },
   })
   await user.click(await screen.findByRole('button', { name: 'Add project' }))

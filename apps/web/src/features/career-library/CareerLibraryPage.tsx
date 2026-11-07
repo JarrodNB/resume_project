@@ -4,7 +4,7 @@
  * recent first (the API orders them by date). Entries can be added, edited, deleted, or merged;
  * highlights can be dragged to a new place or into another role, and skills within their category.
  * Section tabs can be dragged, which sets the default section order for new resumes. The
- * profile stays first and career context stays last, because it never prints on a resume.
+ * profile stays first and career context stays last, because it is evidence rather than a separate resume section.
  * Every section shows its records on one long page, with sticky tabs for jumping between them.
  * The whole library can be deleted so a new resume import starts fresh (the button is hidden
  * while the library is empty). Saves show a toast and scroll to the changed section.

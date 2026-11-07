@@ -48,7 +48,7 @@ class LibraryExperience(LibraryRecord):
 
 
 class LibraryProject(LibraryRecord):
-    """A project the user worked on."""
+    """A project; unknown end dates do not imply ongoing work."""
 
     id: str
     name: str
@@ -56,10 +56,11 @@ class LibraryProject(LibraryRecord):
     description: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    ongoing: bool = False
 
 
 class LibraryEducation(LibraryRecord):
-    """A degree, course, or other education entry."""
+    """A degree or course; ongoing study must be explicitly recorded."""
 
     id: str
     institution: str
@@ -68,6 +69,7 @@ class LibraryEducation(LibraryRecord):
     description: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    ongoing: bool = False
 
 
 class LibraryCertification(LibraryRecord):

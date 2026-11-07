@@ -5,7 +5,7 @@ module Educations
   class CreateEducationService < ApplicationService
     def initialize(user:, attributes:)
       @user = user
-      @attributes = attributes
+      @attributes = CareerLibrary::OngoingDates.normalize(attributes)
     end
 
     # Saves the education.

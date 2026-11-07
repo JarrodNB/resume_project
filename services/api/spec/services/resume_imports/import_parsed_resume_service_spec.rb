@@ -82,6 +82,18 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.reload.name).to eq("Jane Doe")
   end
 
+  it "preserves explicitly ongoing education and projects when an import supplies end dates" do
+    project = create(:project, user: user, name: "Side project", ongoing: true, end_date: nil)
+    education = create(:education, user: user, institution: "State University", degree: "B.S.", ongoing: true, end_date: nil)
+    parsed_resume["projects"].first["end_date"] = "2024-01"
+
+    expect(described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)).to be_success
+    expect(project.reload).to have_attributes(ongoing: true, end_date: nil)
+    expect(education.reload).to have_attributes(ongoing: true, end_date: nil)
+    expect(user.projects.count).to eq(1)
+    expect(user.educations.count).to eq(1)
+  end
+
   it "appends skills in submitted order while skipping existing and repeated names" do
     create(:skill, user: user, name: "Python", category: nil, position: 4)
     parsed_resume["skills"] = [

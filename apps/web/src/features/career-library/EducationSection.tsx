@@ -36,7 +36,7 @@ export function EducationSection({ educations }: { educations: Education[] }) {
             key={education.id}
             heading={education.institution}
             subheading={[education.degree, education.fieldOfStudy].filter(Boolean).join(', ')}
-            dates={formatDateRange(education.startDate, education.endDate)}
+            dates={formatDateRange(education.startDate, education.endDate, { openEndedMeansPresent: education.ongoing }) || (education.ongoing ? 'Present' : '')}
             description={education.description}
             actions={
               <LibraryEntryActions

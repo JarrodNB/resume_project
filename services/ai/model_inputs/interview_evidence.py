@@ -68,7 +68,7 @@ def _render_interview_career_evidence(library: CareerLibrary, with_ids: bool):
     for project in library.projects:
         lines = []
         show(lines, "Project", project.name)
-        if dates := format_date_range(project.start_date, project.end_date):
+        if dates := format_date_range(project.start_date, project.end_date, ongoing=project.ongoing):
             lines.append(f"Dates: {dates}")
         if project.role and project.role.strip():
             show(lines, "Role", project.role)
@@ -78,7 +78,7 @@ def _render_interview_career_evidence(library: CareerLibrary, with_ids: bool):
     for education in library.educations:
         lines = []
         show(lines, "Education", education.institution)
-        if dates := format_date_range(education.start_date, education.end_date):
+        if dates := format_date_range(education.start_date, education.end_date, ongoing=education.ongoing):
             lines.append(f"Dates: {dates}")
         for label, value in (("Degree", education.degree), ("Field", education.field_of_study),
                              ("Description", education.description)):

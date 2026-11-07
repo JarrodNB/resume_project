@@ -59,11 +59,11 @@ HIGHLIGHTS_QUERY = """
     ORDER BY highlights.position
 """
 PROJECTS_QUERY = f"""
-    SELECT id::text, name, role, description, start_date, end_date, screened_fields
+    SELECT id::text, name, role, description, start_date, end_date, ongoing, screened_fields
     FROM projects WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
 EDUCATIONS_QUERY = f"""
-    SELECT id::text, institution, degree, field_of_study, description, start_date, end_date, screened_fields
+    SELECT id::text, institution, degree, field_of_study, description, start_date, end_date, ongoing, screened_fields
     FROM educations WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
 CERTIFICATIONS_QUERY = """

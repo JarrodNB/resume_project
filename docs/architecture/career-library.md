@@ -376,3 +376,12 @@ and the frontend together before resuming requests and consumers. Already-publis
 bodies are normalized at the Python queue boundary to match migrated Rails snapshots.
 The GraphQL rename requires the matching frontend; old clients must reload. Rollback
 requires the same coordinated pause and the migration’s `down` before restoring old code.
+
+### Ongoing education and projects
+
+Education and projects store an explicit `ongoing` flag. Existing entries default to false; a
+missing end date alone stays unknown. Selecting Currently studying or Ongoing clears the end
+date and persists the flag. Supplying an end date marks the entry finished. Merge/import keeps
+an explicitly ongoing target open. Model inputs receive this canonical metadata, and generated
+resume items copy it as `is_current`; the shared PDF/DOCX preview model prints Present only
+for explicit ongoing status. Existing saved resumes are not rewritten.

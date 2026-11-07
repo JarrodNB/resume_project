@@ -6,7 +6,7 @@ module Educations
   class UpdateEducationService < ApplicationService
     def initialize(education:, attributes:)
       @education = education
-      @attributes = attributes
+      @attributes = CareerLibrary::OngoingDates.normalize(attributes)
     end
 
     # Applies the attributes.

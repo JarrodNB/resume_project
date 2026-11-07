@@ -67,6 +67,11 @@ sets the default section order for new resumes.
 - `reorderSkills` needs every skill id, so skill drops send the whole skill list in display
   order (categories as `groupSkillsByCategory` shows them).
 - Don't sort roles, projects, or education on the client; the API's order is the display order.
+- Education’s Currently studying and projects’ Ongoing controls clear and disable End for the
+  current edit. Both persist `ongoing: true` with `endDate: null` and restore on reopening.
+  Existing entries default to false: a null end date alone stays unknown, never inferred current.
+- Career context’s “Topic or question” field uses the existing `requirement` API field, including
+  when prefilled from an interview or gap answer.
 - Edit forms send every field, so a cleared optional field is stored as null. An experience
   update omits `highlights` when the bullets are unchanged.
 - Sections are never collapsed, so every entry is always a drag target. Section dragging lives on the

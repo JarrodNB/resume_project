@@ -9,6 +9,7 @@ module Types
     argument :field_of_study, String, required: false
     argument :start_date, GraphQL::Types::ISO8601Date, required: false
     argument :end_date, GraphQL::Types::ISO8601Date, required: false
+    argument :ongoing, Boolean, required: false
     argument :description, String, required: false
   end
 end

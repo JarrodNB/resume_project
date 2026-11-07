@@ -8,7 +8,7 @@ import { LibraryDetail } from './LibraryDetail'
 import { emptyLibraryReviewMocks, emptyReviewLibrary } from './libraryReviewTestFixtures'
 import { DISMISS_LIBRARY_REVIEW_MUTATION, LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 
-const record = { __typename: 'Project' as const, id: 'p1', name: 'Billing', role: null, url: null, startDate: null, endDate: null, description: 'Built billing services.' }
+const record = { __typename: 'Project' as const, id: 'p1', name: 'Billing', role: null, url: null, startDate: null, endDate: null, ongoing: false, description: 'Built billing services.' }
 const assessment = { __typename: 'LibraryAssessment', kind: 'project', recordId: 'p1', field: 'description', color: 'yellow', reason: 'Explain your contribution.', question: 'Which part did you build?', questions: ['Which part did you build?'], reviewTaskId: 'review-1', stale: false }
 const query = { query: LIBRARY_REVIEW_QUERY, variables: { section: 'projects' } }
 const response = (assessments: object[]) => ({ data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments } } })

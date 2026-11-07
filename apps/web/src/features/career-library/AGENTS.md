@@ -75,7 +75,7 @@ sets the default section order for new resumes.
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
 - `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD.
 
-- `certificationDateValues.ts` restores partial certification dates from API precision metadata and normalizes edits with year/month/day precision.
+- `certificationDateValues.ts` restores partial certification dates from API precision metadata, validates real calendar dates before save, and normalizes edits with year/month/day precision. `CertificationDateField.tsx` offers year, native month, and native date input; increasing precision clears the value rather than inventing missing parts. Blank dates remain optional. Incomplete native picker input blocks save with a field error.
 
 ## AI section review
 

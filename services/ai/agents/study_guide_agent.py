@@ -1,16 +1,13 @@
 """Generate bounded study material without injection classification."""
-import asyncio
 
 from pydantic_ai import Agent
-from pydantic_ai.settings import ModelSettings
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
-from llm.generative_model import generative_model
+from llm.run_generative_agent import run_generative_agent
 from llm.run_limits import agent_usage_limits
 from prompts.study_guide_instructions import STUDY_GUIDE_INSTRUCTIONS, STUDY_GUIDE_PROMPT_VERSION
 from schemas.study_guide import StudyGuide, StudyGuideUnavailable
-from telemetry.tracing import record_prompt_version
 from text_limits import MAX_PROMPT_TEXT
 
 
@@ -27,12 +24,10 @@ study_guide_agent = Agent(name="study_guide_agent", output_type=[StudyGuide, Stu
 
 
 def generate_study_guide(prompt, settings):
-    """Return validated output and usage; provider failures use the shared fallback policy."""
-    async def run():
-        async with asyncio.timeout(settings.llm_run_timeout_seconds):
-            with record_prompt_version(STUDY_GUIDE_PROMPT_VERSION):
-                return await study_guide_agent.run(prompt,
-                    model=generative_model(settings.study_guide_model, settings.generative_fallback_model),
-                    model_settings=ModelSettings(thinking=settings.study_guide_thinking),
-                    usage_limits=agent_usage_limits(settings))
-    return asyncio.run(run())
+    """Return validated output; provider failures use the shared fallback policy."""
+    return run_generative_agent(
+        study_guide_agent, prompt, model=settings.study_guide_model,
+        fallback_model=settings.generative_fallback_model, thinking=settings.study_guide_thinking,
+        timeout_seconds=settings.llm_run_timeout_seconds, prompt_version=STUDY_GUIDE_PROMPT_VERSION,
+        usage_limits=agent_usage_limits(settings),
+    ).output

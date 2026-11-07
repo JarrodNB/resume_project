@@ -6,6 +6,7 @@ import httpx
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from tests.fakes import accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -30,11 +31,11 @@ def test_completed_session_returns_saved_question_coaching(task_dependencies):
         "strengths": ["You gave a concrete action."], "improvements": ["Explain what peers learned."],
         "example_answer": "I organized a workshop that my peers attended. [Add the actual learning outcome.]"}]}
     from agents.interview_session_feedback_agent import interview_session_feedback_agent
-    with interview_session_feedback_agent.override(model=TestModel(custom_output_args=output)):
+    with accounted_override(interview_session_feedback_agent, TestModel(custom_output_args=output)) as usage:
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert result.result == {"interview_session_feedback": output}
-    assert len(result.usage) == 1
+    assert len(usage.entries) == 1
     assert calls[0].url.path == f"/internal/interviews/feedback/{request.ai_task_id}/claim"
     assert calls[0].headers["Authorization"] == "Bearer test-secret"
 
@@ -76,10 +77,10 @@ def test_unanswered_claim_fails_before_provider(task_dependencies):
 def test_unknown_question_id_is_rejected_with_generation_usage(task_dependencies):
     from agents.interview_session_feedback_agent import interview_session_feedback_agent
     request, dependencies = request_and_dependencies(task_dependencies, saved_grant())
-    with interview_session_feedback_agent.override(model=TestModel(custom_output_args=coaching(str(uuid4())))):
+    with accounted_override(interview_session_feedback_agent, TestModel(custom_output_args=coaching(str(uuid4())))) as usage:
         result = handle_ai_task(request, dependencies)
     assert result.status == "failed"
-    assert result.usage and result.usage[0].input_tokens > 0
+    assert usage.entries and usage.entries[0].input_tokens > 0
     assert result.result is None
 
 
@@ -142,9 +143,9 @@ def test_oversized_aggregate_coaching_is_rejected(task_dependencies):
         "strengths": ["長" * 1900] * 5, "improvements": ["長" * 1900] * 5,
         "example_answer": "長" * 5900} for question in grant["questions"]]}
     request, dependencies = request_and_dependencies(task_dependencies, grant)
-    with interview_session_feedback_agent.override(model=TestModel(custom_output_args=output)):
+    with accounted_override(interview_session_feedback_agent, TestModel(custom_output_args=output)) as usage:
         result = handle_ai_task(request, dependencies)
-    assert result.status == "failed" and result.usage
+    assert result.status == "failed" and usage.entries
 
 
 def test_known_contact_is_masked_and_output_restored(task_dependencies):

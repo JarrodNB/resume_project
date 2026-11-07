@@ -179,19 +179,16 @@ def test_skipping_a_saved_question_does_not_screen_generated_question_or_skip_no
     assert screened == ["Make this clearer"]
 
 
-def test_history_limit_preserves_consumed_model_usage(task_dependencies, monkeypatch):
-    from pydantic_ai.usage import RunUsage
-
+def test_history_limit_fails_the_edit(task_dependencies, monkeypatch):
     from agents.library_edit_agent import LibraryEditRun
     from schemas.library_edit import LibraryEditDraft
     from screening.screen_user_text import ScreenOutcome
     patch_edit_screen(monkeypatch, lambda *_args, **_kwargs: ScreenOutcome(True))
     monkeypatch.setattr("worker.library_edit_handler.improve_library_entry", lambda *_args: LibraryEditRun(
         LibraryEditDraft(text="Contributed to migration.", color="yellow", reason="Add detail."),
-        [{"content": "x" * 100_001}], RunUsage(input_tokens=20, output_tokens=10), "openai:gpt-6-luna"))
+        [{"content": "x" * 100_001}]))
     result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input()), task_dependencies)
     assert result.status == "failed"
-    assert result.usage[0].input_tokens == 20
 
 
 def test_registered_edit_agent_masks_known_contact_in_source_and_feedback(task_dependencies, monkeypatch):

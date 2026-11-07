@@ -5,13 +5,9 @@ Old copied-source commands fail before classifiers or generation; no automatic p
 import json
 
 from pydantic import ValidationError
-from pydantic_ai import capture_run_messages
-from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import ModelResponse
-from pydantic_ai.usage import RunUsage
 
 from agents.summary_generation_agent import generate_summary
-from llm.model_prices import build_model_usage, reported_model_name
+from llm.run_generative_agent import GenerativeOutputInvalid
 from model_inputs.summary_generation import render_summary_sources
 from privacy.contact_mask import mask_outbound
 from schemas.summary_generation import SummaryCommand
@@ -61,19 +57,11 @@ def handle_summary_generation_task(task, dependencies):
     labels = [source.label for source in sources]
     prompt = bind_screened_prompt([source.text for source in sources], lambda values: render_summary_sources(labels, values))
     try:
-        with capture_run_messages() as messages:
-            run = generate_summary(prompt, labels, settings)
-    except UnexpectedModelBehavior:
-        by_model = {}
-        for message in messages:
-            if isinstance(message, ModelResponse):
-                model = reported_model_name(message.model_name or settings.library_edit_model, settings.library_edit_model)
-                by_model.setdefault(model, RunUsage()).incr(message.usage)
-        usage.extend(build_model_usage(model, tokens) for model, tokens in by_model.items())
+        proposal = generate_summary(prompt, labels, settings)
+    except GenerativeOutputInvalid:
         return failed("The AI could not produce a valid summary. Try again.")
-    model = reported_model_name(run.response.model_name or settings.library_edit_model, settings.library_edit_model)
-    return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result=run.output.model_dump(),
-        usage=[*usage, build_model_usage(model, run.usage)])
+    return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result=proposal.model_dump(),
+        usage=usage)
 
 
 def _masked_rendering(sources):

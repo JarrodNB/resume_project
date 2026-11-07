@@ -12,7 +12,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
 import text_limits
-from agents.interview_feedback_agent import InterviewFeedbackRun, interview_feedback_agent
+from agents.interview_feedback_agent import interview_feedback_agent
 from schemas.gap_analysis_context import (
     CareerContext,
     CareerLibrary,
@@ -23,6 +23,7 @@ from schemas.gap_analysis_context import (
 )
 from schemas.interview_feedback import InterviewFeedback
 from screening.screen_user_text import ScreenOutcome
+from tests.fakes import accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -71,11 +72,11 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
 
     monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", inspect_context)
     original = request.model_dump()
-    with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+    with accounted_override(interview_feedback_agent, TestModel(custom_output_args=output())) as usage:
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert result.result["interview_feedback"] == output()
-    assert len(result.usage) == 2
+    assert len(result.usage) == 1 and len(usage.entries) == 1
     assert request.model_dump() == original
 
 
@@ -95,7 +96,7 @@ def test_feedback_prompt_keeps_screened_evidence_without_metadata(dependencies, 
         assert "highlight-id" not in prompt.text
         assert "2020-01-01" not in prompt.text
         assert '"experiences"' not in prompt.text
-        return InterviewFeedbackRun(InterviewFeedback.model_validate(output()), RunUsage())
+        return InterviewFeedback.model_validate(output())
 
     monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", inspect_context)
     assert handle_ai_task(task(), dependencies).status == "completed"
@@ -181,12 +182,12 @@ def test_knowledge_correction_need_not_copy_incorrect_answer(dependencies):
              "example_answer": "Lists are mutable: their elements can change and new items can be appended. "
                                "Tuples are immutable: their sequence cannot change after creation.",
              "evidence_quotes": []}
-    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+    with accounted_override(interview_feedback_agent, TestModel(custom_output_args=draft)) as usage:
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert result.result["interview_feedback"] == draft
     assert request.model_dump() == original
-    assert len(result.usage) == 2
+    assert len(result.usage) == 1 and len(usage.entries) == 1
 
 
 def test_example_can_paraphrase_without_source_vocabulary(dependencies):
@@ -216,12 +217,12 @@ def test_invalid_evidence_is_discarded(dependencies, quote):
     """Invalid evidence is discarded rather than failing otherwise usable coaching."""
     draft = output()
     draft["evidence_quotes"] = [quote]
-    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+    with accounted_override(interview_feedback_agent, TestModel(custom_output_args=draft)) as usage:
         result = handle_ai_task(task(), dependencies)
     assert result.status == "completed"
     assert result.result["interview_feedback"]["example_answer"] == draft["example_answer"]
     assert result.result["interview_feedback"]["evidence_quotes"] == []
-    assert sum(u.output_tokens for u in result.usage) > 0
+    assert sum(u.output_tokens for u in usage.entries) > 0
 
 
 @pytest.mark.parametrize("unchecked", [False, True])
@@ -253,12 +254,12 @@ def test_invalid_feedback_preserves_generation_usage(dependencies, problem):
         draft["strengths"] = [" "]
     else:
         draft.pop("improvements")
-    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+    with accounted_override(interview_feedback_agent, TestModel(custom_output_args=draft)) as usage:
         result = handle_ai_task(task(), dependencies)
     assert result.status == ("completed" if problem in {"unsupported", "invented_actor", "invented_plan"} else "failed")
     if result.status == "completed":
         assert result.result["interview_feedback"]["example_answer"] == draft["example_answer"]
-    assert sum(u.output_tokens for u in result.usage) > 0
+    assert sum(u.output_tokens for u in usage.entries) > 0
 
 
 def test_prompt_limit_prevents_generation(dependencies, monkeypatch):
@@ -274,11 +275,11 @@ def test_excessive_placeholders_fail_with_billed_usage(dependencies):
     """A placeholder checklist cannot bypass the two-placeholder coaching limit."""
     draft = output()
     draft["example_answer"] = "[Add context] [Add action] [Add outcome]"
-    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+    with accounted_override(interview_feedback_agent, TestModel(custom_output_args=draft)) as usage:
         result = handle_ai_task(task(), dependencies)
     assert result.status == "failed"
     assert "answer is saved" in result.error_message
-    assert sum(entry.output_tokens for entry in result.usage) > 0
+    assert sum(entry.output_tokens for entry in usage.entries) > 0
 
 
 def test_knowledge_example_word_limit_retries_with_usage(dependencies):
@@ -287,11 +288,11 @@ def test_knowledge_example_word_limit_retries_with_usage(dependencies):
     request.input["set_type"] = "knowledge"
     draft = output()
     draft["example_answer"] = "word " * 121
-    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+    with accounted_override(interview_feedback_agent, TestModel(custom_output_args=draft)) as usage:
         result = handle_ai_task(request, dependencies)
     assert result.status == "failed"
     assert "answer is saved" in result.error_message
-    assert sum(entry.output_tokens for entry in result.usage) > 0
+    assert sum(entry.output_tokens for entry in usage.entries) > 0
 
 
 def test_knowledge_example_retry_accepts_concise_correction(dependencies):
@@ -421,7 +422,7 @@ def test_saved_practice_fields_reuse_checks_without_classifier_work(dependencies
     def generate(context, **kwargs):
         assert prompt_is_covered(context.text)
         assert "screened_fields" not in context.text
-        return InterviewFeedbackRun(InterviewFeedback.model_validate(output()), RunUsage())
+        return InterviewFeedback.model_validate(output())
     monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", generate)
     with screening_session():
         assert handle_ai_task(request, dependencies).status == "completed"

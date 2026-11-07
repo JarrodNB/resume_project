@@ -107,7 +107,7 @@ def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dep
     assert requests[0] == requests[1]
     assert "Built Python APIs" in requests[0]
     assert "Platform Engineer" in requests[0]
-    assert sum(usage.input_tokens for usage in result.usage[1:]) == 100
+    assert sum(usage.input_tokens for usage in result.usage) == 100
 
 
 def test_required_gap_job_block_prevents_generation(task_dependencies, fake_context_reader):

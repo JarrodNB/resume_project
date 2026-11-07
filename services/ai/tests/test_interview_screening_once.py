@@ -3,7 +3,6 @@
 from dataclasses import replace
 
 import pytest
-from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
@@ -12,6 +11,7 @@ from pydantic_ai.usage import RunUsage
 from agents.interview_feedback_agent import interview_feedback_agent
 from agents.interview_questions_agent import interview_questions_agent
 from agents.user_text_screen_agent import user_text_screen_agent
+from llm.run_generative_agent import GenerativeOutputInvalid
 from schemas.gap_analysis_context import CareerContext, CareerLibrary, LibrarySkill
 from screening.session import screening_session
 from tests.test_interview_feedback_handler import output, task
@@ -199,7 +199,7 @@ def test_successful_library_checks_survive_generation_failure(task_dependencies,
     deps = replace(task_dependencies, read_career_library=lambda _: library)
 
     def invalid(*args, **kwargs):
-        raise UnexpectedModelBehavior("Synthetic invalid generation")
+        raise GenerativeOutputInvalid("Synthetic invalid generation")
 
     handler = "interview_feedback" if feedback else "interview_questions"
     generate = "generate_interview_feedback" if feedback else "generate_interview_questions"

@@ -6,14 +6,10 @@ returns coaching only. Rails stores feedback against the reviewed revisions.
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from pydantic_ai import capture_run_messages
-from pydantic_ai.exceptions import UnexpectedModelBehavior
-from pydantic_ai.messages import ModelResponse
-from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
-from llm.model_prices import build_model_usage, reported_model_name
+from llm.run_generative_agent import GenerativeOutputInvalid
 from model_inputs.interview import format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_feedback import InterviewFeedbackContext
@@ -88,23 +84,15 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
     context = InterviewFeedbackContext(text, saved.answer_text + "\n" + interview_career_evidence(library)[1], saved.set_type)
     try:
-        with capture_run_messages() as messages:
-            run = generate_interview_feedback(context, model=settings.interview_feedback_model,
-                thinking=settings.interview_feedback_thinking,
-                timeout_seconds=settings.llm_run_timeout_seconds,
-                fallback_model=settings.generative_fallback_model)
-    except UnexpectedModelBehavior:
-        by_model: dict[str, RunUsage] = {}
-        for message in messages:
-            if isinstance(message, ModelResponse):
-                model = reported_model_name(message.model_name or settings.interview_feedback_model,
-                                            settings.interview_feedback_model)
-                by_model.setdefault(model, RunUsage()).incr(message.usage)
-        usage.extend(build_model_usage(model, tokens) for model, tokens in by_model.items())
+        feedback = generate_interview_feedback(context, model=settings.interview_feedback_model,
+            thinking=settings.interview_feedback_thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model)
+    except GenerativeOutputInvalid:
         return fail("Your answer is saved. The AI couldn't produce valid feedback. Try again.")
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-        result={"interview_feedback": run.feedback.model_dump(mode="json"), "warnings": warnings},
-        usage=[*usage, build_model_usage(run.model or settings.interview_feedback_model, run.usage)])
+        result={"interview_feedback": feedback.model_dump(mode="json"), "warnings": warnings},
+        usage=usage)
 
 
 def _feedback_prompt_text(values, fields, set_type):

@@ -208,10 +208,10 @@ class ResumePipeline:
     def analyze_gaps(self, case: OutcomeCase) -> dict:
         settings = self.settings
         prompt = build_gap_analysis_prompt(case.context, datetime.now(UTC).date())
-        run = analyze_gaps(prompt, model=settings.gap_analysis_model, thinking=settings.gap_analysis_thinking,
+        analysis = analyze_gaps(prompt, model=settings.gap_analysis_model, thinking=settings.gap_analysis_thinking,
                            timeout_seconds=settings.llm_run_timeout_seconds,
                            fallback_model=settings.generative_fallback_model)
-        return attach_evidence_text(run.gap_analysis, prompt).model_dump(mode="json")
+        return attach_evidence_text(analysis, prompt).model_dump(mode="json")
 
     def tailor(self, context, full_name, gap_analysis, gap_responses=()) -> dict:
         sources = TailoringSources(context, {"full_name": full_name, "links": []}, gap_analysis, list(gap_responses))

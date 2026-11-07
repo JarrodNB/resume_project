@@ -6,6 +6,7 @@ import httpx
 import pytest
 from pydantic_ai.models.test import TestModel
 
+from tests.fakes import accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
@@ -23,12 +24,12 @@ def test_question_only_clarification(task_dependencies):
         read_career_library=lambda _: (_ for _ in ()).throw(AssertionError("No library allowed")))
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="interview_clarification",
         input={"clarification_id": str(uuid4()), "question_text": question})
-    with interview_clarification_agent.override(model=TestModel(custom_output_args={"explanation": "Explain which competing priorities you balanced and what you chose."})):
+    with accounted_override(interview_clarification_agent, TestModel(custom_output_args={"explanation": "Explain which competing priorities you balanced and what you chose."})) as usage:
         result = handle_ai_task(task, dependencies)
     assert result.status == "completed"
     assert result.result == {"explanation": "Explain which competing priorities you balanced and what you chose."}
     assert len(calls) == 1
-    assert len(result.usage) == 1
+    assert len(usage.entries) == 1
 
 
 def test_blank_secret_fails_before_http_or_provider(task_dependencies):
@@ -60,10 +61,10 @@ def test_claimed_generated_question_reaches_explanation(task_dependencies):
         input={"clarification_id": str(uuid4()), "question_text": question})
     deps = replace(task_dependencies, settings=task_dependencies.settings.model_copy(update={"interview_service_secret": "test"}),
         http_client=httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, json={"allowed": True, "question_text": question}))))
-    with interview_clarification_agent.override(model=TestModel(custom_output_args={"explanation": "Describe your choices."})):
+    with accounted_override(interview_clarification_agent, TestModel(custom_output_args={"explanation": "Describe your choices."})) as usage:
         result = handle_ai_task(task, deps)
     assert result.status == "completed"
-    assert len(result.usage) == 1
+    assert len(usage.entries) == 1
 
 
 def test_provider_receives_fixed_instruction_and_exact_question_only(task_dependencies):

@@ -1,8 +1,9 @@
 """Turn a source-checked ad parse into the posting Rails saves.
 
 Pasted and generic HTML ads use parsed identity; structured scrapes keep acquired
-metadata. Optional pasted locations and links must appear in the source. Saved
-length limits apply after selection, and links retain their exact spelling.
+metadata. When parsed identity is used, an optional location must appear in the
+source, and so must a pasted link. Saved length limits apply after selection.
+Links keep their exact spelling because paths and query values can be case-sensitive.
 """
 
 import text_limits

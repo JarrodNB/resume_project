@@ -1,12 +1,5 @@
-/**
- * Description: The review form's working copy of a ParsedResume. Every entry, highlight, and
- * skill gets a stable `key` so it can be dragged (list indexes change as items move). The keys
- * are removed again before import, so the import payload is a plain ParsedResume.
- * Index:
- *   - DraftHighlight, DraftExperience, DraftProject, DraftEducation, DraftCertification, DraftSkill, ReviewDraft
- *   - withDraftKey: copies an object with a new key
- *   - toReviewDraft: ParsedResume -> ReviewDraft
- *   - toParsedResume: ReviewDraft -> ParsedResume (keys removed)
+/** The review form gives entries and highlights stable keys for editing and dragging.
+ * Shared converters remove those browser-only keys before import or tailored resume saves.
  */
 import type { ParsedCertification, ParsedEducation, ParsedExperience, ParsedProject, ParsedResume, ParsedSkill } from '../parsedResume'
 
@@ -44,9 +37,7 @@ export function withDraftKey<Value extends object>(value: Value): Value & Keyed 
 export function toReviewDraft(parsedResume: ParsedResume): ReviewDraft {
   return {
     ...parsedResume,
-    experiences: parsedResume.experiences.map((experience) =>
-      withDraftKey({ ...experience, highlights: experience.highlights.map((text) => withDraftKey({ text })) }),
-    ),
+    experiences: parsedResume.experiences.map(toDraftExperience),
     projects: parsedResume.projects.map(withDraftKey),
     educations: parsedResume.educations.map(withDraftKey),
     certifications: (parsedResume.certifications ?? []).map(withDraftKey),
@@ -55,7 +46,7 @@ export function toReviewDraft(parsedResume: ParsedResume): ReviewDraft {
 }
 
 /** Removes the `key` from a keyed object. */
-function withoutKey<Value extends Keyed>({ key: _key, ...rest }: Value): Omit<Value, 'key'> {
+export function withoutDraftKey<Value extends Keyed>({ key: _key, ...rest }: Value): Omit<Value, 'key'> {
   return rest
 }
 
@@ -63,13 +54,20 @@ function withoutKey<Value extends Keyed>({ key: _key, ...rest }: Value): Omit<Va
 export function toParsedResume(draft: ReviewDraft): ParsedResume {
   return {
     ...draft,
-    experiences: draft.experiences.map((experience) => ({
-      ...withoutKey(experience),
-      highlights: experience.highlights.map((highlight) => highlight.text),
-    })),
-    projects: draft.projects.map(withoutKey),
-    educations: draft.educations.map(withoutKey),
-    certifications: draft.certifications.map(withoutKey),
-    skills: draft.skills.map(withoutKey),
+    experiences: draft.experiences.map(toParsedExperience),
+    projects: draft.projects.map(withoutDraftKey),
+    educations: draft.educations.map(withoutDraftKey),
+    certifications: draft.certifications.map(withoutDraftKey),
+    skills: draft.skills.map(withoutDraftKey),
   }
+}
+
+/** Gives a role and each highlight stable browser-only editing keys. */
+export function toDraftExperience(experience: ParsedExperience): DraftExperience {
+  return withDraftKey({ ...experience, highlights: experience.highlights.map((text) => withDraftKey({ text })) })
+}
+
+/** Restores a role's plain highlights and removes its browser-only editing key. */
+export function toParsedExperience(experience: DraftExperience): ParsedExperience {
+  return { ...withoutDraftKey(experience), highlights: experience.highlights.map((highlight) => highlight.text) }
 }

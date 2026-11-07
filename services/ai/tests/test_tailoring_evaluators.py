@@ -37,9 +37,12 @@ def test_runner_generates_only_production_written_sections(monkeypatch) -> None:
     from tailoring.section_catalog import WRITTEN_SECTIONS
 
     sections = []
+    answer_prompts = []
 
     def write(prompt, **_):
         sections.append(prompt.section_type)
+        if "GR1" in prompt.sources.records:
+            answer_prompts.append(prompt.text)
         return TailoringRun(TailoredSectionDraft(nothing_fits=True), RunUsage())
 
     def evaluate(load_dataset, task, **_):
@@ -49,6 +52,8 @@ def test_runner_generates_only_production_written_sections(monkeypatch) -> None:
     monkeypatch.setattr(runner, "evaluate_dataset", evaluate)
     runner.run_tailoring_evals()
 
+    assert len(answer_prompts) == 1
+    assert "presented quarterly retention findings to senior leaders" in answer_prompts[0]
     assert set(sections) == set(WRITTEN_SECTIONS)
     assert len(sections) == len(load_tailoring_dataset().cases)
 
@@ -60,3 +65,26 @@ def test_copied_sections_cannot_enter_paid_eval_inputs(section) -> None:
     context = load_tailoring_dataset().cases[0].inputs.context
     with pytest.raises(ValueError, match="generated section"):
         TailorEvalInput(section_type=section, context=context)
+
+
+@pytest.mark.parametrize("retained", ["answer", "highlight", "citation_only", "wrong_citation"])
+def test_evidence_coverage_detects_lost_facts(retained) -> None:
+    """Either missing achievement lowers recall; citations without wording prove nothing."""
+    from types import SimpleNamespace
+
+    from evals.tailoring_evaluators import EvidenceCoverage
+    from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
+
+    case = next(case for case in load_tailoring_dataset().cases
+                if case.name == "gap_answer_preserves_existing_churn_evidence")
+    texts = {
+        "answer": ("Presented retention findings to senior leaders.", ["GR1"]),
+        "highlight": ("Built churn reports reducing churn 12%.", ["H1"]),
+        "citation_only": ("Maintained the team calendar.", ["H1", "GR1"]),
+        "wrong_citation": ("Presented findings to senior leaders.", ["H2"]),
+    }
+    text, sources = texts[retained]
+    draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="E1", prose=[
+        CitedProse(text=text, source_labels=sources)])])
+    context = SimpleNamespace(inputs=case.inputs, metadata=case.metadata, output=draft)
+    assert EvidenceCoverage().evaluate(context) == (0 if retained in {"citation_only", "wrong_citation"} else 0.5)

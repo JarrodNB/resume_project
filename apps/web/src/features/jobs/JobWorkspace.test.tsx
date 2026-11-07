@@ -10,6 +10,7 @@ import { ApolloClient, ApolloLink, InMemoryCache } from '@apollo/client'
 import { ApolloProvider } from '@apollo/client/react'
 import { MockLink, MockSubscriptionLink } from '@apollo/client/testing'
 import type { MockLink as MockLinkTypes } from '@apollo/client/testing'
+import { GraphQLError } from 'graphql'
 import { expect, it, vi } from 'vitest'
 import { ANALYZE_JOB_GAPS_MUTATION } from '@/features/gap-analysis/gapAnalysisOperations'
 import { renderPage } from '@/test/renderPage'
@@ -145,11 +146,20 @@ it('explains empty requirements and leaves out empty optional posting sections',
   expect(screen.queryByRole('button', { name: /Full description/ })).not.toBeInTheDocument()
 })
 
-it('shows a load error instead of the workspace when the job is unavailable', async () => {
-  renderWorkspace({ mocks: [{ request: { query: JOB_QUERY, variables: { id: 'job-1' } }, error: new Error('Record not found') }] })
+it('keeps retry available for a transient load failure', async () => {
+  renderWorkspace({ mocks: [{ request: { query: JOB_QUERY, variables: { id: 'job-1' } }, error: new Error('Connection interrupted') }] })
 
   expect(await screen.findByText("Couldn't load this job")).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
   expect(screen.queryByRole('navigation', { name: 'Job sections' })).not.toBeInTheDocument()
+})
+
+it('offers a useful return action instead of retry for a missing or inaccessible job', async () => {
+  renderWorkspace({ mocks: [{ request: { query: JOB_QUERY, variables: { id: 'job-1' } }, result: { errors: [new GraphQLError('Record not found')] } }] })
+
+  expect(await screen.findByText('This job is unavailable')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'All saved jobs' })).toHaveAttribute('href', '/jobs')
+  expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
 })
 
 it('offers the saved website in a new tab without changing the application stage', async () => {
@@ -549,12 +559,13 @@ it('shows literal skill counts in Fit without a completed comparison and ignores
   expect(screen.getByRole('button', { name: 'Compare with my career library' })).toBeEnabled()
 })
 
-it('offers Add description on Posting and Fit when the job has none, opening the edit form', async () => {
+it.each(['/jobs/job-1/posting', '/jobs/job-1'])('focuses Description when Add description opens the edit form from %s', async (url) => {
   const user = userEvent.setup()
-  renderWorkspace({ url: '/jobs/job-1/posting', mocks: [jobQuery(job({ description: null }))] })
+  renderWorkspace({ url, mocks: [jobQuery(job({ description: null }))] })
 
-  await user.click(await screen.findByRole('button', { name: 'Add description' }))
+  await user.click((await screen.findAllByRole('button', { name: 'Add description' }))[0]!)
   expect(screen.getByRole('heading', { name: 'Edit job' })).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByLabelText('Description')).toHaveFocus())
 })
 
 it('disables Compare with a reason and an Add description action when the job has no description', async () => {
@@ -593,4 +604,33 @@ it('shows inline errors instead of browser validation, and adds https:// to a ba
   await user.type(screen.getByLabelText('Link'), 'acme.example/jobs/1')
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByRole('link', { name: 'View posting' })).toHaveAttribute('href', 'https://acme.example/jobs/1')
+})
+
+
+it('keeps comparison disabled for a manually entered description without saved requirements', async () => {
+  const user = userEvent.setup()
+  renderWorkspace({ mocks: [jobQuery(job({ requirements: [], niceToHaves: [] }))] })
+  const compare = await screen.findByRole('button', { name: 'Compare with my career library' })
+  expect(compare).toBeDisabled()
+  expect(screen.getByText(/Add requirements or nice-to-haves/)).toBeInTheDocument()
+  await user.click(compare)
+  expect(screen.queryByText(/Couldn't start the comparison/)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Edit requirements' }))
+  expect(screen.getByRole('heading', { name: 'Edit job' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Add requirement' })).toBeInTheDocument()
+})
+
+it('keeps Compare first disabled without requirements and allows writing from the description', async () => {
+  const user = userEvent.setup()
+  const { router } = renderWorkspace({ mocks: [jobQuery(job({ requirements: [], niceToHaves: [] }))] })
+  await user.click(await screen.findByRole('button', { name: 'Write resume' }))
+  expect(screen.getByRole('button', { name: 'Compare first' })).toBeDisabled()
+  expect(screen.getByText(/This job needs saved requirements/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Write resume anyway' }))
+  expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write')
+})
+
+it('allows comparison when the job has only nice-to-haves', async () => {
+  renderWorkspace({ mocks: [jobQuery(job({ requirements: [], niceToHaves: ['Python'] }))] })
+  expect(await screen.findByRole('button', { name: 'Compare with my career library' })).toBeEnabled()
 })

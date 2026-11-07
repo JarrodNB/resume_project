@@ -60,7 +60,8 @@ be edited, moved between application stages, and archived.
 - A job requires a title. Company is nullable: show **Unknown company** in saved-job labels,
   leave its edit input empty, and send null when the field is cleared.
 - Archiving hides a job from saved jobs and Home; answers, resumes, interviews, and AI history stay linked.
-- A job without a description shows an "Add description" button on Posting, Fit and Study (and disables Compare and question generation) that opens the edit form through the workspace context's `onEditJob`.
+- Compare also requires at least one saved requirement or nice-to-have. A description alone does not enable Compare or the resume dialog's Compare first; Fit offers Edit requirements. Writing from the description stays available.
+- A job without a description shows an "Add description" button on Posting, Fit and Study (and disables Compare and question generation) that opens the edit form with Description focused through the workspace context's `onAddDescription`. General edits use `onEditJob`.
 - Forms use `noValidate` with inline field errors; links are normalized with `normalizeJobUrl` (adds `https://`).
 - A tab's main content stays open; only long extras (the full description) collapse.
 - The task page must work on reload: the subscription sends the task's current state first.

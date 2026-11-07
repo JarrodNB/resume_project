@@ -138,10 +138,12 @@ it('does not start a new draft from accepted history on the Resume tab', async (
   expect(start).not.toHaveBeenCalled()
 })
 
-it('follows a draft already being written when the Resume tab opens', async () => {
+it('shows truthful ongoing work without claiming a generation stage when the Resume tab opens', async () => {
   renderResume([jobMock(task({})), subscription({})], { url: '/jobs/job-1/resume' })
 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(screen.getByText('Preparing your resume draft…')).toBeVisible()
+  expect(screen.queryByText('Reading the job description…')).not.toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'No resume for this job yet' })).not.toBeInTheDocument()
 })
 

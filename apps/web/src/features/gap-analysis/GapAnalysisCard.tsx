@@ -23,8 +23,11 @@ interface GapAnalysisCardProps {
   dismissedRequirements: string[]
   /** False when the job has no description; the comparison needs one. Defaults to true. */
   hasDescription?: boolean
-  /** Opens the job's edit form so the user can add a description. */
+  /** False when neither requirements nor nice-to-haves have been saved. */
+  hasRequirements?: boolean
+  /** Opens the job's edit form so the user can add comparison inputs. */
   onAddDescription?: () => void
+  onEditRequirements?: () => void
 }
 
 const COMPARING_CAPTIONS = [
@@ -35,10 +38,10 @@ const COMPARING_CAPTIONS = [
 ]
 
 /** Displays the lifecycle owned by the page, so its writing controls see the same state. */
-export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequirements, hasDescription = true, onAddDescription }: GapAnalysisCardProps) {
+export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequirements, hasDescription = true, hasRequirements = true, onAddDescription, onEditRequirements }: GapAnalysisCardProps) {
   const { task, starting, errors, subscriptionError, start } = comparison
   const runButton = (currentTask: GapAnalysisTask | null) => (
-    <RunButton task={currentTask} starting={starting} onRun={() => void start()} hasDescription={hasDescription} onAddDescription={onAddDescription} />
+    <RunButton task={currentTask} starting={starting} onRun={() => void start()} hasDescription={hasDescription} hasRequirements={hasRequirements} onAddDescription={onAddDescription} onEditRequirements={onEditRequirements} />
   )
 
   // Tell the user when a comparison they were waiting on finishes (adjust state during render).
@@ -135,14 +138,14 @@ function GapAnalysisTaskView({
 }
 
 /** "Compare" for a first run, "Try again" after a failure, "Compare again" with the last run's date. */
-function RunButton({ task, starting, onRun, hasDescription, onAddDescription }: {
-  task: GapAnalysisTask | null; starting: boolean; onRun: () => void; hasDescription: boolean; onAddDescription?: () => void
+function RunButton({ task, starting, onRun, hasDescription, hasRequirements, onAddDescription, onEditRequirements }: {
+  task: GapAnalysisTask | null; starting: boolean; onRun: () => void; hasDescription: boolean; hasRequirements: boolean; onAddDescription?: () => void; onEditRequirements?: () => void
 }) {
   const label = !task ? 'Compare with my career library' : task.status === 'FAILED' ? 'Try again' : 'Compare again'
   const analyzedOn = task?.status === 'COMPLETED' && task.createdAt ? new Date(task.createdAt).toLocaleDateString() : null
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant={task ? 'outline' : 'default'} size={task ? 'sm' : 'default'} disabled={starting || !hasDescription} onClick={onRun}>
+      <Button variant={task ? 'outline' : 'default'} size={task ? 'sm' : 'default'} disabled={starting || !hasDescription || !hasRequirements} onClick={onRun}>
         {task && <RefreshCw />}
         {starting ? 'Starting…' : label}
       </Button>
@@ -150,6 +153,12 @@ function RunButton({ task, starting, onRun, hasDescription, onAddDescription }: 
         <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           The comparison needs a job description.
           {onAddDescription && <Button type="button" variant="outline" size="sm" onClick={onAddDescription}>Add description</Button>}
+        </span>
+      )}
+      {hasDescription && !hasRequirements && (
+        <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          Add requirements or nice-to-haves to this job before comparing. A description alone is not enough.
+          {onEditRequirements && <Button type="button" variant="outline" size="sm" onClick={onEditRequirements}>Edit requirements</Button>}
         </span>
       )}
       {analyzedOn && (

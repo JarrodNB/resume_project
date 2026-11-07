@@ -12,7 +12,7 @@ export function JobScrapeTaskPage() {
       retryTo="/jobs/new"
       retryLabel="Try another link"
       progressTitle="Reading the job posting…"
-      progressBody="This usually takes a few seconds. You can leave this page open; it updates by itself."
+      progressBody="Reading and saving the job can take a little while. This page updates automatically when it is ready."
     />
   )
 }

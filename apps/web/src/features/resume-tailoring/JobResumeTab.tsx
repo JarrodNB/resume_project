@@ -87,6 +87,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
               comparisonFinished={comparison.completed}
               comparisonBusy={comparison.busy}
               hasDescription
+              hasRequirements={workspaceJob.requirements.length > 0 || workspaceJob.niceToHaves.length > 0}
               onCompare={() => void comparison.start()}
             />
           ) : (
@@ -174,8 +175,7 @@ function TailorProgress({
       <CardContent className="grid gap-2">
         <AiWaitingLine
           statusLabel="Writing your complete draft…"
-          captions={['Reading the job description', 'Picking the strongest library entries', 'Drafting each section', 'Checking the draft against your library', 'Almost there']}
-          captionSeconds={6}
+          captions={['Preparing your resume draft']}
         />
         <p className="text-sm text-muted-foreground">This usually takes under a minute. Your sections will appear together when the draft is ready to review. You can leave this page; the draft will be waiting on this job's Resume tab.</p>
       </CardContent>

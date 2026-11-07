@@ -15,11 +15,12 @@ interface WriteResumeActionProps {
   comparisonFinished: boolean
   comparisonBusy: boolean
   hasDescription: boolean
+  hasRequirements: boolean
   onCompare: () => void
 }
 
 /** Opens the saved resume, or starts writing one, asking first when no comparison has finished. */
-export function WriteResumeAction({ jobId, resumeId, comparisonFinished, comparisonBusy, hasDescription, onCompare }: WriteResumeActionProps) {
+export function WriteResumeAction({ jobId, resumeId, comparisonFinished, comparisonBusy, hasDescription, hasRequirements, onCompare }: WriteResumeActionProps) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
 
@@ -58,8 +59,9 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
         open={confirming}
         onOpenChange={setConfirming}
         busy={comparisonBusy}
+        hasRequirements={hasRequirements}
         onCompare={() => {
-          if (comparisonBusy) return
+          if (comparisonBusy || !hasRequirements) return
           setConfirming(false)
           onCompare()
         }}

@@ -12,7 +12,7 @@ import { useJobWorkspace } from './useJobWorkspace'
 
 /** How the career library matches this job, with gap answers. */
 export function JobFitTab() {
-  const { job, comparison, onEditJob } = useJobWorkspace()
+  const { job, comparison, onEditJob, onAddDescription = onEditJob } = useJobWorkspace()
   return (
     <div className="grid gap-7">
       <GapAnalysisCard
@@ -21,22 +21,24 @@ export function JobFitTab() {
         gapResponses={job.gapResponses}
         dismissedRequirements={job.dismissedRequirements}
         hasDescription={Boolean(job.description?.trim())}
-        onAddDescription={onEditJob}
+        hasRequirements={job.requirements.length > 0 || job.niceToHaves.length > 0}
+        onAddDescription={onAddDescription}
+        onEditRequirements={onEditJob}
       />
-      <SkillMatches description={job.description} onAddDescription={onEditJob} />
+      <SkillMatches description={job.description} onAddDescription={onAddDescription} />
     </div>
   )
 }
 
 /** Study guides built from this job's description. */
 export function JobStudyTab() {
-  const { job, onEditJob } = useJobWorkspace()
-  return <StudyGuidePanel jobId={job.id} description={job.description} onAddDescription={onEditJob} />
+  const { job, onEditJob, onAddDescription = onEditJob } = useJobWorkspace()
+  return <StudyGuidePanel jobId={job.id} description={job.description} onAddDescription={onAddDescription} />
 }
 
 /** What the posting asks for, the user's notes, and the full description. */
 export function JobPostingTab() {
-  const { job, onEditJob } = useJobWorkspace()
+  const { job, onEditJob, onAddDescription = onEditJob } = useJobWorkspace()
   return (
     <div className="job-posting">
       <PostingList title="Requirements" items={job.requirements} emptyText="No requirements were found in the posting." />
@@ -52,7 +54,7 @@ export function JobPostingTab() {
         <section>
           <h2>Description</h2>
           <p className="text-muted-foreground">This job has no description yet. Fit and Study need one.</p>
-          <Button type="button" variant="outline" className="mt-3" onClick={onEditJob}>Add description</Button>
+          <Button type="button" variant="outline" className="mt-3" onClick={onAddDescription}>Add description</Button>
         </section>
       )}
       {job.description && (

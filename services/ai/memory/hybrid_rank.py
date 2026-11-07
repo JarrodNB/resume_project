@@ -7,6 +7,7 @@ reciprocal rank fusion, so callers cannot misalign separate collections.
 
 import math
 import re
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -51,15 +52,12 @@ def keyword_rank(query: str, documents: Sequence[tuple[str, str]]) -> list[str]:
     query_terms = list(dict.fromkeys(_tokens(query)))
     if not query_terms or not documents:
         return []
-    counted = [(doc_id, _counts(_tokens(text))) for doc_id, text in documents]
+    counted = [(doc_id, Counter(_tokens(text))) for doc_id, text in documents]
     lengths = [sum(counts.values()) for _, counts in counted]
     average_length = sum(lengths) / len(lengths)
     if average_length == 0:
         return []
-    document_frequency: dict[str, int] = {}
-    for _, counts in counted:
-        for term in counts:
-            document_frequency[term] = document_frequency.get(term, 0) + 1
+    document_frequency = Counter(term for _, counts in counted for term in counts)
     scored: list[tuple[float, str]] = []
     for (doc_id, counts), length in zip(counted, lengths, strict=True):
         score = _bm25(query_terms, counts, length, average_length, len(counted), document_frequency)
@@ -98,14 +96,6 @@ def hybrid_order(
 def _tokens(text: str) -> list[str]:
     """Lowercase words and numbers, without stopwords."""
     return [token for token in _TOKEN.findall(text.lower()) if token not in _STOPWORDS]
-
-
-def _counts(tokens: Sequence[str]) -> dict[str, int]:
-    """How many times each token appears."""
-    counts: dict[str, int] = {}
-    for token in tokens:
-        counts[token] = counts.get(token, 0) + 1
-    return counts
 
 
 def _bm25(

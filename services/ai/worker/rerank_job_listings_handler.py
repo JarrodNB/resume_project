@@ -17,8 +17,9 @@ from llm.usage import current_task_usage
 from memory.rerank_job_listings import hybrid_listing_order
 from privacy.contact_mask import mask_outbound
 from schemas.job_listing_reranking import RankedListings
+from schemas.model_usage import ModelUsage
 from screening.session import remaining_timeout
-from worker.queue_messages import AiResultMessage
+from worker.queue_messages import AiResultMessage, AiTaskMessage
 
 
 async def _embed_listings(texts, settings):
@@ -52,27 +53,16 @@ def handle_rerank_job_listings_task(task, dependencies):
         if snapshot is None:
             raise ValueError("Missing owned command or catalogue listing")
     except (ValidationError, ValueError):
-        return AiResultMessage(
-            ai_task_id=task.ai_task_id,
-            status="failed",
-            error_message="Reranking needs a search keyword and 1 to 100 valid loaded roles.",
-        )
+        return _failed(task, "Reranking needs a search keyword and 1 to 100 valid loaded roles.")
     if dependencies.score_job_listings is None:
-        return AiResultMessage(
-            ai_task_id=task.ai_task_id,
-            status="failed",
-            error_message="Career-library reranking is unavailable. Please try again later.",
-        )
+        return _failed(task, "Career-library reranking is unavailable. Please try again later.")
     embedded = asyncio.run(
         _embed_listings([item.text for item in snapshot.listings], dependencies.settings)
     )
     usage = [build_model_usage(dependencies.settings.embedding_model, embedded.usage)]
     if len(embedded.embeddings) != len(snapshot.listings):
-        return AiResultMessage(
-            ai_task_id=task.ai_task_id,
-            status="failed",
-            usage=usage,
-            error_message="The embedding provider returned an incomplete ranking. Please retry.",
+        return _failed(
+            task, "The embedding provider returned an incomplete ranking. Please retry.", usage=usage,
         )
     candidates = [
         (str(item.id), list(vector))
@@ -82,11 +72,8 @@ def handle_rerank_job_listings_task(task, dependencies):
         task.user_id, candidates, dependencies.settings.embedding_model
     )
     if not similarities:
-        return AiResultMessage(
-            ai_task_id=task.ai_task_id,
-            status="failed",
-            usage=usage,
-            error_message="Add career-library details and let them finish indexing before reranking.",
+        return _failed(
+            task, "Add career-library details and let them finish indexing before reranking.", usage=usage,
         )
     ordered = hybrid_listing_order(
         [(str(item.id), item.text) for item in snapshot.listings], similarities, snapshot.keyword
@@ -96,4 +83,13 @@ def handle_rerank_job_listings_task(task, dependencies):
         status="completed",
         usage=usage,
         result=RankedListings(ranked_listing_ids=ordered).model_dump(mode="json"),
+    )
+
+
+def _failed(
+    task: AiTaskMessage, error_message: str, *, usage: list[ModelUsage] | None = None,
+) -> AiResultMessage:
+    """Build a failed result, retaining any embedding usage already incurred."""
+    return AiResultMessage(
+        ai_task_id=task.ai_task_id, status="failed", error_message=error_message, usage=usage or [],
     )

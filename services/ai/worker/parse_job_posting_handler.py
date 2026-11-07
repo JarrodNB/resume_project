@@ -9,12 +9,11 @@ Index:
 """
 
 from pydantic import BaseModel, ValidationError
-from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from agents.parse_job_posting_agent import parse_job_posting
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
-from llm.model_prices import build_model_usage
+from llm.run_generative_agent import GenerativeOutputInvalid
 from schemas.model_usage import ModelUsage
 from screening.screen_user_text import ScreenOutcome, screen_user_text
 from screening.session import within_screening_session
@@ -56,32 +55,26 @@ def handle_parse_job_posting_task(
     if not screen.allowed:
         return _failed(task, _screen_failure_message(screen), usage=screen_usage)
 
-    model = settings.job_posting_parse_model
     try:
-        run = parse_job_posting(
+        parsed = parse_job_posting(
             text,
-            model=model,
+            model=settings.job_posting_parse_model,
             thinking=settings.job_posting_parse_thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
         )
-    except UnexpectedModelBehavior:
+    except GenerativeOutputInvalid:
         return _failed(task, COULD_NOT_READ_MESSAGE, usage=screen_usage)
 
-    billed = run.model or model
-    if not run.parsed.is_job_posting or find_parsed_job_problems(run.parsed, text):
-        return _failed(
-            task,
-            COULD_NOT_READ_MESSAGE,
-            usage=[build_model_usage(billed, run.usage), *screen_usage],
-        )
+    if not parsed.is_job_posting or find_parsed_job_problems(parsed, text):
+        return _failed(task, COULD_NOT_READ_MESSAGE, usage=screen_usage)
 
-    posting = posting_from_parsed_job(text, run.parsed)
+    posting = posting_from_parsed_job(text, parsed)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"scraped_job": posting.model_dump(mode="json")},
-        usage=[build_model_usage(billed, run.usage), *screen_usage],
+        usage=screen_usage,
     )
 
 

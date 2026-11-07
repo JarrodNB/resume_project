@@ -2,6 +2,7 @@
 
 Written sections keep the model's checked prose. Education and certifications have an
 exact copy path that preserves their original descriptions and credential date precision.
+Project and education current-status flags come from explicit saved ongoing metadata.
 """
 
 from datetime import date
@@ -99,6 +100,7 @@ def _project_item(label: str, prose: list, library: CareerLibrary, sources: Labe
         "url": None,
         "start_date": _month(project.start_date),
         "end_date": _month(project.end_date),
+        "is_current": project.ongoing,
         "description": description,
     }
 
@@ -114,6 +116,7 @@ def _education_item(label: str, prose: list, library: CareerLibrary, sources: La
         "field_of_study": education.field_of_study,
         "start_date": _month(education.start_date),
         "end_date": _month(education.end_date),
+        "is_current": education.ongoing,
         "description": description,
     }
 

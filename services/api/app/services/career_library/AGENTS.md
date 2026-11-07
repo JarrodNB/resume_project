@@ -41,8 +41,12 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 - Merging never overwrites a value the target already has.
 - Exact copied fields/highlights from saved sources keep their existing coverage; unsaved
-  imported text remains unchecked. Normal highlight editing keeps coverage only for exact
-  unchanged content, even when its rows are recreated.
+  imported text remains unchecked. Normal highlight editing preserves the IDs and coverage
+  of exact unchanged bullets, matching each saved row once; changed bullets get new IDs.
+  Reviews remain attached to retained IDs, with context changes marking them out of date.
+- Education and projects keep explicit `ongoing` status separately from unknown end dates.
+  `OngoingDates.normalize` applies form-save invariants; merge/import must never fill an end
+  date on an ongoing target. Database constraints reject ongoing entries with an end date.
 - An experience's blank `end_date` means "current role", so it is never filled from a merge.
 - Add a model's identifying fields to `MATCH_FIELDS` and fillable fields to `FILLABLE_FIELDS`
   together when another entry type becomes mergeable.

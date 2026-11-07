@@ -1,13 +1,15 @@
 /**
- * Description: Dialog that adds a certification entry or edits one.
+ * Adds or edits a certification with optional dates at the precision the user knows.
+ * Invalid or incomplete dates stay in the form with field errors before any save request.
  * Index:
  *   - CertificationFormDialog: opens the form for a credential, or a blank one when certification is null
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION } from './careerLibrarySaveMutations'
+import { CertificationDateField } from './CertificationDateField'
 import { EntryFormDialog } from './EntryFormDialog'
-import { editableCertificationDate, certificationDateAttributes } from './certificationDateValues'
+import { editableCertificationDate, certificationDateAttributes, certificationDateError } from './certificationDateValues'
 import { blankToNull, normalizeWebAddress, requiredFieldErrors } from './libraryFormValues'
 import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
@@ -30,6 +32,8 @@ export function CertificationFormDialog({ open, onOpenChange, certification }: C
 /** The certification fields and the save action. */
 function CertificationForm({ certification, onClose }: { certification: Certification | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const issuedInput = useRef<HTMLInputElement>(null)
+  const expiryInput = useRef<HTMLInputElement>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [name, setName] = useState(certification?.name ?? '')
   const [issuer, setIssuer] = useState(certification?.issuer ?? '')
@@ -44,6 +48,10 @@ function CertificationForm({ certification, onClose }: { certification: Certific
     const missing = requiredFieldErrors({ name: { label: 'Certification name', value: name } })
     const address = normalizeWebAddress(credentialUrl)
     if (address.error) missing.credentialUrl = address.error
+    const issuedError = issuedInput.current?.validity.badInput ? 'Complete the issued date or clear it.' : certificationDateError(issuedDate)
+    const expiryError = expiryInput.current?.validity.badInput ? 'Complete the expiry date or clear it.' : certificationDateError(expiryDate)
+    if (issuedError) missing.issuedDate = issuedError
+    if (expiryError) missing.expiryDate = expiryError
     setFieldErrors(missing)
     if (Object.keys(missing).length) return
     const saved = await save(certification ? UPDATE_CERTIFICATION_MUTATION : CREATE_CERTIFICATION_MUTATION, {
@@ -76,8 +84,8 @@ function CertificationForm({ certification, onClose }: { certification: Certific
       <div className="grid gap-4 sm:grid-cols-2">
         <LibraryField label="Certification name" required error={fieldErrors.name} value={name} onChange={setName} maxLength={SHORT_TEXT} />
         <LibraryField label="Issuer" value={issuer} onChange={setIssuer} maxLength={SHORT_TEXT} />
-        <LibraryField label="Issued (YYYY, YYYY-MM, or YYYY-MM-DD)" value={issuedDate} onChange={setIssuedDate} />
-        <LibraryField label="Expires (YYYY, YYYY-MM, or YYYY-MM-DD)" value={expiryDate} onChange={setExpiryDate} />
+        <CertificationDateField inputRef={issuedInput} label="Issued" value={issuedDate} onChange={setIssuedDate} error={fieldErrors.issuedDate} />
+        <CertificationDateField inputRef={expiryInput} label="Expires" value={expiryDate} onChange={setExpiryDate} error={fieldErrors.expiryDate} />
         <LibraryField label="Credential ID" value={credentialId} onChange={setCredentialId} maxLength={SHORT_TEXT} />
         <LibraryField label="Credential URL" error={fieldErrors.credentialUrl} value={credentialUrl} onChange={setCredentialUrl} maxLength={SHORT_TEXT} />
       </div>

@@ -1,6 +1,6 @@
 /**
  * Description: The career context entries section of the career library: the list, add, and edit.
- * It sits off the career line because these answers feed the AI and never print on a resume.
+ * It sits off the career line because these answers support resume wording without becoming a separate section.
  * Reviews and regeneration apply to responses while requirement labels remain unchanged.
  * Index:
  *   - CareerContextSection: career context entries with the context form
@@ -18,7 +18,7 @@ export function CareerContextSection({ careerContexts }: { careerContexts: Caree
 
   return (
     <>
-      <LibrarySection sectionId={LIBRARY_SECTION_ANCHORS.career_contexts} offLine note="Never printed on a resume. Your answers here give the AI real evidence to write from." title="Career context" count={careerContexts.length} emptyText="No career context yet." addLabel="Add career context" onAdd={() => setEditing('new')}
+      <LibrarySection sectionId={LIBRARY_SECTION_ANCHORS.career_contexts} offLine note="Your answers can support resume bullets and summaries. Career context does not appear as a separate resume section." title="Career context" count={careerContexts.length} emptyText="No career context yet." addLabel="Add career context" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="career_contexts" />} reviewSection="career_contexts">
 
         <CareerContextList careerContexts={careerContexts} onEdit={setEditing} />

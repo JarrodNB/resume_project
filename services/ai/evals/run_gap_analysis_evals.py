@@ -49,14 +49,14 @@ def run_gap_analysis_evals(model_override: str | None = None) -> EvaluationRepor
     def analyze_case(context: GapAnalysisContext) -> GapAnalysisResult:
         """The task under evaluation."""
         prompt = build_gap_analysis_prompt(context, EVAL_TODAY)
-        run = analyze_gaps(
+        analysis = analyze_gaps(
             prompt,
             model=model,
             thinking=thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
         )
-        return attach_evidence_text(run.gap_analysis, prompt)
+        return attach_evidence_text(analysis, prompt)
 
     return evaluate_dataset(
         load_gap_analysis_dataset,

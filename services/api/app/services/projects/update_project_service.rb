@@ -6,7 +6,7 @@ module Projects
   class UpdateProjectService < ApplicationService
     def initialize(project:, attributes:)
       @project = project
-      @attributes = attributes
+      @attributes = CareerLibrary::OngoingDates.normalize(attributes)
     end
 
     # Applies the attributes.

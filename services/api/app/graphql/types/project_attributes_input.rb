@@ -10,5 +10,6 @@ module Types
     argument :description, String, required: false
     argument :start_date, GraphQL::Types::ISO8601Date, required: false
     argument :end_date, GraphQL::Types::ISO8601Date, required: false
+    argument :ongoing, Boolean, required: false
   end
 end

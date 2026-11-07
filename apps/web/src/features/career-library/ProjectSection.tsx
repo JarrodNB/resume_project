@@ -33,7 +33,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
             key={project.id}
             heading={project.name}
             subheading={[project.role, project.url].filter(Boolean).join(' · ')}
-            dates={formatDateRange(project.startDate, project.endDate)}
+            dates={formatDateRange(project.startDate, project.endDate, { openEndedMeansPresent: project.ongoing }) || (project.ongoing ? 'Present' : '')}
             actions={
               <LibraryEntryActions
                 kind="project"

@@ -30,11 +30,14 @@ function view(responses: SavedGapResponse[], result = analysis) {
 
 it('replaces the summary after saving an answer, including edits and clearing', () => {
   const { rerender } = render(view([]))
-  expect(screen.getByText(summary)).toBeInTheDocument()
+  const summaryPanel = screen.getByRole('region', { name: 'Comparison summary' })
+  expect(within(summaryPanel).getByText(summary)).toBeInTheDocument()
+  expect(within(summaryPanel).getByText('1 gap')).toBeInTheDocument()
 
   rerender(view([answer]))
   expect(screen.queryByText(summary)).not.toBeInTheDocument()
-  expect(screen.getByRole('status')).toHaveTextContent('Your saved answers are shown below')
+  expect(within(summaryPanel).getByRole('status')).toHaveTextContent('Your saved answers are shown below')
+  expect(within(summaryPanel).getByRole('button', { name: 'Compare again' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: /Answered/ })).toBeInTheDocument()
   expect(screen.getByText('At the last comparison')).toBeInTheDocument()
   expect(screen.getByText('One unrelated note was left out.')).toBeInTheDocument()

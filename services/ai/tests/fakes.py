@@ -6,8 +6,10 @@ Index:
     - build_gap_analysis_context: a small job and career library for gap analysis tests
     - FakeGapAnalysisContextReader: serves gap analysis contexts from a dict instead of Postgres
     - FakeJobSite: answers HTTP requests from a dict of URL -> HTML (404 for anything else)
+    - accounted_override: overrides an agent's model the way production wraps it, so requests reach TaskUsage
 """
 
+from contextlib import contextmanager
 from datetime import date
 from io import BytesIO
 from uuid import UUID
@@ -15,6 +17,7 @@ from uuid import UUID
 import httpx
 from docx import Document
 
+from llm.usage import accounted_model, collect_task_usage
 from schemas.gap_analysis_context import (
     CareerLibrary,
     GapAnalysisContext,
@@ -138,3 +141,14 @@ class FakeJobSite:
     def build_client(self) -> httpx.Client:
         """An httpx client whose requests this fake answers."""
         return httpx.Client(transport=httpx.MockTransport(self.handle_request))
+
+
+@contextmanager
+def accounted_override(agent, model):
+    """Runs an agent on a test model whose requests are recorded like production requests.
+
+    `agent.override(model=...)` skips `generative_model`, so without this nothing reaches the
+    task's usage. Yields the `TaskUsage` that handlers' model requests were recorded into.
+    """
+    with collect_task_usage() as usage, agent.override(model=accounted_model(model)):
+        yield usage

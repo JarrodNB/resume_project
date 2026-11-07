@@ -7,35 +7,15 @@
  * tab shows up when this tab comes back into view. When a piece of work drops off the list,
  * `onWorkFinished` lets Home reload the job board, whose next steps may have moved.
  */
-import { useEffect, useRef } from 'react'
-import { useQuery } from '@apollo/client/react'
 import { Link } from 'react-router'
-import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
-import { RUNNING_AI_TASKS_QUERY } from './homeOperations'
+import { useRunningAiTasks } from './useRunningAiTasks'
+import { RunningTaskSubscription } from './RunningTaskSubscription'
 import { SignalDot, SignalLegend } from './NextStepSignal'
 
 type RunningTask = { id: string; label: string; destination: string }
 
 export function AiWorkStrip({ onWorkFinished }: { onWorkFinished: () => void }) {
-  const { data, error, refetch } = useQuery(RUNNING_AI_TASKS_QUERY, { fetchPolicy: 'cache-and-network' })
-  const running = data?.runningAiTasks ?? []
-  const previousIds = useRef<Set<string> | null>(null)
-  const ids = running.map((task) => task.id).join(',')
-  const checkAgain = () => { void refetch().catch(() => { /* The strip shows the query error. */ }) }
-
-  useEffect(() => {
-    if (!data) return
-    const current = new Set(ids ? ids.split(',') : [])
-    const finished = previousIds.current && [...previousIds.current].some((id) => !current.has(id))
-    previousIds.current = current
-    if (finished) onWorkFinished()
-  }, [data, ids, onWorkFinished])
-
-  useEffect(() => {
-    function checkWhenVisible() { if (!document.hidden) void refetch().catch(() => { /* The strip shows the query error. */ }) }
-    document.addEventListener('visibilitychange', checkWhenVisible)
-    return () => document.removeEventListener('visibilitychange', checkWhenVisible)
-  }, [refetch])
+  const { running, data, error, checkAgain } = useRunningAiTasks(onWorkFinished)
 
   return (
     <section className="signal-strip" aria-labelledby="home-running-heading">
@@ -55,11 +35,5 @@ export function AiWorkStrip({ onWorkFinished }: { onWorkFinished: () => void }) 
 
 /** One running task, followed live; tells the strip once the task is no longer queued. */
 function RunningTaskItem({ task, onSettled }: { task: RunningTask; onSettled: () => void }) {
-  const { aiTask } = useAiTaskUpdates(task.id)
-  const settled = aiTask !== null && aiTask.status !== 'QUEUED'
-  const reported = useRef(false)
-  useEffect(() => {
-    if (settled && !reported.current) { reported.current = true; onSettled() }
-  }, [settled, onSettled])
-  return <li><Link to={task.destination} className="next-step"><SignalDot signal="ai" />{task.label}</Link></li>
+  return <li><RunningTaskSubscription id={task.id} onSettled={onSettled} /><Link to={task.destination} className="next-step"><SignalDot signal="ai" />{task.label}</Link></li>
 }

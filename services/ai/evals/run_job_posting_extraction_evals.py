@@ -92,13 +92,13 @@ def run_job_posting_extraction_evals(
         text = scraped_job_ad_text(page)
         if len(text) > MAX_SCREENED_TEXT:
             raise ValueError("Extraction input exceeds its size budget")
-        run = parse_scraped_job_posting(
+        parsed = parse_scraped_job_posting(
             text, model=model, thinking=thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
         )
         try:
-            return posting_from_scraped_ad(page, run.parsed)
+            return posting_from_scraped_ad(page, parsed)
         except JobPageUnreadableError:
             return None
 

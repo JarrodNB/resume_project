@@ -16,7 +16,7 @@ from pydantic_ai.models.test import TestModel
 from agents.parse_scraped_job_posting_agent import parse_scraped_job_posting_agent
 from schemas.scraped_job_posting import ScrapedJobPosting
 from scrapers.linkedin.fetch_linkedin_job import GUEST_JOB_URL
-from tests.fakes import FakeJobSite
+from tests.fakes import FakeJobSite, accounted_override
 from worker.queue_messages import AiTaskMessage
 from worker.scrape_job_handler import (
     POSTING_NOT_FOUND_MESSAGE,
@@ -56,7 +56,7 @@ def test_scrapes_a_posting_with_headings(
         "responsibilities": ["Design event-driven services"],
         "nice_to_haves": ["Payments experience"],
     }
-    with parse_scraped_job_posting_agent.override(model=TestModel(custom_output_args=output, model_name=task_dependencies.settings.job_posting_parse_model)):
+    with accounted_override(parse_scraped_job_posting_agent, TestModel(custom_output_args=output, model_name=task_dependencies.settings.job_posting_parse_model)) as usage:
         result = handle_ai_task(
             build_scrape_job_task(
                 "https://www.linkedin.com/jobs/view/senior-backend-engineer-at-northwind-4001?trk=abc"
@@ -65,7 +65,7 @@ def test_scrapes_a_posting_with_headings(
         )
 
     assert result.status == "completed"
-    assert result.usage[0].model == task_dependencies.settings.job_posting_parse_model
+    assert usage.entries[0].model == task_dependencies.settings.job_posting_parse_model
     posting = ScrapedJobPosting.model_validate(result.result["scraped_job"])
     assert (posting.title, posting.company, posting.location) == (
         "Senior Backend Engineer",
@@ -97,7 +97,7 @@ def test_parses_unlabelled_bullets_with_the_shared_agent(
 
     with (
         capture_run_messages() as messages,
-        parse_scraped_job_posting_agent.override(model=TestModel(custom_output_args=agent_output, model_name=task_dependencies.settings.job_posting_parse_model)),
+        accounted_override(parse_scraped_job_posting_agent, TestModel(custom_output_args=agent_output, model_name=task_dependencies.settings.job_posting_parse_model)) as usage,
     ):
         result = handle_ai_task(
             build_scrape_job_task("https://www.linkedin.com/jobs/search/?currentJobId=4002"),
@@ -117,7 +117,7 @@ def test_parses_unlabelled_bullets_with_the_shared_agent(
     assert "<job_ad>" in user_prompt.content
     assert "linkedin.com" not in user_prompt.content
 
-    [model_usage] = result.usage
+    [model_usage] = usage.entries
     assert model_usage.model == task_dependencies.settings.job_posting_parse_model
     assert model_usage.cost_microdollars > 0
 
@@ -188,7 +188,7 @@ def test_location_is_not_used_as_company(
     )
 
     output = {"title": "Engineer", "company": company or None, "requirements": ["Python"]}
-    with parse_scraped_job_posting_agent.override(model=TestModel(custom_output_args=output, model_name=task_dependencies.settings.job_posting_parse_model)):
+    with accounted_override(parse_scraped_job_posting_agent, TestModel(custom_output_args=output, model_name=task_dependencies.settings.job_posting_parse_model)) as usage:
         result = handle_ai_task(
             build_scrape_job_task("https://www.linkedin.com/jobs/view/4010"), task_dependencies
         )
@@ -198,7 +198,7 @@ def test_location_is_not_used_as_company(
     assert posting.company == (company or None)
     assert posting.location == "Seattle, WA"
     assert posting.requirements == ["Python"]
-    assert result.usage[0].model == task_dependencies.settings.job_posting_parse_model
+    assert usage.entries[0].model == task_dependencies.settings.job_posting_parse_model
 
 
 def _set_prose_page(fake_job_site, description="You must know Python. Go is preferred. You will build APIs."):
@@ -277,28 +277,20 @@ def test_oversized_scraped_ad_stops_before_provider_requests(task_dependencies, 
     assert result.usage == []
 
 
-def test_metadata_is_not_requirement_evidence_and_failed_parse_retains_usage(
+def test_metadata_is_not_requirement_evidence(
     task_dependencies, fake_job_site, monkeypatch,
 ):
-    from pydantic_ai.usage import RunUsage
-
-    from agents.parse_job_posting_agent import JobPostingParseRun
     from schemas.parsed_job_posting import ParsedJobPosting
 
     _set_prose_page(fake_job_site)
-    run = JobPostingParseRun(
-        ParsedJobPosting(title="Engineer", requirements=["Northwind"]),
-        RunUsage(input_tokens=40, output_tokens=10), "openai:gpt-5-mini",
-    )
-    monkeypatch.setattr("worker.scrape_job_handler.parse_scraped_job_posting", lambda *a, **kw: run)
+    parsed = ParsedJobPosting(title="Engineer", requirements=["Northwind"])
+    monkeypatch.setattr("worker.scrape_job_handler.parse_scraped_job_posting", lambda *a, **kw: parsed)
     result = handle_ai_task(
         build_scrape_job_task("https://www.linkedin.com/jobs/view/4020"), task_dependencies,
     )
     assert result.status == "failed"
     assert result.error_message == UNFAITHFUL_PAGE_MESSAGE
     assert result.result is None
-    assert result.usage[0].model == "openai:gpt-5-mini"
-    assert result.usage[0].input_tokens == 40
 
 
 @pytest.mark.real_guardrail

@@ -48,7 +48,7 @@ def run_job_posting_parse_evals(model_override: str | None = None) -> Evaluation
             thinking=thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
             fallback_model=settings.generative_fallback_model,
-        ).parsed
+        )
         return posting_from_parsed_job(text, parsed)
 
     return evaluate_dataset(

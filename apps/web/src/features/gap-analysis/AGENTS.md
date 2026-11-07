@@ -14,7 +14,7 @@ Adding it to the career library creates a career context entry, listed on the ca
 
 - `GapAnalysisCard.tsx` — the comparison on the Fit tab: run button, live progress, failure with
   retry, completed result (waiting line with stage captions while running, a brief notice when a watched run finishes; Compare is disabled with an "Add description" action when the job has no description), using shared lifecycle state from the job workspace
-- `GapAnalysisResultView.tsx` — summary, then the groups from `groupAssessments.ts`: Gaps to fill,
+- `GapAnalysisResultView.tsx` — summary panel (one or two sentences, count chips, hint, run button), then the groups from `groupAssessments.ts`: Gaps to fill,
   Could be stronger, Answered, Met, Nice to have, Dismissed
 - `RequirementAssessmentItem.tsx` — `VerdictBadge` and the row for each group. Gaps, partial
   matches and answered rows are always open. Met and nice-to-have rows start collapsed

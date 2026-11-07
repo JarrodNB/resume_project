@@ -42,7 +42,7 @@ def run_tailoring_evals(model_override: str | None = None) -> EvaluationReport:
         prompt = build_section_prompt(
             case.section_type,
             case.context,
-            [],
+            case.gap_responses,
             [],
             write_anyway=False,
             gap_analysis=None,

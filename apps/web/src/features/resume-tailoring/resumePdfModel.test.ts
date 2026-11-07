@@ -83,3 +83,14 @@ it('omits excluded summary text from the shared preview and export model', () =>
   expect(buildResumePdfModel(sections, true).blocks).toEqual([{ title: 'Summary', text: 'Retained summary.', entries: [] }])
   expect(sections[0].content.text).toBe('Retained summary.')
 })
+
+it('prints Present only for education and projects explicitly marked current', () => {
+  const model = buildResumePdfModel((['education', 'projects'] as const).map((sectionType) => ({
+    sectionType, title: sectionType, content: { items: [
+      { name: 'Ongoing', institution: 'Ongoing', start_date: '2024-01', end_date: null, is_current: true },
+      { name: 'Unknown end', institution: 'Unknown end', start_date: '2023-01', end_date: null },
+      { name: 'No start', institution: 'No start', is_current: true },
+    ] },
+  })))
+  for (const block of model.blocks) expect(block.entries.map((entry) => entry.dates)).toEqual(['Jan 2024 – Present', 'Jan 2023', 'Present'])
+})

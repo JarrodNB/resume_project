@@ -2,7 +2,8 @@
 
 Callers read, select and screen the entries first. Each returned section covers one
 entry, so callers can stop at a size cap without cutting an entry in half. Saved
-record IDs and screening metadata never appear in the text.
+record IDs and screening metadata never appear in the text. Projects and education
+use explicit ongoing status; missing end dates alone stay unknown.
 """
 from model_inputs.blocks import source_block
 from schemas.gap_analysis_context import CareerLibrary
@@ -16,21 +17,21 @@ def render_career_library_sections(library: CareerLibrary) -> list[str]:
     for experience in library.experiences:
         lines = [f"Title: {experience.title}", f"Company: {experience.company}"]
         _add(lines, "Location", experience.location)
-        _add(lines, "Dates", _dates(experience.start_date, experience.end_date))
+        _add(lines, "Dates", _dates(experience.start_date, experience.end_date, ongoing=experience.start_date is not None and experience.end_date is None))
         _add(lines, "Description", experience.description)
         lines += [f"- {highlight.content}" for highlight in experience.highlights]
         sections.append(_section("Experience", lines))
     for project in library.projects:
         lines = [f"Name: {project.name}"]
         _add(lines, "Role", project.role)
-        _add(lines, "Dates", _dates(project.start_date, project.end_date))
+        _add(lines, "Dates", _dates(project.start_date, project.end_date, ongoing=project.ongoing))
         _add(lines, "Description", project.description)
         sections.append(_section("Project", lines))
     for education in library.educations:
         lines = [f"Institution: {education.institution}"]
         _add(lines, "Degree", education.degree)
         _add(lines, "Field of study", education.field_of_study)
-        _add(lines, "Dates", _dates(education.start_date, education.end_date))
+        _add(lines, "Dates", _dates(education.start_date, education.end_date, ongoing=education.ongoing))
         _add(lines, "Description", education.description)
         sections.append(_section("Education", lines))
     for certification in library.certifications:
@@ -60,7 +61,8 @@ def _add(lines, label, value):
         lines.append(f"{label}: {value}")
 
 
-def _dates(start, end):
-    if not start and not end:
+def _dates(start, end, *, ongoing=False):
+    if not start and not end and not ongoing:
         return None
-    return f"{start.isoformat() if start else 'unknown'} to {end.isoformat() if end else 'present'}"
+    finish = end.isoformat() if end else ("present" if ongoing else "unknown")
+    return f"{start.isoformat() if start else 'unknown'} to {finish}"

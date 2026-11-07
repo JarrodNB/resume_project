@@ -16,7 +16,6 @@ from pydantic_ai.messages import (
 
 from agents.library_edit_agent import LibraryEditDeps, improve_library_entry
 from database.library_edit_reader import build_database_edit_reader
-from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from privacy.contact_mask import mask_outbound
 from screening.prompt_guardrail import TOO_LONG_MESSAGE, screening_failure_message
@@ -175,7 +174,7 @@ def handle_library_edit_task(task, dependencies):
     deps = LibraryEditDeps(1000 if snapshot.target.kind == "experience_highlight" else 4000,
                            allow_question=snapshot.review_question is None and not snapshot.skip and snapshot.turn < 8)
     run = improve_library_entry(prompt, history, deferred, deps, dependencies.settings)
-    result_usage = [*usage, build_model_usage(run.model, run.usage)]
+    result_usage = usage
     saved_history = run.history
     if len(json.dumps([*prior_generated, *saved_history], ensure_ascii=False).encode()) > 100_000:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=result_usage,

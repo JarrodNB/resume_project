@@ -1,9 +1,13 @@
 /**
  * Description: Dialog that adds a project or edits one.
+ * Selecting the ongoing option clears the end date and saves that status explicitly.
+ * A blank end date alone stays unknown, including entries saved before ongoing status existed.
  * Index:
  *   - ProjectFormDialog: opens the form for a project, or a blank one when project is null
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_PROJECT_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
@@ -29,6 +33,8 @@ export function ProjectFormDialog({ open, onOpenChange, project }: ProjectFormDi
 /** The project fields and the save action. */
 function ProjectForm({ project, onClose }: { project: Project | null; onClose: () => void }) {
   const { save, busy, errors } = useSaveLibraryRecord()
+  const ongoingId = useId()
+  const [ongoing, setOngoing] = useState(project?.ongoing ?? false)
   const [name, setName] = useState(project?.name ?? '')
   const [role, setRole] = useState(project?.role ?? '')
   const [url, setUrl] = useState(project?.url ?? '')
@@ -51,7 +57,8 @@ function ProjectForm({ project, onClose }: { project: Project | null; onClose: (
         role: blankToNull(role),
         url: address.value,
         startDate: blankToNull(startDate),
-        endDate: blankToNull(endDate),
+        endDate: ongoing ? null : blankToNull(endDate),
+        ongoing: ongoing,
         description: blankToNull(description),
       },
     })
@@ -73,8 +80,16 @@ function ProjectForm({ project, onClose }: { project: Project | null; onClose: (
         <LibraryField label="Role" value={role} onChange={setRole} maxLength={SHORT_TEXT} />
         <LibraryField label="URL" error={fieldErrors.url} value={url} onChange={setUrl} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
-        <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} />
+        <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} disabled={ongoing} />
+        <div className="flex items-center gap-2 self-end">
+          <Checkbox id={ongoingId} checked={ongoing} onCheckedChange={(checked) => {
+            setOngoing(checked === true)
+            if (checked === true) setEndDate('')
+          }} />
+          <Label htmlFor={ongoingId}>Ongoing</Label>
+        </div>
       </div>
+      <p className="text-sm text-muted-foreground">Select Ongoing if this is still in progress. Otherwise, you can leave End blank if the date is unknown.</p>
       <LibraryField label="Description" multiline value={description} onChange={setDescription} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )

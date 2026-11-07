@@ -38,24 +38,31 @@ export function GapAnalysisResultView({
 
   return (
     <div ref={resultsRef} tabIndex={-1} className="grid gap-7 outline-none">
-      <div className="grid gap-2">
-        {analysis.warnings.map((warning) => (
-          <p key={warning} className="text-sm text-muted-foreground">
-            {warning}
-          </p>
-        ))}
+      {analysis.warnings.length > 0 && (
+        <div className="grid gap-1">
+          {analysis.warnings.map((warning) => (
+            <p key={warning} className="text-sm text-muted-foreground">
+              {warning}
+            </p>
+          ))}
+        </div>
+      )}
+      <section aria-label="Comparison summary" className="grid gap-3 border-l-4 border-foreground bg-muted py-4 pr-4 pl-5">
         {hasAnsweredGaps ? (
           <p className="max-w-[65ch]" role="status">
             Your saved answers are shown below and are available when writing your resume. The findings are from your last comparison.
           </p>
-        ) : analysis.summary && <p className="max-w-[65ch]">{analysis.summary}</p>}
-        {comparedNote}
+        ) : analysis.summary && <p className="max-w-[60ch] text-lg leading-snug font-semibold">{analysis.summary}</p>}
+        <p className="flex flex-wrap items-center gap-2">
+          {groups.gaps.length > 0 && <Badge variant="outline" className="border-signal-action text-signal-action-text">{groups.gaps.length} {groups.gaps.length === 1 ? 'gap' : 'gaps'}</Badge>}
+          {groups.couldBeStronger.length > 0 && <Badge variant="outline" className="border-foreground text-foreground">{groups.couldBeStronger.length} partly met</Badge>}
+          {groups.met.length > 0 && <Badge variant="outline" className="border-signal-done text-signal-done-text">{groups.met.length} met</Badge>}
+        </p>
         {(groups.gaps.length > 0 || groups.couldBeStronger.length > 0) && (
-          <p className="max-w-[65ch] text-sm text-muted-foreground">
-            Add real details so your tailored resume can cover these, or dismiss anything you can't or don't want to answer.
-          </p>
+          <p className="text-sm text-muted-foreground">Add real details to cover these, or dismiss what you can't answer.</p>
         )}
-      </div>
+        <div className="border-t border-border pt-3">{comparedNote}</div>
+      </section>
       <RequirementGroup title="Gaps to fill" count={`${groups.gaps.length} ${groups.gaps.length === 1 ? 'gap' : 'gaps'}`} countClass="border-signal-action text-signal-action-text" empty={groups.gaps.length === 0}>
         {groups.gaps.map((assessment) => <OpenRequirementRow key={assessment.requirement} {...rowProps(assessment)} />)}
       </RequirementGroup>

@@ -154,7 +154,7 @@ function RunButton({ task, starting, onRun, hasDescription, onAddDescription }: 
       )}
       {analyzedOn && (
         <span className="text-sm text-muted-foreground">
-          Compared on {analyzedOn}. Run it again after you update your library.
+          Compared on {analyzedOn}. Re-run after updating your library.
         </span>
       )}
     </div>

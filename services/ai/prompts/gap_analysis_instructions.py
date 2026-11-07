@@ -64,8 +64,9 @@ Evidence:
 `explanation`: one or two plain sentences, naming what the library shows and, for partial or
 missing, what is lacking. Don't repeat the requirement.
 
-`summary`: two or three sentences on the strongest matches and the most important gaps
-(requirements, then nice-to-haves). Address the candidate as "you".
+`summary`: one or two short sentences, under 35 words total, on the strongest match and the
+biggest gap. No lists of skills, no hedging, no repeating the explanations. Address the
+candidate as "you".
 
 The candidate reads the explanations and the summary but never sees the labels. Labels belong
 only in `requirement_ref` and `evidence_refs`; in prose, name the entry instead ("your billing

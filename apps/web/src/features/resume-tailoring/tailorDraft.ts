@@ -7,7 +7,7 @@
  */
 import type { ParsedCertification, ParsedContactInfo, ParsedEducation, ParsedExperience, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
 import { emptyCertification, emptyEducation, emptyExperience, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'
-import { withDraftKey, type DraftCertification, type DraftEducation, type DraftExperience, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
+import { toDraftExperience, toParsedExperience, withoutDraftKey, withDraftKey, type DraftCertification, type DraftEducation, type DraftExperience, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
 import type { TailorSectionType } from './sectionOrder'
 
 export type SectionDraft =
@@ -35,9 +35,8 @@ export function sectionDraftFromContent(sectionType: TailorSectionType, content:
 export function contentFromSectionDraft(draft: SectionDraft): Record<string, unknown> {
   if (draft.kind === 'contact') return { ...draft.contact }
   if (draft.kind === 'summary') return { text: draft.text ?? '' }
-  if (draft.kind === 'experience') return { items: draft.items.map(({ key: _key, highlights, ...item }) => ({ ...item, highlights: highlights.map((highlight) => highlight.text) })) }
-  if (draft.kind === 'skills') return { items: draft.items.map(({ key: _key, ...item }) => item) }
-  return { items: draft.items.map(({ key: _key, ...item }) => item) }
+  if (draft.kind === 'experience') return { items: draft.items.map(toParsedExperience) }
+  return { items: draft.items.map(withoutDraftKey) }
 }
 
 /** True for a JSON object. */
@@ -65,7 +64,7 @@ function contactFrom(content: Record<string, unknown>): ParsedContactInfo {
 function experienceFrom(value: unknown): DraftExperience {
   const experience = { ...emptyExperience(), ...(isRecord(value) ? (value as Partial<ParsedExperience>) : {}) }
   const highlights = Array.isArray(experience.highlights) ? experience.highlights.filter((text): text is string => typeof text === 'string') : []
-  return withDraftKey({ ...experience, highlights: highlights.map((text) => withDraftKey({ text })) })
+  return toDraftExperience({ ...experience, highlights })
 }
 
 /** One project with a key. */

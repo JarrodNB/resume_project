@@ -37,7 +37,8 @@ async def run_generative_agent_async(
     """Runs the agent inside an existing event loop and returns Pydantic AI's run result.
 
     Raises TimeoutError past the shared deadline, UsageLimitExceeded at a run cap, and
-    GenerativeOutputInvalid when the output is still invalid after the agent's retries.
+    GenerativeOutputInvalid when the output is still invalid after the agent's own output
+    retries (this function adds none). The message is raw provider detail: log it, never show it.
     A provider error tries `fallback_model`. `run_arguments` pass through to `agent.run`
     (deps, message history, output type, capabilities).
     """

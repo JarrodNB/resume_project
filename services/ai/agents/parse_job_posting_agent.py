@@ -4,10 +4,8 @@ pasted or cleaned scraped ad. An output validator retries unsupported source tex
 Index:
     - parse_job_posting_agent: the agent (deps: the ad text; model and effort chosen per run)
     - fence_job_ad: the user prompt, with the ad marked as data
-    - JobPostingParseRun: the validated parse, token usage, and the model name to bill
     - parse_job_posting: runs the agent within a time limit
 """
-
 
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.settings import ThinkingLevel

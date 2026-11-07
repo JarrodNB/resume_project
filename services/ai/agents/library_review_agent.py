@@ -3,7 +3,6 @@
 Only short target labels reach the model. The handler maps them back to saved fields.
 """
 
-
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai_harness import InputGuardrail
 

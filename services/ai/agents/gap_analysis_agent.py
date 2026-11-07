@@ -5,10 +5,8 @@ output validator retries the model until every requirement is assessed once and 
 label exists.
 Index:
     - gap_analysis_agent: the agent (deps: the GapAnalysisPrompt; model and effort chosen per run)
-    - GapAnalysisRun: the validated analysis, token usage, and the model name to bill
     - analyze_gaps: runs the agent within a time limit
 """
-
 
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.settings import ThinkingLevel

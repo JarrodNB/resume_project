@@ -88,3 +88,13 @@ def test_k_60_prefers_agreement_over_a_single_first_place() -> None:
     assert RRF_K == 60
     assert agreed["balanced"] > agreed["spike"]
     assert sharp["spike"] > sharp["balanced"]
+
+
+def test_repeated_query_terms_strengthen_a_keyword_match() -> None:
+    """Equal-length evidence with more exact skill mentions ranks ahead."""
+    documents = [
+        ("single", "Python backend services"),
+        ("repeated", "Python Python Python"),
+    ]
+
+    assert keyword_rank("Python", documents) == ["repeated", "single"]

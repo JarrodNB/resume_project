@@ -1,10 +1,13 @@
-/** Counts literal saved skill names in one description; no aliases or inferred skills. */
+/** Counts literal saved skill names for Fit and job-board listings, without inferring aliases.
+ * Reuses a bounded set of patterns so skill edits and account switches do not grow the cache forever.
+ */
 export function skillMentionCount(description: string, skillName: string): number {
   if (!skillName.trim()) return 0
   return [...description.matchAll(mentionPattern(skillName))].length
 }
 
-// Job boards count every skill against every listing, so compile each skill's pattern once.
+// Reuse patterns across listings. This comfortably holds one user's 80 saved skills.
+const MAX_CACHED_PATTERNS = 256
 const mentionPatterns = new Map<string, RegExp>()
 
 function mentionPattern(skillName: string): RegExp {
@@ -17,6 +20,10 @@ function mentionPattern(skillName: string): RegExp {
   const before = `(?<!${nameCharacter})(?<!${nameCharacter}[.-])`
   const after = `(?!${nameCharacter}|[.-]${nameCharacter})`
   const pattern = new RegExp(`${before}${literal}${after}`, 'giu')
+  if (mentionPatterns.size >= MAX_CACHED_PATTERNS) {
+    const oldest = mentionPatterns.keys().next().value
+    if (oldest !== undefined) mentionPatterns.delete(oldest)
+  }
   mentionPatterns.set(skillName, pattern)
   return pattern
 }

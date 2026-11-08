@@ -23,16 +23,7 @@ def find_section_problems(
     section_type: str, draft: TailoredSectionDraft, sources: LabeledSources
 ) -> list[str]:
     """List unusable structure or unknown labels that require a repair response."""
-    coverage_problems = []
-    if section_type == "experience":
-        required = [label for label, record in sources.records.items() if record.kind == "experience"]
-        missing = [label for label in required if label not in {entry.label for entry in draft.entries}]
-        if missing:
-            coverage_problems.append("Include every experience entry; missing labels: " + ", ".join(missing)
-                    + ". Shorten less relevant roles rather than removing them. Set nothing_fits to false.")
-        labels = [entry.label for entry in draft.entries]
-        if len(labels) != len(set(labels)):
-            coverage_problems.append("Include each experience entry exactly once.")
+    coverage_problems = _experience_coverage_problems(draft, sources) if section_type == "experience" else []
     if draft.nothing_fits:
         if draft.entries or draft.summary:
             return ["nothing_fits is true, so entries and summary must be empty."]
@@ -61,6 +52,27 @@ def find_section_problems(
         for prose in entry.prose:
             problems.extend(_unknown_source_labels(prose, sources))
     return problems + coverage_problems
+
+
+def _experience_coverage_problems(
+    draft: TailoredSectionDraft, sources: LabeledSources
+) -> list[str]:
+    """Require every supplied role exactly once, retaining the source order in repair notes."""
+    labels = [entry.label for entry in draft.entries]
+    included_labels = set(labels)
+    missing = [
+        label for label, record in sources.records.items()
+        if record.kind == "experience" and label not in included_labels
+    ]
+    problems = []
+    if missing:
+        problems.append(
+            "Include every experience entry; missing labels: " + ", ".join(missing)
+            + ". Shorten less relevant roles rather than removing them. Set nothing_fits to false."
+        )
+    if len(labels) != len(included_labels):
+        problems.append("Include each experience entry exactly once.")
+    return problems
 
 
 def find_writing_problems(draft: TailoredSectionDraft) -> list[str]:

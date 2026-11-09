@@ -76,4 +76,26 @@ RSpec.describe JobBoard::ListingDescription do
     )
     expect(description.sections[:requirements]).to eq([ "Up to 25% travel." ])
   end
+
+  it "classifies semantic, bold and colon headings using their full cleaned text" do
+    description = described_class.new(
+      "<h3>  Required <em>skills</em> </h3><ul><li>Ruby</li></ul>" \
+      "<p><strong>What you'll do:</strong></p><ul><li>Build APIs</li></ul>" \
+      "<div> Preferred qualifications: </div><ul><li>Go</li></ul>"
+    )
+
+    expect(description.sections).to eq(requirements: [ "Ruby" ],
+      responsibilities: [ "Build APIs" ], nice_to_haves: [ "Go" ])
+  end
+
+  it "does not let nested or oversized heading candidates change the active section" do
+    description = described_class.new(
+      "<h3>Requirements</h3><ul><li><h4>Preferred</h4>Ruby</li></ul>" \
+      "<h3>#{'Preferred ' * 10}</h3><ul><li>SQL</li></ul>" \
+      "<div><p>Office details</p></div><ul><li>Python</li></ul>"
+    )
+
+    expect(description.sections).to eq(requirements: [ "Preferred Ruby", "SQL", "Python" ],
+      responsibilities: [], nice_to_haves: [])
+  end
 end

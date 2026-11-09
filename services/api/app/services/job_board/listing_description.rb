@@ -33,8 +33,7 @@ module JobBoard
       result = { requirements: [], responsibilities: [], nice_to_haves: [] }
       current = nil
       @document.css("*").each do |element|
-        if heading?(element)
-          heading = clean(element.xpath(".//text()").map(&:text).join(" "))
+        if (heading = heading_text(element))
           current = category(heading)
         elsif (labelled = paragraph_label(element)) && (labelled_category = category(labelled.first))
           # The label covers only its own paragraph, not list items that follow it.
@@ -148,15 +147,16 @@ module JobBoard
       text.gsub(/[[:space:]]+/, " ").strip
     end
 
-    def heading?(element)
-      return false if element.ancestors.any? { |parent| parent.name == "li" }
+    # Return the validated text so section extraction does not walk a heading twice.
+    def heading_text(element)
+      return if element.ancestors.any? { |parent| parent.name == "li" }
       text = clean(element.xpath(".//text()").map(&:text).join(" "))
-      return false if text.empty? || text.length > 80
-      return true if HEADINGS.include?(element.name)
-      return false unless %w[p div].include?(element.name)
-      return false if element.at_css((%w[p div ul ol li table] + HEADINGS).join(","))
+      return if text.empty? || text.length > 80
+      return text if HEADINGS.include?(element.name)
+      return unless %w[p div].include?(element.name)
+      return if element.at_css((%w[p div ul ol li table] + HEADINGS).join(","))
       bold = clean(element.css("b, strong").map(&:text).join(" "))
-      (bold.present? && bold.delete_suffix(":") == text.delete_suffix(":")) || text.end_with?(":")
+      text if (bold.present? && bold.delete_suffix(":") == text.delete_suffix(":")) || text.end_with?(":")
     end
   end
 end

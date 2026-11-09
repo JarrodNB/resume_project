@@ -14,22 +14,28 @@ export function boardPreferenceDecisions(result: unknown, listings: BoardListing
     || profile.confirmedCriteria.length < 1 || profile.confirmedCriteria.length > 10 || !Array.isArray(result.listings) || result.listings.length !== listings.length) return null
   const values = new Map<string, ListingAssessment>()
   for (let index = 0; index < listings.length; index++) {
-    const item = result.listings[index]
     const listing = listings[index]
-    if (!record(item) || !exactKeys(item, ['id', 'source_digest', 'truncated', 'criteria']) || item.id !== listing.id
-      || item.source_digest !== listing.preferenceSourceDigest || typeof item.truncated !== 'boolean'
-      || !Array.isArray(item.criteria) || item.criteria.length !== profile.confirmedCriteria.length) return null
-    const decisions: CriterionDecision[] = []
-    for (let criterionIndex = 0; criterionIndex < item.criteria.length; criterionIndex++) {
-      const decision = item.criteria[criterionIndex]
-      if (!record(decision) || !exactKeys(decision, ['id', 'probability']) || decision.id !== profile.confirmedCriteria[criterionIndex].id
-        || typeof decision.probability !== 'number' || !Number.isFinite(decision.probability) || decision.probability < 0 || decision.probability > 1) return null
-      decisions.push({ id: decision.id as string, probability: decision.probability })
-    }
-    if (values.has(listing.id)) return null
-    values.set(listing.id, { decisions, truncated: item.truncated })
+    const assessment = parseListingAssessment(result.listings[index], listing, profile.confirmedCriteria)
+    if (!assessment || values.has(listing.id)) return null
+    values.set(listing.id, assessment)
   }
   return values
+}
+
+/** Parse one listing only when its source and complete ordered criteria still match. */
+function parseListingAssessment(value: unknown, listing: BoardListing, criteria: Profile['confirmedCriteria']): ListingAssessment | null {
+  if (!record(value) || !exactKeys(value, ['id', 'source_digest', 'truncated', 'criteria']) || value.id !== listing.id
+    || value.source_digest !== listing.preferenceSourceDigest || typeof value.truncated !== 'boolean'
+    || !Array.isArray(value.criteria) || value.criteria.length !== criteria.length) return null
+  const decisions: CriterionDecision[] = []
+  for (let index = 0; index < value.criteria.length; index++) {
+    const decision = value.criteria[index]
+    const criterion = criteria[index]
+    if (!record(decision) || !exactKeys(decision, ['id', 'probability']) || decision.id !== criterion.id
+      || typeof decision.probability !== 'number' || !Number.isFinite(decision.probability) || decision.probability < 0 || decision.probability > 1) return null
+    decisions.push({ id: criterion.id, probability: decision.probability })
+  }
+  return { decisions, truncated: value.truncated }
 }
 
 /** Highest mean must-have probability first, then nice-to-have mean; provider order breaks ties. */

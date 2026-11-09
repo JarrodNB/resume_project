@@ -2,15 +2,15 @@
 import { Link } from 'react-router'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { LegalPage } from './LegalPage'
-import { LEGAL_OPERATOR, PRIVACY_CONTACT_EMAIL } from './legalDetails'
+import { MINIMUM_AGE, PRIVACY_CONTACT_EMAIL } from './legalDetails'
 
 export function TermsPage() {
   return (
     <LegalPage title="Terms of service">
-      <p>These terms are an agreement between you and {LEGAL_OPERATOR}, who run {PRODUCT_NAME}. By creating an account you agree to them. Our <Link to="/privacy">privacy policy</Link> explains how we handle your data.</p>
+      <p>These terms are an agreement between you and {PRODUCT_NAME}. By creating an account you agree to them. Our <Link to="/privacy">privacy policy</Link> explains how we handle your data.</p>
 
       <h2>Your account</h2>
-      <p>You must be at least 16 and give a real email address. Keep your password private; you’re responsible for what happens in your account. One person per account.</p>
+      <p>You must be at least {MINIMUM_AGE} and give a real email address. Keep your password private; you’re responsible for what happens in your account. One person per account.</p>
 
       <h2>Your content</h2>
       <p>You own what you upload and write. You give us permission to store and process it only to run the service for you, including sending it to the providers listed in the privacy policy. You can delete it at any time.</p>

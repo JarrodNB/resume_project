@@ -1,6 +1,7 @@
 /** Requests an account after the bot check, then guides users to email verification without starting a session. */
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { MINIMUM_AGE } from '@/features/legal/legalDetails'
 import type { AuthCredentials } from './authApi'
 import { AuthForm } from './AuthForm'
 import { AuthPageShell } from './AuthPageShell'
@@ -44,7 +45,7 @@ export function SignUpPage() {
       {submitted ? <div className="grid gap-4"><p role="status">Check your email. If this address can be registered, a verification email will arrive shortly.</p><p className="text-sm leading-relaxed text-muted-foreground">Open the email and choose Verify email. Then return here to sign in. The link expires after 24 hours.</p><details className="auth-resend-disclosure"><summary>Didn't receive an email?</summary><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Check your spam folder first. Requesting another email replaces the previous link.</p><ResendConfirmationForm /></details></div>
         : <AuthForm submitLabel="Create account" includeName onSubmit={handleSignUp} submitDisabled={!turnstileToken} beforeSubmit={<>
           <TurnstileWidget key={turnstileAttempt} onTokenChange={setTurnstileToken} />
-          <p className="text-sm leading-relaxed text-muted-foreground">By creating an account, you agree to the <Link to="/terms" className="underline underline-offset-4">terms of service</Link> and <Link to="/privacy" className="underline underline-offset-4">privacy policy</Link>.</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">By creating an account, you confirm you're {MINIMUM_AGE} or older and agree to the <Link to="/terms" className="underline underline-offset-4">terms of service</Link> and <Link to="/privacy" className="underline underline-offset-4">privacy policy</Link>.</p>
         </>} />}
     </AuthPageShell>
   )

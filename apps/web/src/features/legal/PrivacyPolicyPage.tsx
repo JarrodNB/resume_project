@@ -3,12 +3,12 @@
 import { Link } from 'react-router'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { LegalPage } from './LegalPage'
-import { LEGAL_OPERATOR, PRIVACY_CONTACT_EMAIL, RETENTION } from './legalDetails'
+import { MINIMUM_AGE, PRIVACY_CONTACT_EMAIL, RETENTION } from './legalDetails'
 
 export function PrivacyPolicyPage() {
   return (
     <LegalPage title="Privacy policy">
-      <p>{PRODUCT_NAME} is run by {LEGAL_OPERATOR}. It helps you write tailored resumes and prepare for interviews. This page explains what we collect, why, who helps us process it, how long we keep it, and how you can get a copy or delete it.</p>
+      <p>{PRODUCT_NAME} helps you write tailored resumes and prepare for interviews. This page explains what we collect, why, who helps us process it, how long we keep it, and how you can get a copy or delete it.</p>
 
       <h2>What we collect</h2>
       <ul>
@@ -30,6 +30,7 @@ export function PrivacyPolicyPage() {
         <li><strong>Pydantic Logfire</strong> stores traces of AI calls so we can debug and measure cost. Traces include prompt and response text. Your known name, email and phone are masked before traces leave our servers.</li>
         <li><strong>Amazon Web Services</strong> hosts the app, database, files and queues in the United States.</li>
         <li><strong>Cloudflare Turnstile</strong> checks that sign-ups come from a person.</li>
+        <li><strong>CleanJobData</strong> provides job listings. It receives the keywords and filters you search with, but not your name or email.</li>
         <li><strong>Our email provider</strong> sends verification and password-reset emails.</li>
       </ul>
 
@@ -55,7 +56,7 @@ export function PrivacyPolicyPage() {
       <p>Traffic is encrypted with HTTPS. Passwords are hashed. The AI service can only read the records it needs, through a read-only database role. No system is perfectly secure, so please use a unique password.</p>
 
       <h2>Children</h2>
-      <p>{PRODUCT_NAME} is for people 16 and older. We don’t knowingly collect data from younger children.</p>
+      <p>{PRODUCT_NAME} is for people {MINIMUM_AGE} and older. We don’t knowingly collect data from anyone younger. If you believe someone under {MINIMUM_AGE} has an account, email <a href={`mailto:${PRIVACY_CONTACT_EMAIL}`}>{PRIVACY_CONTACT_EMAIL}</a> and we’ll delete it.</p>
 
       <h2>Changes</h2>
       <p>If we change this policy in a way that matters, we’ll update the date above and tell you in the app or by email before the change takes effect.</p>

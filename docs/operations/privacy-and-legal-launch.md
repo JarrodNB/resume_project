@@ -8,12 +8,13 @@ what the repository cannot do on its own.
 ## Before launch
 
 1. **Fill in the legal details.** In `apps/web/src/features/legal/legalDetails.ts`, replace
-   the operator name and the placeholder `privacy@careergrind.example` address with a real,
-   monitored inbox. Set the effective date to the launch day.
+   the placeholder `privacy@careergrind.example` address with a real, monitored Careergrind
+   inbox. Production builds of the web app stop until you do. Set the effective date to the
+   launch day.
 2. **Get the wording reviewed.** The privacy policy and terms are plain-language drafts, not
    legal advice. Have someone qualified check them for the places you'll accept users from
    (for example GDPR/UK GDPR if you accept EU/UK users, CCPA/CPRA for California). Decisions
-   baked into the draft to confirm: minimum age 16, US hosting, a 30-day response time for
+   baked into the draft to confirm: minimum age 18, US hosting, a 30-day response time for
    privacy requests, and the liability cap.
 3. **Match the outside retention settings to the policy.**
    - Logfire: set the project's data retention to 30 days.

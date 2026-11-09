@@ -1,14 +1,12 @@
-"""
-Description: Imports a resume without sending detected contact to screening or parsing.
-Downloads and extracts locally, validates original limits, prepares opaque PII replacements,
-then restores structured output before source checks. Static spans time local stages without
+"""Import a resume without sending detected contact to screening or parsing.
+
+Download and extract locally, validate original limits, prepare opaque PII replacements,
+then restore structured output before source checks. Static spans time local stages without
 recording document attributes or exceptions. Optional inferred search titles are restored
-separately from extracted facts. Safe to run twice (it only reads).
-Index:
-    - SourceFile / ParseResumeInput: the task's `input`, sent by Rails
-    - handle_parse_resume_task: returns a completed result with the faithfulness-checked
-      ParsedResume and token usage, or a failed result when the file is unreadable or blocked
+separately from extracted facts. Repeated deliveries only read sources and return results.
 """
+
+from contextlib import AbstractContextManager
 
 from opentelemetry import trace
 from pydantic import BaseModel
@@ -73,17 +71,11 @@ def handle_parse_resume_task(
 def _parse_resume(task, dependencies, privacy):
     """Coordinate local extraction, protected calls, restoration, and source checks."""
     task_input = ParseResumeInput.model_validate(task.input)
-    # Timing spans deliberately omit exception details: early failures may contain
-    # uploaded content before local privacy detection has run.
-    with _stage_tracer.start_as_current_span(
-        "resume_import.download", record_exception=False, set_status_on_exception=False
-    ):
+    with _local_import_stage("resume_import.download"):
         file_bytes = dependencies.file_storage.download_file(task_input.source_file.key)
 
     try:
-        with _stage_tracer.start_as_current_span(
-            "resume_import.extract", record_exception=False, set_status_on_exception=False
-        ):
+        with _local_import_stage("resume_import.extract"):
             resume_text = extract_document_text(file_bytes, task_input.source_file.content_type)
     except DocumentTooLongError:
         return AiResultMessage(
@@ -99,9 +91,7 @@ def _parse_resume(task, dependencies, privacy):
         return AiResultMessage(
             ai_task_id=task.ai_task_id, status="failed", error_message=RESUME_TOO_LONG_MESSAGE
         )
-    with _stage_tracer.start_as_current_span(
-        "resume_import.prepare_pii", record_exception=False, set_status_on_exception=False
-    ):
+    with _local_import_stage("resume_import.prepare_pii"):
         masked_text = privacy.prepare(resume_text)
     screen = _screen_resume_text(
         masked_text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
@@ -125,11 +115,7 @@ def _parse_resume(task, dependencies, privacy):
     )
     usage = [*(getattr(parsing_run, "model_usages", None) or
                [build_model_usage(parsing_run.model or model, parsing_run.usage)]), *screen_usage]
-    with _stage_tracer.start_as_current_span(
-        "resume_import.restore_and_check_source",
-        record_exception=False,
-        set_status_on_exception=False,
-    ):
+    with _local_import_stage("resume_import.restore_and_check_source"):
         try:
             restored = privacy.restore(parsing_run.parsed_resume)
         except PiiRestorationError:
@@ -170,3 +156,10 @@ def _screen_resume_text(text: str, model: str, timeout_seconds: float) -> Screen
 def _screen_usage(screen: ScreenOutcome) -> list[ModelUsage]:
     """Classifier usage to report when a call was made. The phrase list makes none."""
     return screen.model_usages
+
+
+def _local_import_stage(name: str) -> AbstractContextManager[trace.Span]:
+    """Time local work without recording document-bearing exceptions before PII detection."""
+    return _stage_tracer.start_as_current_span(
+        name, record_exception=False, set_status_on_exception=False,
+    )

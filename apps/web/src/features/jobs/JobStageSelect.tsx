@@ -1,5 +1,5 @@
 /** Save a job's application stage immediately when it changes.
- * Reserve space for save feedback so the selector stays put; failures allow retry.
+ * Save feedback floats under the selector so it neither shifts the layout nor lifts the select off the action row; failures allow retry.
  */
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Label } from '@/components/ui/label'
@@ -14,7 +14,7 @@ export function JobStageSelect({ jobId, stage }: { jobId: string; stage: JobStag
   const { save, busy, errors } = useSaveJob()
 
   return (
-    <div className="grid gap-1">
+    <div className="relative grid gap-1">
       <Label htmlFor={`job-stage-${jobId}`}>Stage</Label>
       <select
         id={`job-stage-${jobId}`}
@@ -33,7 +33,7 @@ export function JobStageSelect({ jobId, stage }: { jobId: string; stage: JobStag
           </option>
         ))}
       </select>
-      <p role="status" className="min-h-5 text-sm whitespace-nowrap text-muted-foreground">
+      <p role="status" className="absolute top-full left-0 mt-1 text-sm whitespace-nowrap text-muted-foreground">
         {busy ? 'Saving stage…' : ''}
       </p>
       <ErrorAlert title="Couldn't update the stage" messages={errors} />

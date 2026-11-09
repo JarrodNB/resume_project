@@ -65,7 +65,7 @@ export function JobsPage() {
               <Link to={`/jobs/${job.id}`} aria-label={`Open ${job.title} at ${job.company ?? 'Unknown company'}`} className="record-link focus-visible:outline-2 focus-visible:outline-ring">
                 <div className="record-text">
                   <p className="font-medium">{job.title}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {[job.company ?? 'Unknown company', job.location].filter(Boolean).join(' · ')}
                   </p>
                 </div>

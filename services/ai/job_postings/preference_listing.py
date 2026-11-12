@@ -141,16 +141,23 @@ def listing_source(listing_id, payload, count):
               ("Description", description_text(str(payload.get("description") or "")))]
     text = "\n".join(f"{label}: {value}" for label, value in values if isinstance(value, str) and value.strip())
     budget = min(8000, 100000 // count)
-    # Rails truncate_bytes stops at a grapheme boundary, rather than splitting combining marks.
-    excerpt = ""
-    used = 0
-    for cluster in regex.findall(r"\X", text):
-        if used + len(cluster.encode()) > budget:
-            break
-        excerpt += cluster
-        used += len(cluster.encode())
+    excerpt = _truncate_utf8_graphemes(text, budget)
     pieces = [line[start:start + 500] for line in excerpt.split("\n") if line.strip() for start in range(0, len(line), 500)]
     limit = min(64, max(budget // 80, 1))
     return {"id": listing_id, "source_digest": hashlib.sha256(text.encode()).hexdigest(),
             "truncated": excerpt != text or len(pieces) > limit,
             "passages": [{"id": f"P{index + 1}", "text": piece} for index, piece in enumerate(pieces[:limit])]}
+
+
+def _truncate_utf8_graphemes(text: str, budget: int) -> str:
+    """Match Rails truncate_bytes without splitting combining marks or emoji sequences."""
+    clusters: list[str] = []
+    used = 0
+    for match in regex.finditer(r"\X", text):
+        cluster = match.group()
+        cluster_bytes = len(cluster.encode("utf-8"))
+        if used + cluster_bytes > budget:
+            break
+        clusters.append(cluster)
+        used += cluster_bytes
+    return "".join(clusters)

@@ -19,7 +19,7 @@ period here changes, change the code, this page and `legalDetails.ts` together.
 | Browser sessions | Authentication lasts one day; stale rows are pruned | See [Authentication](authentication.md#cleanup-and-operations) |
 | AI usage and cost records | With the account (they belong to its AI tasks) | Account deletion |
 | Logfire traces | 30 days | Logfire project retention setting (outside this repo) |
-| Database backups | Up to 30 days | RDS automated backup retention (outside this repo) |
+| Database backups | Up to 30 days | S3 lifecycle rule on the nightly `pg_dump` backups (outside this repo) |
 | OpenAI API inputs | Up to 30 days for abuse monitoring; not used for training | OpenAI API data policy |
 
 Uploads are kept for 30 days rather than deleted as soon as parsing ends, because SQS can

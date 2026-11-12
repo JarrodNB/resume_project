@@ -18,8 +18,9 @@ what the repository cannot do on its own.
    privacy requests, and the liability cap.
 3. **Match the outside retention settings to the policy.**
    - Logfire: set the project's data retention to 30 days.
-   - RDS: set automated backup retention to 30 days or less. Manual snapshots need their own
-     cleanup or a note in the policy.
+   - Database backups: the nightly `pg_dump` files in S3 need a lifecycle rule that deletes
+     them after 30 days or less. Manual dumps or EBS snapshots need their own cleanup or a
+     note in the policy.
    - S3: don't enable object versioning on the uploads bucket, or add a lifecycle rule that
      expires noncurrent versions, so purged uploads and audio are really gone.
    - Server and container logs: keep them for 30 days or less. Rails filters passwords, but

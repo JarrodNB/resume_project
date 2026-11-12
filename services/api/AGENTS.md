@@ -7,7 +7,7 @@ applications, interviews, contacts, goals.
 
 ## Stack
 
-Rails (API mode), PostgreSQL (RDS) with pgvector (`neighbor` gem), graphql-ruby, Devise + Rails sessions
+Rails (API mode), PostgreSQL with pgvector (`neighbor` gem), graphql-ruby, Devise + Rails sessions
 auth, Shoryuken (SQS) for publishing AI jobs and consuming results, ActionCable with Solid Cable
 for GraphQL subscriptions, the official `openai` gem for career-library and interview Q&A embeddings only.
 

@@ -51,6 +51,10 @@ export function resetPasswordRequest(token: string, password: string, confirmati
 export function changePasswordRequest(current: string, password: string, confirmation: string, csrfToken: string): Promise<{ message: string }> {
   return accountRequest('/auth/password/change', { user: { current_password: current, password, password_confirmation: confirmation } }, csrfToken, 'PATCH')
 }
+/** Permanently deletes the signed-in account; the server signs this browser out on success. */
+export function deleteAccountRequest(current: string, csrfToken: string): Promise<{ message: string }> {
+  return accountRequest('/auth/account', { user: { current_password: current } }, csrfToken, 'DELETE')
+}
 async function accountRequest(path: string, body: unknown, csrfToken: string, method = 'POST'): Promise<{ message: string }> {
   const response = await fetch(`${API_URL}${path}`, {
     method, credentials: 'include', headers: { ...JSON_HEADERS, 'X-CSRF-Token': csrfToken },

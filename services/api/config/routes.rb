@@ -4,13 +4,14 @@
 #   - GET /auth/session, POST /auth/sign_up, /auth/sign_in, DELETE /auth/sign_out
 #   - POST /auth/confirmation (resend), /auth/confirmation/verify (consume token)
 #   - POST/PUT /auth/password (request/reset), PATCH /auth/password/change
+#   - DELETE /auth/account (permanent self-service deletion; requires the current password)
 #   - POST /graphql
 #   - GET /up: health check
 Rails.application.routes.draw do
   mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
 
   # Registrations are skipped so Devise's account edit/update/delete routes don't exist; only
-  # sign-up is added back. Devise owns the sign-in/sign-out routes.
+  # sign-up and a password-confirmed account deletion are added back. Devise owns the sign-in/sign-out routes.
   devise_for :users,
              path: "auth",
              path_names: { sign_in: "sign_in", sign_out: "sign_out" },
@@ -26,6 +27,7 @@ Rails.application.routes.draw do
     post "auth/password", to: "auth/passwords#create", defaults: { format: :json }
     put "auth/password", to: "auth/passwords#update", defaults: { format: :json }
     patch "auth/password/change", to: "auth/passwords#change", defaults: { format: :json }
+    delete "auth/account", to: "auth/accounts#destroy", defaults: { format: :json }
   end
 
   namespace :internal do

@@ -19,7 +19,7 @@ Shared UI used by more than one feature.
   the tab whose path is its longest prefix (`/jobs/42/resume` → Saved jobs). Find jobs is shared
   listing discovery; Saved jobs is the private list
 - `NotFoundPage.tsx` — 404 for unknown signed-in URLs (rendered inside `AppLayout`, link home)
-- `AccountMenu.tsx` — account dropdown: "Signed in as" name/email header, Account security link, light/dark switch
+- `AccountMenu.tsx` — account dropdown: "Signed in as" name/email header, Account and data link (password, export, deletion), light/dark switch
   (uses `lib/colorTheme.ts`), and Sign out
 - `RedirectToPath.tsx` — route element that keeps old bookmarks working by redirecting to the new
   path, carrying route params along

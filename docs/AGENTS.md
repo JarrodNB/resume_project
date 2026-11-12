@@ -15,6 +15,8 @@ Project-level documentation that spans services.
 - `architecture/chat.md` — private career chat, shared execution/streaming, rolling context and feedback
 - `architecture/ai-streaming.md` — optional public output on the shared runner, scoped
   observer capabilities, Redis replay, outage behavior and local latency probes
+- `architecture/privacy-and-data.md` — retention periods, account deletion, data export and outside processors
+- `operations/privacy-and-legal-launch.md` — legal details, provider settings and checks to finish before real users
 - `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals
 - `interview-real-qa.md` — real spoken browser QA on the retained paid ledger; `interview-recovery.md` keeps offline recovery instructions
 - `interview-latency.md` — private stage timing, repeatable offline HTTP dispatch measurements, and limits on latency claims

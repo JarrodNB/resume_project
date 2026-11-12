@@ -2,7 +2,7 @@
  * Description: Route table for the web app (shared by the browser router and tests).
  * Index:
  *   - unknown URLs: NotFoundPage inside AppLayout when signed in (signed-out visitors are sent to sign in by RequireAuth)
- *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Chat, Jobs, Library, and Practice
+ *   - appRoutes: public auth and legal pages (`/privacy`, `/terms`, `/account-deleted`), then signed-in pages inside AppLayout grouped as Chat, Jobs, Library, and Practice
  *     (one saved job is a workspace with Fit, Resume, Study, Interview, and Posting tabs),
  *     plus redirects that keep old bookmarks (`/job-board`, `/import`, `/interview-prep`, `/interviews`) working
  */
@@ -16,6 +16,9 @@ import { SignUpPage } from '@/features/auth/SignUpPage'
 import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/PasswordUpdatePage'
+import { AccountDeletedPage } from '@/features/account/AccountDeletedPage'
+import { PrivacyPolicyPage } from '@/features/legal/PrivacyPolicyPage'
+import { TermsPage } from '@/features/legal/TermsPage'
 import { ChatPage } from '@/features/chat/ChatPage'
 import { HomePage } from '@/features/home/HomePage'
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
@@ -41,6 +44,9 @@ export const appRoutes: RouteObject[] = [
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <PasswordUpdatePage /> },
   { path: '/password-updated', element: <PasswordUpdatedPage /> },
+  { path: '/account-deleted', element: <AccountDeletedPage /> },
+  { path: '/privacy', element: <PrivacyPolicyPage /> },
+  { path: '/terms', element: <TermsPage /> },
   {
     element: <RequireSignedOut />,
     children: [

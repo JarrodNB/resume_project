@@ -11,7 +11,9 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
 - `auth/registrations_controller.rb` — `POST /auth/sign_up`
 - `auth/confirmations_controller.rb` — resend and explicit POST verification; no GET consumes links
 - `auth/passwords_controller.rb` — recovery request/reset and signed-in current-password change;
-  only password fields, no auto-login or account edit/delete
+  only password fields, no auto-login or account edit
+- `auth/accounts_controller.rb` — `DELETE /auth/account`: password-confirmed permanent deletion
+  (`Accounts::DeleteAccountService`), then sign-out. The data export is the `accountExport` GraphQL query
 
 ## Local Rules
 

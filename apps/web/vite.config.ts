@@ -3,6 +3,7 @@
  * Description: Vite config for the main web app, set up to run inside Docker. Also configures Vitest.
  * Index:
  *   - productNameHtml: writes the product name into index.html
+ *   - requireRealLegalContact: stops production builds while the policy contact is a placeholder
  *   - default export: Vite config (React + Tailwind plugins, `@` alias to src/, dev server on
  *     0.0.0.0:5173, Vitest with jsdom)
  */
@@ -11,6 +12,7 @@ import { readFile } from 'node:fs/promises'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
+import { PRIVACY_CONTACT_EMAIL } from './src/features/legal/legalDetails.js'
 import { PRODUCT_NAME } from './src/lib/productName.js'
 
 /** Replaces `%PRODUCT_NAME%` in index.html from the product-name module. */
@@ -19,6 +21,19 @@ function productNameHtml(): Plugin {
     name: 'product-name-html',
     transformIndexHtml(html) {
       return html.replaceAll('%PRODUCT_NAME%', PRODUCT_NAME)
+    },
+  }
+}
+
+/** Stops production builds until the policies list an inbox that can really receive mail. */
+function requireRealLegalContact(): Plugin {
+  return {
+    name: 'require-real-legal-contact',
+    apply: 'build',
+    buildStart() {
+      if (PRIVACY_CONTACT_EMAIL.endsWith('.example')) {
+        this.error('Set PRIVACY_CONTACT_EMAIL in src/features/legal/legalDetails.ts before building for production.')
+      }
     },
   }
 }
@@ -49,7 +64,7 @@ function devSampleResume(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), productNameHtml(), devSampleResume()],
+  plugins: [react(), tailwindcss(), productNameHtml(), requireRealLegalContact(), devSampleResume()],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },

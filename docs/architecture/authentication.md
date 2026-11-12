@@ -152,7 +152,9 @@ change the stored address:
 IP limits use `RackAttackRequestKeys.client_ip`: IPv6 counts per /64, the `Forwarded`
 header is ignored, and `TRUSTED_PROXY_CIDRS` names public proxies to skip in
 `X-Forwarded-For`. Accounts unverified for a week, with no newer verification email, are
-deleted hourly (`Accounts::DeleteUnverifiedAccountsService`).
+deleted hourly (`Accounts::DeleteUnverifiedAccountsService`). Signed-in users can delete
+their own account with `DELETE /auth/account` and their current password; see
+[Privacy and account data](privacy-and-data.md#account-deletion).
 Malformed envelopes return 400; invalid fields return 422. All POSTs require CSRF.
 
 `POST /auth/confirmation/verify` accepts `{ confirmation_token }`, returning 200

@@ -6,3 +6,5 @@ const APP_URL = import.meta.env.VITE_APP_URL ?? 'http://localhost:5173'
 
 export const SIGN_UP_URL = `${APP_URL}/sign-up`
 export const SIGN_IN_URL = `${APP_URL}/sign-in`
+export const PRIVACY_URL = `${APP_URL}/privacy`
+export const TERMS_URL = `${APP_URL}/terms`

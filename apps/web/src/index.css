@@ -294,6 +294,21 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .security-password-section input { min-height: 44px; background: var(--card); caret-color: var(--primary); }
 .security-password-section a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
 .security-session-notice { border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+.account-data-section { margin-top: 36px; border-top: 1px solid var(--border); }
+.account-delete-block { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
+
+/* Privacy policy and terms: one readable column, signed in or out. */
+.legal-page { min-height: 100svh; background: var(--background); color: var(--foreground); padding: 24px 16px 64px; }
+.legal-nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; max-width: 720px; margin: 0 auto 40px; }
+.legal-nav .band-brand { color: var(--foreground); }
+.legal-nav-links { display: flex; gap: 20px; font-size: 14px; }
+.legal-nav-links a, .legal-article a { text-decoration: underline; text-underline-offset: 3px; }
+.legal-article { max-width: 720px; margin: 0 auto; line-height: 1.7; }
+.legal-article h1 { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.legal-effective { margin: 8px 0 28px; color: var(--muted-foreground); font-size: 14px; }
+.legal-article h2 { margin: 36px 0 10px; font-size: 1.2rem; font-weight: 600; }
+.legal-article p + p { margin-top: 12px; }
+.legal-article ul { display: grid; gap: 8px; padding-left: 1.25rem; list-style: disc; }
 @media (max-width: 599px) {
   .security-password-section input { font-size: 16px; }
 }

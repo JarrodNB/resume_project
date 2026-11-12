@@ -25,6 +25,8 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 - `accounts/delete_unverified_accounts_job.rb` — hourly bounded removal of accounts never verified;
   see `Accounts::DeleteUnverifiedAccountsService`.
+- `resume_imports/purge_old_uploads_job.rb` — daily bounded purge of uploaded resume files 30 days
+  after their parse finished; see `docs/architecture/privacy-and-data.md`.
 - `application_job.rb` — generated base class
 - `account_mail_delivery_job.rb` — Devise mail via Rails/Solid Queue; private arguments,
   sanitized SMTP errors, at most three attempts. Runs through `bin/jobs`.

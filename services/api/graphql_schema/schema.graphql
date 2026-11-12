@@ -2816,6 +2816,10 @@ input ProjectAttributesInput {
 }
 
 type Query {
+  """
+  Everything the signed-in user saved, for download. Heavy, so one per request.
+  """
+  accountExport: JSON!
   aiTask(id: ID!): AiTask!
   careerContexts: [CareerContext!]!
   certifications: [Certification!]!

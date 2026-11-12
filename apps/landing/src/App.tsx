@@ -30,7 +30,7 @@ function Hero() {
 function Limits() {
   return (
     <section className="limits" aria-labelledby="limits-title">
-      <h2 id="limits-title">What it won’t do.</h2>
+      <h2 id="limits-title">What Careergrind won’t do.</h2>
       <dl className="limits-list">
         <div>
           <dt>Make things up.</dt>

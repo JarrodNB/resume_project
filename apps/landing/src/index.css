@@ -203,7 +203,7 @@ figcaption { color: var(--muted-foreground); font-size: 14px; line-height: 1.5; 
 
 /* Job */
 .stop-job { margin-top: var(--section-gap); padding-top: clamp(56px, 6vw, 88px); padding-bottom: clamp(56px, 6vw, 88px); background: var(--muted); }
-.stop-job h2 { margin-bottom: 24px; max-width: 12em; }
+.stop-job h2 { margin-bottom: 24px; max-width: 14em; }
 .job-figure { margin-top: 32px; }
 .job-url {
   display: flex; align-items: baseline; gap: 24px; padding: 20px 24px; margin-bottom: 28px;

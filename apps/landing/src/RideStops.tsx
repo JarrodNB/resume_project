@@ -23,7 +23,7 @@ export function LibraryStop() {
   return (
     <section id="library" className="stop stop-library" aria-labelledby="library-title">
       <div className="stop-copy">
-        <h2 id="library-title">Tell your history once.</h2>
+        <h2 id="library-title">Build your career library once.</h2>
         <p>
           Import a PDF or Word resume and review it, or add your experience yourself. Save it in
           your career library to reuse for each application.
@@ -56,7 +56,7 @@ export function LibraryStop() {
 export function JobStop() {
   return (
     <section id="job" className="stop stop-job" aria-labelledby="job-title">
-      <h2 id="job-title">Pick one job you actually want.</h2>
+      <h2 id="job-title">Tailor your resume to one job you want.</h2>
       <p className="job-lede">
         Save a posting from its link, or paste it in. Careergrind pulls out what the job is asking
         for, and you can fix anything it got wrong.
@@ -94,7 +94,7 @@ export function GapsStop({ gapAnswered, onToggleGapAnswer }: GapsStopProps) {
   return (
     <section id="gaps" className="stop stop-gaps" aria-labelledby="gaps-title">
       <div className="stop-copy-wide">
-        <h2 id="gaps-title">See what’s missing. Then you fill it.</h2>
+        <h2 id="gaps-title">Find the gaps before you apply.</h2>
         <p>
           Careergrind compares your library with the job, line by line. Where it finds nothing, it
           says so and asks you. It doesn’t make something up to close the gap.
@@ -166,7 +166,7 @@ export function ResumeStop({ gapAnswered }: { gapAnswered: boolean }) {
   return (
     <section id="resume" className="stop stop-resume" aria-labelledby="resume-title">
       <div className="stop-copy-wide">
-        <h2 id="resume-title">Every line comes from your record.</h2>
+        <h2 id="resume-title">A resume where every line comes from your record.</h2>
         <p>
           Review a draft drawn from your library and answers. Edit the wording, then export a PDF.
         </p>
@@ -205,7 +205,7 @@ export function InterviewStop() {
   return (
     <section id="interview" className="stop stop-interview" aria-labelledby="interview-title">
       <div className="stop-copy">
-        <h2 id="interview-title">Practice before it counts.</h2>
+        <h2 id="interview-title">Practice interview questions with AI feedback.</h2>
         <p>
           Practice questions for this job and get feedback on your answers. Try a mock interview
           with an AI interviewer, using voice or typing. Questions draw on the job and your library.

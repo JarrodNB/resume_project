@@ -8,7 +8,7 @@ export function SearchMap() {
   return (
     <section id="map" className="stop stop-map" aria-labelledby="map-title">
       <div className="map-heading">
-        <h2 id="map-title">Then see your whole search at once.</h2>
+        <h2 id="map-title">Then see your whole job search at once.</h2>
         <ul className="map-legend" aria-label="What the colors mean">
           {SIGNAL_LEGEND.map(({ signal, label }) => (
             <li key={signal}>

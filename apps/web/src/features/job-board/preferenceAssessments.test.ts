@@ -43,3 +43,16 @@ it('rejects missing, extra, reordered and unknown criteria, stale digests and ol
     expect(boardPreferenceDecisions(value, listings, profile)).toBeNull()
   }
 })
+
+it.each([
+  (value: ReturnType<typeof result>) => { value.confirmed_revision++ },
+  (value: ReturnType<typeof result>) => { value.listings.pop() },
+  (value: ReturnType<typeof result>) => { value.listings.reverse() },
+  (value: ReturnType<typeof result>) => { Object.assign(value, { unexpected: true }) },
+  (value: ReturnType<typeof result>) => { Object.assign(value.listings[0], { truncated: 'false' }) },
+  (value: ReturnType<typeof result>) => { Object.assign(value.listings[0], { unexpected: true }) },
+])('rejects stale or malformed result envelopes and listing records', (change) => {
+  const value = result()
+  change(value)
+  expect(boardPreferenceDecisions(value, listings, profile)).toBeNull()
+})

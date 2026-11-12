@@ -47,6 +47,29 @@ RSpec.describe JobBoard::SuggestLocationsService do
     expect(suggest.value).to eq(locations: [], errors: [])
   end
 
+  it "bounds provider rows before filtering and keeps the first duplicate label" do
+    rows.replace([ city.merge("display_label" => "  First city label  "), city,
+      city.merge("kind" => "state", "state_id" => city["city_id"], "display_label" => "State label"),
+      *Array.new(27) { city.merge("country_code" => "CA") },
+      city.merge("city_id" => 123, "display_label" => "Beyond the row limit") ])
+    allow(response).to receive(:body).and_return(JSON.generate(rows))
+
+    expect(suggest.value[:locations]).to eq([
+      { kind: "city", provider_id: city["city_id"], label: "First city label" },
+      { kind: "state", provider_id: city["city_id"], label: "State label" }
+    ])
+  end
+
+  it "keeps HTTPS and bounded transport settings without automatic retries" do
+    expect(suggest).to be_success
+    expect(Net::HTTP).to have_received(:new).with("api.cleanjobdata.com", 443)
+    expect(http).to have_received(:use_ssl=).with(true)
+    expect(http).to have_received(:open_timeout=).with(2)
+    expect(http).to have_received(:read_timeout=).with(3)
+    expect(http).to have_received(:write_timeout=).with(2)
+    expect(http).to have_received(:max_retries=).with(0)
+  end
+
   it "controls HTTP, invalid payload and transport failures without exposing response text" do
     [ [ "429", "test-secret" ], [ "200", "test-secret" ], [ "200", "{}" ] ].each do |code, body|
       allow(response).to receive_messages(code: code, body: body)

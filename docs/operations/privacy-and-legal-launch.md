@@ -7,10 +7,10 @@ what the repository cannot do on its own.
 
 ## Before launch
 
-1. **Fill in the legal details.** In `apps/web/src/features/legal/legalDetails.ts`, replace
-   the placeholder `privacy@careergrind.example` address with a real, monitored Careergrind
-   inbox. Production builds of the web app stop until you do. Set the effective date to the
-   launch day.
+1. **Check the legal details.** `apps/web/src/features/legal/legalDetails.ts` lists
+   `careergrind-privacy@proton.me` as the privacy contact; make sure someone watches it.
+   Production builds of the web app stop if it goes back to a `.example` placeholder. Set the
+   effective date to the launch day.
 2. **Get the wording reviewed.** The privacy policy and terms are plain-language drafts, not
    legal advice. Have someone qualified check them for the places you'll accept users from
    (for example GDPR/UK GDPR if you accept EU/UK users, CCPA/CPRA for California). Decisions

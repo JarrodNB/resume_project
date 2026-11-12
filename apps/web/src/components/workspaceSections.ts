@@ -1,20 +1,17 @@
 /** Where each signed-in page lives in the navigation.
  *
- * The sidebar has a few sections (Home, Chat, Jobs, Library, Practice). A section with more than one
+ * The main navigation has a few sections (Home, Chat, Jobs, Library, Practice). A section with more than one
  * page shows them as tabs in the top bar. A detail page belongs to the tab whose path is its longest matching prefix,
  * so `/jobs/42/resume` keeps "Saved jobs" selected and `/library/import/7` stays in "Career library".
  */
-import { BookOpen, BriefcaseBusiness, House, MessagesSquare, type LucideIcon } from 'lucide-react'
-
 export interface WorkspaceTab { to: string; label: string }
-export interface WorkspaceSection { label: string; Icon: LucideIcon; tabs: WorkspaceTab[] }
+export interface WorkspaceSection { label: string; tabs: WorkspaceTab[] }
 
 export const WORKSPACE_SECTIONS: WorkspaceSection[] = [
-  { label: 'Home', Icon: House, tabs: [{ to: '/', label: 'Home' }] },
-  { label: 'Chat', Icon: MessagesSquare, tabs: [{ to: '/chat', label: 'Chat' }] },
+  { label: 'Home', tabs: [{ to: '/', label: 'Home' }] },
+  { label: 'Chat', tabs: [{ to: '/chat', label: 'Chat' }] },
   {
     label: 'Jobs',
-    Icon: BriefcaseBusiness,
     tabs: [
       { to: '/jobs', label: 'Saved jobs' },
       { to: '/jobs/find', label: 'Find jobs' },
@@ -23,14 +20,12 @@ export const WORKSPACE_SECTIONS: WorkspaceSection[] = [
   },
   {
     label: 'Library',
-    Icon: BookOpen,
     tabs: [
       { to: '/library', label: 'Career library' },
     ],
   },
   {
     label: 'Practice',
-    Icon: MessagesSquare,
     tabs: [
       { to: '/practice/questions', label: 'Questions' },
       { to: '/practice/interviews', label: 'Mock interview' },

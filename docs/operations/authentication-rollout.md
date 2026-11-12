@@ -1,20 +1,12 @@
 # Account rollout and human QA
 
-This runbook covers the cookie-session, password-policy, verification and recovery
-candidate. It is a release checklist, not evidence that production was configured
-or deployed. The behavior and API contracts live in
+This runbook covers cookie sessions, the password policy, email verification and
+account recovery. It is a release checklist, not evidence that production was
+configured or deployed. The behavior and API contracts live in
 [Browser authentication](../architecture/authentication.md).
 
 Careergrind currently runs only in local development. Production steps below are
 future setup guidance; local review uses Letter Opener Web and needs no SMTP provider.
-
-The unreleased auth migrations now use `20261020010000` and `20261020020000` to
-avoid numbers independently used by the job-board migrations on master. A normal
-master development database upgrades with `db:prepare`, preserving existing data.
-Disposable auth review databases created from the earlier ticket branches have
-the old numbers and should be recreated using only their dedicated QA project.
-Do not edit migration history or reset the main application database to fix a
-review database; preserve any real data and investigate its schema separately.
 
 ## Before production traffic
 
@@ -29,8 +21,10 @@ Also complete the [privacy and legal launch checklist](privacy-and-legal-launch.
    accounts without confirmation, and an old/new rolling mix has incompatible auth
    transports. Drain API/Cable traffic, deploy API and web together, purge stale
    cached web bundles, then reopen traffic. Existing users must log in again.
-   Preserve user IDs, password hashes and saved data. Prepare primary, cache, queue
-   and cable databases using the deployment's `bin/rails db:prepare`; ensure the
+   Preserve user IDs, password hashes and saved data. Prepare the primary, cache
+   and cable databases using the deployment's `bin/rails db:prepare` (Solid Queue
+   tables live in the primary database; see
+   [Rails background jobs](../architecture/background-jobs.md)); ensure the
    restricted `ai_reader` grants are reapplied. Never grant that role SELECT on
    sessions, queues or all user columns.
 3. Set stable shared Rails secrets on API and workers. Serve web and API over HTTPS
@@ -64,8 +58,8 @@ Also complete the [privacy and legal launch checklist](privacy-and-legal-launch.
    authenticate, validate provider ownership or send. Required STARTTLS and normal
    certificate validation must remain enabled. Sender/domain DNS and provider setup
    remain deployment work.
-8. Run Rails `bin/jobs` against the shared queue database as a supervised process;
-   its `queues: "*"` includes account mail. API-only health `/up` does not prove
+8. Run Rails `bin/jobs` against the primary database as a supervised process;
+   account mail uses its `default` queue. API-only health `/up` does not prove
    worker readiness, shared-cache operation or mail delivery. Monitor worker
    heartbeat, mail queue age/failures and database availability before reopening
    signup/recovery. Rails mail uses neither SQS nor AI workers.
@@ -127,18 +121,16 @@ variable is unset, so unsetting it can revive pre-cutover JWTs. Rotating the coo
 secret alone is insufficient. Drain old sockets and force fresh login. Do not
 weaken verification, CSRF or origins to make rollback easier.
 
-## Local review from the retained integration checkout
+## Local review
 
-Use the retained integration checkout after the candidate has been integrated:
-`/home/jarrod/Desktop/resume_project/.worktrees/user-login-signup`. Before integration,
-the coordinator can point `AUTH_REVIEW_ROOT` below at the retained ticket checkout
-instead. Confirm the reviewed commit with `git -C "$AUTH_REVIEW_ROOT" rev-parse HEAD`.
+Point `AUTH_REVIEW_ROOT` below at the checkout you are reviewing (the main checkout
+or a worktree). Confirm the reviewed commit with `git -C "$AUTH_REVIEW_ROOT" rev-parse HEAD`.
 The overlay needs Docker Compose 2.24.4+ (`!override`/`!reset`). These commands use a
 separate project/volumes and loopback IP; ports alone would share browser cookies
 with other localhost stacks. Do not replace the project with the main stack name.
 
 ```bash
-export AUTH_REVIEW_ROOT=/home/jarrod/Desktop/resume_project/.worktrees/user-login-signup
+export AUTH_REVIEW_ROOT=/home/jarrod/Desktop/resume_project
 export AUTH_REVIEW_PROJECT=cg-auth-human-qa
 # Define once in this shell; all subsequent commands use absolute compose paths.
 auth_review() {

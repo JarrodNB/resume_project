@@ -14,9 +14,10 @@ from schemas.gap_analysis_context import (
     LibraryEducation,
     LibraryExperience,
     LibraryProject,
+    LibraryRecord,
     LibrarySkill,
 )
-from schemas.tailored_section import TailoredSectionDraft
+from schemas.tailored_section import CitedProse, TailoredSectionDraft
 from tailoring.labeled_sources import LabeledSources
 
 
@@ -73,7 +74,9 @@ def _skill_item(label: str, library: CareerLibrary, sources: LabeledSources) -> 
     return {"name": skill.name, "category": skill.category}
 
 
-def _experience_item(label: str, prose: list, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:
+def _experience_item(
+    label: str, prose: list[CitedProse], library: CareerLibrary, sources: LabeledSources
+) -> dict[str, object]:
     """The role's identity from the library, and the model's bullets."""
     experience = _find(library.experiences, sources, label)
     assert isinstance(experience, LibraryExperience)
@@ -89,7 +92,9 @@ def _experience_item(label: str, prose: list, library: CareerLibrary, sources: L
     }
 
 
-def _project_item(label: str, prose: list, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:
+def _project_item(
+    label: str, prose: list[CitedProse], library: CareerLibrary, sources: LabeledSources
+) -> dict[str, object]:
     """The project's name and role from the library, and the model's description."""
     project = _find(library.projects, sources, label)
     assert isinstance(project, LibraryProject)
@@ -105,7 +110,9 @@ def _project_item(label: str, prose: list, library: CareerLibrary, sources: Labe
     }
 
 
-def _education_item(label: str, prose: list, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:
+def _education_item(
+    label: str, prose: list[CitedProse], library: CareerLibrary, sources: LabeledSources
+) -> dict[str, object]:
     """The degree's identity from the library, and the model's description."""
     education = _find(library.educations, sources, label)
     assert isinstance(education, LibraryEducation)
@@ -121,7 +128,9 @@ def _education_item(label: str, prose: list, library: CareerLibrary, sources: La
     }
 
 
-def _certification_item(label: str, prose: list, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:
+def _certification_item(
+    label: str, prose: list[CitedProse], library: CareerLibrary, sources: LabeledSources
+) -> dict[str, object]:
     """Copies certification identity and dates; keeps only checked description prose."""
     certification = _find(library.certifications, sources, label)
     assert isinstance(certification, LibraryCertification)
@@ -136,8 +145,10 @@ def _certification_item(label: str, prose: list, library: CareerLibrary, sources
     }
 
 
-def _find(records: list, sources: LabeledSources, label: str) -> object:
-    """The library row a label points at."""
+def _find[Record: LibraryRecord](
+    records: list[Record], sources: LabeledSources, label: str
+) -> Record:
+    """Find the row a label points at, preserving its library collection's record type."""
     record_id = sources.records[label].record_id
     for record in records:
         if record.id == record_id:

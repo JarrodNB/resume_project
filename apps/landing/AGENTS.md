@@ -11,6 +11,9 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 ## Local Rules
 
 - Static only: no auth, no API calls beyond an optional waitlist form.
+- Pre-rendered at build time: `npm run build` writes the page's HTML into `dist/index.html` and
+  the browser hydrates it. Keep browser-only code (`window`, `document`) inside effects so
+  server rendering keeps working.
 - Keep it fast and simple.
 - Follow the root documentation rules; use JSDoc for public contracts and non-obvious behavior.
 
@@ -29,6 +32,7 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 - `src/RideStops.tsx` — the five worked-example stops
 - `src/SearchMap.tsx` — the whole search as a map, like the app's Home
 - `src/appLinks.ts` — where sign-up and sign-in links lead
+- `src/entry-server.tsx`, `scripts/prerender.mjs` — build-time rendering of the page into the HTML
 - `vite.config.ts` — dev server on `0.0.0.0:5174`
 - `Dockerfile.dev` — local dev image; `node_modules` lives in a container volume
 - `VITE_APP_URL` — web app address for sign-up links; required for production builds

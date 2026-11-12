@@ -20,7 +20,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 | `apps/landing/`      | Marketing landing page that redirects into the app             |
 | `services/api/`      | Rails API: GraphQL, auth, core domain, service objects         |
 | `services/ai/`       | Python HTTP execution, SQS workers and the `ai-mcp` tool server: models, memory, Logfire |
-| `infra/`             | Terraform (AWS), production Compose, local ElasticMQ config    |
+| `infra/`             | Local ElasticMQ/Postgres config; Terraform and production Compose are planned |
 | `docs/`              | Architecture, MVP plan, decisions                              |
 | `GLOSSARY.md`        | Shared domain terms                                            |
 | `.github/workflows/` | CI and automated deployment (created when first needed)        |
@@ -138,5 +138,5 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
   `docker compose run --rm api bin/rails db:migrate` or `docker compose run --rm ai-worker pytest`.
 - Each app/service has a `Dockerfile.dev` for local dev (source is bind-mounted, so code
   changes apply without rebuilding). Production images use a separate `Dockerfile` and
-  are what gets deployed to the production EC2 server.
+  are what gets deployed to the production EC2 server; so far only `services/api` has one.
 - Rebuild after dependency changes: `docker compose up --build -V`.

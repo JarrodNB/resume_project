@@ -16,6 +16,7 @@ Project-level documentation that spans services.
 - `architecture/ai-streaming.md` — optional public output on the shared runner, scoped
   observer capabilities, Redis replay, outage behavior and local latency probes
 - `architecture/privacy-and-data.md` — retention periods, account deletion, data export and outside processors
+- `operations/authentication-rollout.md` — production auth setup, mail, rollback and local auth human QA
 - `operations/privacy-and-legal-launch.md` — legal details, provider settings and checks to finish before real users
 - `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals
 - `interview-real-qa.md` — real spoken browser QA on the retained paid ledger; `interview-recovery.md` keeps offline recovery instructions
@@ -25,10 +26,9 @@ Project-level documentation that spans services.
 - `plans/` — feature plans and implementation tickets; the `orchestrator` skill describes Kanban delivery, approvals, and review.
   `plans/llm_engineering_rules_done.md` lists the LLM-engineering bullets already applied;
   do not implement those again
+- `plans/interview_prep.md` — phased interview practice plan and task verification progress.
 - Original brainstorm notes live at the repo root: `initial_project_description_and_notes.txt`
 
 ## Local Rules
 
 - Record significant decisions with their reasoning beside the relevant behavior in `architecture/`; system-wide decisions belong in `architecture.md` under "System decisions".
-
-- `plans/interview_prep.md` — phased interview practice plan and task verification progress.

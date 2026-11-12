@@ -29,4 +29,7 @@ guidance. Resource indexes are not required.
 
 ## Contents
 
-Not scaffolded yet.
+Only local pieces exist so far: `elasticmq/`, `postgres/` and `compose.auth-review.yml`
+(the isolated auth QA overlay used by
+[Account rollout and human QA](../docs/operations/authentication-rollout.md)).
+`terraform/` and `compose/` are not scaffolded yet.

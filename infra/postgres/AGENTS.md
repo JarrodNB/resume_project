@@ -19,4 +19,4 @@ Local Postgres setup used by docker compose.
 - Table grants for `ai_reader` don't live here: Rails applies them
   (`services/api/lib/ai_reader_access.rb`, run after `db:prepare` / `db:migrate`), so changing
   them needs no reset.
-- Production roles are managed in Terraform/RDS, and must keep the same read-only rule for the AI worker.
+- In production Postgres runs as a container on the EC2 server; its roles must keep the same read-only rule for the AI worker.

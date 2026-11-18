@@ -38,7 +38,7 @@ Decision rationale lives beside the behavior it explains in these guides.
 
 ```
             ┌──────────────┐        ┌──────────────┐
- landing ──▶│   apps/web   │──GQL──▶│ services/api │──▶ Postgres (RDS + pgvector)
+ landing ──▶│   apps/web   │──GQL──▶│ services/api │──▶ Postgres (pgvector)
             └──────────────┘        │    (Rails)   │
                                     └──────┬───────┘
                                   ai_tasks │ ▲ ai_results
@@ -149,15 +149,20 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   events used by Rails and Vite. See the root README for setup commands.
 
 - **Single-server AWS hosting, no Kubernetes.** Production runs the service containers with
-  Docker Compose on one EC2 server, with Postgres on RDS, uploads on S3, and queues on SQS.
-  We expect this to cost about $45/month at the start, compared with about $220/month for
-  EKS with a NAT gateway and load balancer. To keep costs down, Caddy or nginx on the server
-  handles HTTPS, and there is no NAT gateway or load balancer. DigitalOcean costs about the
-  same for one server, but it has no SQS, so it would add a second provider and long-lived
-  AWS keys. The trade-off is that the app goes down if the server fails or restarts, and
-  deploys may cause brief downtime. RDS, S3, and SQS keep saved data and queued work outside
-  the server. Reconsider if the app needs high availability or outgrows one server, or if
-  outbound data grows enough to make DigitalOcean's included bandwidth cheaper.
+  Docker Compose on one EC2 server, with uploads on S3 and queues on SQS. Postgres (with
+  pgvector) also runs as a container on that server, on its own EBS volume, instead of RDS.
+  That saves roughly $15–30/month, which matters while the app has no revenue. We expect
+  about $20–25/month at the start, compared with about $220/month for EKS with a NAT gateway
+  and load balancer. To keep costs down, Caddy or nginx on the server handles HTTPS, and there
+  is no NAT gateway or load balancer. DigitalOcean costs about the same for one server, but it
+  has no SQS, so it would add a second provider and long-lived AWS keys. The trade-off is
+  that the app goes down if the server fails or restarts, and deploys may cause brief
+  downtime. Without RDS we own database backups: a nightly `pg_dump` goes to S3, so losing
+  the server or its volume can lose up to a day of data. Test a restore before launch and
+  after Postgres upgrades. S3 and SQS keep uploads and queued work outside the server.
+  Move Postgres to RDS once losing a day of data or doing our own upgrades is no longer
+  acceptable. Reconsider the single server if the app needs high availability or outgrows
+  it, or if outbound data grows enough to make DigitalOcean's included bandwidth cheaper.
 
 The shared `execution/rails_client.py` module owns fixed-origin Rails HTTP limits,
 retry rules and lease/provider-accounting callbacks. Chat and interview clients

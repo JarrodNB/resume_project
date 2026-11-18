@@ -6,10 +6,10 @@ Infrastructure as code and local dev infrastructure.
 
 ## Planned Layout
 
-- `terraform/` — AWS: VPC, EC2, RDS (Postgres + pgvector), SQS, S3 (uploads bucket: Rails
-  read/write, AI worker read-only), Route53, Lambda (scheduled jobs), ECR
+- `terraform/` — AWS: VPC, EC2 (with an EBS volume for Postgres), SQS, S3 (uploads bucket: Rails
+  read/write, AI worker read-only; database backups), Route53, Lambda (scheduled jobs), ECR
 - `compose/` — production Docker Compose file for the single EC2 server: `api`, `ai` workers,
-  `web`, `landing`
+  `web`, `landing`, Postgres (pgvector) and its nightly `pg_dump` backup to S3
 - `elasticmq/` — local SQS emulator config (queues) used by docker compose
 - `postgres/` — local Postgres init scripts (dev database, read-only `ai_reader` role)
 

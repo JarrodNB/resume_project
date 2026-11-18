@@ -1,7 +1,7 @@
-<!-- Description: Public overview and development guide for Resume Project.
+<!-- Description: Public overview and development guide for Careergrind.
 Index: Overview, Capabilities, AI engineering, Architecture, Getting started, Development, Documentation. -->
 
-# Resume Project
+# Careergrind
 
 An AI-assisted job search application for building tailored resumes, organizing career
 experience, and managing applications. It brings resume preparation, job analysis, and
@@ -14,10 +14,13 @@ prompt injection defenses, and evaluation workflows in a full-stack application.
 - **Career library:** Organize experience, education, projects, skills, and certifications
   in a reusable profile.
 - **Resume import:** Extract information from PDF and DOCX resumes for review and import.
-- **Resume tailoring:** Adapt resume content to a job posting and export it as a PDF.
+- **Resume tailoring:** Adapt resume content to a job posting, review the draft, and export
+  it as PDF or DOCX.
 - **Job management:** Save job postings and track applications through their stages.
 - **Gap analysis:** Compare a career profile with job requirements and capture additional evidence.
 - **Interview preparation:** Generate job-specific questions, save answers, and receive feedback.
+- **Mock interviews:** Practice spoken interviews with AI-generated questions and follow-up dialogue.
+- **Career chat:** Keep private career conversations with access to saved career evidence and jobs.
 
 ## AI engineering
 
@@ -81,8 +84,11 @@ authentication and domain data, and a shared Python codebase for HTTP execution 
 Rails publishes tasks to an SQS queue. Python workers process them and return results
 through a separate queue, while GraphQL subscriptions deliver updates to the frontend.
 PostgreSQL stores application data and pgvector supports career library retrieval.
-Interactive interviews run through the `ai-http` FastAPI app; queued tasks run through
-`ai-worker`. Both use the agents and model/privacy/telemetry modules in `services/ai`.
+Interactive interviews and career chat run asynchronously through the `ai-http` FastAPI
+app, using durable operations owned by Rails; queued tasks run through `ai-worker`.
+Both use the agents and model/privacy/telemetry modules in `services/ai`. Chat reads
+user-scoped career and job data through the internal `ai-mcp` tool server. Redis buffers
+incremental chat output; durable work and accepted results remain in PostgreSQL.
 AI workflows use Pydantic AI, with tracing through Logfire.
 
 | Directory | Purpose |
@@ -104,8 +110,7 @@ Local development uses native Ubuntu with bash. Install Docker Engine and the Do
 Compose plugin, and make sure your user can run `docker` commands. Application runtimes
 and dependencies run inside containers.
 
-Run the commands below from the repository root (currently
-`/home/jarrod/Desktop/resume_project`). Check Docker access with `docker info` and
+Run the commands below from the repository root. Check Docker access with `docker info` and
 Compose availability with `docker compose version` before starting the services.
 
 1. Copy the environment templates:
@@ -116,7 +121,9 @@ Compose availability with `docker compose version` before starting the services.
    ```
 
 2. Configure the environment files using the comments in each template. AI features use
-   OpenAI credentials; user-text screening uses a TypeSafe API key. Set the optional `LOGFIRE_TOKEN` write token to enable remote tracing
+   OpenAI credentials; the default user-text screening provider uses a TypeSafe API key.
+   The AI template also documents local Llama and LLM screening options and fallback settings.
+   Set the optional `LOGFIRE_TOKEN` write token to enable remote tracing
    and eval reporting. Without it, startup remains noninteractive. Local database, queue, and storage connections are
    supplied by Docker Compose.
 
@@ -126,6 +133,10 @@ Compose availability with `docker compose version` before starting the services.
    the service `.env` values; an unset value disables the internal callbacks. If using
    `AI_EXECUTION_SERVICE_SECRET`, supply it the same way. Keep these secrets out of
    version control and browser configuration.
+
+   Set `MCP_TOOLS_SECRET` in `services/ai/.env` to a random value of at least 32
+   characters. The `ai-http` and `ai-mcp` services share it to authenticate chat tool
+   requests. For example, generate a value with `openssl rand -hex 32`.
 
 3. Build and start the services:
 
@@ -145,7 +156,19 @@ Compose availability with `docker compose version` before starting the services.
 | ElasticMQ (SQS) | http://localhost:9324 |
 | S3Mock | http://localhost:9090 |
 
-The AI worker and API results worker consume queues and do not expose HTTP endpoints.
+The AI worker and API results worker consume queues. The API jobs worker runs durable
+Rails background jobs. These workers do not expose HTTP endpoints. The AI HTTP server,
+MCP tool server, and Redis are available only within the Compose network.
+
+For a development sign-in without email verification, seed the reusable QA accounts:
+
+```bash
+docker compose exec api bin/rails db:seed
+```
+
+See [development accounts](docs/testing.md#reusable-development-accounts) for credentials.
+For normal signup, open [the local email inbox](http://localhost:3000/letter_opener)
+to follow the verification link.
 
 Run a model evaluation, for example retrieval or input screening:
 
@@ -164,8 +187,8 @@ container to be running; `run --rm` creates a temporary container.
 
 The local AI queue worker restarts automatically when Python files change, including
 prompts and schemas. Reloading interrupts active work; unfinished queue messages remain
-available for retry. Dependency changes still require an image rebuild. The Rails results
-worker needs `docker compose restart api-results-worker` after Ruby code changes.
+available for retry. Dependency changes still require an image rebuild. Restart the Rails
+workers after Ruby code changes with `docker compose restart api-results-worker api-jobs-worker`.
 The AI HTTP and MCP servers do not reload automatically; restart the affected server
 after changing Python code it loads.
 
@@ -198,6 +221,9 @@ To remove local database data and other named volumes, run `docker compose down 
 
 - [Architecture](docs/architecture.md) — service boundaries, data flow, and queue behavior.
 - [Testing](docs/testing.md) — focused checks, isolated worktrees, and AI evals.
+- [Native development](docs/native-development.md) — managed cloud setup without Docker.
+- [Career chat](docs/architecture/chat.md) — conversations, tool access, and execution.
+- [Mock interviews](docs/architecture/interview-sessions.md) — spoken sessions and recovery.
 - [Repository conventions](AGENTS.md) — code organization and contribution guidelines.
 
 Keep credentials in the ignored environment files. Commit environment templates without secrets.

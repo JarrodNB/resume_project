@@ -27,10 +27,10 @@ module "server" {
 }
 
 module "github" {
-  source              = "./modules/github"
-  name                = var.name
-  github_repository   = var.github_repository
-  backups_bucket_arn  = module.storage.backups_bucket_arn
-  repository_arns     = module.registry.repository_arns
-  server_instance_arn = module.server.instance_arn
+  source                = "./modules/github"
+  name                  = var.name
+  github_subject_prefix = var.github_subject_prefix
+  backups_bucket_arn    = module.storage.backups_bucket_arn
+  repository_arns       = module.registry.repository_arns
+  server_instance_arn   = module.server.instance_arn
 }

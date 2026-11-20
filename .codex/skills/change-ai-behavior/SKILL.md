@@ -1,6 +1,6 @@
 ---
 name: change-ai-behavior
-description: Change Careergrind prompts, agents, models, or model-facing inputs while preserving grounding, screening provenance, privacy, and usage accounting. Use for AI behavior changes; use evaluate-ai-quality for standalone quality investigations and comparisons.
+description: Change Careerdrafter prompts, agents, models, or model-facing inputs while preserving grounding, screening provenance, privacy, and usage accounting. Use for AI behavior changes; use evaluate-ai-quality for standalone quality investigations and comparisons.
 ---
 
 # Change AI behavior

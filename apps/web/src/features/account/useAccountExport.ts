@@ -14,7 +14,7 @@ export function useAccountExport() {
     try {
       const { data } = await client.query({ query: ACCOUNT_EXPORT_QUERY, fetchPolicy: 'no-cache' })
       if (!data) throw new Error('No export returned')
-      saveJsonFile(data.accountExport, `careergrind-export-${new Date().toISOString().slice(0, 10)}.json`)
+      saveJsonFile(data.accountExport, `careerdrafter-export-${new Date().toISOString().slice(0, 10)}.json`)
     } catch {
       setError('We couldn’t prepare your data. Try again in a moment.')
     } finally {

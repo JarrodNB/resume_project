@@ -17,7 +17,7 @@ Method: dual-agent (A: guide_design_review · B: guide_detector_review)
 
 Read mode. Inspected the saved Enterprise Generative AI Platform Engineering guide on the Travelers Software Engineer II job at http://localhost:5173/jobs/5743e426-ab59-4bfc-8e8f-d5589877fcdb .
 
-The paper-and-forest styling fits Careergrind. The biggest opportunity is helping readers navigate and resume a study session. The deterministic scan returned zero findings for StudyGuideCard.tsx.
+The paper-and-forest styling fits Careerdrafter. The biggest opportunity is helping readers navigate and resume a study session. The deterministic scan returned zero findings for StudyGuideCard.tsx.
 
 | Heuristic | Score /4 | Finding |
 |---|---:|---|

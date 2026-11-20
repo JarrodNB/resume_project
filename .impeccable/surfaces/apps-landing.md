@@ -5,7 +5,7 @@ primary_target: "apps/landing"
 related_targets: []
 ---
 
-# Surface brief: Careergrind landing page
+# Surface brief: Careerdrafter landing page
 
 Scope: the public page in apps/landing. Mode: Persuade.
 

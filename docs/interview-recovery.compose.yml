@@ -32,7 +32,7 @@ services:
   s3:
     image: adobe/s3mock
     environment:
-      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: careergrind-uploads
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: careerdrafter-uploads
       COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
       COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
     volumes:
@@ -53,7 +53,7 @@ services:
       AWS_SECRET_ACCESS_KEY: local
       AWS_EC2_METADATA_DISABLED: "true"
       S3_ENDPOINT_URL: http://s3:9090
-      S3_UPLOADS_BUCKET: careergrind-uploads
+      S3_UPLOADS_BUCKET: careerdrafter-uploads
       INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret
       AI_HTTP_ORIGIN: http://ai-http:8000
       INTERVIEW_BROWSER_STORAGE_ORIGIN: http://s3:9090
@@ -103,7 +103,7 @@ services:
     entrypoint: [ruby, -rnet/http, -e]
     command:
       - |
-        uri = URI("http://s3:9090/careergrind-uploads/cors-probe")
+        uri = URI("http://s3:9090/careerdrafter-uploads/cors-probe")
         origin = "http://127.0.0.2:15176"
         headers = %w[content-type content-md5 content-length]
         30.times do |attempt|

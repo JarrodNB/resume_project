@@ -1,6 +1,6 @@
 ---
 name: add-mcp-tool
-description: Add or change a read-only tool on the Careergrind MCP tool server (`ai-mcp`, `services/ai/mcp_tools/`) and let an agent such as chat use it. Covers the tool contract, server and client halves, screening, rendering, wiring, tests, evals and docs. Use for new agent tools or changes to an existing tool's arguments, description or output; ordinary prompt changes use change-ai-behavior.
+description: Add or change a read-only tool on the Careerdrafter MCP tool server (`ai-mcp`, `services/ai/mcp_tools/`) and let an agent such as chat use it. Covers the tool contract, server and client halves, screening, rendering, wiring, tests, evals and docs. Use for new agent tools or changes to an existing tool's arguments, description or output; ordinary prompt changes use change-ai-behavior.
 ---
 
 # Add an MCP tool

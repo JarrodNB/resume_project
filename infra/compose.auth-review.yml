@@ -13,7 +13,7 @@ services:
     environment:
       CORS_ORIGINS: http://127.0.0.5:5179
       WEB_APP_URL: http://127.0.0.5:5179
-      MAIL_FROM: Careergrind QA <qa@example.test>
+      MAIL_FROM: Careerdrafter QA <qa@example.test>
       OPENAI_API_KEY: ""
     ports: !override
       - "127.0.0.5:3005:3000"

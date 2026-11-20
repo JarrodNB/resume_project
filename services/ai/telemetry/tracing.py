@@ -96,7 +96,7 @@ def configure_tracing(additional_span_processors=(), *, distributed_tracing=None
         atexit.register(_price_updater.stop)
     logfire.configure(
         send_to_logfire=export_enabled,
-        service_name="careergrind-ai",
+        service_name="careerdrafter-ai",
         console=False,
         metrics=logfire.MetricsOptions(collect_in_spans=True),
         inspect_arguments=False,

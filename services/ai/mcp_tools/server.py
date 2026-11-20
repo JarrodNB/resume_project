@@ -22,7 +22,7 @@ from schemas.gap_analysis_context import CareerLibrary
 
 def create_mcp_server(*, secret: str, read_library: Callable[[UUID | str], CareerLibrary], read_jobs: Callable, read_job_summary: Callable) -> FastMCP:
     """Build the tool server with token auth and every tool registered."""
-    server = FastMCP("careergrind-tools", auth=tool_token_verifier(secret), mask_error_details=True)
+    server = FastMCP("careerdrafter-tools", auth=tool_token_verifier(secret), mask_error_details=True)
 
     @server.custom_route("/health", methods=["GET"])
     async def health(request: Request) -> PlainTextResponse:

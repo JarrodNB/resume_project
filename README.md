@@ -1,7 +1,7 @@
-<!-- Description: Public overview and development guide for Careergrind.
+<!-- Description: Public overview and development guide for Careerdrafter.
 Index: Overview, Capabilities, AI engineering, Architecture, Getting started, Development, Documentation. -->
 
-# Careergrind
+# Careerdrafter
 
 An AI-assisted job search application for building tailored resumes, organizing career
 experience, and managing applications. It brings resume preparation, job analysis, and

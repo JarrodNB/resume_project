@@ -12,7 +12,7 @@ module Interviews
       @client = client || Aws::S3::Client.new(region: ENV.fetch("AWS_REGION", "us-east-1"),
         endpoint: ENV["S3_ENDPOINT_URL"], force_path_style: ENV["S3_ENDPOINT_URL"].present?,
         http_open_timeout: 3, http_read_timeout: 5, retry_limit: 0)
-      @bucket = ENV.fetch("S3_UPLOADS_BUCKET", "careergrind-uploads")
+      @bucket = ENV.fetch("S3_UPLOADS_BUCKET", "careerdrafter-uploads")
       @signing_client = if browser
         Aws::S3::Client.new(region: ENV.fetch("AWS_REGION", "us-east-1"),
           endpoint: ENV.fetch("INTERVIEW_BROWSER_STORAGE_ORIGIN", "http://localhost:9090"), force_path_style: true)

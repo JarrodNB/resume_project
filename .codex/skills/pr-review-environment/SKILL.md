@@ -1,6 +1,6 @@
 ---
 name: pr-review-environment
-description: Run a Careergrind PR review app natively in managed cloud or in isolated local Docker Compose, with development credentials, AI workers, and a copy of the main database so existing accounts and saved work are available.
+description: Run a Careerdrafter PR review app natively in managed cloud or in isolated local Docker Compose, with development credentials, AI workers, and a copy of the main database so existing accounts and saved work are available.
 ---
 
 # PR review environment

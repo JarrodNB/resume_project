@@ -6,9 +6,9 @@
  */
 
 /** Name shown in the header, auth pages, and document title. */
-export const PRODUCT_NAME = 'Careergrind'
+export const PRODUCT_NAME = 'Careerdrafter'
 
-/** localStorage key namespaced to this product, e.g. `careergrind.authToken`. */
+/** localStorage key namespaced to this product, e.g. `careerdrafter.authToken`. */
 export function productStorageKey(name: string): string {
   return `${PRODUCT_NAME.toLowerCase()}.${name}`
 }

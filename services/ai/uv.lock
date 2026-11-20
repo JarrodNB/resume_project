@@ -195,7 +195,7 @@ wheels = [
 ]
 
 [[package]]
-name = "careergrind-ai"
+name = "careerdrafter-ai"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

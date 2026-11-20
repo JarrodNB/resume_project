@@ -1,6 +1,6 @@
 ---
 name: verify-spoken-interview
-description: Select and run Careergrind spoken interview offline, process-recovery, or real-provider verification using existing harnesses and the correct retained ledger policy. Use for spoken interview verification, not written interview evals, general PR environment setup, or ordinary output-quality comparisons.
+description: Select and run Careerdrafter spoken interview offline, process-recovery, or real-provider verification using existing harnesses and the correct retained ledger policy. Use for spoken interview verification, not written interview evals, general PR environment setup, or ordinary output-quality comparisons.
 ---
 
 # Verify spoken interviews

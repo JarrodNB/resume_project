@@ -5,7 +5,7 @@ account recovery. It is a release checklist, not evidence that production was
 configured or deployed. The behavior and API contracts live in
 [Browser authentication](../architecture/authentication.md).
 
-Careergrind currently runs only in local development. Production steps below are
+Careerdrafter currently runs only in local development. Production steps below are
 future setup guidance; local review uses Letter Opener Web and needs no SMTP provider.
 
 ## Before production traffic

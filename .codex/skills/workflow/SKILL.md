@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Deliver requested Careergrind work through requirements discussion, approved planning, small reviewable tickets, TDD implementation with human approval after each ticket, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow.
+description: Deliver requested Careerdrafter work through requirements discussion, approved planning, small reviewable tickets, TDD implementation with human approval after each ticket, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow.
 ---
 
 # Workflow

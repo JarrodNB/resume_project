@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-11-03T12:27:40.438906+00:00",
-  "title": "Design System: Careergrind web workspace",
+  "title": "Design System: Careerdrafter web workspace",
   "extensions": {
     "colorMeta": {
       "background": {
@@ -884,7 +884,7 @@
       "kind": "nav",
       "refersTo": "signage-band",
       "description": "Black navigation band; the current section gets a 4px white underline.",
-      "html": "<header class=\"ds-band\"><a class=\"ds-band-brand\" href=\"#\"><span class=\"ds-band-bullet\"></span>Careergrind</a><nav class=\"ds-band-nav\"><a class=\"ds-band-link is-active\" href=\"#\">Home</a><a class=\"ds-band-link\" href=\"#\">Jobs</a><a class=\"ds-band-link\" href=\"#\">Library</a><a class=\"ds-band-link\" href=\"#\">Practice</a></nav></header>",
+      "html": "<header class=\"ds-band\"><a class=\"ds-band-brand\" href=\"#\"><span class=\"ds-band-bullet\"></span>Careerdrafter</a><nav class=\"ds-band-nav\"><a class=\"ds-band-link is-active\" href=\"#\">Home</a><a class=\"ds-band-link\" href=\"#\">Jobs</a><a class=\"ds-band-link\" href=\"#\">Library</a><a class=\"ds-band-link\" href=\"#\">Practice</a></nav></header>",
       "css": ".ds-band { display:flex; align-items:stretch; gap:40px; height:60px; padding:0 48px; background:var(--band,#111418); color:var(--band-foreground,#fff); font-family:\"Archivo Variable\",Arial,sans-serif; } .ds-band-brand { display:flex; align-items:center; gap:10px; color:var(--band-foreground,#fff); font-size:19px; font-weight:800; letter-spacing:-0.01em; text-decoration:none; } .ds-band-bullet { position:relative; width:22px; height:22px; border-radius:50%; background:var(--band-foreground,#fff); } .ds-band-bullet::after { content:\"\"; position:absolute; inset:7px; border-radius:50%; background:var(--band,#111418); } .ds-band-nav { display:flex; } .ds-band-link { display:flex; align-items:center; padding:4px 18px 0; border-bottom:4px solid transparent; color:var(--band-muted,#b8bdc3); font-size:15px; font-weight:600; text-decoration:none; transition:color 160ms, border-color 160ms; } .ds-band-link:hover { color:var(--band-foreground,#fff); border-bottom-color:var(--band-rule,#3a4048); } .ds-band-link.is-active { color:var(--band-foreground,#fff); border-bottom-color:var(--band-foreground,#fff); } .ds-band-link:focus-visible { outline:2px solid var(--band-foreground,#fff); outline-offset:-8px; border-radius:4px; }"
     },
     {

@@ -30,7 +30,7 @@ class WorkerSettings(AISettings):
     # serial work.
     worker_concurrency: int = Field(default=4, ge=1)
     s3_endpoint_url: str | None = None
-    s3_uploads_bucket: str = "careergrind-uploads"
+    s3_uploads_bucket: str = "careerdrafter-uploads"
 
 
 def load_settings() -> WorkerSettings:

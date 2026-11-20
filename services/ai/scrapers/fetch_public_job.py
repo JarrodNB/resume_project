@@ -37,7 +37,7 @@ def fetch_public_job_html(url: str, client: httpx.Client) -> str:
         request = httpx.Request(
             "GET", target.copy_with(host=address),
             headers={"Host": target.netloc.decode("ascii"), "Accept-Encoding": "identity",
-                     "Accept": "text/html,application/xhtml+xml", "User-Agent": "Careergrind job import"},
+                     "Accept": "text/html,application/xhtml+xml", "User-Agent": "Careerdrafter job import"},
             extensions={"sni_hostname": target.host, "job_origin_hostname": target.host,
                         "timeout": httpx.Timeout(min(2, remaining), connect=min(5, remaining)).as_dict()},
         )

@@ -56,7 +56,7 @@ describe('InterviewPage', () => {
   it('pauses automatic microphone capture while reviewing a Career context copy', async () => {
     vi.useFakeTimers()
     try {
-      localStorage.setItem('Careergrind:interview-microphone:owner', JSON.stringify({ automatic: true, seconds: 0 }))
+      localStorage.setItem('Careerdrafter:interview-microphone:owner', JSON.stringify({ automatic: true, seconds: 0 }))
       state.interview = { ...snapshot, messages: [
         ...snapshot.messages,
         { id: 'answer', questionId: 'question', kind: 'answer', position: 2, content: 'Reduced processing time.' },
@@ -866,7 +866,7 @@ it('defaults to browser recognition, remembers a choice, and locks it while an a
   expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
 })
 it('confirms switching modes then discards current audio and answer text', async () => {
-  localStorage.setItem('Careergrind:interview-transcription:owner', 'recorded')
+  localStorage.setItem('Careerdrafter:interview-transcription:owner', 'recorded')
   recorder.status = 'ready'; recorder.recording = new Blob(['saved audio']); recorder.effectiveMode = 'recorded'
   renderInterview()
   fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'Keep this draft' } })

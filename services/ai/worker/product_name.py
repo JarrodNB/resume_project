@@ -5,5 +5,5 @@ Index:
     - USER_AGENT: HTTP User-Agent for job-page fetches
 """
 
-PRODUCT_NAME = "Careergrind"
+PRODUCT_NAME = "Careerdrafter"
 USER_AGENT = f"{PRODUCT_NAME}JobScraper/0.1"

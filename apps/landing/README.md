@@ -1,6 +1,6 @@
-<!-- Description: How to run and build the Careergrind landing page. -->
+<!-- Description: How to run and build the Careerdrafter landing page. -->
 
-# Careergrind landing page
+# Careerdrafter landing page
 
 The public marketing page. It explains the product with a made-up worked example and links
 to `apps/web` to sign up. It is static and makes no API calls.

@@ -8,7 +8,7 @@ Before planning or implementing, fetch origin and compare HEAD with origin/maste
 
 ## Project Summary
 
-**Careergrind**. A job search assistant. The AI collaborates with the user to write tailored resumes
+**Careerdrafter**. A job search assistant. The AI collaborates with the user to write tailored resumes
 (no mass-generated, mass-sent resumes) and keeps the job search organized and focused.
 First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 

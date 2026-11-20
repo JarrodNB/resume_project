@@ -1,4 +1,4 @@
-/** The Careergrind landing page: one ride from a person’s history to an interview, then sign-up.
+/** The Careerdrafter landing page: one ride from a person’s history to an interview, then sign-up.
  * Static and public. Its only state is the scripted gap answer in the worked example, and its
  * only ways out are links to the web app.
  */
@@ -30,7 +30,7 @@ function Hero() {
 function Limits() {
   return (
     <section className="limits" aria-labelledby="limits-title">
-      <h2 id="limits-title">What Careergrind won’t do.</h2>
+      <h2 id="limits-title">What Careerdrafter won’t do.</h2>
       <dl className="limits-list">
         <div>
           <dt>Make things up.</dt>
@@ -78,9 +78,9 @@ function App() {
     <>
       <a className="skip-link" href="#library">Skip to how it works</a>
       <header className="band">
-        <a className="brand" href="#top" aria-label="Careergrind, back to top">
+        <a className="brand" href="#top" aria-label="Careerdrafter, back to top">
           <span className="brand-bullet" aria-hidden />
-          Careergrind
+          Careerdrafter
         </a>
         <nav className="band-links" aria-label="Main">
           <a className="band-link band-link-optional" href="#library">How it works</a>
@@ -102,7 +102,7 @@ function App() {
         <Close />
       </main>
       <footer className="footer">
-        <p>Careergrind</p>
+        <p>Careerdrafter</p>
         <p>Maya Okafor, her jobs and every company on this page are made up.</p>
         <nav aria-label="Footer">
           <a href={SIGN_IN_URL}>Sign in</a>

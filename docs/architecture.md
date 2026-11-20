@@ -1,6 +1,6 @@
 # Architecture
 
-Careergrind uses Rails for domain data and Python workers for queued AI work.
+Careerdrafter uses Rails for domain data and Python workers for queued AI work.
 This page covers service ownership and dependency directions. Read the focused guides
 when changing a contract or feature:
 
@@ -109,7 +109,7 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
 - **Page sections are collapsible and start collapsed.** Long pages are a stack of titled
   sections (the career library, a job, a tailored resume). Each starts collapsed and stays that
   way until the user opens it. The browser remembers the open ones in localStorage
-  (`careergrind.openSections`), the same way it remembers the color theme, so the choice is not
+  (`careerdrafter.openSections`), the same way it remembers the color theme, so the choice is not
   stored on the account. The section the user is in the middle of editing stays open: the import
   review form, and the resume section being written. A new titled section on a page follows this
   rather than rendering fully open. A tab's main content is the exception: each job workspace

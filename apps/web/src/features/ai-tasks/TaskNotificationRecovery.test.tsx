@@ -60,7 +60,7 @@ it('does not replay history on first use and recovers reconnects in ordered page
   const source = server([event(1), event(2, 'FAILED'), event(3)], 1)
   mount(source, '1')
   source.emit('1')
-  await waitFor(() => expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('1'))
+  await waitFor(() => expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('1'))
   expect(screen.queryByText('Task 1 completed')).not.toBeInTheDocument()
   source.emit('3') // A new initial subscription message after reconnect.
   expect(await screen.findByText('Task 2 failed')).toBeInTheDocument()
@@ -86,7 +86,7 @@ it('retains hidden outcomes across refresh and delivers them on becoming visible
   const source = server()
   const first = mount(source)
   source.emit('1')
-  await waitFor(() => expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('0'))
+  await waitFor(() => expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('0'))
   expect(screen.queryByText('Task 1 completed')).not.toBeInTheDocument()
   expect(source.queries).not.toHaveBeenCalled()
   first.unmount()
@@ -111,19 +111,19 @@ it('delivers an occurrence once across two visible tabs using the shared owner l
   mount(second)
   first.emit('1')
   second.emit('1')
-  await waitFor(() => expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('1'))
+  await waitFor(() => expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('1'))
   expect(screen.getAllByText('New notification: Task 1 completed')).toHaveLength(1)
   expect(request).toHaveBeenCalled()
 })
 
 it('falls back safely for malformed or unavailable storage and keeps accounts isolated', async () => {
-  localStorage.setItem('careergrind.taskOutcomes.owner-1', '{broken')
-  localStorage.setItem('careergrind.taskOutcomes.someone-else', '999')
+  localStorage.setItem('careerdrafter.taskOutcomes.owner-1', '{broken')
+  localStorage.setItem('careerdrafter.taskOutcomes.someone-else', '999')
   const source = server()
   mount(source)
   source.emit('1')
   expect(await screen.findByText('Task 1 completed')).toBeInTheDocument()
-  expect(localStorage.getItem('careergrind.taskOutcomes.someone-else')).toBe('999')
+  expect(localStorage.getItem('careerdrafter.taskOutcomes.someone-else')).toBe('999')
 })
 
 it('keeps live delivery and duplicate prevention working when storage throws', async () => {
@@ -140,7 +140,7 @@ it('keeps live delivery and duplicate prevention working when storage throws', a
 
 
 it('does not replay dismissed notices when reads work but storage writes fail', async () => {
-  localStorage.setItem('careergrind.taskOutcomes.owner-1', '0')
+  localStorage.setItem('careerdrafter.taskOutcomes.owner-1', '0')
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
   const source = server([event(1), event(2)])
   mount(source)
@@ -162,7 +162,7 @@ it('ignores old account queries that finish after the host unmounts', async () =
   mounted.unmount()
   act(() => source.resume())
   expect(screen.queryByText('Task 1 completed')).not.toBeInTheDocument()
-  expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('0')
+  expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('0')
 })
 
 it('recovers events arriving during a catch-up request without skipping the live tail', async () => {
@@ -175,15 +175,15 @@ it('recovers events arriving during a catch-up request without skipping the live
   act(() => source.resume())
   expect(await screen.findByText('Task 1 completed')).toBeInTheDocument()
   expect(await screen.findByText('Task 2 completed')).toBeInTheDocument()
-  expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('2')
+  expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('2')
 })
 
 it('validates a future checkpoint and resumes new outcomes without historical replay', async () => {
-  localStorage.setItem('careergrind.taskOutcomes.owner-1', '999999')
+  localStorage.setItem('careerdrafter.taskOutcomes.owner-1', '999999')
   const source = server()
   mount(source, '1')
   source.emit('1')
-  await waitFor(() => expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('1'))
+  await waitFor(() => expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('1'))
   expect(screen.queryByText('Task 1 completed')).not.toBeInTheDocument()
   source.events.push(event(2))
   source.emit('2', event(2))
@@ -204,12 +204,12 @@ it('reopens a terminally errored subscription on online without polling', async 
 
 
 it('preserves a valid sibling-tab checkpoint newer than a stale handshake', async () => {
-  localStorage.setItem('careergrind.taskOutcomes.owner-1', '2')
+  localStorage.setItem('careerdrafter.taskOutcomes.owner-1', '2')
   const source = server([event(1), event(2)])
   mount(source, '1')
   source.emit('1')
   await waitFor(() => expect(source.queries).toHaveBeenCalledWith({ after: '2', through: '2' }))
-  expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('2')
+  expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('2')
   expect(screen.getByText('You’re all caught up')).toBeInTheDocument()
 })
 
@@ -221,7 +221,7 @@ it('leaves an in-flight hidden outcome recoverable instead of acknowledging it',
   await waitFor(() => expect(source.queries).toHaveBeenCalledTimes(1))
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
   await act(async () => source.resume())
-  expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('0')
+  expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('0')
   expect(screen.queryByText('Task 1 completed')).not.toBeInTheDocument()
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
   act(() => document.dispatchEvent(new Event('visibilitychange')))
@@ -234,7 +234,7 @@ it('retains the checkpoint on query failure and retries on online without pollin
   mount(source)
   source.emit('1')
   await waitFor(() => expect(source.queries).toHaveBeenCalledTimes(1))
-  expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('0')
+  expect(localStorage.getItem('careerdrafter.taskOutcomes.owner-1')).toBe('0')
   expect(screen.queryByText('Task 1 completed')).not.toBeInTheDocument()
   act(() => window.dispatchEvent(new Event('online')))
   expect(await screen.findByText('Task 1 completed')).toBeInTheDocument()

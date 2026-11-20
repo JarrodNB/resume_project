@@ -110,11 +110,11 @@ RSpec.describe "Browser sessions", type: :request do
 
   it "rotates the session ID and CSRF secret on login" do
     old_csrf = bootstrap
-    old_cookie = cookies["_careergrind_session"]
+    old_cookie = cookies["_careerdrafter_session"]
     user = create(:user)
     post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }.to_json,
       headers: headers.merge("X-CSRF-Token" => old_csrf)
-    expect(cookies["_careergrind_session"]).not_to eq(old_cookie)
+    expect(cookies["_careerdrafter_session"]).not_to eq(old_cookie)
     post "/graphql", params: { query: "{ me { email } }" }.to_json, headers: headers.merge("X-CSRF-Token" => old_csrf)
     expect(response).to have_http_status(:unprocessable_content)
   end

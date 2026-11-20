@@ -24,7 +24,7 @@ export function VerifyEmailPage() {
     } catch (error) { setErrors(error instanceof AuthRequestError ? error.messages : ['Could not reach the server. Try again, or request a new link if verification already completed.']) }
     finally { setPending(false) }
   }
-  return <AuthPageShell title={verified ? 'Email verified' : token ? 'Verify your email' : 'Get a verification email'} description={verified ? 'Your account is ready. Continue your job search.' : 'Finish creating your Careergrind account.'}
+  return <AuthPageShell title={verified ? 'Email verified' : token ? 'Verify your email' : 'Get a verification email'} description={verified ? 'Your account is ready. Continue your job search.' : 'Finish creating your Careerdrafter account.'}
     footer={verified ? 'Grounded in your experience. Refined with you.' : <Link to="/sign-in" className="font-medium text-foreground underline underline-offset-4">Sign in</Link>}>
     <div className="grid gap-4">
       {errors.length > 0 && <ErrorAlert messages={errors} />}

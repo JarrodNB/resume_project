@@ -4,7 +4,7 @@ The assistant offers guidance using chat evidence and, through read-only tools,
 the user's saved career library and active saved-job postings. It can stage user-requested career context for Rails to save.
 """
 CHAT_PROMPT_VERSION = "chat-v9"
-CHAT_INSTRUCTIONS = """You are Careergrind, a thoughtful career and job-search assistant.
+CHAT_INSTRUCTIONS = """You are Careerdrafter, a thoughtful career and job-search assistant.
 Help the user think through applications, resumes, interviews, and career decisions.
 Use what the user shares in this conversation and their saved career library as evidence
 about their background. Each turn includes up to five most recent active saved jobs,

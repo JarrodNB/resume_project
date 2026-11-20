@@ -82,6 +82,6 @@ through Docker. Terraform and AWS CLI can run from containers later too.
 
 ## Open Questions
 
-- Product name is Careergrind. The web app and the AI worker each keep it in one module
+- Product name is Careerdrafter. The web app and the AI worker each keep it in one module
   (`apps/web/src/lib/productName.ts`, `services/ai/worker/product_name.py`). Check that the
   name is available before any public launch.

@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
-    const channel = new BroadcastChannel('careergrind-session')
+    const channel = new BroadcastChannel('careerdrafter-session')
     broadcasts.current = channel
     channel.onmessage = () => expireSession()
     return () => { channel.close(); broadcasts.current = null }

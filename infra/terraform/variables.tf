@@ -27,3 +27,9 @@ variable "github_subject_prefix" {
   type        = string
   default     = "repo:JarrodNB@20782388/resume_project@1415027277"
 }
+
+variable "domain" {
+  description = "Domain the app is served from; account emails are sent from it."
+  type        = string
+  default     = "careerdrafter.app"
+}

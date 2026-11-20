@@ -34,3 +34,9 @@ module "github" {
   repository_arns       = module.registry.repository_arns
   server_instance_arn   = module.server.instance_arn
 }
+
+module "email" {
+  source = "./modules/email"
+  name   = var.name
+  domain = var.domain
+}

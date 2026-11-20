@@ -28,3 +28,18 @@ output "github_deploy_role_arn" {
   description = "Role the deploy workflow assumes (set as AWS_ROLE_ARN in .github/workflows/deploy.yml)."
   value       = module.github.deploy_role_arn
 }
+
+output "email_dkim_records" {
+  description = "Add each as a CNAME at the DNS host: <token>._domainkey.<domain> -> <token>.dkim.amazonses.com."
+  value       = module.email.dkim_tokens
+}
+
+output "smtp_username" {
+  value = module.email.smtp_username
+}
+
+output "smtp_password" {
+  description = "Read with `terraform output -raw smtp_password`. Goes in SMTP_PASSWORD on the server."
+  value       = module.email.smtp_password
+  sensitive   = true
+}

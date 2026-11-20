@@ -30,17 +30,52 @@ env:
   DOMAIN: careerdrafter.app
 
 jobs:
+  # Decides which images need building. Each image is tagged with a hash of its own source
+  # folder, so an image whose folder did not change already exists in ECR and is skipped,
+  # and compose only restarts the services whose tag changed.
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      tags: ${{ steps.plan.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: plan
+        run: |
+          declare -A DIR=( [api]=services/api [ai]=services/ai [web]=apps/web [landing]=apps/landing )
+          declare -A ARGS=( [web]="VITE_API_URL=https://api.${DOMAIN}" [landing]="VITE_APP_URL=https://app.${DOMAIN}" )
+          build='[]'
+          tags='{}'
+          for img in api ai web landing; do
+            tree=$(git rev-parse "HEAD:${DIR[$img]}")
+            # Build args are baked into web and landing, so they are part of the tag.
+            argsum=$(printf '%s' "${ARGS[$img]:-}" | sha256sum | cut -c1-6)
+            tag="${tree:0:12}-${argsum}"
+            tags=$(jq -c --arg k "$img" --arg v "$tag" '. + {($k): $v}' <<<"$tags")
+            if aws ecr describe-images --repository-name "jobapp/$img" --image-ids "imageTag=$tag" >/dev/null 2>&1; then
+              echo "$img: $tag already built, skipping"
+            else
+              echo "$img: $tag needs a build"
+              build=$(jq -c --arg i "$img" --arg c "${DIR[$img]}" --arg a "${ARGS[$img]:-}" --arg t "$tag" '. + [{image:$i, context:$c, args:$a, tag:$t}]' <<<"$build")
+            fi
+          done
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: plan
+    if: needs.plan.outputs.build != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - { image: api, context: services/api, args: '' }
-          - { image: ai, context: services/ai, args: '' }
-          - { image: web, context: apps/web, args: 'VITE_API_URL=https://api.careerdrafter.app' }
-          - { image: landing, context: apps/landing, args: 'VITE_APP_URL=https://app.careerdrafter.app' }
+        include: ${{ fromJSON(needs.plan.outputs.build) }}
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -54,15 +89,15 @@ jobs:
           context: ${{ matrix.context }}
           push: true
           build-args: ${{ matrix.args }}
-          tags: |
-            ${{ env.REGISTRY }}/jobapp/${{ matrix.image }}:latest
-            ${{ env.REGISTRY }}/jobapp/${{ matrix.image }}:${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/jobapp/${{ matrix.image }}:${{ matrix.tag }}
           # Layer cache in the GitHub cache, so unchanged dependency layers are not rebuilt.
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   deploy:
-    needs: build
+    needs: [plan, build]
+    # Runs when nothing needed building too: compose files may have changed.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -79,10 +114,14 @@ jobs:
           tar czf compose.tgz -C infra/compose --exclude=.env --exclude=.gitignore .
           aws s3 cp --only-show-errors compose.tgz "s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz"
 
-      - name: Restart the server on the new images
+      # `compose up -d` only recreates services whose image tag or config changed.
+      - name: Restart changed services
+        env:
+          TAGS: ${{ needs.plan.outputs.tags }}
         run: |
           SERVER=$(aws ec2 describe-instances --filters Name=tag:Name,Values=jobapp Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].InstanceId' --output text)
-          CMD="set -e; cd /opt/app && aws s3 cp --only-show-errors s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz - | tar xz && set -a && . ./.env && set +a && aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY} >/dev/null && TAG=${GITHUB_SHA} docker compose pull -q && TAG=${GITHUB_SHA} docker compose up -d --remove-orphans && docker image prune -f >/dev/null"
+          TAGENV="API_TAG=$(jq -r .api <<<"$TAGS") AI_TAG=$(jq -r .ai <<<"$TAGS") WEB_TAG=$(jq -r .web <<<"$TAGS") LANDING_TAG=$(jq -r .landing <<<"$TAGS")"
+          CMD="set -e; cd /opt/app && aws s3 cp --only-show-errors s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz - | tar xz && set -a && . ./.env && set +a && aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY} >/dev/null && export ${TAGENV} && docker compose pull -q && docker compose up -d --remove-orphans && docker image prune -f >/dev/null && docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'"
           ID=$(aws ssm send-command --instance-ids "$SERVER" --document-name AWS-RunShellScript \
             --parameters "$(jq -cn --arg c "$CMD" '{commands:[$c],executionTimeout:["900"]}')" \
             --query Command.CommandId --output text)

@@ -14,6 +14,8 @@
 #   - web: static web app
 #   - landing: static landing page
 
+# Each image has its own tag (a hash of its source folder, set by the deploy workflow), so a
+# deploy only restarts the services whose code changed.
 # AWS credentials are not set anywhere: containers use the instance role.
 x-aws: &aws
   AWS_REGION: ${AWS_REGION:-us-east-2}
@@ -32,7 +34,7 @@ x-ai-db: &ai-db
   DB_PASSWORD: ${AI_READER_DB_PASSWORD}
 
 x-api: &api
-  image: ${REGISTRY}/jobapp/api:${TAG:-latest}
+  image: ${REGISTRY}/jobapp/api:${API_TAG:-latest}
   restart: unless-stopped
   env_file: [.env]
   environment:
@@ -49,7 +51,7 @@ x-api: &api
     INTERVIEW_BROWSER_STORAGE_ORIGIN: https://s3.${AWS_REGION:-us-east-2}.amazonaws.com
 
 x-ai: &ai
-  image: ${REGISTRY}/jobapp/ai:${TAG:-latest}
+  image: ${REGISTRY}/jobapp/ai:${AI_TAG:-latest}
   restart: unless-stopped
   init: true
   env_file: [.env]
@@ -188,11 +190,11 @@ services:
     restart: unless-stopped
 
   web:
-    image: ${REGISTRY}/jobapp/web:${TAG:-latest}
+    image: ${REGISTRY}/jobapp/web:${WEB_TAG:-latest}
     restart: unless-stopped
 
   landing:
-    image: ${REGISTRY}/jobapp/landing:${TAG:-latest}
+    image: ${REGISTRY}/jobapp/landing:${LANDING_TAG:-latest}
     restart: unless-stopped
 
 volumes:

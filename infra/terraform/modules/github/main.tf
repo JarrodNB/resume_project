@@ -51,6 +51,7 @@ resource "aws_iam_role_policy" "deploy" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
           "ecr:PutImage",
+          "ecr:DescribeImages",
         ]
         Resource = var.repository_arns
       },

@@ -23,3 +23,8 @@ output "queue_urls" {
 output "repository_urls" {
   value = module.registry.repository_urls
 }
+
+output "github_deploy_role_arn" {
+  description = "Role the deploy workflow assumes (set as AWS_ROLE_ARN in .github/workflows/deploy.yml)."
+  value       = module.github.deploy_role_arn
+}

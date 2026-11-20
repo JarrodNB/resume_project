@@ -21,3 +21,9 @@ variable "postgres_volume_gb" {
   type        = number
   default     = 20
 }
+
+variable "github_repository" {
+  description = "GitHub repository (owner/name) whose master branch may deploy."
+  type        = string
+  default     = "JarrodNB/resume_project"
+}

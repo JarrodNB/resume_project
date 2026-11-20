@@ -1,6 +1,14 @@
 terraform {
   required_version = ">= 1.6"
 
+  # State lives in a versioned bucket created by hand (a state bucket cannot create itself).
+  backend "s3" {
+    bucket  = "jobapp-tfstate-016170038537"
+    key     = "prod/terraform.tfstate"
+    region  = "us-east-2"
+    encrypt = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"

@@ -22,8 +22,8 @@ variable "postgres_volume_gb" {
   default     = 20
 }
 
-variable "github_repository" {
-  description = "GitHub repository (owner/name) whose master branch may deploy."
+variable "github_subject_prefix" {
+  description = "How GitHub names this repository in its identity tokens. This repository uses immutable subjects (owner and repository IDs), so it is not owner/name. Check with: gh api repos/OWNER/REPO/actions/oidc/customization/sub"
   type        = string
-  default     = "JarrodNB/resume_project"
+  default     = "repo:JarrodNB@20782388/resume_project@1415027277"
 }

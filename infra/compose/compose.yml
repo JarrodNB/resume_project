@@ -1,0 +1,200 @@
+# Description: Production stack for the single EC2 server. Images come from ECR; run with
+# `docker compose --env-file .env up -d` from this folder (see README.md).
+# Index:
+#   - caddy: HTTPS and hostname routing (the only service with published ports)
+#   - db: Postgres 17 with pgvector, data on the dedicated EBS volume
+#   - db-backup: nightly pg_dump to the S3 backups bucket
+#   - api: Rails GraphQL API
+#   - api-results-worker: Shoryuken consumer of ai_results
+#   - api-jobs-worker: durable Rails jobs
+#   - ai-worker: Python SQS worker
+#   - ai-http: FastAPI app for interactive AI execution
+#   - ai-mcp: internal MCP tool server
+#   - redis: AI streaming buffer
+#   - web: static web app
+#   - landing: static landing page
+
+# AWS credentials are not set anywhere: containers use the instance role.
+x-aws: &aws
+  AWS_REGION: ${AWS_REGION:-us-east-2}
+  S3_UPLOADS_BUCKET: ${S3_UPLOADS_BUCKET}
+
+x-api-db: &api-db
+  DB_HOST: db
+  DB_USERNAME: api
+  DB_PASSWORD: ${API_DB_PASSWORD}
+  API_DATABASE_PASSWORD: ${API_DB_PASSWORD}
+
+x-ai-db: &ai-db
+  DB_HOST: db
+  DB_NAME: api_production
+  DB_USERNAME: ai_reader
+  DB_PASSWORD: ${AI_READER_DB_PASSWORD}
+
+x-api: &api
+  image: ${REGISTRY}/jobapp/api:${TAG:-latest}
+  restart: unless-stopped
+  env_file: [.env]
+  environment:
+    <<: [*aws, *api-db]
+    API_HOST: api.${DOMAIN}
+    WEB_APP_URL: https://app.${DOMAIN}
+    CORS_ORIGINS: https://app.${DOMAIN}
+    AI_TASKS_QUEUE_NAME: ${AI_TASKS_QUEUE_NAME:-jobapp-ai_tasks}
+    AI_RESULTS_QUEUE_NAME: ${AI_RESULTS_QUEUE_NAME:-jobapp-ai_results}
+    # Rate limits trust the client address Caddy forwards, which arrives from the Docker network.
+    TRUSTED_PROXY_CIDRS: 172.16.0.0/12
+    MAIL_FROM: ${MAIL_FROM}
+    # Uploads for interview recordings go straight to S3 from the browser; this is the S3 address.
+    INTERVIEW_BROWSER_STORAGE_ORIGIN: https://s3.${AWS_REGION:-us-east-2}.amazonaws.com
+
+x-ai: &ai
+  image: ${REGISTRY}/jobapp/ai:${TAG:-latest}
+  restart: unless-stopped
+  init: true
+  env_file: [.env]
+
+x-ai-queues: &ai-queues
+  AI_TASKS_QUEUE_NAME: ${AI_TASKS_QUEUE_NAME:-jobapp-ai_tasks}
+  AI_RESULTS_QUEUE_NAME: ${AI_RESULTS_QUEUE_NAME:-jobapp-ai_results}
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Postgres refuses to use a mount point itself, so data goes in a subdirectory.
+      PGDATA: /var/lib/postgresql/data/pgdata
+      API_DB_PASSWORD: ${API_DB_PASSWORD}
+      AI_READER_DB_PASSWORD: ${AI_READER_DB_PASSWORD}
+    volumes:
+      # The EBS volume, formatted and mounted at /srv/postgres by hand (see README.md).
+      - /srv/postgres:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  db-backup:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      AWS_REGION: ${AWS_REGION:-us-east-2}
+      BACKUPS_BUCKET: ${BACKUPS_BUCKET}
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:3000/up"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api-results-worker:
+    <<: *api
+    command: bundle exec shoryuken -R -C config/shoryuken.yml
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api-jobs-worker:
+    <<: *api
+    command: bundle exec ruby bin/jobs
+    init: true
+    stop_grace_period: 30s
+    depends_on:
+      api:
+        condition: service_healthy
+
+  ai-worker:
+    <<: *ai
+    environment:
+      <<: [*aws, *ai-db, *ai-queues]
+      WORKER_ENVIRONMENT: production
+      LOGFIRE_ENVIRONMENT: production
+    # Leave time to unwind task spans and flush telemetry on shutdown.
+    stop_grace_period: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  ai-http:
+    <<: *ai
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --ws-max-size 65536
+    environment:
+      <<: *ai-db
+      AI_STREAM_REDIS_URL: redis://redis:6379/0
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      AI_BROWSER_ORIGINS: https://app.${DOMAIN:-localhost}
+      INTERVIEW_BROWSER_ORIGINS: https://app.${DOMAIN:-localhost}
+      LOGFIRE_ENVIRONMENT: production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ai-mcp:
+        condition: service_started
+
+  ai-mcp:
+    <<: *ai
+    command: uvicorn --factory mcp_tools.server:create_app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *ai-db
+      LOGFIRE_ENVIRONMENT: production
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis:
+    image: redis:8.10.2-alpine
+    # Ephemeral output buffer, never job storage.
+    command: redis-server --save "" --appendonly no --maxmemory 128mb --maxmemory-policy noeviction
+    restart: unless-stopped
+
+  web:
+    image: ${REGISTRY}/jobapp/web:${TAG:-latest}
+    restart: unless-stopped
+
+  landing:
+    image: ${REGISTRY}/jobapp/landing:${TAG:-latest}
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

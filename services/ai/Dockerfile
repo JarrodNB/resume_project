@@ -18,10 +18,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Fail the build if the local English NLP assets cannot load on this Python version.
 RUN python -c "import spacy; spacy.load('en_core_web_sm')"
 
-COPY . .
-
-# Run as an unprivileged user; HF_HOME gives model caches a writable home.
-RUN useradd --system --uid 1000 --create-home app && chown -R app /app
+# Run as an unprivileged user; HF_HOME gives model caches a writable home. Copy with --chown:
+# a separate chown step would store a second full copy of the code in the image.
+RUN useradd --system --uid 1000 --create-home app
+COPY --chown=app:app . .
 USER 1000
 ENV HF_HOME=/home/app/.cache/huggingface
 

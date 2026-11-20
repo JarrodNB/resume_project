@@ -25,3 +25,12 @@ module "server" {
   queue_arns         = module.queues.queue_arns
   repository_arns    = module.registry.repository_arns
 }
+
+module "github" {
+  source              = "./modules/github"
+  name                = var.name
+  github_repository   = var.github_repository
+  backups_bucket_arn  = module.storage.backups_bucket_arn
+  repository_arns     = module.registry.repository_arns
+  server_instance_arn = module.server.instance_arn
+}

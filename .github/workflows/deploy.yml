@@ -1,0 +1,108 @@
+# Builds the four production images on merge to master, pushes them to ECR, and restarts the
+# server on the new images. AWS access comes from OIDC (no stored keys); the role only trusts
+# runs on master (see infra/terraform/modules/github).
+name: Deploy
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'services/api/**'
+      - 'services/ai/**'
+      - 'apps/web/**'
+      - 'apps/landing/**'
+      - 'infra/compose/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+# One deploy at a time; a newer push waits instead of racing the one in progress.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  AWS_ROLE_ARN: arn:aws:iam::016170038537:role/jobapp-github-deploy
+  REGISTRY: 016170038537.dkr.ecr.us-east-2.amazonaws.com
+  DOMAIN: careerdrafter.app
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { image: api, context: services/api, args: '' }
+          - { image: ai, context: services/ai, args: '' }
+          - { image: web, context: apps/web, args: 'VITE_API_URL=https://api.careerdrafter.app' }
+          - { image: landing, context: apps/landing, args: 'VITE_APP_URL=https://app.careerdrafter.app' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          build-args: ${{ matrix.args }}
+          tags: |
+            ${{ env.REGISTRY }}/jobapp/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/jobapp/${{ matrix.image }}:${{ github.sha }}
+          # Layer cache in the GitHub cache, so unchanged dependency layers are not rebuilt.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # The compose files live in git, so ship them with each deploy. The server's .env is
+      # never touched (it holds the generated secrets and is not in the archive).
+      - name: Stage compose files
+        run: |
+          tar czf compose.tgz -C infra/compose --exclude=.env --exclude=.gitignore .
+          aws s3 cp --only-show-errors compose.tgz "s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz"
+
+      - name: Restart the server on the new images
+        run: |
+          SERVER=$(aws ec2 describe-instances --filters Name=tag:Name,Values=jobapp Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          CMD="set -e; cd /opt/app && aws s3 cp --only-show-errors s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz - | tar xz && set -a && . ./.env && set +a && aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY} >/dev/null && TAG=${GITHUB_SHA} docker compose pull -q && TAG=${GITHUB_SHA} docker compose up -d --remove-orphans && docker image prune -f >/dev/null"
+          ID=$(aws ssm send-command --instance-ids "$SERVER" --document-name AWS-RunShellScript \
+            --parameters "$(jq -cn --arg c "$CMD" '{commands:[$c],executionTimeout:["900"]}')" \
+            --query Command.CommandId --output text)
+          # Wait for the command (pulling images can take a few minutes).
+          for i in $(seq 1 90); do
+            status=$(aws ssm get-command-invocation --command-id "$ID" --instance-id "$SERVER" --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Pending|InProgress|Delayed) sleep 10 ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$ID" --instance-id "$SERVER" \
+            --query '[Status,StandardOutputContent,StandardErrorContent]' --output text
+          test "$status" = Success
+
+      - name: Check the live site
+        run: |
+          for url in https://${DOMAIN} https://app.${DOMAIN} https://api.${DOMAIN}/up; do
+            for i in 1 2 3 4 5 6; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 "$url" || true)
+              [ "$code" = 200 ] && break
+              sleep 10
+            done
+            echo "$url -> $code"
+            test "$code" = 200
+          done

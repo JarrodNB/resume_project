@@ -3,6 +3,13 @@
 Runs on the single EC2 server created by `../terraform`. Reach the server with
 `aws ssm start-session --target <server_instance_id>`; no SSH port is open.
 
+## Deploys
+
+Merging to master runs `.github/workflows/deploy.yml`: it builds the four images, pushes them
+to ECR tagged with the commit, copies these compose files to the server, restarts the stack
+and checks the three public addresses. AWS access is a role GitHub assumes for runs on master
+only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
+
 ## First-time setup on the server
 
 1. Format and mount the Postgres volume once. Check the device name with `lsblk` first;

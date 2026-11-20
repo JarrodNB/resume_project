@@ -48,7 +48,7 @@ jobs:
       - id: plan
         run: |
           declare -A DIR=( [api]=services/api [ai]=services/ai [web]=apps/web [landing]=apps/landing )
-          declare -A ARGS=( [web]="VITE_API_URL=https://api.${DOMAIN}" [landing]="VITE_APP_URL=https://app.${DOMAIN}" )
+          declare -A ARGS=( [web]=$'VITE_API_URL=https://api.'"${DOMAIN}"$'\nVITE_TURNSTILE_SITE_KEY=0x4AAAAAAGKX0TewIss46Oq-' [landing]="VITE_APP_URL=https://app.${DOMAIN}" )
           build='[]'
           tags='{}'
           for img in api ai web landing; do

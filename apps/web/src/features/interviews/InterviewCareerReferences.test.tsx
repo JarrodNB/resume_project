@@ -63,7 +63,7 @@ it('remembers only the blur preference and isolates it by owner', () => {
   fireEvent.click(screen.getByRole('checkbox', { name: 'Blur reference text' }))
   expect(screen.getByText(body)).toHaveAttribute('aria-hidden', 'false')
   expect(screen.queryByRole('button', { name: /Reveal/ })).not.toBeInTheDocument()
-  expect(localStorage.getItem('Careergrind:interview-reference-blur:owner')).toBe('false')
+  expect(localStorage.getItem('Careerdrafter:interview-reference-blur:owner')).toBe('false')
   expect(JSON.stringify(localStorage)).not.toContain(body)
   first.unmount()
   const restored = renderReferences({ ...saved, status: 'completed', references: [entry] })

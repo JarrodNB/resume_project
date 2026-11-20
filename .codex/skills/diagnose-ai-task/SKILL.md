@@ -1,6 +1,6 @@
 ---
 name: diagnose-ai-task
-description: Investigate a specific failed, stalled, duplicated, or expensive Careergrind AI task by correlating Rails state, queue delivery, worker execution, provider evidence, and live updates. Use for incident diagnosis, not standalone output-quality evaluation or a general observability audit.
+description: Investigate a specific failed, stalled, duplicated, or expensive Careerdrafter AI task by correlating Rails state, queue delivery, worker execution, provider evidence, and live updates. Use for incident diagnosis, not standalone output-quality evaluation or a general observability audit.
 ---
 
 # Diagnose an AI task

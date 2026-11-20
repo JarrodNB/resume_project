@@ -20,7 +20,7 @@ export function ExamplePreview({ gapAnswered, onToggleGapAnswer }: ExamplePrevie
         <div className="example-question">
           <h3>The job asks for evidence.</h3>
           <p>{OPEN_GAP.question}</p>
-          <p className="example-answer">{gapAnswered ? `Maya’s answer: “${OPEN_GAP.answer}”` : 'Her saved history doesn’t mention this yet. Careergrind asks her instead of filling in the blank.'}</p>
+          <p className="example-answer">{gapAnswered ? `Maya’s answer: “${OPEN_GAP.answer}”` : 'Her saved history doesn’t mention this yet. Careerdrafter asks her instead of filling in the blank.'}</p>
           <button
             type="button"
             className="button button-primary"

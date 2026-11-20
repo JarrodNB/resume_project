@@ -35,12 +35,12 @@ module RackAttackRequestKeys
 
   # Rails owns optional formats and method aliases. Cache only within this request.
   def self.action(request)
-    request.env.fetch("careergrind.throttle_action") do
+    request.env.fetch("careerdrafter.throttle_action") do
       rails_request = ActionDispatch::Request.new(request.env.dup)
       route = Rails.application.routes.recognize_path_with_request(rails_request, request.path_info, {})
-      request.env["careergrind.throttle_action"] = "#{route[:controller]}##{route[:action]}"
+      request.env["careerdrafter.throttle_action"] = "#{route[:controller]}##{route[:action]}"
     rescue ActionController::RoutingError
-      request.env["careergrind.throttle_action"] = nil
+      request.env["careerdrafter.throttle_action"] = nil
     end
   end
 

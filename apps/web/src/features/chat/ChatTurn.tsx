@@ -79,7 +79,7 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
       {messages.length === 0 && !pendingMessage && <p className="chat-empty">This chat is ready for your first message.</p>}
       <ol className="chat-messages">
         {messages.map((message) => <li key={message.id} className="chat-message" data-role={message.role === 'user' ? 'user' : 'assistant'}>
-          <p className="chat-speaker">{message.role === 'user' ? 'You' : 'Careergrind'}</p>
+          <p className="chat-speaker">{message.role === 'user' ? 'You' : 'Careerdrafter'}</p>
           {message.role === 'user' ? <p className="chat-text">{message.content}</p> : <ChatMarkdown content={message.content} />}
           {message.role === 'assistant' && <ChatReplyFeedback conversationId={conversationId} messageId={message.id} thumbsDown={message.thumbsDown} thumbsUp={message.thumbsUp} />}
         </li>)}
@@ -89,7 +89,7 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
         </li>}
         {(turn.pending || handingOff) && <li className="chat-message is-live" data-role="assistant" aria-label="Reply in progress">
           <div className="chat-speaker-row">
-            <p className="chat-speaker">Careergrind</p>
+            <p className="chat-speaker">Careerdrafter</p>
             {turn.pending && turn.provisional && <p role="status" className="chat-status">
               <span aria-hidden="true" className="chat-writing-dot" />
               Writing reply…

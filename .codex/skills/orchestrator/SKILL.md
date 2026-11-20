@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Coordinate requested Careergrind work through planning, approved tickets, TDD subagents, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow.
+description: Coordinate requested Careerdrafter work through planning, approved tickets, TDD subagents, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow.
 ---
 
 # Orchestrator

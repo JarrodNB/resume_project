@@ -38,7 +38,7 @@ Fetch the selected base and record its commit. Create a unique `codex/fix-<run-i
 
 Read applicable instructions within the worktree. Demonstrate the defect with a focused regression test when behavior can be tested: confirm it fails for the intended reason, make the smallest coherent repair, and rerun it. Use appropriate static or document checks for changes that do not warrant a behavioral test. Inspect surrounding callers and failure paths, and update affected documentation or generated artifacts through their established tools.
 
-Follow repository verification rules. In Careergrind, run application commands in Docker from the target worktree. Use `docker compose run` rather than `exec`, with a unique Compose project name for isolation. Account for test database and dependency setup; do not reuse another checkout's mounted source or reset its data. Keep secrets out of commits and do not copy production credentials into worktrees.
+Follow repository verification rules. In Careerdrafter, run application commands in Docker from the target worktree. Use `docker compose run` rather than `exec`, with a unique Compose project name for isolation. Account for test database and dependency setup; do not reuse another checkout's mounted source or reset its data. Keep secrets out of commits and do not copy production credentials into worktrees.
 
 ### Verify and publish
 

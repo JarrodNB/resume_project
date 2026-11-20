@@ -39,7 +39,7 @@ RSpec.describe "Session store revocation", type: :request do
       headers: { "X-CSRF-Token" => token }
     expect(response).to have_http_status(:ok), response.body
     cookie = response.headers.fetch("Set-Cookie").split(";").first
-    public_id = cookies["_careergrind_session"]
+    public_id = cookies["_careerdrafter_session"]
     sid = Rack::Session::SessionId.new(public_id)
     record = ActiveRecord::SessionStore::Session.find_by_session_id(sid.private_id)
     expect(record).to be_present

@@ -33,7 +33,7 @@ services:
       AWS_EC2_METADATA_DISABLED: "true"
       SQS_ENDPOINT_URL: http://sqs:9324
       S3_ENDPOINT_URL: http://s3:9090
-      S3_UPLOADS_BUCKET: careergrind-uploads
+      S3_UPLOADS_BUCKET: careerdrafter-uploads
       BOOTSNAP_CACHE_DIR: /bootsnap
       OPENAI_API_KEY: ""
     volumes:
@@ -59,7 +59,7 @@ services:
       AWS_EC2_METADATA_DISABLED: "true"
       SQS_ENDPOINT_URL: http://sqs:9324
       S3_ENDPOINT_URL: http://s3:9090
-      S3_UPLOADS_BUCKET: careergrind-uploads
+      S3_UPLOADS_BUCKET: careerdrafter-uploads
       DB_HOST: db
       DB_NAME: api_development
       DB_USERNAME: ai_reader

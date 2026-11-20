@@ -1,4 +1,4 @@
-# Careergrind
+# Careerdrafter
 
 <!-- impeccable:product-schema 1 -->
 
@@ -17,7 +17,7 @@ currently selected.
 
 ## Product Purpose
 
-Careergrind helps users turn their real career experience into tailored resumes
+Careerdrafter helps users turn their real career experience into tailored resumes
 and keep their job search organized and focused. Users collaborate with AI and
 review and refine its output before using it.
 
@@ -27,7 +27,7 @@ showcase value over feature breadth or market positioning.
 
 ## Positioning
 
-Careergrind combines a reusable career library, job requirement comparisons,
+Careerdrafter combines a reusable career library, job requirement comparisons,
 user-supplied evidence, resume tailoring, and interview preparation in one
 workflow. It supports focused applications and user judgment rather than
 mass-generated, mass-sent resumes.
@@ -63,7 +63,7 @@ mass-generated, mass-sent resumes.
 
 ## Brand Commitments
 
-The product name is Careergrind. Keep language simple and understandable to a
+The product name is Careerdrafter. Keep language simple and understandable to a
 college student. Describe AI capabilities accurately without promising perfect
 outputs or employment outcomes.
 
@@ -76,7 +76,7 @@ outputs or employment outcomes.
 - services/ai/evals/ contains synthetic evaluation datasets and evaluators.
   These are engineering evidence, not customer results or proof of job outcomes.
 - Existing app components provide implementation evidence. Bundled starter logos
-  and imagery are not approved Careergrind brand assets.
+  and imagery are not approved Careerdrafter brand assets.
 - No customer testimonials, adoption numbers, or employment outcome claims have
   been established for use in future interfaces or marketing.
 

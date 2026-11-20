@@ -1,5 +1,5 @@
 /* Keep speaking and recording in one stable stage, with saved dialogue nearby.
-   Narrow screens put the stage first; theme colors follow the Careergrind workspace. */
+   Narrow screens put the stage first; theme colors follow the Careerdrafter workspace. */
 .interview-page { container-type: inline-size; }
 .interview-room { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 24px; align-items: start; }
 .interview-stage { min-width: 0; display: grid; gap: 24px; padding: 36px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); text-align: center; }

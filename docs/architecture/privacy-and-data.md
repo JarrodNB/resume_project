@@ -1,6 +1,6 @@
 # Privacy, retention and account data
 
-How long Careergrind keeps each kind of user data, how a user exports or deletes it, and
+How long Careerdrafter keeps each kind of user data, how a user exports or deletes it, and
 which outside services receive it. The public wording lives in the web app's privacy policy
 (`apps/web/src/features/legal/`); this page is the engineering source of truth. When a
 period here changes, change the code, this page and `legalDetails.ts` together.
@@ -64,7 +64,7 @@ responses, resumes with sections, chats, written practice, spoken interviews who
 has not expired, job preferences and avoided questions. Uploaded files are not included.
 The field has a high complexity cost so a request can fetch it only once.
 
-The web app saves the result as `careergrind-export-YYYY-MM-DD.json` without caching it in
+The web app saves the result as `careerdrafter-export-YYYY-MM-DD.json` without caching it in
 Apollo. Bump `FORMAT_VERSION` when the document shape changes incompatibly.
 
 ## Who receives user data

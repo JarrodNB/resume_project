@@ -1,6 +1,6 @@
 ---
 name: add-ai-workflow
-description: Add a Careergrind queued AI capability across Rails ownership and enqueueing, Python execution, result application, GraphQL, and React. Use for new asynchronous AI workflows or substantive lifecycle extensions; ordinary prompt changes use change-ai-behavior, and spoken interview execution follows its separate HTTP architecture.
+description: Add a Careerdrafter queued AI capability across Rails ownership and enqueueing, Python execution, result application, GraphQL, and React. Use for new asynchronous AI workflows or substantive lifecycle extensions; ordinary prompt changes use change-ai-behavior, and spoken interview execution follows its separate HTTP architecture.
 ---
 
 # Add an AI workflow

@@ -34,7 +34,7 @@ state. This uses the library's standard store and Devise's session serialization
 there is no separate token protocol. The dependency's tagged constraints support
 the app's Rails/Rack versions; app request and connection tests verify integration.
 
-The `_careergrind_session` cookie is HttpOnly, host scoped, and SameSite Lax.
+The `_careerdrafter_session` cookie is HttpOnly, host scoped, and SameSite Lax.
 Production requires Secure cookies and HTTPS. Local HTTP development omits Secure.
 The cookie lifetime is one day. A persisted authentication timestamp also enforces
 an absolute one-day authentication limit, even when repeated requests extend the

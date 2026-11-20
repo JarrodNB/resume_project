@@ -61,7 +61,7 @@ guarantee. Tests cover US, UK, Singapore, and India international-format phones 
 preservation of Python/API facts, Microsoft, and dates. Detection does not cover
 addresses, general URLs, or all possible PII.
 
-An initial offline probe in `careergrind-pii-ai:latest` used `docker run --rm --network none`
+An initial offline probe in `careerdrafter-pii-ai:latest` used `docker run --rm --network none`
 with this checkout bind-mounted at `/app`. Cold preparation (imports, model loading,
 and first analysis) took 1.886 seconds; subsequent short resumes took 0.005–0.017
 seconds on the development host. The development image was approximately 884 MB.

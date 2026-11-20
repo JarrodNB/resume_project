@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install and run Careergrind without Docker on a Debian/Ubuntu development host.
+"""Install and run Careerdrafter without Docker on a Debian/Ubuntu development host.
 
 Dependencies and process state stay in .native. PostgreSQL data persists there;
 Moto emulates SQS and S3 in memory. This is a development environment, not hosting.
@@ -99,7 +99,7 @@ def app_env(service):
         "AWS_SECRET_ACCESS_KEY": "local", "AWS_EC2_METADATA_DISABLED": "true",
         "SQS_ENDPOINT_URL": "http://127.0.0.1:9090",
         "S3_ENDPOINT_URL": "http://127.0.0.1:9090",
-        "S3_UPLOADS_BUCKET": "careergrind-uploads", "DB_HOST": "127.0.0.1",
+        "S3_UPLOADS_BUCKET": "careerdrafter-uploads", "DB_HOST": "127.0.0.1",
         "PGPORT": PORT, "DB_PORT": PORT, "DB_NAME": "api_development",
         "DB_USERNAME": "postgres", "DB_PASSWORD": cfg["database_password"],
         "PGPASSWORD": cfg["database_password"], "RAILS_ENV": "development",
@@ -317,9 +317,9 @@ for name, visibility in [('ai_tasks', '300'), ('ai_results', '60')]:
         'VisibilityTimeout': visibility, 'ReceiveMessageWaitTimeSeconds': '20',
         'RedrivePolicy': json.dumps({'deadLetterTargetArn': arn, 'maxReceiveCount': '3'})})
 s3 = boto3.client('s3', endpoint_url=endpoint)
-s3.create_bucket(Bucket='careergrind-uploads')
+s3.create_bucket(Bucket='careerdrafter-uploads')
 import os
-s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules': [{
+s3.put_bucket_cors(Bucket='careerdrafter-uploads', CORSConfiguration={'CORSRules': [{
     'AllowedOrigins': [os.environ['WEB_APP_URL']], 'AllowedHeaders': ['*'],
     'AllowedMethods': ['GET', 'PUT', 'POST', 'HEAD'], 'ExposeHeaders': ['ETag']}]})
 """], env=env)

@@ -1,4 +1,4 @@
-# Careergrind
+# Careerdrafter
 
 Terms used when discussing job search and interview practice.
 Index: language and shared domain terms.

@@ -1,6 +1,6 @@
 ---
 name: evaluate-ai-quality
-description: Investigate Careergrind AI output quality, extend synthetic evaluation cases, or compare prompts and models using existing eval runners. Use for quality evidence and interpretation, not ordinary unit-test runs or production task recovery.
+description: Investigate Careerdrafter AI output quality, extend synthetic evaluation cases, or compare prompts and models using existing eval runners. Use for quality evidence and interpretation, not ordinary unit-test runs or production task recovery.
 ---
 
 # Evaluate AI quality

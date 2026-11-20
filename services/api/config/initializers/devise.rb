@@ -26,7 +26,7 @@ Devise.setup do |config|
   # Configure the e-mail address which will be shown in Devise::Mailer,
   # note that it will be overwritten if you use your own mailer class
   # with default "from" parameter.
-  config.mailer_sender = ENV.fetch("MAIL_FROM", "Careergrind <accounts@localhost>")
+  config.mailer_sender = ENV.fetch("MAIL_FROM", "Careerdrafter <accounts@localhost>")
   config.mailer = "AccountMailer"
   config.confirm_within = 24.hours
   config.paranoid = true

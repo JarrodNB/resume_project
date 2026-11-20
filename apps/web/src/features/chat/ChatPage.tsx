@@ -32,7 +32,7 @@ export function ChatPage() {
   const newChat = <Button disabled={workspace.creating} onClick={() => void createChat()}><Plus aria-hidden />{workspace.creating ? 'Starting…' : 'New chat'}</Button>
   const list = <ChatConversationList workspace={workspace} activeId={id} />
   const scope = <>
-    <p>Careergrind can discuss your career and job search using what you share in chat and what you have saved.</p>
+    <p>Careerdrafter can discuss your career and job search using what you share in chat and what you have saved.</p>
     <p>It can read your saved career library and job postings to answer, but it cannot change anything in the app.</p>
   </>
 

@@ -105,7 +105,7 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     with library_edit_agent.override(model=FunctionModel(question)):
         paused = handle_ai_task(first, task_dependencies)
     assert paused.status == "needs_user_input"
-    SOURCE_CONTEXT_MARKER = "[Careergrind: reload this edit's owned source context]"
+    SOURCE_CONTEXT_MARKER = "[Careerdrafter: reload this edit's owned source context]"
     serialized = str(paused.message_history)
     assert SOURCE_CONTEXT_MARKER not in serialized
     assert all(message["kind"] == "response" for message in paused.message_history)

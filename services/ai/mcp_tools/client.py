@@ -70,7 +70,7 @@ class ToolServerConnection:
         token = mint_tool_token(self.secret, user_id=user_id, operation_id=operation_id, expires_at=expires_at)
         handler = _ResultHandler(screen)
         # Sampling stays off: the server can never make model calls outside the caller's accounting.
-        toolset = MCPToolset(self.url, id="careergrind_tools", headers={"Authorization": f"Bearer {token}"},
+        toolset = MCPToolset(self.url, id="careerdrafter_tools", headers={"Authorization": f"Bearer {token}"},
                              process_tool_call=handler, max_retries=0, sampling_model=None)
         return _OptionalToolset(toolset.filtered(lambda ctx, tool: tool.name in TOOL_RENDERERS))
 

@@ -21,13 +21,13 @@ const failureMessages: Record<string, string> = {
   screening_blocked: 'This message could not pass the input check. Rephrase it and try again.',
   screening_unavailable: 'The input check is unavailable. Try this message again shortly.',
   context_limit: 'This conversation is too long to continue safely. Start a new chat.',
-  execution_failed: 'Careergrind could not finish the reply. You can try again.',
+  execution_failed: 'Careerdrafter could not finish the reply. You can try again.',
   execution_timeout: 'The reply took too long. You can try again.',
   lease_expired: 'The reply was interrupted. You can try again.',
   dependency_unavailable: 'The AI service is unavailable. Try again shortly.',
   ai_usage_limit_reached: 'Your AI usage limit has been reached. Try again after it resets.',
 }
-export const chatFailureMessage = (code: string | null) => failureMessages[code ?? ''] ?? 'Careergrind could not finish the reply. You can try again.'
+export const chatFailureMessage = (code: string | null) => failureMessages[code ?? ''] ?? 'Careerdrafter could not finish the reply. You can try again.'
 
 export function useChatTurn(conversationId: string, onAccepted: (operationId: string) => void) {
   const query = useQuery(CHAT_OPERATION_QUERY, { variables: { id: conversationId }, fetchPolicy: 'no-cache' })

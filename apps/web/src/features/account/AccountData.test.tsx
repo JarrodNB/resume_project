@@ -64,7 +64,7 @@ it('downloads the export as a JSON file', async () => {
   await user.click(await screen.findByRole('button', { name: 'Download my data' }))
   await vi.waitFor(() => expect(click).toHaveBeenCalled())
   const anchor = click.mock.contexts[0] as HTMLAnchorElement
-  expect(anchor.download).toMatch(/^careergrind-export-\d{4}-\d{2}-\d{2}\.json$/)
+  expect(anchor.download).toMatch(/^careerdrafter-export-\d{4}-\d{2}-\d{2}\.json$/)
   expect(JSON.parse(await createObjectURL.mock.calls[0][0].text())).toEqual(exportData)
   expect(fetcher).toHaveBeenCalledWith(expect.stringContaining('/graphql'), expect.anything())
 })

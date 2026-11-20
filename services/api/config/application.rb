@@ -50,7 +50,7 @@ module Api
     config.api_only = true
 
     config.middleware.use ActionDispatch::Cookies
-    config.session_store :active_record_store, key: "_careergrind_session", expire_after: 1.day,
+    config.session_store :active_record_store, key: "_careerdrafter_session", expire_after: 1.day,
       httponly: true, secure: Rails.env.production?, same_site: :lax, secure_session_only: true
     config.middleware.use config.session_store, config.session_options
 

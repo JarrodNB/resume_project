@@ -5,7 +5,7 @@ primary_target: "apps/web"
 related_targets: []
 ---
 
-# Surface brief: Careergrind web app (signed-in workspace)
+# Surface brief: Careerdrafter web app (signed-in workspace)
 
 Scope: every signed-in page in apps/web (Home, Jobs and the job workspace, Library, Practice, account). Mode: Operate. Auth pages follow after the workspace.
 

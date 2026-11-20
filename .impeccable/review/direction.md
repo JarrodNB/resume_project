@@ -1,4 +1,4 @@
-# Careergrind workspace redesign
+# Careerdrafter workspace redesign
 
 The user delegates visual decisions: “I have no opinions.” Scope is the main web app, not the marketing site. Preserve routes, data, asynchronous tasks, editing, dark mode, and remembered collapsed sections.
 

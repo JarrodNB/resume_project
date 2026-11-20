@@ -1,5 +1,5 @@
 /** The five stops of the landing page’s worked example, from a saved history to an interview.
- * Each one shows a made-up person, Maya, using that part of Careergrind. The opening preview, gaps and resume
+ * Each one shows a made-up person, Maya, using that part of Careerdrafter. The opening preview, gaps and resume
  * stops share one small piece of state: answering her gap puts a new line on her resume. The
  * page is static, so that is a scripted demo and no AI runs here.
  */
@@ -58,7 +58,7 @@ export function JobStop() {
     <section id="job" className="stop stop-job" aria-labelledby="job-title">
       <h2 id="job-title">Tailor your resume to one job you want.</h2>
       <p className="job-lede">
-        Save a posting from its link, or paste it in. Careergrind pulls out what the job is asking
+        Save a posting from its link, or paste it in. Careerdrafter pulls out what the job is asking
         for, and you can fix anything it got wrong.
       </p>
       <figure className="job-figure">
@@ -96,7 +96,7 @@ export function GapsStop({ gapAnswered, onToggleGapAnswer }: GapsStopProps) {
       <div className="stop-copy-wide">
         <h2 id="gaps-title">Find the gaps before you apply.</h2>
         <p>
-          Careergrind compares your library with the job, line by line. Where it finds nothing, it
+          Careerdrafter compares your library with the job, line by line. Where it finds nothing, it
           says so and asks you. It doesn’t make something up to close the gap.
         </p>
       </div>

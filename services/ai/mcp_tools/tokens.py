@@ -11,8 +11,8 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 
-TOKEN_ISSUER = "careergrind-ai"
-TOKEN_AUDIENCE = "careergrind-mcp-tools"
+TOKEN_ISSUER = "careerdrafter-ai"
+TOKEN_AUDIENCE = "careerdrafter-mcp-tools"
 TOKEN_ALGORITHM = "HS256"
 # Long enough for one chat execution; a fresh token is minted for every operation.
 MAX_TOKEN_LIFETIME = timedelta(minutes=10)

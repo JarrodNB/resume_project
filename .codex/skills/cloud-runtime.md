@@ -2,7 +2,7 @@
 
 ## Managed cloud
 
-Run Careergrind natively, without Docker or Compose. Read the target checkout's
+Run Careerdrafter natively, without Docker or Compose. Read the target checkout's
 `docs/native-development.md` and applicable cloud runtime guidance. Install with
 `bash script/install-native-cloud.sh`; start with `bash script/start-native-cloud.sh`.
 Use `python3 script/native.py doctor`, `check`, and `stop` for diagnosis, health,

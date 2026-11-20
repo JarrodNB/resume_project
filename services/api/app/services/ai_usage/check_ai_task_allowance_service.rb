@@ -9,7 +9,7 @@ module AiUsage
   class CheckAiTaskAllowanceService < ApplicationService
     # Queued tasks older than this are treated as stuck, so they don't block the user forever.
     IN_FLIGHT_WINDOW = 15.minutes
-    SITE_LIMIT_MESSAGE = "AI features have reached today's limit for all of Careergrind. They'll be back after midnight UTC."
+    SITE_LIMIT_MESSAGE = "AI features have reached today's limit for all of Careerdrafter. They'll be back after midnight UTC."
 
     # An already-owned logical HTTP task rechecks spend/concurrency without counting
     # itself as another hourly task or blocking its own retry as in-flight work.

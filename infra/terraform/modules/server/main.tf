@@ -109,6 +109,13 @@ resource "aws_iam_role_policy" "app" {
         Resource = var.repository_arns
       },
       {
+        # Durable copy of the secrets in /opt/app/.env; written from outside the server.
+        Sid      = "ReadSecrets"
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter", "ssm:GetParametersByPath"]
+        Resource = "arn:aws:ssm:*:*:parameter/${var.name}/prod/*"
+      },
+      {
         Sid      = "EcrLogin"
         Effect   = "Allow"
         Action   = ["ecr:GetAuthorizationToken"]

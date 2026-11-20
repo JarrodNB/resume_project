@@ -1,5 +1,5 @@
 variable "name" { type = string }
-variable "github_repository" { type = string }
+variable "github_subject_prefix" { type = string }
 variable "backups_bucket_arn" { type = string }
 variable "repository_arns" { type = list(string) }
 variable "server_instance_arn" { type = string }
@@ -26,7 +26,7 @@ resource "aws_iam_role" "deploy" {
           # The repository is public, so only runs on the master branch may deploy. Pull
           # requests (including from forks) get a different subject and are refused. Also
           # protect master with required pull requests, so only reviewed code reaches it.
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/master"
+          "token.actions.githubusercontent.com:sub" = "${var.github_subject_prefix}:ref:refs/heads/master"
         }
       }
     }]

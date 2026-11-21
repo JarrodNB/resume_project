@@ -23,6 +23,7 @@ RSpec.describe Screening::RecordApprovalsService do
   it "reads each type's allowed fields from its model" do
     expect(described_class::RECORD_TYPES.transform_values { |entry| entry[:fields] }).to eq(
       "interview_question" => %w[question_text answer_text],
+      "avoided_interview_question" => %w[question_text],
       "job" => %w[title company location description requirements responsibilities nice_to_haves],
       "gap_response" => %w[requirement body], "user" => %w[summary],
       "experience" => %w[company title location description], "experience_highlight" => %w[content],

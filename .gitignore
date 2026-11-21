@@ -83,4 +83,5 @@ crash.*.log
 /docs/plans/*
 Workflow.md
 KANBAN.md
-.impeccable/*infra/terraform/modules/*/*.zip
+.impeccable/*
+infra/terraform/modules/*/*.zip

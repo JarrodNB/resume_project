@@ -63,7 +63,7 @@ describe('useInterviewRecorder', () => {
   })
 
   it.each(['browser', 'streaming', 'recorded'] as const)('continues the same audio container in %s mode without counting paused time', async (mode) => {
-    vi.stubGlobal('SpeechRecognition', undefined)
+    vi.stubGlobal('SpeechRecognition', class { onend?: () => void; start() {} stop() { this.onend?.() } abort() {} })
     const startStreaming = vi.fn(() => ({ finish: async () => 'spoken words', cancel: vi.fn() }))
     const { result } = renderHook(() => useInterviewRecorder({ mode, startStreaming }))
     await act(() => result.current.start())
@@ -169,6 +169,39 @@ describe('useInterviewRecorder', () => {
 })
 
 describe('recording with live transcription', () => {
+  it('automatically pauses on live failure, retaining audio and displayed words, and can resume', async () => {
+    const track = { enabled: true, stop: vi.fn(), addEventListener: vi.fn() }
+    const stream = { getAudioTracks: () => [track], getTracks: () => [track] } as unknown as MediaStream
+    vi.stubGlobal('MediaRecorder', FakeRecorder)
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue(stream) } })
+    let callbacks!: import('./transcriptionCapture').TranscriptionCallbacks
+    const finish = vi.fn().mockResolvedValue(null)
+    const startStreaming = vi.fn((_stream, next) => { callbacks = next; return { finish, cancel: vi.fn() } })
+    const { result, unmount } = renderHook(() => useInterviewRecorder({ mode: 'streaming', startStreaming }))
+    await act(() => result.current.start())
+    act(() => { FakeRecorder.latest.chunk(new Blob(['retained audio'])); callbacks.text('Words so far') })
+    await act(async () => callbacks.fallback('Live transcription sent back something unexpected.'))
+    expect(FakeRecorder.latest.state).toBe('paused')
+    expect(track.enabled).toBe(false)
+    expect(track.stop).not.toHaveBeenCalled()
+    expect(result.current.status).toBe('ready')
+    expect(result.current.recording?.size).toBe(14)
+    expect(result.current.transcript).toBe('Words so far')
+    expect(result.current.candidateTranscript).toBeNull()
+    expect(result.current.fallbackReason).toMatch(/unexpected/)
+    expect(finish).toHaveBeenCalledOnce()
+    const previous = callbacks
+    act(() => result.current.resume())
+    await act(async () => { previous.text('Late words'); previous.fallback('Late failure') })
+    expect(result.current.transcript).toBe('')
+    expect(FakeRecorder.latest.state).toBe('recording')
+    expect(track.enabled).toBe(true)
+    expect(result.current.fallbackReason).toBeNull()
+    expect(result.current.effectiveMode).toBe('streaming')
+    expect(startStreaming).toHaveBeenCalledTimes(2)
+    unmount(); vi.unstubAllGlobals()
+  })
+
   it('retains audio and visibly falls back when browser recognition is unsupported', async () => {
     const stopTrack = vi.fn()
     const stream = { getAudioTracks: () => [], getTracks: () => [{ stop: stopTrack, addEventListener: vi.fn() }] } as unknown as MediaStream
@@ -176,15 +209,17 @@ describe('recording with live transcription', () => {
     vi.stubGlobal('SpeechRecognition', undefined)
     vi.stubGlobal('webkitSpeechRecognition', undefined)
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: vi.fn().mockResolvedValue(stream) } })
+    const flush = vi.spyOn(FakeRecorder.prototype, 'requestData').mockImplementationOnce(function (this: FakeRecorder) { this.chunk(new Blob(['complete recording'])) })
     const { result, unmount } = renderHook(() => useInterviewRecorder({ mode: 'browser' }))
     await act(() => result.current.start())
-    act(() => FakeRecorder.latest.chunk(new Blob(['complete recording'])))
     expect(result.current.effectiveMode).toBe('recorded')
     expect(result.current.fallbackReason).toMatch(/doesn.t support/)
     await act(async () => result.current.stop())
     expect(result.current.status).toBe('ready')
     expect(result.current.recording?.size).toBe(18)
     expect(result.current.candidateTranscript).toBeNull()
+    expect(FakeRecorder.latest.state).toBe('paused')
+    flush.mockRestore()
     unmount(); vi.unstubAllGlobals()
   })
   it('waits for recognition finalization before review and ignores completion after discard', async () => {

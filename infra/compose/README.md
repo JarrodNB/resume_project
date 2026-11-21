@@ -34,10 +34,9 @@ only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
 
 ## Secrets
 
-Production secrets are in `/opt/app/.env` on the server, and the original eleven have a copy in
-Parameter Store under `/jobapp/prod/` (the server can read it, not write it). `TYPESAFE_API_KEY`
-and `CLEANJOBDATA_API_KEY` were added later and are not copied there yet. When you change a
-secret that has a copy, change both. A container reads `.env` only when it starts, so recreate the services that use the
+Production secrets are in `/opt/app/.env` on the server, and each one has a copy in Parameter Store
+under `/jobapp/prod/` (the server can read it, not write it). When you change a secret, change
+both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
 
 ## Alerts

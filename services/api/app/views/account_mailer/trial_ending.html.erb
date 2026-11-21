@@ -1,0 +1,6 @@
+<%# Tells a trial user the end date, what changes, and where to subscribe. No prices or usage numbers. %>
+<h1 style="margin:0 0 16px; font-size:28px; line-height:1.2; letter-spacing:-0.5px;">Your free trial ends tomorrow</h1>
+<p style="margin:0 0 24px;">Your Careerdrafter free trial ends on <%= @trial_ends_on %> (UTC). After that, the AI features stop working, but all of your saved work stays right where you left it.</p>
+<p style="margin:0 0 24px;">To keep using the AI features, subscribe from Plan &amp; billing.</p>
+<p style="margin:0 0 24px;"><%= link_to "Go to Plan & billing", @billing_url, style: "display:inline-block; padding:13px 24px; border-radius:8px; background-color:#285c45; color:#ffffff; font-size:16px; font-weight:bold; text-decoration:none;" %></p>
+<p style="margin:0; color:#626b63; font-size:14px;">You are getting this one-time email because you have a Careerdrafter account.</p>

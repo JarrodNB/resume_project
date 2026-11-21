@@ -5,6 +5,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PlanEndedErrorLink } from '@/features/billing/PlanBillingLink'
 import { PRODUCT_NAME } from '@/lib/productName'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { useInterviewCareerReferences } from './useInterviewCareerReferences'
@@ -58,7 +59,7 @@ function PromptReferences({ ownerId, interviewId, message, disabled, visitId }: 
     {count > 0 && <ul className="interview-evidence-list">
       {guidance.references.map((reference) => <ReferenceCard key={`${reference.sourceType}:${reference.sourceId}`} reference={reference} blur={blur} />)}
     </ul>}
-    {guidance.error && <p role="alert" className="interview-evidence-state is-action"><span className="signal-dot is-action" aria-hidden="true" />{guidance.error}</p>}
+    {guidance.error && <p role="alert" className="interview-evidence-state is-action"><span className="signal-dot is-action" aria-hidden="true" />{guidance.error} <PlanEndedErrorLink errorCode={guidance.errorCode} /></p>}
     {guidance.subscriptionError && <p role="status" className="interview-evidence-state is-quiet">{guidance.subscriptionError}</p>}
     {(guidance.failed || guidance.error) && !guidance.pending && guidance.canRetry &&
       <Button variant="outline" className="interview-evidence-retry" disabled={disabled} onClick={() => void guidance.retrieve(true)}>Retry career examples</Button>}

@@ -7,6 +7,7 @@ import { RefreshCw } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { AiWaitingLine } from '@/components/AiWaitingLine'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { TransientAlert } from '@/components/TransientAlert'
 import { AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -39,7 +40,7 @@ const COMPARING_CAPTIONS = [
 
 /** Displays the lifecycle owned by the page, so its writing controls see the same state. */
 export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequirements, hasDescription = true, hasRequirements = true, onAddDescription, onEditRequirements }: GapAnalysisCardProps) {
-  const { task, starting, errors, subscriptionError, start } = comparison
+  const { task, starting, errors, errorCode, subscriptionError, start } = comparison
   const runButton = (currentTask: GapAnalysisTask | null) => (
     <RunButton task={currentTask} starting={starting} onRun={() => void start()} hasDescription={hasDescription} hasRequirements={hasRequirements} onAddDescription={onAddDescription} onEditRequirements={onEditRequirements} />
   )
@@ -67,7 +68,7 @@ export function GapAnalysisCard({ jobId, comparison, gapResponses, dismissedRequ
           <AlertDescription>Comparison finished. Your results are below.</AlertDescription>
         </TransientAlert>
       )}
-      <ErrorAlert messages={errors} title="Couldn't start the comparison" />
+      <MutationErrorAlert errors={errors} errorCode={errorCode} title="Couldn't start the comparison" />
       {subscriptionError && <ErrorAlert title="Couldn't follow the comparison" messages={[subscriptionError.message]} />}
       <GapAnalysisTaskView task={task} jobId={jobId} gapResponses={gapResponses} dismissedRequirements={dismissedRequirements} renderRunButton={runButton} />
     </section>

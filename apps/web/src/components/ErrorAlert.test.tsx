@@ -34,3 +34,19 @@ it('keeps ordinary form errors visible', () => {
   expect(screen.getByRole('alert')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
 })
+
+it('renders a given action after the messages', () => {
+  render(<ErrorAlert messages={['Nope']} action={<a href="/somewhere">Do something</a>} />)
+  expect(screen.getByText('Nope')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Do something' })).toHaveAttribute('href', '/somewhere')
+})
+
+it('renders no action when none is given', () => {
+  render(<ErrorAlert messages={['Answer is required']} />)
+  expect(screen.queryByRole('link')).not.toBeInTheDocument()
+})
+
+it('renders nothing for an action when there are no messages', () => {
+  const { container } = render(<ErrorAlert messages={[]} action={<a href="/x">x</a>} />)
+  expect(container).toBeEmptyDOMElement()
+})

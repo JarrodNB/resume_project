@@ -3,7 +3,7 @@
 **Current local testing policy, 22 October:** real interviews stay running at the user's
 explicit request. Development automatically allows local paid testing.
 In development this removes the local unknown-cost/$5 verification stop and interview
-monthly/hourly gates. Every provider attempt, estimate and actual cost is still recorded;
+plan, daily-cap and hourly gates. Every provider attempt, estimate and actual cost is still recorded;
 unknown costs stay unknown and never become fabricated zeroes. Resource concurrency and
 execution caps remain active. This behavior has no effect outside development or on general AI work.
 

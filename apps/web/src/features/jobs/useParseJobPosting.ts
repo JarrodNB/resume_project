@@ -12,9 +12,11 @@ import { PARSE_JOB_POSTING_MUTATION } from './jobsOperations'
 export function useParseJobPosting() {
   const [mutate, { loading }] = useMutation(PARSE_JOB_POSTING_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
 
   async function parseJobPosting(text: string): Promise<string | null> {
     setErrors([])
+    setErrorCode(null)
     const trimmed = text.trim()
     if (!trimmed) {
       setErrors(['Paste the job ad.'])
@@ -24,6 +26,7 @@ export function useParseJobPosting() {
       const { data } = await mutate({ variables: { text: trimmed } })
       const payload = data?.parseJobPosting
       if (payload?.aiTask && payload.errors.length === 0) return payload.aiTask.id
+      setErrorCode(payload?.errorCode ?? null)
       setErrors(payload?.errors.length ? payload.errors : ["Couldn't add this job. Please try again."])
     } catch (error) {
       setErrors([requestErrorMessage(error, "Couldn't reach the server. Check your connection and try again.")])
@@ -31,5 +34,5 @@ export function useParseJobPosting() {
     return null
   }
 
-  return { parseJobPosting, submitting: loading, errors }
+  return { parseJobPosting, submitting: loading, errors, errorCode }
 }

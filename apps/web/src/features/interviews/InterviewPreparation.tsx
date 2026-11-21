@@ -3,6 +3,7 @@
  * describe the steps but do not track them. Private career sources and executor history
  * stay on the server.
  */
+import { PlanEndedHint } from '@/features/billing/PlanBillingLink'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { difficultyOptions, focusOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
 import { AiWaitingLine } from '@/components/AiWaitingLine'
@@ -67,6 +68,7 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
       <p className="max-w-prose text-sm">{job ? `We are setting up your interview for ${job.title} using your saved career details.` : `We are setting up a fictional role for your interview from your saved career details.`} Progress is saved; you can reload safely.</p>
       {(operation?.status === 'failed' || operation?.status === 'expired') ? <div className="grid gap-3">
         <p role="alert">Preparation unavailable: {operation.failureCode?.replaceAll('_', ' ') || 'preparation failed'}.</p>
+        <PlanEndedHint failureCode={operation.failureCode} />
         {operation.canRetry ? <Button className="justify-self-start" variant="outline" disabled={busy} onClick={() => void retry(operation.id)}>Retry preparation</Button> : <p className="text-sm">This preparation cannot be retried. Check your career details before preparing a new interview.</p>}
       </div> : <AiWaitingLine key={operation?.status === 'running' ? 'running' : 'waiting'} captions={preparationCaptions(operation?.status === 'running', Boolean(job))} statusLabel="Getting your interview ready…" captionSeconds={4} />}
     </>}

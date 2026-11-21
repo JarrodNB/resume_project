@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react'
 import { Ellipsis, LoaderCircle } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -32,7 +33,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [task, setTask] = useState(question.latestTask)
   const [observedTask, setObservedTask] = useState(question.latestTask)
-  const { run, busy, errors } = useInterviewAnswer(setId, question.id)
+  const { run, busy, errors, errorCode } = useInterviewAnswer(setId, question.id)
   const [replacementRevision, setReplacementRevision] = useState(question.latestTask?.status === 'QUEUED' && question.latestTask.taskType === 'REGENERATE_INTERVIEW_QUESTION' ? question.questionRevision : null)
   const dirty = answer !== baseline
   const feedbackDraftChanged = answer.trim().replace(/\s+/g, ' ').toLowerCase() !== baseline.trim().replace(/\s+/g, ' ').toLowerCase()
@@ -101,7 +102,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
           <p role="status">{saveStatus}</p>
           <p>{answer.length.toLocaleString()} / {INTERVIEW_ANSWER_TEXT.toLocaleString()}</p>
         </div>
-        <ErrorAlert title="Couldn't complete this action" messages={errors} />
+        <MutationErrorAlert title="Couldn't complete this action" errors={errors} errorCode={errorCode} />
         <div className="flex flex-wrap gap-2">
           <Button disabled={!canRequestFeedback} onClick={() => void perform('feedback')}>
             {(busy === 'feedback' || reviewing) && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
@@ -113,7 +114,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
       </div>
       <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated || feedbackDraftChanged} unsavedChanges={feedbackDraftChanged} />
     </div>
-    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer and its feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><ErrorAlert title="Couldn't replace question" messages={errors} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer and its feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><MutationErrorAlert title="Couldn't replace question" errors={errors} errorCode={errorCode} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
     <DeleteQuestionDialog setId={setId} questionId={question.id} questionText={question.questionText} dirty={dirty} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onDeleted} />
   </article>
 }

@@ -14,10 +14,12 @@ export function useInterviewAnswer(questionSetId: string, questionId: string) {
   const [replaceMutation] = useMutation(REGENERATE_INTERVIEW_QUESTION)
   const [busy, setBusy] = useState('')
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   /** Executes one operation; feedback can persist the answer even when queueing fails. */
   async function run(operation: 'save' | 'feedback' | 'replace', answerText: string) {
     setBusy(operation)
     setErrors([])
+    setErrorCode(null)
     try {
       const variables = { questionSetId, questionId, answerText }
       const payload = operation === 'save'
@@ -27,11 +29,12 @@ export function useInterviewAnswer(questionSetId: string, questionId: string) {
           : (await replaceMutation({ variables: { questionSetId, questionId, confirmed: true } })).data?.regenerateInterviewQuestion
       const messages = payload?.errors ?? ['Could not complete this action.']
       setErrors(messages)
+      setErrorCode(payload && 'errorCode' in payload ? payload.errorCode ?? null : null)
       return { ok: messages.length === 0, task: payload && 'aiTask' in payload ? payload.aiTask : null }
     } catch (error) {
       setErrors([requestErrorMessage(error, 'Could not complete this action. Try again.')])
       return { ok: false, task: null }
     } finally { setBusy('') }
   }
-  return { run, busy, errors }
+  return { run, busy, errors, errorCode }
 }

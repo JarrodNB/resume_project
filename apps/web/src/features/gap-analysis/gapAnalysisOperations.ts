@@ -20,6 +20,7 @@ export const ANALYZE_JOB_GAPS_MUTATION = graphql(`
         createdAt
       }
       errors
+      errorCode
     }
   }
 `)

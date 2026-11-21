@@ -6,6 +6,8 @@ export const GENERATE_STUDY_GUIDE_MUTATION = graphql(`
     generateStudyGuide(input: {jobId: $jobId}) {
       aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }
       errors
+      errorCode
+
     }
   }
 `)

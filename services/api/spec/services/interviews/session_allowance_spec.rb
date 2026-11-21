@@ -118,12 +118,12 @@ RSpec.describe "Prepared interview allowances" do
     expect(user.ai_tasks.hourly_admissions.count).to eq(1)
     expect(user.ai_tasks.where.not(hourly_admission_task_id: nil).count).to eq(54)
     expect(user.ai_tasks).to all(be_completed)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(109)
+    expect(AiUsage::DailySpend.known_microdollars(user)).to eq(109)
     expect(InterviewVerificationReservation.sum(:actual_microdollars)).to eq(109)
     expect(Interviews::StartPreparationService.call(user: user).errors.join).to include("too many interview sessions")
   end
 
-  it "keeps monthly spend and concurrency checks for child work" do
+  it "keeps daily spend and concurrency checks for child work" do
     session = prepare
     speech = session.operations.speech.first
     stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
@@ -132,27 +132,27 @@ RSpec.describe "Prepared interview allowances" do
     expect(speech.reload.ai_task).to be_failed
     blocker.update!(status: "completed")
     speech.ai_task.update!(cost_microdollars: 20)
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 20)
-    expect(Interviews::RetryOperationService.call(operation: speech).errors.join).to include("month's interview usage")
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 21)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 20)
+    expect(Interviews::RetryOperationService.call(operation: speech).errors.join).to include("today's usage limit")
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 21)
     expect(Interviews::RetryOperationService.call(operation: speech)).to be_success
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
   end
 
-  it "preserves unknown-cost admission blocking for prepared stages" do
+  it "does not block prepared stages on another call's unresolved estimate" do
     session = prepare
     speech = session.operations.speech.first
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
     unknown = InterviewVerificationReservation.create!(observation_id: SecureRandom.uuid, reserved_microdollars: 250_000)
     expect(Interviews::StartProviderAttemptService.call(operation: speech, attempt_id: speech.attempt_id,
       claim_generation: speech.claim_generation, observation_id: SecureRandom.uuid, stage: "speech", provider: "openai",
-      model: "gpt-4o-mini-tts")).not_to be_success
-    expect(speech.reload).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached")
+      model: "gpt-4o-mini-tts")).to be_success
+    expect(speech.reload.status).not_to eq("failed")
     expect(unknown.reload.actual_microdollars).to be_nil
-    expect(InterviewVerificationReservation.count).to eq(1)
+    expect(InterviewVerificationReservation.count).to eq(2)
   end
 
-  it "retains the existing task-month policy while new children account in their execution month" do
+  it "retains the task-creation-day policy while new children account in their execution day" do
     travel_to Time.utc(2026, 10, 31, 23, 59) do
       session = prepare
       root = session.operations.preparation.first.ai_task
@@ -161,7 +161,7 @@ RSpec.describe "Prepared interview allowances" do
       speech = session.operations.speech.first
       expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
       speech.ai_task.update!(cost_microdollars: 20)
-      expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(20)
+      expect(AiUsage::DailySpend.known_microdollars(user)).to eq(20)
       expect(speech.ai_task.hourly_admission_task_id).to eq(root.id)
     end
   end

@@ -6,7 +6,7 @@
  */
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -16,7 +16,7 @@ import { useParseJobPosting } from './useParseJobPosting'
 /** A text form that calls parseJobPosting and opens the new task's page. */
 export function AddJobFromTextPage() {
   const navigate = useNavigate()
-  const { parseJobPosting, submitting, errors } = useParseJobPosting()
+  const { parseJobPosting, submitting, errors, errorCode } = useParseJobPosting()
   const [text, setText] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -40,7 +40,7 @@ export function AddJobFromTextPage() {
         </CardHeader>
         <CardContent>
           <form noValidate className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
-            <ErrorAlert messages={errors} title="Couldn't add this job" />
+            <MutationErrorAlert errors={errors} errorCode={errorCode} title="Couldn't add this job" />
             <div className="grid gap-2">
               <Label htmlFor="job-ad" className="after:ml-0.5 after:content-['*']">Job ad</Label>
               <Textarea

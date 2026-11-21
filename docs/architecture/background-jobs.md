@@ -50,6 +50,17 @@ retain their current settings and bounded retry policies. Most specs keep the te
 adapter; the queue persistence specs explicitly use the real adapter against the
 isolated test database.
 
+## Recurring account jobs
+
+`Accounts::SendTrialEndingEmailsJob` (`maintenance` queue) runs daily at 9:10am UTC and
+emails users whose free trial ends within the next 36 hours. The window is longer than the
+"tomorrow" in the email so a daily run can never skip someone. Only confirmed users with no
+paid subscription are included (a spend-cap override does not exclude anyone). Each user is
+claimed with a conditional update of `users.trial_ending_email_sent_at` before the mail is
+queued, so reruns and overlapping runs send at most one email; if queuing fails the claim is
+released so the next run retries. The mail goes through `AccountMailer#trial_ending` and
+`AccountMailDeliveryJob`. `Accounts::DeleteUnverifiedAccountsJob` is the hourly sibling.
+
 ## Interactive AI delivery and recovery
 
 Interactive AI execution uses one shared Python runner. Rails first commits an

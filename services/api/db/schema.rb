@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_050400) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -102,7 +102,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.index ["sequence"], name: "index_ai_task_outcomes_on_sequence", unique: true
     t.index ["user_id", "sequence"], name: "index_ai_task_outcomes_on_user_id_and_sequence", unique: true
     t.index ["user_id"], name: "index_ai_task_outcomes_on_user_id"
-    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying, 'failed'::character varying]::text[])", name: "ai_task_outcomes_terminal_status"
+    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying::text, 'failed'::character varying::text])", name: "ai_task_outcomes_terminal_status"
   end
 
   create_table "ai_tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -135,7 +135,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying, 'interview_session_feedback'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text, 'interview_session_feedback'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -193,6 +193,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.index ["user_id", "text_digest"], name: "index_avoided_interview_questions_on_user_id_and_text_digest", unique: true
     t.index ["user_id"], name: "index_avoided_interview_questions_on_user_id"
     t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
+  end
+
+  create_table "billing_subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "stripe_customer_id", null: false
+    t.string "stripe_subscription_id"
+    t.string "status"
+    t.datetime "current_period_end"
+    t.boolean "cancel_at_period_end", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["stripe_customer_id"], name: "index_billing_subscriptions_on_stripe_customer_id", unique: true
+    t.index ["stripe_subscription_id"], name: "index_billing_subscriptions_on_stripe_subscription_id", unique: true
+    t.index ["user_id"], name: "index_billing_subscriptions_on_user_id", unique: true
   end
 
   create_table "career_contexts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -265,7 +279,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.check_constraint "length(content) > 0", name: "chat_message_content_present"
     t.check_constraint "role::text = 'assistant'::text OR thumbs_down = false", name: "chat_feedback_assistant_only"
     t.check_constraint "role::text = 'assistant'::text OR thumbs_up = false", name: "chat_positive_feedback_assistant_only"
-    t.check_constraint "role::text = ANY (ARRAY['user'::character varying, 'assistant'::character varying]::text[])", name: "chat_message_role"
+    t.check_constraint "role::text = ANY (ARRAY['user'::character varying::text, 'assistant'::character varying::text])", name: "chat_message_role"
   end
 
   create_table "chat_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -295,9 +309,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.index ["ai_task_id"], name: "index_chat_operations_on_ai_task_id"
     t.index ["chat_conversation_id", "idempotency_key"], name: "index_chat_operations_on_idempotency", unique: true
     t.index ["chat_conversation_id"], name: "index_chat_operations_on_chat_conversation_id"
-    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.check_constraint "length(message) > 0", name: "chat_operation_message"
-    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying]::text[])", name: "chat_operation_status"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text])", name: "chat_operation_status"
     t.check_constraint "summary_base_version >= 0 AND jsonb_typeof(summary_plan) = 'object'::text", name: "chat_operation_summary_snapshot"
   end
 
@@ -631,7 +645,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.check_constraint "char_length(career_focus::text) <= 200", name: "interview_career_focus_length"
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
-    t.check_constraint "preparation_kind::text = ANY (ARRAY['saved_job'::character varying, 'fictional_role'::character varying]::text[])", name: "interview_preparation_kind"
+    t.check_constraint "preparation_kind::text = ANY (ARRAY['saved_job'::character varying::text, 'fictional_role'::character varying::text])", name: "interview_preparation_kind"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 3", name: "interview_session_counters"
     t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying::text, 'ready'::character varying::text, 'active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text, 'abandoned'::character varying::text])", name: "interview_session_status"
   end
@@ -975,9 +989,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "monthly_ai_budget_microdollars"
-    t.integer "ai_tasks_per_hour_limit"
-    t.integer "max_in_flight_ai_tasks"
     t.string "contact_email"
     t.string "phone"
     t.string "location"
@@ -991,6 +1002,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.boolean "include_summary", default: true, null: false
     t.jsonb "job_title_suggestions", default: [], null: false
     t.text "resume_section_order", default: [], null: false, array: true
+    t.datetime "trial_ends_at"
+    t.bigint "daily_ai_spend_cap_microdollars"
+    t.datetime "trial_ending_email_sent_at"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
@@ -1008,6 +1022,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
   add_foreign_key "ai_usage_entries", "ai_tasks", on_delete: :cascade
   add_foreign_key "ai_usage_entries", "ai_usage_attempts", on_delete: :cascade
   add_foreign_key "avoided_interview_questions", "users"
+  add_foreign_key "billing_subscriptions", "users"
   add_foreign_key "career_contexts", "users"
   add_foreign_key "certifications", "users"
   add_foreign_key "chat_conversations", "users"

@@ -22,12 +22,18 @@ function requirePayload<T extends { errors: string[] }>(payload: T | null | unde
 export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string) {
     setError(null)
-    try { return requirePayload((await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, ...(jobId ? { jobId } : {}) } })).data?.startInterview).interview?.id ?? null }
+    setErrorCode(null)
+    try {
+      const payload = (await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, ...(jobId ? { jobId } : {}) } })).data?.startInterview
+      if (payload?.errors.length) setErrorCode(payload.errorCode ?? null)
+      return requirePayload(payload).interview?.id ?? null
+    }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }
   }
-  return { start, loading, error }
+  return { start, loading, error, errorCode }
 }
 
 export function useInterviewSession(id: string, ownerId: string) {

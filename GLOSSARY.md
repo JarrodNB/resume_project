@@ -27,7 +27,22 @@ A derived embedding of one saved interview question and its current nonblank use
 It excludes feedback and example answers, stays separate from career-library evidence, and is not searched yet.
 
 **AI usage**:
-The model work consumed while handling a user's AI tasks, including unsuccessful attempts. Its cost is an estimate from known token usage; missing usage or pricing leaves part of the cost unknown.
+The model work consumed while handling a user's AI tasks, including unsuccessful attempts. Its cost is an estimate from known token usage; missing usage or pricing leaves part of the cost unknown. Each user's known AI usage for the current UTC day is held to their daily spend cap.
+
+**Plan**:
+What a user's account allows right now: trial, paid, or ended. An ended plan keeps every non-AI feature but refuses AI work until the user subscribes.
+
+**Trial**:
+The free week of AI features that starts when a user verifies their email. Each account gets one, with no card needed.
+
+**Subscription**:
+A user's paid plan and its status, as last reported by the payment provider. Active and past-due (still being retried) subscriptions count as paid.
+
+**Daily spend cap**:
+A hidden per-user limit on known AI cost per UTC day, set by plan and shared by general AI and spoken interviews. It only protects against runaway cost; users are never shown it or their spend.
+
+**Daily spend cap override**:
+A cap size an operator sets for one user. It replaces the plan's daily spend cap only; it never grants AI access, and an ended plan has none.
 
 **Conversation transcript**:
 A readable record of the AI exchanges for one AI task, stored separately from other tasks even when they share a job or interview question set. It includes instructions, messages, tool calls and results, and repeated attempts as seen by the model. Local development transcripts also highlight observed validation/provider failures, actual fallback execution and task redeliveries; production uses tracing only.

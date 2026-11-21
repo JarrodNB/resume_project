@@ -141,11 +141,26 @@ RSpec.describe "Chat streamed turns" do
     expect(operation.ai_task.ai_usage_attempts.where(incomplete: true)).to be_empty
   end
 
-  it "does not borrow interview allowances when the general budget is exhausted" do
-    user.update!(monthly_ai_budget_microdollars: 0)
+  it "refuses a new message once today's spend reaches the daily cap" do
+    create(:ai_task, user: user, status: "completed", cost_microdollars: TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS)
     result = Chat::StartMessageService.call(conversation: chat, message: "Question", idempotency_key: "budget")
-    expect(result).not_to be_success
+    expect(result.errors).to eq([ AiUsage::CheckAiTaskAllowanceService::DAILY_LIMIT_MESSAGE ])
     expect(chat.operations).to be_empty
+  end
+
+  it "records plan_ended, not the generic limit code, when the trial ends before a queued reply is claimed" do
+    operation = start
+    user.update!(trial_ends_at: 1.minute.ago)
+    expect(Chat::ClaimOperationService.call(operation: operation)).not_to be_success
+    expect(operation.reload).to have_attributes(status: "failed", failure_code: "plan_ended")
+    expect(operation.ai_task.reload.error_message).to eq("plan_ended")
+  end
+
+  it "records ai_usage_limit_reached when the daily cap stops a queued reply" do
+    operation = start
+    create(:ai_task, user: user, status: "completed", cost_microdollars: TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS)
+    expect(Chat::ClaimOperationService.call(operation: operation)).not_to be_success
+    expect(operation.reload).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached")
   end
 
   it "checks ownership for explicit retry and exposes saved progress with precise ordering" do

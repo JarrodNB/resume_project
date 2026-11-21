@@ -28,6 +28,7 @@ export function useInterviewCareerReferences(interviewId: string, messageId: str
   const record = local && (!saved || local.attemptCount > saved.attemptCount) ? local : saved
   const [request, { loading }] = useMutation(REQUEST_INTERVIEW_REFERENCES)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [expiredKey, setExpiredKey] = useState<string | null>(null)
   const recordKey = record ? `${record.id}:${record.attemptCount}` : null
   const expired = recordKey !== null && expiredKey === recordKey
@@ -53,11 +54,13 @@ export function useInterviewCareerReferences(interviewId: string, messageId: str
     if (locked.current || (!checkVisit && (complete || pending))) return
     locked.current = true
     setError(null)
+    setErrorCode(null)
     try {
       const response = await request({ variables: { input: { interviewId, messageId, retryFailed, ...(visitId ? { visitId } : {}) } } })
       const payload = response.data?.requestInterviewReferences
       if (payload?.errors.length || !payload?.careerReferences) {
         setError(payload?.errors.join('. ') || 'Could not request career examples. Please retry.')
+        setErrorCode(payload?.errorCode ?? null)
       } else {
         setVisitUnconfirmed(false)
         setExpiredKey(null)
@@ -67,7 +70,7 @@ export function useInterviewCareerReferences(interviewId: string, messageId: str
       setError('Could not confirm career examples. Retry to check their saved status.')
     } finally { locked.current = false }
   }
-  return { retrieve, references, complete, pending: pending || loading, failed, canRetry: Boolean(error && visitUnconfirmed) || (record?.canRetry ?? true),
+  return { retrieve, references, errorCode, complete, pending: pending || loading, failed, canRetry: Boolean(error && visitUnconfirmed) || (record?.canRetry ?? true),
     error: error || (failed ? currentTask?.errorMessage || 'Career examples did not finish. Please retry.' : null),
     subscriptionError: subscriptionError ? 'Live career example updates disconnected. Reopen this interview to check saved status.' : null }
 }

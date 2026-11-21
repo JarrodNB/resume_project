@@ -52,6 +52,8 @@ export const RERANK_JOB_BOARD_LISTINGS_MUTATION = graphql(`
     rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {
       aiTask { id status result errorMessage }
       errors
+      errorCode
+
     }
   }
 `)

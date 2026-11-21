@@ -55,6 +55,18 @@ RSpec.describe Billing::StripeGateway do
       expect { described_class.new.create_portal_session(customer_id: "cus_1", return_url: "x") }.to raise_error(Billing::Gateway::NotFound)
     end
 
+    it "cancels every not-yet-ended subscription of a customer" do
+      subs = %w[active canceled incomplete incomplete_expired].map { |status| Stripe::Subscription.construct_from(id: "sub_#{status}", status: status) }
+      listing = double(auto_paging_each: nil)
+      allow(listing).to receive(:auto_paging_each) { |&block| subs.each(&block) }
+      allow(client).to receive_message_chain(:v1, :subscriptions, :list).with({ customer: "cus_1", status: "all" }).and_return(listing)
+      cancelled = []
+      allow(client).to receive_message_chain(:v1, :subscriptions, :cancel) { |id| cancelled << id }
+
+      expect(described_class.new.cancel_customer_subscriptions("cus_1")).to be_nil
+      expect(cancelled).to eq(%w[sub_active sub_incomplete])
+    end
+
     it "translates errors from cancelling a subscription too" do
       allow(client).to receive_message_chain(:v1, :subscriptions, :cancel).and_raise(Stripe::APIConnectionError.new("down"))
 

@@ -1,6 +1,7 @@
 # Permanently deletes a signed-in user's account and everything it owns after they confirm
-# their current password. If they have a live Stripe subscription it is cancelled first (right away,
-# no refund), and if Stripe can't do that the account is kept so they are never billed for nothing.
+# their current password. If they have a Stripe customer, every live subscription of that customer is
+# cancelled first (right away, no refund) -- not just the one we have recorded, because a checkout can finish
+# before our records catch up. If Stripe can't do that the account is kept so they are never billed for nothing.
 # Model callbacks do the cleanup: interview audio is handed to
 # Interviews::CleanupJob for storage deletion, and uploaded resume files are purged in the
 # background. The caller signs the browser out; other browsers lose access because their
@@ -8,7 +9,6 @@
 module Accounts
   class DeleteAccountService < ApplicationService
     CANCEL_FAILED = "We couldn't cancel your subscription, so your account wasn't deleted. Try again in a moment."
-    ENDED_STATUSES = %w[canceled incomplete_expired].freeze
 
     def initialize(user:, current_password:, gateway: Billing::Gateway.current)
       @user, @current_password, @gateway = user, current_password, gateway
@@ -34,13 +34,13 @@ module Accounts
     private
 
     # True when there is nothing live to cancel or Stripe cancelled it. This runs before the user row
-    # is locked so the lock is not held during the network call. A subscription Stripe no longer has counts as cancelled.
+    # is locked so the lock is not held during the network call. A customer Stripe no longer has counts as cancelled.
     def cancel_live_subscription
-      row = @user.billing_subscription
-      return true if row&.stripe_subscription_id.blank? || row.status.in?(ENDED_STATUSES)
+      customer_id = @user.billing_subscription&.stripe_customer_id
+      return true if customer_id.blank?
       return false unless @gateway.configured?
 
-      @gateway.cancel_subscription_now(row.stripe_subscription_id)
+      @gateway.cancel_customer_subscriptions(customer_id)
       true
     rescue Billing::Gateway::NotFound
       true

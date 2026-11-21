@@ -5,7 +5,7 @@
 # Index:
 #   - API_VERSION: the one place the Stripe API version is pinned (the version the gem was built for)
 #   - create_customer, create_checkout_session, create_portal_session
-#   - retrieve_subscription, cancel_subscription_now
+#   - retrieve_subscription, cancel_subscription_now, cancel_customer_subscriptions
 #   - translating: the one place Stripe errors become Gateway::Unavailable / Gateway::NotFound
 #   - construct_event: verifies the webhook signature and returns a Gateway::Event (or nil for ignored types)
 #   - subscription_from, event_from: turn Stripe objects into the plain Gateway values
@@ -77,6 +77,17 @@ module Billing
 
     def cancel_subscription_now(subscription_id)
       translating { client.v1.subscriptions.cancel(subscription_id) }
+      nil
+    end
+
+    # Cancels every subscription of the customer that has not ended, right away. Used when a user
+    # deletes their account, because a checkout may have finished before our records heard about it.
+    def cancel_customer_subscriptions(customer_id)
+      translating do
+        client.v1.subscriptions.list({ customer: customer_id, status: "all" }).auto_paging_each do |subscription|
+          client.v1.subscriptions.cancel(subscription.id) unless Gateway::ENDED_STATUSES.include?(subscription.status)
+        end
+      end
       nil
     end
 

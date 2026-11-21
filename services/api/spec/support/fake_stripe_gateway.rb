@@ -1,6 +1,7 @@
 # Description: An in-memory stand-in for Billing::StripeGateway, so specs never call Stripe.
 # State is class-level (the app builds a new gateway per call); reset it before each example.
 # Index:
+#   - cancel_customer_subscriptions: cancels (and records) that customer's live subscriptions
 #   - FakeStripeGateway.reset!: clears customers, subscriptions and recorded calls
 #   - .configured: set false to simulate missing Stripe keys
 #   - .checkout_error, .portal_error, .cancel_error: set to a Billing::Gateway error to make that call raise it
@@ -59,6 +60,17 @@ class FakeStripeGateway
   def cancel_subscription_now(subscription_id)
     raise self.class.cancel_error if self.class.cancel_error
     self.class.canceled << subscription_id
+    nil
+  end
+
+  # Cancels every not-yet-ended subscription of the customer, like the real adapter.
+  def cancel_customer_subscriptions(customer_id)
+    raise self.class.cancel_error if self.class.cancel_error
+    self.class.subscriptions.each_value do |subscription|
+      next unless subscription.customer_id == customer_id && !Billing::Gateway::ENDED_STATUSES.include?(subscription.status)
+      self.class.canceled << subscription.id
+      self.class.subscriptions[subscription.id] = subscription.with(status: "canceled")
+    end
     nil
   end
 

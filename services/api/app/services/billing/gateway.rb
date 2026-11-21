@@ -4,7 +4,8 @@
 # production that is Billing::StripeGateway; the test environment points
 # `config.x.billing_gateway` at an in-memory fake, so specs never call Stripe.
 # Every adapter answers: configured?, create_customer, create_checkout_session,
-# create_portal_session, retrieve_subscription, cancel_subscription_now, construct_event.
+# create_portal_session, retrieve_subscription, cancel_subscription_now,
+# cancel_customer_subscriptions, construct_event.
 # Index:
 #   - Subscription: a subscription's current state (status, period end, cancel flag, user id from metadata)
 #   - Event: a verified webhook event reduced to its type and subscription id
@@ -16,6 +17,9 @@ module Billing
   module Gateway
     Subscription = Data.define(:id, :customer_id, :status, :current_period_end, :cancel_at_period_end, :user_id)
     Event = Data.define(:type, :subscription_id)
+
+    # Subscription statuses that are over for good; there is nothing left to cancel.
+    ENDED_STATUSES = %w[canceled incomplete_expired].freeze
 
     class InvalidSignature < StandardError; end
     # Adapters turn their provider's errors into these two, so callers never name a provider's classes.

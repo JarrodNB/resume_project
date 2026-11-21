@@ -67,8 +67,11 @@ signups cannot block paying customers.
   state from Stripe and copies it to `billing_subscriptions`. Because it never trusts the event
   body, duplicate and out-of-order deliveries end in the same correct state. Ordering guard: an
   old canceled subscription never overwrites a newer one that is still paid.
-- **Account deletion.** `Accounts::DeleteAccountService` cancels a live subscription right away
-  (no refund) before deleting the user. If Stripe fails, deletion is blocked with a retry message.
+- **Account deletion.** `Accounts::DeleteAccountService` cancels every not-yet-ended subscription
+  of the user's Stripe customer right away (no refund) before deleting the user. It asks Stripe for
+  the customer's subscriptions instead of trusting our row, because a user can finish Checkout and
+  delete their account before the webhook sync has run. If Stripe fails, deletion is blocked with a
+  retry message; a customer Stripe no longer has counts as done.
 - **GraphQL.** `me.billing { plan, trialEndsAt, currentPeriodEndsAt, cancelAtPeriodEnd, canManageBilling }`.
 
 ## Configuration

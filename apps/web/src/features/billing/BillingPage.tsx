@@ -90,10 +90,14 @@ export function BillingPage() {
       {summary && (
         <section aria-labelledby="current-plan-title" className="security-password-section">
           <h2 id="current-plan-title" className="mb-2 text-xl font-semibold tracking-tight">Current plan</h2>
-          <p className="text-lg font-medium">{summary.title}</p>
+          <p className="flex items-center gap-2 text-lg font-medium">
+            {plan === 'ENDED' && <span className="signal-dot is-action" aria-hidden="true" />}
+            {summary.title}
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">{summary.detail}</p>
           {waiting && (
-            <p role="status" className="mt-3 text-sm">
+            <p role="status" className="mt-4 flex items-start gap-2 text-sm">
+              <span className={`signal-dot mt-1 ${gaveUp ? 'is-action' : 'is-wait'}`} aria-hidden="true" />
               {gaveUp ? 'Your payment is taking longer than usual to show up. Refresh this page in a minute.' : 'Payment received — updating your plan…'}
             </p>
           )}
@@ -103,12 +107,12 @@ export function BillingPage() {
               {priceLabel && <span className="text-sm text-muted-foreground">{priceLabel}</span>}
             </div>
           )}
-          <ErrorAlert messages={checkoutErrors} />
+          <ErrorAlert title="Couldn't open checkout" messages={checkoutErrors} />
           {data?.me.billing.canManageBilling && (
-            <div className="mt-4">
+            <div className="mt-6 border-t pt-6">
               <Button variant="outline" onClick={manageBilling} disabled={openingPortal}>{openingPortal ? 'Opening billing…' : 'Manage billing'}</Button>
-              <p className="mt-1 text-sm text-muted-foreground">Update your card, see invoices or cancel.</p>
-              <ErrorAlert messages={portalErrors} />
+              <p className="mt-2 text-sm text-muted-foreground">Update your card, see invoices or cancel.</p>
+              <ErrorAlert title="Couldn't open billing" messages={portalErrors} />
             </div>
           )}
         </section>

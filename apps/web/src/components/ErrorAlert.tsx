@@ -1,7 +1,7 @@
 /**
  * Description: Red alert listing one or more user-facing error messages. A caller can pass an
  * `action` (for example a link) that shows after the messages; this component knows nothing about
- * what the action is for.
+ * what the action is for. An action that renders nothing leaves no empty gap.
  * Index:
  *   - ErrorAlert: renders nothing when `messages` is empty
  */
@@ -30,7 +30,7 @@ export function ErrorAlert({ messages, title, notificationId, action }: ErrorAle
         {messages.map((message) => (
           <p key={message}>{message}</p>
         ))}
-        {action && <p>{action}</p>}
+        {action && <p className="empty:hidden">{action}</p>}
       </AlertDescription>
     </Container>
   )

@@ -8,7 +8,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { PLAN_ENDED_ERROR_CODE, PLAN_ENDED_FAILURE_CODE, PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
 
 export function PlanBillingLink() {
-  return <Link to="/account/billing" className="underline underline-offset-4">Plan &amp; billing</Link>
+  return <Link to="/account/billing" className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Plan &amp; billing</Link>
 }
 
 /** The Plan & billing link when a mutation payload's `errorCode` is PLAN_ENDED; nothing otherwise. */

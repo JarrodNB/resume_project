@@ -166,8 +166,10 @@ does not create or switch a session. Login errors do not disclose verification s
 
 Links use configured `WEB_APP_URL`, never the request Host. The token travels in a
 fragment to public `/verify-email`, is captured in memory and removed from history
-before app mount/bootstrap, and is sent only by an explicit CSRF-protected POST.
-Email scanners cannot consume links through GET. Refresh/cancel loses the in-memory
+before app mount/bootstrap, and is sent automatically by a CSRF-protected POST
+after session bootstrap. Opening the email link opens the app and verifies without
+a second click. Plain GET requests do not consume links; clients executing the app's
+JavaScript can verify them. Failed requests offer an explicit retry. Refresh/cancel loses the in-memory
 token: reopen the link or request another. Nothing stores the token in localStorage.
 
 Action Mailer and Devise provide delivery. Development uses the development-only

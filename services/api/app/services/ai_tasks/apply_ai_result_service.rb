@@ -34,16 +34,16 @@ module AiTasks
           usage_recorded = RecordAttemptUsageService.call(ai_task: ai_task, message: @message).value
         end
         # Late usage still changes the task's cost totals, so subscribers need to hear about it.
-        next usage_recorded if status == "usage" || ai_task.finished? || ((ai_task.improve_library_entry? || ai_task.elicit_job_preferences?) && !ai_task.queued?)
+        next usage_recorded if status == "usage" || ai_task.finished? || ((ai_task.improve_library_entry? || retired_task?(ai_task)) && !ai_task.queued?)
 
         record_screening(ai_task)
 
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
-        if ai_task.elicit_job_preferences? && %w[completed needs_user_input].include?(status)
+        if retired_task?(ai_task) && %w[completed needs_user_input].include?(status)
           # Retained queue/history types must never apply output from a retired feature.
           attributes.merge!(status: "failed", result: nil, message_history: [], pending_questions: [],
-            error_message: "Preference conversations are no longer available.", completed_at: Time.current)
+            error_message: "Job preferences are no longer available.", completed_at: Time.current)
         elsif ai_task.improve_library_entry? && %w[completed needs_user_input].include?(status)
           result = CareerLibrary::ApplyEditService.call(ai_task: ai_task, message: @message)
           attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })
@@ -57,6 +57,11 @@ module AiTasks
     end
 
     private
+
+    # Decode old tasks and retain accounting without applying output from the removed feature.
+    def retired_task?(task)
+      %w[elicit_job_preferences check_job_preferences].include?(task.task_type)
+    end
 
     # Saves the unified `record_screening` receipts. Library receipts from summary generation
     # and review/edit tasks must also match the task's source identities/fingerprints.
@@ -105,10 +110,6 @@ module AiTasks
     def domain_record_attributes(ai_task)
       if ai_task.generate_summary?
         result = SummaryGeneration::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : failed_attributes(result.errors)
-      end
-      if ai_task.check_job_preferences?
-        result = JobPreferences::ValidateCheckResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)
       end
       if ai_task.rerank_job_listings?

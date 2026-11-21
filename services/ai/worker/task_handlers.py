@@ -11,7 +11,6 @@ from worker.analyze_gaps_handler import handle_analyze_gaps_task
 from worker.interview_feedback_handler import handle_interview_feedback_task
 from worker.interview_help import INTERVIEW_HELP_HANDLERS
 from worker.interview_questions_handler import handle_interview_questions_task
-from worker.job_preference_handler import handle_job_preference_check_task
 from worker.library_edit_handler import handle_library_edit_task
 from worker.library_review_handler import handle_library_review_task
 from worker.parse_job_posting_handler import handle_parse_job_posting_task
@@ -27,7 +26,6 @@ from worker.task_dependencies import TaskDependencies
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
-    "check_job_preferences": handle_job_preference_check_task,
     "generate_summary": handle_summary_generation_task,
     "rerank_job_listings": handle_rerank_job_listings_task,
     "generate_study_guide": handle_study_guide_task,

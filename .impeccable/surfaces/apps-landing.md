@@ -15,7 +15,7 @@ Proof: one worked example with a made-up person and job, labeled as made up. No 
 
 Constraints: static only, no API calls. Inherits the Transit Line world in DESIGN.md with bigger headlines and normal reading text. Signal colors keep their one meaning.
 
-Chosen direction: The Door Strip. Memorable moment: a compact scripted example immediately after the opening lets visitors supply Maya’s answer and see the supported resume line beside it. The same answer updates the full walkthrough and clears the red stop.
+Chosen direction: The Door Strip. Memorable moment: in the gaps section, visitors answer Maya’s missing requirement and watch the supported line appear on her resume and the red stop clear.
 
 Unresolved: production app URL (VITE_APP_URL at build time); public-launch name availability.
 
@@ -25,13 +25,13 @@ THESIS: The page is one ride. A line diagram like the one above a subway car's d
 
 OWN-WORLD: White ground, ink #111418, black signage band and full-bleed ink sections, Archivo Variable at expanded width and 800 to 900 weight, ringed round stops on an 8px ink line, 2px ink rules, 1.5px ink tiles, dashed for what is not on the line. Red needs you, blue AI working, yellow waiting, green success, and nothing else is colored.
 
-STORY: The visitor learns the promise, tries a compact answer-to-draft example without signing up, then rides five stops with Maya (library, job, gaps, resume, interview), sees that a claim with no evidence stays off the resume until the person answers, sees the whole search as a map, reads what the product refuses to do, then signs up.
+STORY: The visitor learns the promise, then rides five stops with Maya (library, job, gaps, resume, interview), sees that a claim with no evidence stays off the resume until the person answers, sees the whole search as a map, reads what the product refuses to do, then signs up.
 
-FIRST VIEWPORT: 60px black band with brand at left, How it works, Sign in and a white Sign up button at right. Directly under it, the full-width strip of five stops on an 8px line, first stop ringed. The headline reads "Your experience. A resume for the job you want." A short explanation leads to Sign up and start plus Try the example. The compact, explicitly scripted example follows immediately, with question and draft side by side on desktop and stacked on phones. No account or live AI call is needed to try it.
+FIRST VIEWPORT: 60px black band with brand at left, How it works, Sign in and a white Sign up button at right. Directly under it, the full-width strip of five stops on an 8px line, first stop ringed. The headline reads "Stop sending the same resume everywhere." A short explanation leads to Create your account plus See how it works. Content sits in a centered column about 1120px wide; only backgrounds run full width.
 
 FORM: The Door Strip, position 5 on the grounded list, dealt lead. seed:88e69ed0e1562c0a
 
-SIGNATURE INTERACTION: The strip stays pinned and its ink line fills continuously with scroll, each stop filling as it is passed. Pressing "Try Maya’s answer" in the opening example or "Answer as Maya" in the gaps section updates both examples, clears the red stop, and fills the resume line further down. Either undo button reverses all three. Toggle buttons stay mounted to preserve keyboard focus; a live status announces the change.
+SIGNATURE INTERACTION: The strip stays pinned and its ink line fills continuously with scroll, each stop filling as it is passed. Pressing "Answer as Maya" in the gaps section clears the red stop and fills the resume line further down. Undo reverses both. Toggle buttons stay mounted to preserve keyboard focus; a live status announces the change.
 
 MOTION GRAMMAR: Motion follows the visitor's own scroll or press. The only loop is the breathing blue AI-working ring on the map.
 

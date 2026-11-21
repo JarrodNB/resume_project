@@ -7,8 +7,6 @@ instructions from `prompts/`.
 
 ## Contents
 
-- `job_preference_agent.py` — dynamic native-JEV probability fields for up to ten preferences; no passage choices, bounded readable inputs without injection classification, one request per listing.
-
 - `resume_parsing_agent.py` — resume text -> `ParsedResume` through three bounded concurrent
   full-source extractions: experience; projects/skills; profile/education/certifications.
   Experience highlights are copied directly from the full extracted text without list-marker
@@ -55,7 +53,7 @@ instructions from `prompts/`.
   Keep existing structured-output validators. Both safety classifiers are exempt to prevent recursion.
   The scraped-ad parser instead uses a source-only guard under its explicit limited exception;
   do not widen that exception to history, tools, pasted ads or downstream job consumers.
-- Preference checks and study-guide generation use a bounded-text guard without injection classification,
+- Study-guide generation uses a bounded-text guard without injection classification,
   while retaining output validation and usage limits. It grants no source approvals.
 - Every agent also declares `ConversationLogging()` to observe validation feedback and
   exhaustion. Logging owns its state and presentation; agents keep their validation policy.
@@ -72,7 +70,7 @@ instructions from `prompts/`.
   choose the user-facing message. Entries return only the output. They never report usage or
   model names: `llm/usage.py` records every real request, including ones whose output was
   rejected. Agents with streaming, tools-as-results or their own request budgets
-  (`chat_agent`, `spoken_interviewer_agent`, `job_preference_agent`, `resume_parsing_agent`,
+  (`chat_agent`, `spoken_interviewer_agent`, `resume_parsing_agent`,
   `resume_tailoring_agent`) have not moved to the shared run yet.
 - Safety screening has its own recovery policy.
 - Every agent has an eval dataset and runner in `evals/`.

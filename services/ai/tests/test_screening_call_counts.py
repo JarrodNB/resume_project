@@ -19,7 +19,6 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RequestUsage
 
 from agents.gap_analysis_agent import gap_analysis_agent
-from agents.job_preference_agent import job_preference_agent
 from agents.resume_tailoring_agent import resume_tailoring_agent
 from agents.summary_generation_agent import summary_generation_agent
 from agents.user_text_fallback_agent import user_text_fallback_agent
@@ -43,7 +42,6 @@ pytestmark = pytest.mark.real_guardrail
 TAILORING_CALLS_TODAY = 1  # job, used library fields and gap answers share one batch
 GAP_ANALYSIS_CALLS_TODAY = 1  # job and library share one batch after step 5
 SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 6 starts reporting its approvals
-JOB_PREFERENCE_CALLS_TODAY = 0  # preference checks do not classify their inputs
 SECOND_RUN_LIBRARY_CALLS = 0  # approvals from run one make the library free on run two
 SECOND_RUN_TOTAL_CALLS = 1  # only the job is screened again; a re-screened summary would make it 2
 
@@ -237,30 +235,6 @@ def test_summary_generation_screens_fresh_facts(task_dependencies, classifier_ca
     assert len(approvals) == 25
     assert {approval.record_id for approval in approvals} == {source["record_id"] for source in sources}
 
-
-def test_job_preference_check_does_not_screen_criteria_or_listings(task_dependencies, classifier_calls):
-    def listing(n):
-        return {"id": str(uuid4()), "source_digest": "a" * 64, "truncated": False, "screened": False,
-                "passages": [{"id": "P1", "text": f"Listing {n} is fully remote."}]}
-
-    values = {"profile_id": str(uuid4()), "confirmed_revision": 2,
-              "criteria": [{"id": str(uuid4()), "text": f"Preference {i}", "priority": "must_have",
-                            "trusted_generated": False, "screened": False} for i in range(3)],
-              "listings": [listing(n) for n in range(3)]}
-
-    def assess(messages, info):
-        args = {f"p{i + 1}": 0.9 for i in range(3)}
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)],
-                             model_name="jev-1.13.0", usage=RequestUsage(input_tokens=100, output_tokens=5))
-
-    from dataclasses import replace
-    task_dependencies = replace(task_dependencies, read_preference_input=lambda task: task.input)
-    task = SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values)
-    with job_preference_agent.override(model=FunctionModel(assess, model_name="jev-1.13.0")):
-        result = handle_ai_task(task, task_dependencies)
-    assert result.status == "completed", result.error_message
-    assert classifier_calls.fallback == []
-    assert classifier_calls.total() == JOB_PREFERENCE_CALLS_TODAY
 
 
 def test_gap_analysis_only_screens_library_fields_tailoring_did_not_use(task_dependencies, classifier_calls):

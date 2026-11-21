@@ -8,7 +8,7 @@ import { JobBoardListingRow } from './JobBoardListingRow'
 import type { BoardListing } from './jobBoardVisit'
 
 const listing: BoardListing = {
-  id: 'listing', preferenceSourceDigest: 'digest', title: 'Engineer', company: 'Acme',
+  id: 'listing', title: 'Engineer', company: 'Acme',
   location: null, description: 'SQL Python Rust Docker AWS Python SQL Python.', applicationUrl: null,
   hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null,
 }

@@ -36,7 +36,7 @@ export const LIBRARY_ROLES = [
 ]
 
 export const LIBRARY_CONTEXT_NOTE =
-  'Career context: notes that help the writing but never print on a resume.'
+  'Plus notes that help with the writing but never show up on a resume.'
 
 export const JOB_REQUIREMENTS = [
   'Strong SQL',
@@ -74,25 +74,25 @@ export const OPEN_GAP = {
 export const RESUME_LINES = [
   {
     text: 'Built a weekly churn report in SQL so the support team could see accounts at risk.',
-    source: 'Her library: Tallow Books, churn report',
+    source: 'From her library: churn report',
   },
   {
     text: 'Ran 40 customer calls to learn why people cancelled, then wrote up the top reasons.',
-    source: 'Her library: Tallow Books, customer calls',
+    source: 'From her library: customer calls',
   },
 ]
 
 export const ANSWERED_RESUME_LINE = {
   text: 'Present the churn review to the VP of Support every quarter.',
-  source: 'Her answer to the gap question',
+  source: 'From her answer',
 }
 
 export const INTERVIEW_EXAMPLE = {
   question: 'Tell me about a time your numbers changed what a team did.',
   answer:
     'The churn report showed most cancellations came in the first month, so support moved its check-in calls earlier.',
-  goodPoint: 'Clear link from the numbers to what the team changed.',
-  improvePoint: 'Say what happened after the calls moved. If you do not know yet, say that.',
+  goodPoint: 'Clear line from the numbers to what the team changed.',
+  improvePoint: 'Say what happened after the calls moved. If you don’t know yet, say so.',
 }
 
 export type StageName = 'Saved' | 'Applied' | 'Interviewing' | 'Offer' | 'Rejected'

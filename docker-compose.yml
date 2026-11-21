@@ -9,6 +9,7 @@
 #   - ai-worker: Python SQS worker
 #   - ai-http: FastAPI app for interactive AI execution
 #   - ai-mcp: internal MCP tool server (read-only tools for AI agents)
+#   - stripe-cli: Stripe test-mode webhook forwarder (only with `--profile billing`)
 #   - web: React app (port 5173)
 #   - landing: landing page (port 5174)
 
@@ -286,6 +287,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # Local Stripe test-mode webhooks. Off by default; start with
+  # `docker compose --profile billing up stripe-cli` (see docs/testing.md, "Billing in Stripe test mode").
+  stripe-cli:
+    profiles: [billing]
+    image: stripe/stripe-cli:latest
+    # The CLI reads STRIPE_API_KEY; reuse the API's STRIPE_SECRET_KEY from services/api/.env.
+    entrypoint: ["/bin/sh", "-c", "STRIPE_API_KEY=$$STRIPE_SECRET_KEY exec stripe listen --forward-to api:3000/billing/stripe/webhook"]
+    env_file:
+      - path: ./services/api/.env
+        required: false
+    depends_on:
+      - api
 
   redis:
     image: redis:8.10.2-alpine

@@ -66,6 +66,23 @@ use Postgres and roll back their writes. Run the full AI suite without the marke
 to include those tests; database tests may skip if Postgres is unavailable. API specs
 need the Compose database. See each service's `AGENTS.md` for fixtures and local rules.
 
+## Billing in Stripe test mode
+
+Specs use an in-memory fake and never call Stripe. To try Upgrade end to end locally, use a Stripe
+account in test mode:
+
+1. In the Stripe dashboard (test mode) create a recurring monthly price and copy its `price_...` id.
+2. In `services/api/.env` set `STRIPE_SECRET_KEY` (`sk_test_...`) and `STRIPE_PRICE_ID`. Turn on Stripe Tax
+   (test mode) so automatic tax works.
+3. Start the webhook forwarder: `docker compose --profile billing up stripe-cli`. It prints a
+   `whsec_...` signing secret.
+4. Put that value in `STRIPE_WEBHOOK_SECRET` in `services/api/.env` and restart the api and jobs
+   worker (`docker compose restart api api-jobs-worker`).
+5. Sign in, open Account > Plan & billing, click Upgrade, and pay with card `4242 4242 4242 4242`
+   (any future expiry, any CVC). The page returns to `/account/billing` and switches to Paid within a few seconds.
+
+Without the keys, Upgrade shows "Billing isn't available right now."
+
 ## Resume PDF layout checks
 
 The export tests decode actual PDFs with PDF.js. Run the content and geometry checks together:

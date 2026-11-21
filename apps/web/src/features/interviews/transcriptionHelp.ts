@@ -3,7 +3,7 @@ import type { TranscriptionMode } from './transcriptionCapture'
 
 export const TRANSCRIPTION_HELP: Record<TranscriptionMode, string> = {
   browser: 'Browser recognition fills your answer while you speak using your browser’s speech service.',
-  streaming: 'Streaming transcription fills your answer while you speak using OpenAI. Try it if browser recognition is unreliable.',
+  streaming: 'Streaming transcription fills your answer while you speak using OpenAI. Pause recording to finalize the live words, then review and submit. No separate transcription step is needed unless the stream fails.',
   recorded: 'Recorded audio transcription records first. After you finish, choose Transcribe recording to fill your answer for review.',
 }
 

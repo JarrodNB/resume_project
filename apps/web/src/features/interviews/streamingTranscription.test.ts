@@ -44,6 +44,22 @@ describe('streaming transcription', () => {
     expect(setup.callbacks.text).not.toHaveBeenCalled()
   })
 
+  it('closes a malformed stream before fallback can request recorder finalization', async () => {
+    const setup = fixture()
+    const capture = startStreamingTranscription({} as MediaStream, setup.callbacks, setup.authorize, setup.dependencies)
+    await vi.waitFor(() => expect(setup.socket.onopen).toBeTypeOf('function'))
+    setup.socket.onopen!({} as Event)
+    setup.message({ type: 'ready' })
+    setup.message({ type: 'partial', text: 'Words so far' })
+    setup.callbacks.fallback.mockImplementation(() => { void capture.finish() })
+    setup.socket.onmessage!({ data: 'invalid JSON' } as MessageEvent)
+    expect(await capture.finish()).toBeNull()
+    expect(setup.callbacks.fallback).toHaveBeenCalledWith('Live transcription sent back something unexpected.')
+    expect(setup.socket.send).not.toHaveBeenCalledWith(JSON.stringify({ type: 'commit' }))
+    expect(setup.socket.close).toHaveBeenCalledOnce()
+    expect(setup.callbacks.text).toHaveBeenLastCalledWith('Words so far')
+  })
+
   it('does not open a socket after a cancelled authorization', async () => {
     const setup = fixture()
     let resolve!: (value: {captureId:string;token:string}) => void

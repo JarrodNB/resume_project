@@ -16,6 +16,7 @@ import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION, START_BILLING_PORTAL_MU
 
 const PLAN_REFETCH_INTERVAL_MS = 2000
 const PLAN_REFETCH_ATTEMPTS = 10
+const BILLING_UNAVAILABLE = "Billing isn't available right now."
 
 type Billing = BillingQuery['me']['billing']
 
@@ -50,6 +51,23 @@ function useRefetchPlanAfterCheckout(returning: boolean, plan: string | undefine
   return { waiting, gaveUp }
 }
 
+/** Runs a Stripe session mutation and sends the browser to the returned URL; otherwise reports the errors. */
+async function redirectToStripe<Data>(
+  run: () => Promise<{ data?: Data | null }>,
+  payloadOf: (data: Data | null | undefined) => { url?: string | null; errors: string[] } | null | undefined,
+  setErrors: (errors: string[]) => void,
+) {
+  setErrors([])
+  try {
+    const { data } = await run()
+    const payload = payloadOf(data)
+    if (payload?.url) window.location.href = payload.url
+    else setErrors(payload?.errors.length ? payload.errors : [BILLING_UNAVAILABLE])
+  } catch (caught) {
+    setErrors([requestErrorMessage(caught, BILLING_UNAVAILABLE)])
+  }
+}
+
 export function BillingPage() {
   const { data, loading, error, refetch } = useQuery(BILLING_QUERY)
   const [startCheckout, { loading: starting }] = useMutation(START_BILLING_CHECKOUT_MUTATION)
@@ -61,29 +79,8 @@ export function BillingPage() {
   const { waiting, gaveUp } = useRefetchPlanAfterCheckout(params.get('checkout') === 'success', plan, refetch)
   const summary = data ? planSummary(data.me.billing) : null
 
-  async function upgrade() {
-    setCheckoutErrors([])
-    try {
-      const { data: result } = await startCheckout()
-      const payload = result?.startBillingCheckout
-      if (payload?.url) window.location.href = payload.url
-      else setCheckoutErrors(payload?.errors.length ? payload.errors : ["Billing isn't available right now."])
-    } catch (caught) {
-      setCheckoutErrors([requestErrorMessage(caught, "Billing isn't available right now.")])
-    }
-  }
-
-  async function manageBilling() {
-    setPortalErrors([])
-    try {
-      const { data: result } = await startPortal()
-      const payload = result?.startBillingPortal
-      if (payload?.url) window.location.href = payload.url
-      else setPortalErrors(payload?.errors.length ? payload.errors : ["Billing isn't available right now."])
-    } catch (caught) {
-      setPortalErrors([requestErrorMessage(caught, "Billing isn't available right now.")])
-    }
-  }
+  const upgrade = () => redirectToStripe(startCheckout, (data) => data?.startBillingCheckout, setCheckoutErrors)
+  const manageBilling = () => redirectToStripe(startPortal, (data) => data?.startBillingPortal, setPortalErrors)
   return (
     <div className="account-security-page">
       <PageHeading title="Plan & billing" description="Your plan and when it changes." />

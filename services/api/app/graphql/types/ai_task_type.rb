@@ -43,7 +43,7 @@ module Types
 
     def input
       return {} if unavailable_clarification? || unavailable_references? || unavailable_study_guide? || unavailable_session_feedback?
-      (object.improve_library_entry? || object.elicit_job_preferences?) ? object.input.except("history") : object.input
+      (object.improve_library_entry? || %w[elicit_job_preferences check_job_preferences].include?(object.task_type)) ? object.input.except("history") : object.input
     end
 
     def unavailable_session_feedback?

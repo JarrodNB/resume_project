@@ -3,7 +3,6 @@
 module Types
   class JobBoardListingType < Types::BaseObject
     field :id, ID, null: false
-    field :preference_source_digest, String, null: false
     field :title, String, null: false
     field :company, String
     field :location, String
@@ -18,7 +17,6 @@ module Types
     field :is_active, Boolean
     field :saved_job, Types::JobType
 
-    def preference_source_digest = JobBoard::PreferenceListingSources.new(object).digest
     def title = object.payload.fetch("title")
     def company = object.payload.dig("company", "name")
     def location = object.payload["location"]

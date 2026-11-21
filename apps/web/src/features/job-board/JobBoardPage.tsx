@@ -15,8 +15,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { JobBoardAppliedFilters } from './JobBoardAppliedFilters'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
-import { JobPreferences } from './JobPreferences'
-import { useBoardPreferenceCheck } from './useBoardPreferenceCheck'
 import { describeSearch, type BoardSearch } from './searchFilters'
 import { parseSearchUrl, serializeSearchUrl } from './searchUrl'
 import { JobBoardPager } from './JobBoardPager'
@@ -46,7 +44,6 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
   function setKeyword(value: string) { setKeywordDraft({ entry: location.key, value }) }
   const { hideSaved, ordering, savedHere } = state
   const setOrdering = visit.setOrdering
-  const preferenceCheck = useBoardPreferenceCheck(visit)
   const reranking = useJobBoardReranking(visit)
   const skillQuery = useSkillMatches(state.snapshot.listings.length > 0)
   // Keep showing cached skills while `cache-and-network` refetches in the background.
@@ -92,7 +89,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
     document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
   }, [submittedSearch])
 
-  const orderedListings = ordering === 'preferences' ? preferenceCheck.orderedListings : ordering === 'library' ? board.listings : board.providerListings
+  const orderedListings = ordering === 'library' ? board.listings : board.providerListings
   const { page, totalPages, visibleCount, hiddenCount, pageListings } = visit.getResults(orderedListings)
   function goToPage(next: number) {
     visit.goToPage(next, orderedListings)
@@ -102,7 +99,6 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
   return (
     <div className="job-board">
       <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
-      <JobPreferences />
       {!submittedSearch && <div className="board-introduction">
         <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
         <div className="board-search-ideas" aria-label="Search ideas">
@@ -123,24 +119,12 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
       </div>}
       {board.providerListings.length > 0 && <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" disabled={board.loading || preferenceCheck.busy || preferenceCheck.completed || preferenceCheck.limitReached} onClick={() => { void preferenceCheck.check(); setOrdering('preferences') }}>Check against my preferences</Button>
           <Label htmlFor="job-board-result-order">Result order</Label>
           <select id="job-board-result-order" className="rounded border bg-background px-3 py-2 text-sm" value={ordering} onChange={(event) => setOrdering(event.target.value as typeof ordering)}>
             <option value="provider">Search order</option>
             <option value="library" disabled={!reranking.ranked}>Career-library relevance</option>
-            <option value="preferences" disabled={!preferenceCheck.completed}>Preference fit</option>
           </select>
         </div>
-        <p className="text-sm text-muted-foreground">Fit percentages are independent model estimates from the posting, not verified facts. Preference order uses the must-have average, then the nice-to-have average.</p>
-        {preferenceCheck.busy && <p role="status">Checking loaded roles against your preferences…</p>}
-        {preferenceCheck.completed && <p role="status">Loaded roles checked against your confirmed preferences.</p>}
-        {preferenceCheck.stale && <p role="status">These results or confirmed preferences changed. Check against my preferences again for a current assessment.</p>}
-        {preferenceCheck.limitReached && <p role="status">Preference checks support up to 100 loaded roles. Narrow your search before checking.</p>}
-        {preferenceCheck.disconnected && <div className="grid gap-3">
-          <p role="status">Preference check updates disconnected. Reconnect to recover the result.</p>
-          <Button type="button" variant="outline" className="justify-self-start" onClick={preferenceCheck.reconnect}>Reconnect preference updates</Button>
-        </div>}
-        <ErrorAlert title="Couldn't check preferences" messages={preferenceCheck.error ? [preferenceCheck.error] : []} />
       </div>}
       {submittedSearch && <JobBoardAppliedFilters search={submittedSearch} onSearch={submitSearch} />}
       {board.loading && <div role="status" className="board-loading"><span>Loading jobs…</span>
@@ -171,7 +155,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
           : !skills?.length ? <p><Link to="/library">Add skills to your career library</Link> to see skill mentions.</p> : null}
       </div>}
       {visibleCount > 0 && <ul aria-label="Job listings" className="board-listings">
-        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} skills={skills} skillsMessage={skillsMessage} assessment={preferenceCheck.assessments?.has(listing.id) && preferenceCheck.profile ? { ...preferenceCheck.assessments.get(listing.id)!, profile: preferenceCheck.profile } : undefined} busyId={state.busyId} errors={state.importErrors} savedHere={savedHere[listing.id]} onCreate={(id) => void visit.save(id)} />)}
+        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} skills={skills} skillsMessage={skillsMessage} busyId={state.busyId} errors={state.importErrors} savedHere={savedHere[listing.id]} onCreate={(id) => void visit.save(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {(totalPages > 1 || board.nextCursor) && <JobBoardPager page={page} totalPages={totalPages} hasMore={Boolean(board.nextCursor)} loading={board.loading} onPage={goToPage} />}

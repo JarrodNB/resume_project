@@ -6,8 +6,6 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 ## Contents
 
-- `job_preference_handler.py` — one current 1–100-listing preference batch hydrated from owned database references, no injection classification, task-wide request/token/envelope caps, up to four JEV runs concurrently, and compact exact evidence; no database writes.
-
 - `result_delivery.py` owns queue publication and safe production failure diagnostics.
   It forwards delivery outcomes to the optional local transcript hook.
 

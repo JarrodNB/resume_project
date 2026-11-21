@@ -65,7 +65,7 @@ need account-level paid checks; no silent replacement is permitted.
 
 The real browser-QA overlay explicitly sets `INTERVIEW_LOCAL_TESTING_UNMETERED=true`.
 Only Rails development honors it. This mode skips unknown-cost and cumulative US$5
-verification admission gates, plus interview monthly/hourly allowance gates. It retains
+verification admission gates, plus the plan, daily-cap and interview hourly allowance gates. It retains
 the original ledger, preregistered provider identities, pricing allowlist, all estimates,
 actual reconciliation, owner scoping, lease fences and resource/attempt limits. General AI
 allowances and non-development admission are unchanged. The launcher honors the same mode;

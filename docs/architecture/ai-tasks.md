@@ -375,8 +375,8 @@ The worker retries through SQS redelivery instead of in-process loops:
   Rails-owned durable operations. It does not change existing queue contracts.
 
 - **AI tasks outlive their job.** `Job has_many :ai_tasks, dependent: :nullify`: deleting a job
-  clears the tasks' subject but keeps them, so their cost still counts toward the monthly
-  budget.
+  clears the tasks' subject but keeps them, so their cost still counts toward the user's daily
+  spend cap.
 
 - **Uploads go to S3; only the key goes over SQS.** SQS messages are capped at 256 KB, so
   Rails stores uploads with Active Storage (S3 service) and the worker downloads them by blob

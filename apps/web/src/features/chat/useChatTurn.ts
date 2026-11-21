@@ -25,7 +25,8 @@ const failureMessages: Record<string, string> = {
   execution_timeout: 'The reply took too long. You can try again.',
   lease_expired: 'The reply was interrupted. You can try again.',
   dependency_unavailable: 'The AI service is unavailable. Try again shortly.',
-  ai_usage_limit_reached: 'Your AI usage limit has been reached. Try again after it resets.',
+  ai_usage_limit_reached: "You've reached today's usage limit. Try again tomorrow.",
+  plan_ended: 'Your free trial has ended. Subscribe to keep using AI features.',
 }
 export const chatFailureMessage = (code: string | null) => failureMessages[code ?? ''] ?? 'Careerdrafter could not finish the reply. You can try again.'
 

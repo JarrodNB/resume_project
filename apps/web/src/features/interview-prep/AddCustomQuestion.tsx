@@ -25,8 +25,8 @@ export function AddCustomQuestion() {
     }}>
       <p>Bring a question you want to practice. You can add an answer now or write it later.</p>
       <fieldset disabled={creation.loading} className="grid gap-4">
-        <legend>Question type</legend>
-        <div className="view-switch flex-wrap" role="group" aria-label="Custom question type">
+        <legend className="mb-2 text-sm font-semibold">Question type</legend>
+        <div className="view-switch question-type-switch" role="group" aria-label="Custom question type">
           {TYPES.map((value) => <button key={value} type="button" aria-pressed={type === value} onClick={() => setType(value)}>{interviewSetTypeLabel(value)}</button>)}
         </div>
         <div><Label htmlFor="custom-question">Question</Label><Textarea id="custom-question" required maxLength={2000} value={question} onChange={(event) => setQuestion(event.target.value)} /></div>

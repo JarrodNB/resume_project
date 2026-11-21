@@ -42,21 +42,21 @@ export function QuestionRehearsal({ questions, onReturn }: { questions: BankQues
     }
   }
 
-  if (!question) return <section className="space-y-4" aria-label="Question rehearsal">
-    <h2 ref={heading} tabIndex={-1} className="break-words text-xl font-semibold">No answers to practice</h2>
+  if (!question) return <section className="question-card question-rehearsal" aria-label="Question rehearsal">
+    <h2 ref={heading} tabIndex={-1} className="question-card-title">No answers to practice</h2>
     <p>No saved answers match these filters. Save an answer or change your filters to practice.</p>
     <Button variant="outline" onClick={onReturn}>Return to question bank</Button>
   </section>
 
-  return <section className="space-y-4" aria-label="Question rehearsal" onKeyDown={navigate}>
+  return <section className="question-card question-rehearsal" aria-label="Question rehearsal" onKeyDown={navigate}>
     <Button variant="outline" onClick={onReturn}>Return to question bank</Button>
     <p className="text-sm text-muted-foreground">Recall your saved answer, then reveal it to check. Use Left and Right arrow keys to move.</p>
-    <p role="status">Question {index + 1} of {order.length}</p>
-    <h2 ref={heading} tabIndex={-1} className="break-words text-xl font-semibold">{question.questionText}</h2>
-    {question.memoryAnchor.trim() && <p className="whitespace-pre-wrap break-words"><strong>Memory anchor:</strong> {question.memoryAnchor}</p>}
+    <p className="question-rehearsal-position" role="status">Question {index + 1} of {order.length}</p>
+    <h2 ref={heading} tabIndex={-1} className="question-card-title">{question.questionText}</h2>
+    {question.memoryAnchor.trim() && <p className="question-rehearsal-anchor whitespace-pre-wrap break-words"><strong>Memory anchor:</strong> {question.memoryAnchor}</p>}
     <Button aria-expanded={revealed} onClick={() => setRevealed(!revealed)}>{revealed ? 'Hide answer' : 'Reveal answer'}</Button>
-    {revealed && <p className="whitespace-pre-wrap break-words">{question.answerText}</p>}
-    <div className="flex flex-wrap gap-2">
+    {revealed && <p className="question-rehearsal-answer whitespace-pre-wrap break-words">{question.answerText}</p>}
+    <div className="question-rehearsal-actions flex flex-wrap gap-2">
       <Button variant="outline" disabled={index === 0} onClick={() => move(index - 1)}>Previous</Button>
       <Button variant="outline" disabled={index === order.length - 1} onClick={() => move(index + 1)}>Next</Button>
       <Button variant="outline" disabled={shuffled && index < order.length - 1} onClick={shuffle}>Shuffle</Button>

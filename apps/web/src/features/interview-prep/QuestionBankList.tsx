@@ -53,8 +53,10 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
 
   return <section className="question-bank" aria-labelledby="question-bank-heading">
     <div className="question-bank-toolbar">
-      <h2 id="question-bank-heading">Your questions</h2>
-      <Button ref={practiceButton} onClick={() => setRehearsal(visible.map(({ question }) => question).filter((question) => !question.retiredAt && question.answerText.trim()))}>Practice</Button>
+      <div className="flex flex-wrap items-center gap-4">
+        <h2 id="question-bank-heading">Your questions</h2>
+        <Button ref={practiceButton} onClick={() => setRehearsal(visible.map(({ question }) => question).filter((question) => !question.retiredAt && question.answerText.trim()))}>Practice</Button>
+      </div>
       <div className="question-bank-search">
         <label className="sr-only" htmlFor="question-bank-type">Filter by type</label>
         <select id="question-bank-type" className="question-bank-select" value={setType} onChange={(event) => setSetType(event.target.value as InterviewQuestionSetTypeEnum | 'ALL')}>

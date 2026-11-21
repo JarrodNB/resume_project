@@ -45,7 +45,7 @@ export function GenerateQuestionSet() {
       <p>Five questions built from your career library. Saved questions stay the same when your library changes.</p>
     </div>
     <div className="question-generate-controls">
-      <div className="view-switch flex-wrap" role="group" aria-label="Question type">
+      <div className="view-switch question-type-switch" role="group" aria-label="Question type">
         {SET_TYPES.map((type) => <button key={type} type="button" aria-pressed={setType === type} disabled={generation.loading} onClick={() => setSetType(type)}>{interviewSetTypeLabel(type)}</button>)}
       </div>
       <Button size="lg" disabled={generation.loading || !hasCareerContext} onClick={() => void generate()}>{generation.loading ? 'Starting…' : 'Get 5 questions'}</Button>

@@ -1,5 +1,5 @@
 /** The five stops of the landing page’s worked example, from a saved history to an interview.
- * Each one shows a made-up person, Maya, using that part of Careerdrafter. The opening preview, gaps and resume
+ * Each one shows a made-up person, Maya, using that part of Careerdrafter. The gaps and resume
  * stops share one small piece of state: answering her gap puts a new line on her resume. The
  * page is static, so that is a scripted demo and no AI runs here.
  */
@@ -23,14 +23,14 @@ export function LibraryStop() {
   return (
     <section id="library" className="stop stop-library" aria-labelledby="library-title">
       <div className="stop-copy">
-        <h2 id="library-title">Build your career library once.</h2>
+        <h2 id="library-title">Tell it your story once.</h2>
         <p>
-          Import a PDF or Word resume and review it, or add your experience yourself. Save it in
-          your career library to reuse for each application.
+          Upload the resume you already have, or type it in. Careerdrafter saves your jobs and what
+          you did in each one, so you never start from a blank page again.
         </p>
       </div>
       <figure className="library-line">
-        <figcaption>{PERSON_NAME}’s library. She is made up, for this example.</figcaption>
+        <figcaption>Meet {PERSON_NAME}. She’s a made-up example, and this is her library.</figcaption>
         <ol>
           {LIBRARY_ROLES.map((role) => (
             <li key={role.title} className="library-role" data-current={role.current || undefined}>
@@ -56,18 +56,18 @@ export function LibraryStop() {
 export function JobStop() {
   return (
     <section id="job" className="stop stop-job" aria-labelledby="job-title">
-      <h2 id="job-title">Tailor your resume to one job you want.</h2>
+      <h2 id="job-title">Pick a job worth the effort.</h2>
       <p className="job-lede">
-        Save a posting from its link, or paste it in. Careerdrafter pulls out what the job is asking
-        for, and you can fix anything it got wrong.
+        Paste the link to a job posting. Careerdrafter picks out what they’re asking for. If it gets
+        something wrong, you fix it.
       </p>
       <figure className="job-figure">
         <p className="job-url">
-          <span>Posting link</span>
+          <span>Job link</span>
           <span className="job-url-value">{JOB_POSTING_URL}</span>
         </p>
         <figcaption>
-          {TARGET_JOB.title} at {TARGET_JOB.company}, a made-up job. It asks for:
+          {TARGET_JOB.title} at {TARGET_JOB.company} wants:
         </figcaption>
         <ul className="job-requirements">
           {JOB_REQUIREMENTS.map((requirement) => (
@@ -94,19 +94,19 @@ export function GapsStop({ gapAnswered, onToggleGapAnswer }: GapsStopProps) {
   return (
     <section id="gaps" className="stop stop-gaps" aria-labelledby="gaps-title">
       <div className="stop-copy-wide">
-        <h2 id="gaps-title">Find the gaps before you apply.</h2>
+        <h2 id="gaps-title">Spot the gaps before they do.</h2>
         <p>
-          Careerdrafter compares your library with the job, line by line. Where it finds nothing, it
-          says so and asks you. It doesn’t make something up to close the gap.
+          Careerdrafter checks the job against your experience, one requirement at a time. Where you
+          come up short, it asks you about it instead of filling the hole with something made up.
         </p>
       </div>
       <figure className="gap-board">
         <figcaption className="sr-only">
-          {PERSON_NAME}’s record compared with what the job asks for. Made-up example.
+          What the job wants next to what {PERSON_NAME} has done.
         </figcaption>
         <div className="gap-row gap-row-head" aria-hidden>
-          <span>The job asks for</span>
-          <span>{PERSON_NAME}’s record</span>
+          <span>The job wants</span>
+          <span>What {PERSON_NAME} has</span>
           <span />
         </div>
         {GAP_ROWS.map((row) => (
@@ -119,7 +119,7 @@ export function GapsStop({ gapAnswered, onToggleGapAnswer }: GapsStopProps) {
         <div id="open-gap" className="gap-open" data-answered={gapAnswered || undefined}>
           <div className="gap-row">
             <strong>{OPEN_GAP.requirement}</strong>
-            <span>{gapAnswered ? `Her answer: “${OPEN_GAP.answer}”` : 'Nothing in her library yet'}</span>
+            <span>{gapAnswered ? `Her answer: “${OPEN_GAP.answer}”` : 'Nothing yet'}</span>
             <VerdictBadge verdict={gapAnswered ? 'met' : 'missing'} />
           </div>
           {!gapAnswered && (
@@ -139,7 +139,7 @@ export function GapsStop({ gapAnswered, onToggleGapAnswer }: GapsStopProps) {
               aria-controls="open-gap resume-gap-line"
               onClick={onToggleGapAnswer}
             >
-              {gapAnswered ? 'Take the answer back' : 'Answer as Maya'}
+              {gapAnswered ? 'Undo' : 'Answer as Maya'}
             </button>
           </div>
         </div>
@@ -166,13 +166,13 @@ export function ResumeStop({ gapAnswered }: { gapAnswered: boolean }) {
   return (
     <section id="resume" className="stop stop-resume" aria-labelledby="resume-title">
       <div className="stop-copy-wide">
-        <h2 id="resume-title">A resume where every line comes from your record.</h2>
+        <h2 id="resume-title">A resume you can stand behind.</h2>
         <p>
-          Review a draft drawn from your library and answers. Edit the wording, then export a PDF.
+          Every line traces back to something you told it. Change any of it, then download a PDF.
         </p>
       </div>
       <figure className="resume-figure">
-        <figcaption>{PERSON_NAME}’s draft. Our notes show where each line came from.</figcaption>
+        <figcaption>{PERSON_NAME}’s draft, and where each line came from.</figcaption>
         <div className="resume-sheet-head">
           <span className="resume-name">{PERSON_NAME}</span>
           <span className="resume-for">For {TARGET_JOB.title}, {TARGET_JOB.company}</span>
@@ -186,17 +186,17 @@ export function ResumeStop({ gapAnswered }: { gapAnswered: boolean }) {
             <ResumeRow id="resume-gap-line" {...ANSWERED_RESUME_LINE} />
           ) : (
             <li id="resume-gap-line" className="resume-row resume-row-empty">
-              <p className="resume-source"><span className="resume-source-stop" aria-hidden />No record of this yet</p>
+              <p className="resume-source"><span className="resume-source-stop" aria-hidden />Nothing to go on yet</p>
               <p className="resume-line">
-                <span>Presenting to senior leaders stays off her resume until she answers.</span>
-                <a className="text-link" href="#open-gap">Answer the gap</a>
+                <span>Nothing about presenting to leaders until she answers.</span>
+                <a className="text-link" href="#open-gap">Answer for her</a>
               </p>
             </li>
           )}
         </ul>
         <div className="resume-sheet-foot" aria-hidden />
       </figure>
-      <a className="button button-inverse button-huge resume-cta" href={SIGN_UP_URL}>Sign up and write yours</a>
+      <a className="button button-inverse button-huge resume-cta" href={SIGN_UP_URL}>Start your first resume</a>
     </section>
   )
 }
@@ -205,14 +205,14 @@ export function InterviewStop() {
   return (
     <section id="interview" className="stop stop-interview" aria-labelledby="interview-title">
       <div className="stop-copy">
-        <h2 id="interview-title">Practice interview questions with AI feedback.</h2>
+        <h2 id="interview-title">Walk into the interview ready.</h2>
         <p>
-          Practice questions for this job and get feedback on your answers. Try a mock interview
-          with an AI interviewer, using voice or typing. Questions draw on the job and your library.
+          Practice the questions this job is likely to ask, typed or out loud with an AI
+          interviewer. You get honest notes on what landed and what to tighten up.
         </p>
       </div>
       <figure className="question-card">
-        <figcaption className="sr-only">Made-up practice question with feedback.</figcaption>
+        <figcaption className="sr-only">A practice question with feedback.</figcaption>
         <p className="question-text">{INTERVIEW_EXAMPLE.question}</p>
         <div className="question-answer">
           <h3>Maya’s answer</h3>
@@ -221,11 +221,11 @@ export function InterviewStop() {
         <div className="question-feedback">
           <h3>Feedback</h3>
           <p>
-            <span className="verdict" data-verdict="met">Looks good</span>
+            <span className="verdict" data-verdict="met">Works</span>
             {INTERVIEW_EXAMPLE.goodPoint}
           </p>
           <p>
-            <span className="verdict" data-verdict="partial">Could improve</span>
+            <span className="verdict" data-verdict="partial">Tighten up</span>
             {INTERVIEW_EXAMPLE.improvePoint}
           </p>
         </div>

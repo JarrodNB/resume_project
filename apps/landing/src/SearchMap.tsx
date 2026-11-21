@@ -8,7 +8,8 @@ export function SearchMap() {
   return (
     <section id="map" className="stop stop-map" aria-labelledby="map-title">
       <div className="map-heading">
-        <h2 id="map-title">Then see your whole job search at once.</h2>
+        <h2 id="map-title">Every application, one screen.</h2>
+        <p className="map-caption">See where each job stands and what needs you next.</p>
         <ul className="map-legend" aria-label="What the colors mean">
           {SIGNAL_LEGEND.map(({ signal, label }) => (
             <li key={signal}>
@@ -18,14 +19,12 @@ export function SearchMap() {
           ))}
         </ul>
       </div>
-      <p className="map-caption">Maya’s search again. Every job and company here is made up.</p>
       <ol className="map-board" aria-label="Example job search, with made-up jobs">
         {MAP_STATIONS.map((station) => (
           <li key={station.name} className="map-column" data-station={station.name}>
             <div className="map-station">
               <span className="map-bullet">{station.jobs.length}</span>
               <h3>{station.name}</h3>
-              {station.name === 'Rejected' && <span className="map-branch">Branch line</span>}
             </div>
             <ul className="map-jobs">
               {station.jobs.map((job) => (

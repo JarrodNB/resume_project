@@ -15,6 +15,9 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
   the browser hydrates it. Keep browser-only code (`window`, `document`) inside effects so
   server rendering keeps working.
 - Keep it fast and simple.
+- Content sits in a centered column (`--content-width` in `index.css`); only backgrounds run full width.
+- Write copy like a marketer talking to a job seeker: short, concrete, no hedging. Say “made up” once
+  where Maya first appears and once in the footer, not in every caption.
 - Follow the root documentation rules; use JSDoc for public contracts and non-obvious behavior.
 
 ## Local Design Rules
@@ -27,7 +30,6 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 ## Contents
 
 - `src/App.tsx` — page order, band, opening, limits and closing sections
-- `src/ExamplePreview.tsx` — opening scripted proof, sharing the walkthrough’s answer state
 - `src/LineStrip.tsx` — pinned line of stops that follows the scroll
 - `src/RideStops.tsx` — the five worked-example stops
 - `src/SearchMap.tsx` — the whole search as a map, like the app's Home

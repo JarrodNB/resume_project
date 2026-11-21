@@ -25,6 +25,7 @@ module Screening
     # Types are processed in this order (task-bound types first, then the career library),
     # which keeps the lock order the older recorders used.
     RECORD_TYPES = {
+      "avoided_interview_question" => { model: AvoidedInterviewQuestion, scope: :avoided_interview_question_scope },
       "interview_question" => { model: InterviewQuestion,
                                 scope: :interview_question_scope, check: :interview_revision_matches? },
       "job" => { model: Job, scope: :job_scope },
@@ -171,9 +172,31 @@ module Screening
       { records: job.gap_responses, snapshots: snapshots }
     end
 
-    # Only the task’s owned question and selected generation siblings can receive receipts.
+    # Preferences are immutable owned wording read by written workflows, never arbitrary receipts.
+    def avoided_interview_question_scope(_record_type)
+      return unless task_for_user? && @ai_task.input["source_version"] == 1 &&
+        %w[generate_interview_questions regenerate_interview_question].include?(@ai_task.task_type)
+
+      { records: @user.avoided_interview_questions }
+    end
+
+    # History receipts use the same bounded owned selection as the worker reader.
+    def interview_question_history_scope
+      set = @user.interview_question_sets.find_by(id: @ai_task.subject_id)
+      return unless @ai_task.subject_type == "InterviewQuestionSet" && set &&
+        set.id == @ai_task.input["question_set_id"] && set.set_type == @ai_task.input["set_type"] && set.generated?
+
+      records = InterviewQuestion.active.joins(:interview_question_set)
+        .where(interview_question_sets: { user_id: @user.id, set_type: set.set_type })
+        .order(Arel.sql("interview_question_sets.created_at DESC, interview_question_sets.id DESC, interview_questions.position, interview_questions.id")).limit(20)
+      { records: InterviewQuestion.where(id: records.pluck(:id)), history: true }
+    end
+
+    # Only the task’s owned target, selected siblings or bounded history can receive receipts.
     def interview_question_scope(_record_type)
-      return unless task_for_user? && @ai_task.subject_type == "InterviewQuestion" &&
+      return unless task_for_user? && @ai_task.input["source_version"] == 1
+      return interview_question_history_scope if @ai_task.generate_interview_questions?
+      return unless @ai_task.subject_type == "InterviewQuestion" &&
         %w[review_interview_answer regenerate_interview_question].include?(@ai_task.task_type)
 
       input = @ai_task.input
@@ -183,7 +206,6 @@ module Screening
       target = set.questions.find_by(id: @ai_task.subject_id)
       return unless target && target.id == input["question_id"]
 
-      return unless input["source_version"] == 1
       if @ai_task.review_interview_answer?
         return { records: set.questions.where(id: target.id),
           revisions: { target.id => input.slice("question_revision", "answer_revision") }, target_id: target.id }
@@ -204,6 +226,9 @@ module Screening
     # the reviewed question itself, during answer review, at its exact answer revision.
     def interview_revision_matches?(scope:, record:, snapshot:, receipt:, field:)
       revision = receipt["revision"] || {}
+      if scope[:history]
+        return field == "question_text" && revision["question_revision"] == record.question_revision
+      end
       snapshot ||= scope.fetch(:revisions, {})[record.id]
       return false unless snapshot
 

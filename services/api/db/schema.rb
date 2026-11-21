@@ -190,9 +190,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_020000) do
     t.string "text_digest", limit: 64, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "origin", default: "generated", null: false
+    t.jsonb "screened_fields", default: [], null: false
     t.index ["user_id", "text_digest"], name: "index_avoided_interview_questions_on_user_id_and_text_digest", unique: true
     t.index ["user_id"], name: "index_avoided_interview_questions_on_user_id"
     t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
+    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying, 'manual'::character varying]::text[])", name: "avoided_interview_questions_origin_check"
   end
 
   create_table "career_contexts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -432,10 +435,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "set_type", default: "fit_motivation", null: false
+    t.string "origin", default: "generated", null: false
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "set_type::text = ANY (ARRAY['fit_motivation'::character varying, 'behavioral'::character varying, 'hypothetical'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying, 'manual'::character varying]::text[])", name: "interview_question_sets_origin_check"
+    t.check_constraint "set_type::text = ANY (ARRAY['fit_motivation'::character varying::text, 'behavioral'::character varying::text, 'hypothetical'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

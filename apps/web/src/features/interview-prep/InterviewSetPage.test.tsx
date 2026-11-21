@@ -17,7 +17,7 @@ function taskFixture(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
 /** Builds the detail response, intentionally returning questions in reverse order. */
 function setMock(status: 'QUEUED' | 'COMPLETED' | 'FAILED', answered: number[] = []) {
   return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 'set-1' } }, result: { data: { interviewQuestionSet: {
-    __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-11T00:00:00Z', latestTask: taskFixture(status),
+    __typename: 'InterviewQuestionSet', origin: 'generated', id: 'set-1', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-11T00:00:00Z', latestTask: taskFixture(status),
     questions: status === 'COMPLETED' ? [5, 4, 3, 2, 1].map((position) => ({ __typename: 'InterviewQuestion', id: `question-${position}`, avoided: false, position, questionText: `Saved question text ${position}`, memoryAnchor: '', answerText: answered.includes(position) ? `Answer ${position}` : '', answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null, feedback: {}, feedbackOutdated: false, latestTask: null })) : [],
   } } } }
 }
@@ -120,4 +120,18 @@ it('keeps the answer available and lets deletion retry after server failure', as
   expect(await screen.findByText('Please try again.')).toBeVisible()
   await user.click(screen.getByRole('button', { name: 'Delete question' }))
   expect(await screen.findByText('Question bank')).toBeVisible()
+})
+
+it('shows manual question answer actions and omits replacement', async () => {
+  const mock = setMock('COMPLETED')
+  mock.result.data.interviewQuestionSet.origin = 'manual'
+  mock.result.data.interviewQuestionSet.latestTask = null as never
+  mock.result.data.interviewQuestionSet.questions = mock.result.data.interviewQuestionSet.questions.slice(0, 1)
+  render('/practice/questions/set-1/question-5', [mock])
+  expect(await screen.findByRole('textbox', { name: 'Your answer' })).toBeVisible()
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: 'Question actions' }))
+  expect(screen.queryByRole('menuitem', { name: 'Replace question' })).not.toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: "Don't show this again" })).toBeVisible()
+  expect(screen.getByRole('menuitem', { name: 'Delete question' })).toBeVisible()
 })

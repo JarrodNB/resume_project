@@ -74,6 +74,7 @@ module InterviewPrep
         return unless record.interview_question_set.questions.count == 5
       end
       question_set = record.is_a?(InterviewQuestionSet) ? record : record.interview_question_set
+      return unless question_set.generated?
       return unless question_set.set_type == @task.input["set_type"]
 
       record

@@ -25,7 +25,7 @@ export const INTERVIEW_SETS_QUERY = graphql(`
 export const INTERVIEW_SET_QUERY = graphql(`
   query InterviewSet($id: ID!) {
     interviewQuestionSet(id: $id) {
-      id number setType createdAt
+      id number setType origin createdAt
       latestTask { id status errorMessage result }
       questions { id avoided position questionText answerText memoryAnchor answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
     }
@@ -79,5 +79,13 @@ export const AVOID_INTERVIEW_QUESTION = graphql(`
 export const DELETE_INTERVIEW_QUESTION = graphql(`
   mutation DeleteInterviewQuestion($questionSetId: ID!, $questionId: ID!) {
     deleteInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId }) { errors }
+  }
+`)
+
+export const CREATE_CUSTOM_INTERVIEW_QUESTION = graphql(`
+  mutation CreateCustomInterviewQuestion($setType: InterviewQuestionSetTypeEnum!, $questionText: String!, $answerText: String!) {
+    createCustomInterviewQuestion(input: { setType: $setType, questionText: $questionText, answerText: $answerText }) {
+      errors questionSet { id }
+    }
   }
 `)

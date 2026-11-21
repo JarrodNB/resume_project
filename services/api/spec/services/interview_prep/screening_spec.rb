@@ -184,4 +184,18 @@ RSpec.describe "Saved practice screening" do
       expect(Screening::RecordApprovalsService.field_fingerprint(vector["value"])).to eq(vector["sha256"])
     end
   end
+  it "records bounded same-type manual history and immutable avoided preferences, excluding foreign or unrelated records" do
+    history = user.interview_question_sets.create!(number: 2, set_type: question_set.set_type, origin: "manual").questions.create!(position: 1, question_text: "Manual question?")
+    other = user.interview_question_sets.create!(number: 3, set_type: "knowledge", origin: "manual").questions.create!(position: 1, question_text: "Other type?")
+    avoided = user.avoided_interview_questions.create!(question_text: "Avoid manual?", origin: "manual", text_digest: "digest")
+    foreign = create(:user).avoided_interview_questions.create!(question_text: "Foreign?", origin: "manual", text_digest: "digest")
+    generation = create(:ai_task, user: user, subject: question_set, task_type: "generate_interview_questions", input: { "source_version" => 1, "question_set_id" => question_set.id, "set_type" => question_set.set_type })
+    receipts = [avoided, foreign].map { |record| { "record_type" => "avoided_interview_question", "record_id" => record.id, "fingerprints" => { "question_text" => Screening::RecordApprovalsService.field_fingerprint(record.question_text) } } }
+    apply([report(history), report(other)] + receipts, target: generation)
+    expect(history.reload.screened_fields).to eq(["question_text"])
+    expect(other.reload.screened_fields).to be_empty
+    expect(avoided.reload.screened_fields).to eq(["question_text"])
+    expect(foreign.reload.screened_fields).to be_empty
+  end
+
 end

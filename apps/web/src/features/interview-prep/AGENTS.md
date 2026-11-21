@@ -12,6 +12,7 @@ Written interview practice (the Practice section's Questions tab): the question 
 - `questionProgress.ts` — the shared progress steps, labels, and bank filter groups, derived from saved state.
 - `QuestionProgressMark.tsx` — the stop/signal mark for a progress step.
 - `InterviewPrepPage.tsx` — the bank page: generation, pending requests, bank list, and replaced answers.
+- `AddCustomQuestion.tsx` — typed candidate question creation with an optional answer and no library prerequisite.
 - `GenerateQuestionSet.tsx` — type switch, generation, and the empty-library prompt.
 - `QuestionBankList.tsx` — progress/type filters, cue-aware search, question rows, confirmed deletion, and the shared selection for rehearsal.
 - `QuestionRehearsal.tsx` — local recall of filtered saved answers, optional cues, reveal/hide, navigation, shuffle passes, and editor links.

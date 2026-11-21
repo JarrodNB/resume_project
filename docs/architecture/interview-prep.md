@@ -19,9 +19,9 @@ sets of the requested type, ordered by set creation time and ID descending, then
 position and question ID ascending. This bounded history is prompt-only guidance to
 prefer fresh focuses. Familiar themes may recur as practice. Historical overlap never adds a rejection or retry.
 The history is separate from hard avoidance preferences and replacement exclusions;
-it is neither career evidence nor proof of personal facts. Only Rails-owned generated
-slots supply history, never browser text, answers, or feedback, so the worker reuses
-trusted-generated-source coverage without screening those questions again. Written commands require version 1 and explicit type; copied source commands are unsupported.
+it is neither career evidence nor proof of personal facts. Owned active slots supply history, including custom questions, never answers or feedback.
+Immutable set origin determines coverage: generated wording remains trusted; manual wording
+is screened or reuses its exact recorded approval. Written commands require version 1 and explicit type; copied source commands are unsupported.
 
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
@@ -189,8 +189,12 @@ and accounting private.
 Unversioned commands and copied source snapshots are unsupported. Stale or deleted sources
 fail before generation. All written producers and consumers use the same reference-only contract.
 
-Saved question slots and avoidance preferences are generated question text, so the handler
-uses trusted-generated-source coverage rather than classifying them again. It renders
+Saved question sets have immutable generated/manual origin. Independent avoidance records
+copy that origin and exact question approval when saved, surviving source deletion. Generated
+wording uses trusted-generated-source coverage; manual wording is screened before feedback,
+history, exclusions, or avoided-preference model use. Receipts approve only matching current
+owned values and revisions. Spoken preparation also checks unapproved manual avoidance
+preferences through its existing operation-accounted classifier path. It renders
 readable delimited exclusions separately from career evidence, preserves contact masking,
 and fails explicitly if combined library/preferences exceed the prompt limit. Both the
 model validator and Rails result consumer reject exact excluded wording; Rails rechecks
@@ -217,7 +221,7 @@ categories while choosing different concrete focuses within them.
   stay fixed when career details change; new generation uses the current library. Repeated generation adds to a unified question bank. Sets remain an internal storage and
   execution boundary; the UI opens individual questions without set numbers, batch navigation,
   or batch deletion. Empty generation requests retain live status and confirmed dismissal. Only answered questions
-  that were replaced are kept, as retired copies. Each set has five distinct English questions within its selected scope;
+  that were replaced are kept, as retired copies. Each generated set has five distinct English questions within its selected scope;
   job-specific generation remains future work.
 
 - **Interview feedback coaches the user's answer.** It never fills or replaces the answer
@@ -261,3 +265,14 @@ categories while choosing different concrete focuses within them.
   promotion, or AI-reader grant. Temporary errors retry; missing configuration logs and skips.
   These independent Rails calls incur provider costs outside AI-task budgets/attempt reports
   and Logfire tracing, like library syncs; feedback tasks do not absorb their costs.
+
+
+## Custom questions
+
+`createCustomInterviewQuestion` saves a required type and 1–2,000-character question, plus an
+optional answer under the existing 2,000-character cap. Under the owner lock it allocates
+numbers after current sets and retained generation-task numbers and atomically creates one
+manual set with one active position-1 question. Creation needs no library, allowance, AI task,
+screening, or embedding job. Subsequent answer saves and feedback retain normal behavior.
+Manual sets cannot be replaced: enqueue and result application reject them, and the UI omits
+replacement. Save, feedback, avoidance, deletion and filtering use the same bank interfaces.

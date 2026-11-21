@@ -33,6 +33,9 @@ module InterviewPrep
     # Rechecks state under the owner lock before persisting reference commands.
     def prepare_task(task)
       @question.reload
+      if @task_type == "regenerate_interview_question" && @question.interview_question_set.manual?
+        return failure([ "Custom questions cannot be replaced." ])
+      end
       if @question.ai_tasks.where(task_type: TASK_TYPES, status: "queued").exists?
         return failure([ "An AI operation is already running for this question." ])
       end

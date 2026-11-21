@@ -6,7 +6,8 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 
 ## Contents
 
-- `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks, using only set identity/type/number. Python reads up to 20 recent same-type generated questions as soft variety guidance.
+- `create_custom_question_service.rb` — atomically saves one typed manual question without AI or library prerequisites. Manual replacement is rejected at enqueue and application.
+- `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks, using only set identity/type/number. Python reads up to 20 recent same-type active questions with durable origin as soft variety guidance.
 - `record_screening_service.rb` — delegates exact owned target/sibling receipt reports and
   records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when text changes.
@@ -38,11 +39,11 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 
 - Saved `screened_fields` can contain checks for `question_text`/`answer_text`. The worker
   screens user-written answers and trusts Rails-owned generated question text when reused,
-  including during feedback and regeneration. Answer checks depend on both revisions; actual
+  including during feedback and regeneration. Immutable manual origin instead requires screening before model use; exact saved approvals may be reused. Answer checks depend on both revisions; actual
   answer edits clear them. Successful replacement clears checks for both fields.
 - Generation/replacement/feedback commands carry only IDs, type/number, target/peer revisions
   and (for feedback) a normalized answer digest.
-  Python reads saved generated sources and preferences directly. Replacement
+  Python reads saved sources and preferences with durable origin directly. Replacement
   commands use references only. The shared recorder accepts
   receipts only for selected owned IDs with current fingerprints/revisions; answers are
   never approved by replacement tasks. Feedback reads the owned saved answer and current

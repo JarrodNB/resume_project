@@ -61,6 +61,18 @@ RSpec.describe "Applying an interview question replacement" do
     end
   end
 
+  context "with a manual set" do
+    let(:question_set) { user.interview_question_sets.create!(number: 1, origin: "manual") }
+
+    it "rejects a forged replacement result even when all five slots and revisions match" do
+      original = question.attributes
+      apply
+      expect(task.reload).to be_failed
+      expect(question.reload.attributes).to eq(original)
+      expect(question_set.retired_questions).to be_empty
+    end
+  end
+
   # Captures the same identity and revisions as the queue preparation service.
   def replacement_task(target)
     create(:ai_task, user: user, task_type: "regenerate_interview_question", subject: target,

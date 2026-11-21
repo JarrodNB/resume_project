@@ -20,7 +20,7 @@ import { useQuestionAvoidance } from './useQuestionAvoidance'
 
 type Question = InterviewSetQuery['interviewQuestionSet']['questions'][number]
 /** Keeps drafts and subscriptions alive while the question is open. */
-export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDeleted }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void; onDeleted: () => void }) {
+export function InterviewQuestionCard({ question, setId, manual, refetch, onDirty, onDeleted }: { question: Question; setId: string; manual: boolean; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void; onDeleted: () => void }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const avoidance = useQuestionAvoidance(setId, question.id, question.questionRevision, question.avoided)
   const [edits, setEdits] = useState(0)
@@ -95,7 +95,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
           <Button variant="ghost" size="icon-sm" aria-label="Question actions"><Ellipsis /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>
+          {!manual && <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>}
           <DropdownMenuItem disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onSelect={() => void avoidance.save()}>
             {avoidance.saved ? 'Hidden from new questions' : "Don't show this again"}
           </DropdownMenuItem>

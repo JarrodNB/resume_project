@@ -18,8 +18,8 @@ function libraryMock() {
 }
 
 const SETS = {
-  'set-1': { __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-11T00:00:00Z' },
-  'set-2': { __typename: 'InterviewQuestionSet', id: 'set-2', number: 2, setType: 'TECHNICAL', createdAt: '2026-10-12T00:00:00Z' },
+  'set-1': { __typename: 'InterviewQuestionSet', origin: 'generated', id: 'set-1', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-11T00:00:00Z' },
+  'set-2': { __typename: 'InterviewQuestionSet', origin: 'generated', id: 'set-2', number: 2, setType: 'TECHNICAL', createdAt: '2026-10-12T00:00:00Z' },
 } as const
 
 /** Builds one bank row; set membership decides its type label. */

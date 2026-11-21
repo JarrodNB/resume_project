@@ -39,8 +39,21 @@ or Knowledge (subject understanding). Generation and feedback use the same scope
 
 **Question bank**:
 Every written practice question a user has, shown together with each answer's progress
-(not answered, no feedback yet, feedback ready, or out of date). Questions still arrive in
-practice sets of five; the bank is how the user browses and returns to them.
+(not answered, no feedback yet, feedback ready, or out of date). Generated questions arrive
+in sets of five; custom questions are saved individually into the same bank.
+
+**Custom question**:
+A candidate-written practice question saved directly into the question bank, with a required
+written question type and optional initial answer. It needs no career library or AI generation.
+
+**Question origin**:
+Immutable provenance of written question wording: generated (model-written) or manual
+(candidate-written). Avoided preferences retain origin independently after question deletion.
+Manual wording needs screening before model use; persistence alone never makes it trusted.
+
+**Memory anchor**:
+An optional short recall cue saved beside an answer. It is not career evidence and never
+enters prompts or Q&A embeddings. Changing only the cue preserves answer revisions and feedback.
 
 **Rehearsal**:
 Recalling saved written answers one question at a time, with optional memory anchors and

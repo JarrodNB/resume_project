@@ -1,5 +1,5 @@
 # Description: One interview question with a user-written answer and revision-bound feedback.
-# Active questions fill a set's five slots. A retired question is a read-only copy kept when
+# Active questions fill generated slots or one custom-question slot. A retired question is a read-only copy kept when
 # an answered slot was replaced, so the user's answer stays in their question bank.
 # Index:
 #   - interview_question_set: the owning user's practice set

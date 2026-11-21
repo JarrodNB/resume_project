@@ -13,6 +13,12 @@ RSpec.describe Billing::SyncSubscriptionJob do
     expect(row.reload.status).to eq("active")
   end
 
+  it "retries when the payment provider is unavailable" do
+    allow(Billing::SyncSubscriptionService).to receive(:call).and_raise(Billing::Gateway::Unavailable, "down")
+
+    expect { described_class.perform_now("sub_1") }.to have_enqueued_job(described_class).with("sub_1")
+  end
+
   it "uses an existing queue" do
     expect(described_class.new.queue_name).to eq("default")
   end

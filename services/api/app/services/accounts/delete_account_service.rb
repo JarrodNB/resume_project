@@ -42,11 +42,9 @@ module Accounts
 
       @gateway.cancel_subscription_now(row.stripe_subscription_id)
       true
-    rescue Stripe::InvalidRequestError => error
-      return true if error.code == "resource_missing"
-      Rails.logger.error("Stripe cancel failed for user #{@user.id}: #{error.class}")
-      false
-    rescue Stripe::StripeError => error
+    rescue Billing::Gateway::NotFound
+      true
+    rescue Billing::Gateway::Unavailable => error
       Rails.logger.error("Stripe cancel failed for user #{@user.id}: #{error.class}")
       false
     end

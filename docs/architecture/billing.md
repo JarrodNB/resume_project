@@ -50,7 +50,9 @@ signups cannot block paying customers.
 
 - **Gateway seam.** `Billing::Gateway` is the only code that talks to Stripe. `Billing::StripeGateway`
   is the real adapter (the `stripe` gem); tests use `FakeStripeGateway`. It is chosen once in
-  config (`config.x.billing_gateway`). Without keys, checkout and portal fail with a clear message
+  config (`config.x.billing_gateway`). It turns every Stripe error into `Gateway::Unavailable` (try
+  again later) or `Gateway::NotFound` (Stripe has no such thing), so no other code names Stripe's
+  error classes; the sync job retries on `Unavailable`. Without keys, checkout and portal fail with a clear message
   and limit checks still work.
 - **Checkout.** The `startBillingCheckout` mutation (`Billing::StartCheckoutService`) creates or
   reuses one Stripe customer per user, turns on automatic tax, passes the user id as metadata,

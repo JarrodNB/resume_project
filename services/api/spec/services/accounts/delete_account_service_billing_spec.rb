@@ -52,7 +52,7 @@ RSpec.describe Accounts::DeleteAccountService do
 
   it "keeps the account when Stripe can't cancel" do
     create(:billing_subscription, user: user, stripe_subscription_id: "sub_live")
-    FakeStripeGateway.cancel_error = Stripe::APIConnectionError.new("down")
+    FakeStripeGateway.cancel_error = Billing::Gateway::Unavailable.new("down")
 
     result = delete_account
 
@@ -71,7 +71,7 @@ RSpec.describe Accounts::DeleteAccountService do
 
   it "treats a subscription Stripe says is already gone as canceled" do
     create(:billing_subscription, user: user, stripe_subscription_id: "sub_live")
-    FakeStripeGateway.cancel_error = Stripe::InvalidRequestError.new("No such subscription: 'sub_live'", "id", code: "resource_missing")
+    FakeStripeGateway.cancel_error = Billing::Gateway::NotFound.new("No such subscription")
 
     expect(delete_account).to be_success
     expect(User.exists?(user.id)).to be(false)

@@ -8,8 +8,7 @@ module Billing
   class SyncSubscriptionJob < ApplicationJob
     queue_as :default
 
-    retry_on Stripe::APIConnectionError, Stripe::RateLimitError, Stripe::APIError,
-             wait: :polynomially_longer, attempts: 5
+    retry_on Gateway::Unavailable, wait: :polynomially_longer, attempts: 5
 
     def perform(subscription_id)
       SyncSubscriptionService.call(subscription_id: subscription_id)

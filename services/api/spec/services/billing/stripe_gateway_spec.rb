@@ -27,4 +27,38 @@ RSpec.describe Billing::StripeGateway do
     stub_const("ENV", ENV.to_hash.merge("STRIPE_SECRET_KEY" => "", "STRIPE_PRICE_ID" => "price_1"))
     expect(described_class.new.configured?).to be(false)
   end
+
+  describe "error translation" do
+    let(:client) { instance_double(Stripe::StripeClient) }
+
+    before do
+      stub_const("ENV", ENV.to_hash.merge("STRIPE_SECRET_KEY" => "sk_test_x"))
+      allow(Stripe::StripeClient).to receive(:new).and_return(client)
+    end
+
+    def stub_portal_call_raising(error)
+      allow(client).to receive_message_chain(:v1, :billing_portal, :sessions, :create).and_raise(error)
+    end
+
+    [ Stripe::APIConnectionError.new("down"), Stripe::RateLimitError.new("slow down"), Stripe::AuthenticationError.new("bad key"),
+      Stripe::InvalidRequestError.new("bad request", "id") ].each do |stripe_error|
+      it "turns #{stripe_error.class} into Gateway::Unavailable" do
+        stub_portal_call_raising(stripe_error)
+
+        expect { described_class.new.create_portal_session(customer_id: "cus_1", return_url: "x") }.to raise_error(Billing::Gateway::Unavailable)
+      end
+    end
+
+    it "turns a resource_missing error into Gateway::NotFound" do
+      stub_portal_call_raising(Stripe::InvalidRequestError.new("No such customer", "customer", code: "resource_missing"))
+
+      expect { described_class.new.create_portal_session(customer_id: "cus_1", return_url: "x") }.to raise_error(Billing::Gateway::NotFound)
+    end
+
+    it "translates errors from cancelling a subscription too" do
+      allow(client).to receive_message_chain(:v1, :subscriptions, :cancel).and_raise(Stripe::APIConnectionError.new("down"))
+
+      expect { described_class.new.cancel_subscription_now("sub_1") }.to raise_error(Billing::Gateway::Unavailable)
+    end
+  end
 end

@@ -6,6 +6,7 @@
 #   - API_VERSION: the one place the Stripe API version is pinned (the version the gem was built for)
 #   - create_customer, create_checkout_session, create_portal_session
 #   - retrieve_subscription, cancel_subscription_now
+#   - translating: the one place Stripe errors become Gateway::Unavailable / Gateway::NotFound
 #   - construct_event: verifies the webhook signature and returns a Gateway::Event (or nil for ignored types)
 #   - subscription_from, event_from: turn Stripe objects into the plain Gateway values
 module Billing
@@ -44,34 +45,38 @@ module Billing
 
     # The idempotency key means a retry after a crash reuses the customer Stripe already made.
     def create_customer(user)
-      client.v1.customers.create({ email: user.email, metadata: { user_id: user.id } },
-        { idempotency_key: "careerdrafter-customer-#{user.id}" }).id
+      translating do
+        client.v1.customers.create({ email: user.email, metadata: { user_id: user.id } },
+          { idempotency_key: "careerdrafter-customer-#{user.id}" }).id
+      end
     end
 
     def create_checkout_session(customer_id:, user_id:, success_url:, cancel_url:)
-      client.v1.checkout.sessions.create(
-        mode: "subscription",
-        customer: customer_id,
-        line_items: [ { price: ENV.fetch("STRIPE_PRICE_ID"), quantity: 1 } ],
-        client_reference_id: user_id,
-        subscription_data: { metadata: { user_id: user_id } },
-        automatic_tax: { enabled: true },
-        customer_update: { address: "auto" },
-        success_url: success_url,
-        cancel_url: cancel_url
-      ).url
+      translating do
+        client.v1.checkout.sessions.create(
+          mode: "subscription",
+          customer: customer_id,
+          line_items: [ { price: ENV.fetch("STRIPE_PRICE_ID"), quantity: 1 } ],
+          client_reference_id: user_id,
+          subscription_data: { metadata: { user_id: user_id } },
+          automatic_tax: { enabled: true },
+          customer_update: { address: "auto" },
+          success_url: success_url,
+          cancel_url: cancel_url
+        ).url
+      end
     end
 
     def create_portal_session(customer_id:, return_url:)
-      client.v1.billing_portal.sessions.create(customer: customer_id, return_url: return_url).url
+      translating { client.v1.billing_portal.sessions.create(customer: customer_id, return_url: return_url).url }
     end
 
     def retrieve_subscription(subscription_id)
-      self.class.subscription_from(client.v1.subscriptions.retrieve(subscription_id))
+      translating { self.class.subscription_from(client.v1.subscriptions.retrieve(subscription_id)) }
     end
 
     def cancel_subscription_now(subscription_id)
-      client.v1.subscriptions.cancel(subscription_id)
+      translating { client.v1.subscriptions.cancel(subscription_id) }
       nil
     end
 
@@ -85,6 +90,16 @@ module Billing
     end
 
     private
+
+    # Turns any Stripe error into a Gateway error: resource_missing is NotFound, everything else Unavailable.
+    def translating
+      yield
+    rescue Stripe::InvalidRequestError => error
+      raise Gateway::NotFound, error.message if error.code == "resource_missing"
+      raise Gateway::Unavailable, error.message
+    rescue Stripe::StripeError => error
+      raise Gateway::Unavailable, error.message
+    end
 
     def client
       Stripe::StripeClient.new(ENV.fetch("STRIPE_SECRET_KEY"), stripe_version: API_VERSION)

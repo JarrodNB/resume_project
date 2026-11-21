@@ -21,7 +21,7 @@ module Billing
       base = ENV.fetch("WEB_APP_URL", "http://localhost:5173").delete_suffix("/")
       success(@gateway.create_checkout_session(customer_id: customer_id, user_id: @user.id,
         success_url: "#{base}/account/billing?checkout=success", cancel_url: "#{base}/account/billing"))
-    rescue Stripe::StripeError => error
+    rescue Gateway::Unavailable, Gateway::NotFound => error
       Rails.logger.error("Stripe checkout failed for user #{@user.id}: #{error.class}")
       failure([ UNAVAILABLE ])
     end

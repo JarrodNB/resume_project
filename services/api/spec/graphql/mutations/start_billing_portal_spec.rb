@@ -36,7 +36,7 @@ RSpec.describe "startBillingPortal mutation" do
 
   it "says billing is unavailable when Stripe errors" do
     create(:billing_subscription, user: user)
-    FakeStripeGateway.portal_error = Stripe::APIConnectionError.new("down")
+    FakeStripeGateway.portal_error = Billing::Gateway::Unavailable.new("down")
 
     expect(start).to eq("url" => nil, "errors" => [ "Billing isn't available right now." ])
   end

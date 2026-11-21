@@ -4,13 +4,12 @@ from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
-async def optional_streaming(app, runner, *, enabled, redis_url, rails_origin, secret):
+async def optional_streaming(app, runner, *, redis_url, rails_origin, secret):
     app.state.execution_streams = None
-    app.state.streaming_reason = "disabled"
+    app.state.streaming_reason = "final_only"
     features = {name for name, adapter in runner.adapters.items()
                 if name != "interviews" and getattr(adapter, "stream_output", False)}
-    if not enabled or not features:
-        app.state.streaming_reason = "disabled" if not enabled else "final_only"
+    if not features:
         yield
         return
     if not redis_url:

@@ -76,4 +76,50 @@ RSpec.describe Billing::StripeGateway do
       expect { described_class.new.cancel_subscription_now("sub_1") }.to raise_error(Billing::Gateway::Unavailable)
     end
   end
+
+  describe "what is sent to Stripe" do
+    let(:client) { instance_double(Stripe::StripeClient) }
+
+    before do
+      stub_const("ENV", ENV.to_hash.merge("STRIPE_SECRET_KEY" => "sk_test_x", "STRIPE_PRICE_ID" => "price_test_1"))
+      allow(Stripe::StripeClient).to receive(:new).and_return(client)
+    end
+
+    # Captures the arguments of a Stripe client call chain and returns them with the stubbed result.
+    def capture_call(*chain, result)
+      sent = []
+      allow(client).to receive_message_chain(*chain) { |*args, **kwargs| sent << [ args, kwargs ]; result }
+      sent
+    end
+
+    it "makes a customer with the user's email and id, using an idempotency key per user" do
+      user = create(:user)
+      sent = capture_call(:v1, :customers, :create, double(id: "cus_1"))
+
+      expect(described_class.new.create_customer(user)).to eq("cus_1")
+      expect(sent).to eq([ [ [ { email: user.email, metadata: { user_id: user.id } }, { idempotency_key: "careerdrafter-customer-#{user.id}" } ], {} ] ])
+    end
+
+    it "starts a subscription checkout for the customer at the configured price" do
+      sent = capture_call(:v1, :checkout, :sessions, :create, double(url: "https://checkout.stripe.test/s"))
+
+      url = described_class.new.create_checkout_session(customer_id: "cus_1", user_id: "user-1", success_url: "https://app/ok", cancel_url: "https://app/no")
+
+      expect(url).to eq("https://checkout.stripe.test/s")
+      expect(sent.size).to eq(1)
+      expect(sent.first.flatten.first).to eq(
+        mode: "subscription", customer: "cus_1", line_items: [ { price: "price_test_1", quantity: 1 } ],
+        client_reference_id: "user-1", subscription_data: { metadata: { user_id: "user-1" } },
+        automatic_tax: { enabled: true }, customer_update: { address: "auto" },
+        success_url: "https://app/ok", cancel_url: "https://app/no"
+      )
+    end
+
+    it "opens the billing portal for the customer and returns to the given page" do
+      sent = capture_call(:v1, :billing_portal, :sessions, :create, double(url: "https://billing.stripe.test/p"))
+
+      expect(described_class.new.create_portal_session(customer_id: "cus_1", return_url: "https://app/billing")).to eq("https://billing.stripe.test/p")
+      expect(sent.first.flatten.first).to eq(customer: "cus_1", return_url: "https://app/billing")
+    end
+  end
 end

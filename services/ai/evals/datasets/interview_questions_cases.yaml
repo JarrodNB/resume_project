@@ -2,8 +2,9 @@
 evaluators:
   - QuestionStructure
 cases:
-  - name: general-recent-practice-soft-variety
+  - name: behavioral-recent-practice-soft-variety
     inputs:
+      set_type: behavioral
       library: "Retail assistant. Helped customers find products and restocked shelves."
       recent_questions:
         - "Tell me about your retail background."
@@ -27,15 +28,19 @@ cases:
         - "How can bias affect the reliability of a historical source?"
   - name: experienced-collaborator
     inputs:
+      set_type: behavioral
       library: "Customer support specialist for four years. Created a shared onboarding checklist with two colleagues. Enjoys explaining confusing processes. Wants to move into training."
   - name: sparse-first-job
     inputs:
+      set_type: behavioral
       library: "Recent history graduate. Volunteered at a community book exchange."
-  - name: general-skills-only-behavioral-invitations
+  - name: behavioral-skills-only-behavioral-invitations
     inputs:
+      set_type: behavioral
       library: "Skills: source comparison. Education: history diploma. No employment experience recorded."
-  - name: general-replacement-new-behavioral-set
+  - name: behavioral-replacement-new-behavioral-set
     inputs:
+      set_type: behavioral
       count: 1
       library: "Retail assistant. Helped customers find products. Restocked shelves. Learned the stock checking process."
       excluded:
@@ -46,12 +51,15 @@ cases:
         - "Describe a time you decided which task to prioritize."
   - name: technical-career-nontechnical-interview
     inputs:
+      set_type: behavioral
       library: "Software developer using Python and PostgreSQL. Worked with designers to clarify accessibility issues. Presented project progress to nontechnical stakeholders."
   - name: individual-contributor-no-invented-leadership
     inputs:
+      set_type: behavioral
       library: "Warehouse associate. Followed the existing stock checking procedure. Reported damaged packages to a supervisor. No management experience."
   - name: replacement-semantic-distinctness
     inputs:
+      set_type: behavioral
       library: "Museum visitor assistant. Helped visitors find exhibits. Co-created an orientation leaflet. Wants to improve public speaking."
       count: 1
       excluded:
@@ -107,8 +115,9 @@ cases:
         - "Why does changing a mutable default argument affect later calls?"
         - "What limitations does the global interpreter lock impose on CPU-bound threads?"
 
-  - name: general-full-set-saved-preferences
+  - name: behavioral-full-set-saved-preferences
     inputs:
+      set_type: behavioral
       library: "Retail assistant. Helped customers find products. Restocked shelves. Learned stock checking. Previously volunteered at a community book exchange."
       excluded:
         - "Tell me about a time you disagreed with a colleague over a customer request."
@@ -126,8 +135,9 @@ cases:
       excluded:
         - "What is the difference between a Python list and a tuple?"
         - "How does Python's name binding relate to mutable objects?"
-  - name: general-full-set-specific-background-angle
+  - name: fit-full-set-specific-background-angle
     inputs:
+      set_type: fit_motivation
       library: "Customer support specialist for four years. Previously volunteered at a community book exchange. Created a shared onboarding checklist with two colleagues. Wants to move into training."
       excluded:
         - "What first interested you in customer support?"
@@ -138,3 +148,61 @@ cases:
         - id: fact-kubernetes
           requirement: Five years of Kubernetes experience and team leadership
           response: I used it for two years.
+
+  - name: fit-background-and-motivation
+    inputs:
+      set_type: fit_motivation
+      library: "Customer support specialist. Enjoys explaining confusing processes. Wants to move into training."
+  - name: fit-sparse-no-invented-goals
+    inputs:
+      set_type: fit_motivation
+      library: "Recent history graduate. Skills: source comparison."
+  - name: fit-replacement-avoids-prior-goals
+    inputs:
+      set_type: fit_motivation
+      count: 1
+      library: "Museum visitor assistant. Enjoys helping visitors understand exhibits."
+      excluded:
+        - "Tell me about your background."
+        - "Why are you interested in museum work?"
+        - "What career goals are you considering?"
+        - "What working environment suits you?"
+        - "What would you contribute from your visitor assistance experience?"
+  - name: hypothetical-retail-decisions
+    inputs:
+      set_type: hypothetical
+      library: "Retail assistant. Helped customers find products and restocked shelves."
+  - name: hypothetical-sparse-no-management
+    inputs:
+      set_type: hypothetical
+      library: "Recent history graduate. Skills: source comparison. No employment recorded."
+  - name: hypothetical-replacement-avoids-intents
+    inputs:
+      set_type: hypothetical
+      count: 1
+      library: "Bakery assistant. Follows recipe cards and labels stored ingredients."
+      excluded:
+        - "What would you do if two urgent tasks arrived together?"
+        - "What would you do if a recipe instruction were unclear?"
+        - "How would you handle a disagreement over storage labels?"
+        - "What would you do if an ingredient label appeared wrong?"
+        - "How would you respond if you forgot to label an ingredient?"
+  - name: fit-recent-practice-variety
+    inputs:
+      set_type: fit_motivation
+      library: "Catering assistant. Enjoys helping guests and wants to learn more about food preparation."
+      recent_questions:
+        - "What interests you about catering?"
+  - name: hypothetical-recent-practice-variety
+    inputs:
+      set_type: hypothetical
+      library: "Warehouse associate. Follows stock checking procedures."
+      recent_questions:
+        - "What would you do if two supervisors gave conflicting priorities?"
+  - name: behavioral-replacement-real-example
+    inputs:
+      set_type: behavioral
+      count: 1
+      library: "Student. Volunteered at a book exchange."
+      excluded:
+        - "Tell me about a time you helped another volunteer."

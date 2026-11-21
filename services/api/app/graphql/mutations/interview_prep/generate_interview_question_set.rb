@@ -5,7 +5,7 @@ module Mutations
   module InterviewPrep
     class GenerateInterviewQuestionSet < Mutations::BaseMutation
       field :ai_task, Types::AiTaskType
-      argument :set_type, Types::InterviewQuestionSetTypeEnum, required: false, default_value: "general"
+      argument :set_type, Types::InterviewQuestionSetTypeEnum, required: false, default_value: "fit_motivation"
 
       # Authorizes records before invoking the domain service.
       def resolve(set_type:)

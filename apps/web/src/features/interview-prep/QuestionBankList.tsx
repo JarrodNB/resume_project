@@ -41,7 +41,9 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
         <label className="sr-only" htmlFor="question-bank-type">Filter by type</label>
         <select id="question-bank-type" className="question-bank-select" value={setType} onChange={(event) => setSetType(event.target.value as InterviewQuestionSetTypeEnum | 'ALL')}>
           <option value="ALL">All types</option>
-          <option value="GENERAL">General</option>
+          <option value="FIT_MOTIVATION">Fit &amp; motivation</option>
+          <option value="BEHAVIORAL">Behavioral</option>
+          <option value="HYPOTHETICAL">Hypothetical</option>
           <option value="TECHNICAL">Technical</option>
           <option value="KNOWLEDGE">Knowledge</option>
         </select>

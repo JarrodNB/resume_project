@@ -8,7 +8,7 @@ Persistence, concurrency, and coaching rules for interview practice. Queue paylo
 
 Rails owns `interview_question_sets` and `interview_questions`; the Python worker returns
 drafts without writing domain data. Sets belong to a user and have a unique per-user number
-and immutable `set_type` (`general`, `technical`, or `knowledge`, defaulting to general for legacy data).
+and immutable `set_type` (`fit_motivation`, `behavioral`, `hypothetical`, `technical`, or `knowledge`; default `fit_motivation`).
 Allocation runs under the user lock and considers retained generation task inputs, so deleting
 a set does not reuse its number. Sets can be empty while generation is pending or failed.
 Successful generation validates all drafts and creates positions 1–5 atomically. Only question
@@ -17,13 +17,11 @@ text is persisted on the slots; categories and evidence remain in the AI task re
 Python reads up to 20 saved question texts from the user's most recent
 sets of the requested type, ordered by set creation time and ID descending, then slot
 position and question ID ascending. This bounded history is prompt-only guidance to
-prefer fresh focuses. Familiar themes may recur as practice, and general sets retain
-their required introduction. Historical overlap never adds a rejection or retry.
+prefer fresh focuses. Familiar themes may recur as practice. Historical overlap never adds a rejection or retry.
 The history is separate from hard avoidance preferences and replacement exclusions;
 it is neither career evidence nor proof of personal facts. Only Rails-owned generated
 slots supply history, never browser text, answers, or feedback, so the worker reuses
-trusted-generated-source coverage without screening those questions again. Legacy tasks
-load the same current owned history; copied command text is ignored.
+trusted-generated-source coverage without screening those questions again. Written commands require version 1 and explicit type; copied source commands are unsupported.
 
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
@@ -50,7 +48,7 @@ with their owning records.
 `InterviewPrep` services own generation, saving, replacement, feedback, and deletion. GraphQL
 exposes owned `interviewQuestionSets` / `interviewQuestionSet(id)` queries, the question-bank
 `interviewQuestions` query (newest set first, active slots by position, then retired copies), and the mutations
-`generateInterviewQuestionSet(input: {setType: GENERAL | TECHNICAL | KNOWLEDGE})`, `saveInterviewAnswer`, `regenerateInterviewQuestion`,
+`generateInterviewQuestionSet(input: {setType: FIT_MOTIVATION | BEHAVIORAL | HYPOTHETICAL | TECHNICAL | KNOWLEDGE})`, `saveInterviewAnswer`, `regenerateInterviewQuestion`,
 `requestInterviewAnswerFeedback`, and `deleteInterviewQuestionSet`. Question mutations scope
 `questionId` through the owned `questionSetId`. AI work uses the shared usage allowance checks.
 Feedback requires a nonblank answer and saves it before allowance checks or queue publication;
@@ -103,7 +101,7 @@ application without asserting personal experience. Replacements retain this subj
 and exclude the intents of all five existing questions. The library selects topics rather
 than serving as an answer key. Knowledge coaching identifies factual errors, omissions and
 reasoning gaps, then provides a concise corrected illustrative subject answer using model
-knowledge. It must never invent personal experience. General and technical feedback continue
+knowledge. It must never invent personal experience. Fit, behavioral, hypothetical and technical feedback continue
 to use only supplied personal facts, with placeholders where needed. Synthetic evals include
 nontechnology topics and incorrect answers, with a dedicated knowledge-accuracy judge and
 scope-aware grounding rubric. There is no external knowledge ingestion, grading, code
@@ -112,16 +110,19 @@ Trusted per-run scope selects separate knowledge-feedback instructions, so knowl
 never receive personal-fact-only scaffolding rules. The subject-accuracy judge deterministically
 skips other scopes; its aggregate measures knowledge cases only.
 
-General behavioral feedback uses STAR as flexible coaching: brief situation and responsibility,
-personal actions, and the actual result. It prioritizes useful gaps and demonstrates clearer
-ordering without required fields or a four-part checklist. Unknown, qualitative and negative
-results remain honest; having no matching example never becomes invented experience. Examples
-use at most two integrated placeholders and remain concise. Introductions and legacy goals or
-development questions follow their actual focus instead of forcing a story. The trusted general
-scope adds this guidance to the existing personal-fact policy; technical and knowledge policies
-remain separate. Newly requested feedback uses the guidance without rewriting saved answers.
-Feedback evals cover complete and incomplete stories, no example, uncertain/negative outcomes,
-and legacy nonbehavioral questions alongside technical and knowledge regressions.
+Fit & motivation covers background, motivation, goals, working preferences, and contribution.
+It never invents a target employer or vacancy. Behavioral covers collaboration, problem solving,
+adaptation, initiative, and judgment. Hypothetical covers prioritization, ambiguity,
+disagreement, quality/risk, and accountability without asserting that an event happened.
+These are five coverage guides per set, not prefixes to prepend to questions.
+
+Feedback chooses rules from the trusted saved type. Behavioral uses flexible STAR coaching
+without a mandatory template; outcomes and learning stay honest. Fit answers need clear,
+relevant reasons, not a story. Hypothetical answers need a proposed approach, priorities,
+communication, and verification, not an invented past result. Examples clarify supplied
+facts without inventing personal experience, motivation, results, or employers. Technical
+and knowledge policies remain separate. Generation and feedback use synthetic quality evals
+covering all five scopes, sparse libraries, nontechnology roles, and grounding regressions.
 
 ## Retired questions
 
@@ -175,14 +176,8 @@ answers, field approvals or sibling copies are persisted in these commands. Narr
 grants allow required answer fields while keeping feedback, vectors, provider receipts
 and accounting private.
 
-Retained generation commands also load current owned history/preferences. Retained
-replacement commands must match their target revisions and current target/peer wording;
-retained feedback commands must match their current question/answer wording and revisions.
-Stale or deleted sources fail before generation. No retained command text becomes prompt
-input. During the staged rollout, deploy the new Python readers/grants before new producers;
-old workers cannot read reference-only commands. Existing saved command copies remain in
-retained task records for compatibility checks; they are not used as prompt input or
-removed by the interview storage migration. No work is automatically replayed.
+Unversioned commands and copied source snapshots are unsupported. Stale or deleted sources
+fail before generation. All written producers and consumers use the same reference-only contract.
 
 Saved question slots and avoidance preferences are generated question text, so the handler
 uses trusted-generated-source coverage rather than classifying them again. It renders
@@ -195,8 +190,8 @@ categories while choosing different concrete focuses within them.
 
 ## Decisions
 
-- **Interview sets have an immutable general, technical, or knowledge scope.** Existing sets and older
-  queue snapshots default to general. Technical practice discusses actual role-specific work,
+- **Interview sets have one of five immutable scopes.** General and copied-source
+  compatibility paths are removed; there is no historical Q&A to migrate. Technical practice discusses actual role-specific work,
   methods/tools, decisions/tradeoffs, problem solving, and improvement/quality for every
   occupation, rather than knowledge quizzes, coding or hypothetical design exercises.
   Sparse skills, education, and nontechnology backgrounds receive best-effort questions
@@ -216,15 +211,14 @@ categories while choosing different concrete focuses within them.
   job-specific generation remains future work.
 
 - **Interview feedback coaches the user's answer.** It never fills or replaces the answer
-  field and uses placeholders for missing personal facts in general/technical examples.
+  field and uses placeholders for missing personal facts in personal-fact examples.
   Knowledge examples can correct subject facts without placeholders. Excluding job-derived requirements avoids
   treating an employer's expectations as the user's experience. Revision-bound feedback
   allows editing during AI work while making delayed coaching visibly outdated.
 
 - **Feedback freshness ignores capitalization and whitespace.** Revision changes still track
   exact saved edits, but harmless formatting should not force another AI review. Completed
-  task digests verify saved-answer equivalence; retained task copies only verify older
-  feedback. Missing or mismatched evidence stays outdated.
+  task digests verify saved-answer equivalence. Missing or mismatched evidence stays outdated.
 
 - **One successful feedback request per saved version.** Feedback enqueueing checks completed
   task history for the question/answer revision pair under the owner lock. Queued requests

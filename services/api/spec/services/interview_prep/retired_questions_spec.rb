@@ -20,12 +20,13 @@ RSpec.describe "Retired interview questions" do
   def replace(target, text = replacement_text)
     task = create(:ai_task, user: user, task_type: "regenerate_interview_question", subject: target,
       input: { "question_set_id" => question_set.id, "question_id" => target.id,
-               "question_text" => target.question_text, "question_revision" => target.question_revision,
+               "source_version" => 1, "set_type" => question_set.set_type,
+               "peer_revisions" => question_set.questions.where.not(id: target.id).to_h { |peer| [ peer.id, peer.question_revision ] }, "question_revision" => target.question_revision,
                "answer_revision" => target.answer_revision })
     AiTasks::ApplyAiResultService.call(message: {
       "ai_task_id" => task.id, "status" => "completed", "usage" => [],
       "result" => { "interview_questions" => { "questions" => [
-        { "question_text" => text, "category" => "learning_adaptation", "evidence_quotes" => [ "Career details" ] }
+        { "question_text" => text, "category" => "motivation", "evidence_quotes" => [ "Career details" ] }
       ] } } })
     task.reload
   end

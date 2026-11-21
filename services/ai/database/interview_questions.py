@@ -1,7 +1,7 @@
 """Load saved written-practice sources after checking the durable task and its owner.
 
-Commands carry identities and revisions. Source text stays in its domain tables; even
-retained commands use current owned records and fail when their saved fences changed.
+Commands carry identities and revisions. Source text stays in its domain tables;
+versioned commands fail when their saved fences change.
 """
 from database.open_read_only_connection import open_read_only_connection
 
@@ -15,13 +15,13 @@ def read_interview_question_sources(connection, task):
     if not row or task.task_type not in {"generate_interview_questions", "regenerate_interview_question", "review_interview_answer"}:
         return None
     command = row["input"]
-    if command.get("source_version") not in {None, 1}:
+    if command.get("source_version") != 1:
         return None
     question_set = connection.execute("""
         SELECT id, number, set_type FROM interview_question_sets
         WHERE id = %(set)s AND user_id = %(owner)s
     """, {"set": command.get("question_set_id"), "owner": task.user_id}).fetchone()
-    if not question_set or question_set["set_type"] != command.get("set_type", "general"):
+    if not question_set or question_set["set_type"] != command.get("set_type"):
         return None
     if task.task_type == "review_interview_answer":
         if row["subject_type"] != "InterviewQuestion" or str(row["subject_id"]) != command.get("question_id"):
@@ -33,11 +33,6 @@ def read_interview_question_sources(connection, task):
         """, {"question": command.get("question_id"), "set": question_set["id"], "owner": task.user_id}).fetchone()
         if not target or not target["answer_text"].strip() or any(
             target[key] != command.get(key) for key in ("question_revision", "answer_revision")
-        ):
-            return None
-        # Legacy copies only fence their current rows; they never supply model text or approvals.
-        if command.get("source_version") is None and any(
-            target[key] != command.get(key) for key in ("question_text", "answer_text")
         ):
             return None
         return {"question_set_id": str(question_set["id"]), "set_type": question_set["set_type"],
@@ -59,20 +54,12 @@ def read_interview_question_sources(connection, task):
         if not target or len(questions) != 5 or any(target[key] != command.get(key) for key in ("question_revision", "answer_revision")):
             return None
         peers = [q for q in questions if q != target]
-        if command.get("source_version") == 1:
-            if {str(q["id"]): q["question_revision"] for q in peers} != command.get("peer_revisions"):
-                return None
-        elif (target["question_text"] != command.get("question_text") or
-              sorted(q["question_text"] for q in peers) != sorted(command.get("other_questions", []))):
+        if {str(q["id"]): q["question_revision"] for q in peers} != command.get("peer_revisions"):
             return None
-        if command.get("source_version") is None and command.get("other_question_snapshots"):
-            saved_peers = {q.get("question_id"): q.get("question_revision") for q in command["other_question_snapshots"] if isinstance(q, dict)}
-            if saved_peers != {str(q["id"]): q["question_revision"] for q in peers}:
-                return None
         sources.update(question_id=expected_subject, question_text=target["question_text"],
                        question_revision=target["question_revision"], answer_revision=target["answer_revision"],
                        other_questions=[q["question_text"] for q in peers])
-    elif questions or question_set["number"] != command.get("set_number", question_set["number"]):
+    elif questions or question_set["number"] != command.get("set_number"):
         return None
     sources["avoided_questions"] = [r["question_text"] for r in connection.execute("""
         SELECT question_text FROM avoided_interview_questions WHERE user_id = %s ORDER BY created_at, id

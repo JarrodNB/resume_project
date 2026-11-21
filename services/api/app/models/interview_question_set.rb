@@ -3,9 +3,9 @@
 #   - questions: five ordered active question slots, populated atomically by generation
 #   - retired_questions: read-only answered copies kept when a slot was replaced
 #   - ai_tasks: generation tasks retained for usage accounting after deletion
-#   - set_type: immutable general, practical technical, or knowledge scope (legacy default: general)
+#   - set_type: immutable practice scope used by generation and feedback
 class InterviewQuestionSet < ApplicationRecord
-  SET_TYPES = %w[general technical knowledge].freeze
+  SET_TYPES = %w[fit_motivation behavioral hypothetical technical knowledge].freeze
   enum :set_type, SET_TYPES.index_with(&:itself), validate: true
   attr_readonly :set_type
 

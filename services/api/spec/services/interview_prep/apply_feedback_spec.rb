@@ -25,7 +25,7 @@ RSpec.describe "Applying interview answer feedback" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
-  %w[technical knowledge].each do |set_type|
+  %w[fit_motivation behavioral hypothetical technical knowledge].each do |set_type|
     context "with a #{set_type} set" do
       let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: set_type) }
 
@@ -38,6 +38,7 @@ RSpec.describe "Applying interview answer feedback" do
 
       it "rejects mismatched type snapshots without replacing prior coaching" do
         original = question.attributes
+        task.update!(input: task.input.merge("set_type" => "invalid"))
         apply
         expect(task.reload).to be_failed
         expect(question.reload.attributes).to eq(original)
@@ -69,13 +70,6 @@ RSpec.describe "Applying interview answer feedback" do
   end
 
   context "with reference-only feedback commands" do
-    let(:task) do
-      legacy = feedback_task
-      legacy.update!(input: legacy.input.except("question_text", "answer_text").merge(
-        "source_version" => 1, "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text)))
-      legacy
-    end
-
     it "stores feedback once against the requested revisions without source copies" do
       2.times { apply }
       expect(task.reload).to have_attributes(status: "completed", cost_microdollars: 30)
@@ -126,7 +120,8 @@ RSpec.describe "Applying interview answer feedback" do
   def feedback_task
     create(:ai_task, user: user, task_type: "review_interview_answer", subject: question,
       input: { "question_set_id" => question_set.id, "question_id" => question.id,
-        "question_text" => question.question_text, "answer_text" => question.answer_text,
+        "source_version" => 1, "set_type" => question_set.set_type,
+        "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text),
         "question_revision" => question.question_revision, "answer_revision" => question.answer_revision })
   end
 
@@ -173,11 +168,11 @@ RSpec.describe "Applying interview answer feedback" do
     end
   end
 
-  it "rejects mismatched identity, question revision, answer text, and future revisions" do
+  it "rejects mismatched identity, question revision, type, and future revisions" do
     message
     [ { "question_id" => SecureRandom.uuid }, { "question_set_id" => SecureRandom.uuid },
-      { "question_revision" => 2 }, { "question_text" => "Changed question" },
-      { "answer_revision" => 3 }, { "answer_text" => "Forged answer" } ].each do |change|
+      { "question_revision" => 2 }, { "source_version" => 2 },
+      { "answer_revision" => 3 }, { "set_type" => "invalid" } ].each do |change|
       next_task = feedback_task
       next_task.update!(input: next_task.input.merge(change))
       original = question.attributes

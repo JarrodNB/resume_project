@@ -18,21 +18,21 @@ RSpec.describe "Applying an interview question replacement" do
   let(:message) do
     { "ai_task_id" => task.id, "status" => "completed",
       "result" => { "interview_questions" => { "questions" => [
-        { "question_text" => "Tell me about a time you learned from feedback.", "category" => "learning_adaptation",
+        { "question_text" => "Tell me about a time you learned from feedback.", "category" => "motivation",
           "evidence_quotes" => [ "Career details" ] }
       ] } }, "usage" => [ { "cost_microdollars" => 30 } ] }
   end
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
-  %w[technical knowledge].each do |set_type|
+  %w[fit_motivation behavioral hypothetical technical knowledge].each do |set_type|
     context "with a #{set_type} set" do
       let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: set_type) }
 
       it "keeps the set type and clears only the selected answer after success" do
         originals = questions.drop(1).map(&:attributes)
         task.update!(input: task.input.merge("set_type" => set_type))
-        message["result"]["interview_questions"]["questions"][0]["category"] = set_type == "knowledge" ? "reasoning" : "problem_solving"
+        message["result"]["interview_questions"]["questions"][0]["category"] = InterviewPrep::ApplyQuestionsService::CATEGORIES_BY_TYPE.fetch(set_type).first
         2.times { apply }
         expect(task.reload).to be_completed
         expect(question_set.reload.set_type).to eq(set_type)
@@ -42,6 +42,7 @@ RSpec.describe "Applying an interview question replacement" do
 
       it "rejects a mismatched type snapshot and preserves content" do
         original = question.attributes
+        task.update!(input: task.input.merge("set_type" => "invalid"))
         apply
         expect(task.reload).to be_failed
         expect(question.reload.attributes).to eq(original)
@@ -51,7 +52,7 @@ RSpec.describe "Applying an interview question replacement" do
         original = question.attributes
         task.update!(input: task.input.merge("set_type" => set_type))
         draft = message["result"]["interview_questions"]["questions"][0]
-        draft["category"] = set_type == "knowledge" ? "reasoning" : "problem_solving"
+        draft["category"] = InterviewPrep::ApplyQuestionsService::CATEGORIES_BY_TYPE.fetch(set_type).first
         draft["question_text"] = questions.last.question_text.upcase.gsub("?", "!")
         apply
         expect(task.reload).to be_failed
@@ -64,7 +65,8 @@ RSpec.describe "Applying an interview question replacement" do
   def replacement_task(target)
     create(:ai_task, user: user, task_type: "regenerate_interview_question", subject: target,
       input: { "question_set_id" => question_set.id, "question_id" => target.id,
-               "question_text" => target.question_text, "question_revision" => target.question_revision,
+               "source_version" => 1, "set_type" => question_set.set_type,
+               "peer_revisions" => question_set.questions.where.not(id: target.id).to_h { |peer| [ peer.id, peer.question_revision ] }, "question_revision" => target.question_revision,
                "answer_revision" => target.answer_revision })
   end
 
@@ -75,7 +77,7 @@ RSpec.describe "Applying an interview question replacement" do
 
   it "applies an ID-only replacement with exact peer revisions and rejects stale peers" do
     command = task.input.except("question_text").merge("source_version" => 1,
-      "peer_revisions" => questions.drop(1).to_h { |peer| [peer.id, peer.question_revision] })
+      "peer_revisions" => questions.drop(1).to_h { |peer| [ peer.id, peer.question_revision ] })
     task.update!(input: command)
     apply
     expect(task.reload).to be_completed
@@ -83,7 +85,7 @@ RSpec.describe "Applying an interview question replacement" do
 
   it "rejects a newly avoided question when an ID-only result arrives" do
     task.update!(input: task.input.except("question_text").merge("source_version" => 1,
-      "peer_revisions" => questions.drop(1).to_h { |peer| [peer.id, peer.question_revision] }))
+      "peer_revisions" => questions.drop(1).to_h { |peer| [ peer.id, peer.question_revision ] }))
     text = message["result"]["interview_questions"]["questions"][0]["question_text"]
     user.avoided_interview_questions.create!(question_text: text, text_digest: InterviewPreferences::AvoidedQuestions.digest(text))
     original = question.attributes
@@ -94,7 +96,7 @@ RSpec.describe "Applying an interview question replacement" do
 
   it "rejects a peer changed after the ID-only replacement was queued" do
     task.update!(input: task.input.except("question_text").merge("source_version" => 1,
-      "peer_revisions" => questions.drop(1).to_h { |peer| [peer.id, peer.question_revision] }))
+      "peer_revisions" => questions.drop(1).to_h { |peer| [ peer.id, peer.question_revision ] }))
     questions.last.update!(question_revision: 2)
     original = question.attributes
     apply
@@ -116,13 +118,6 @@ RSpec.describe "Applying an interview question replacement" do
     expect(question.embedding).to be_nil
   end
 
-  it "accepts an older worker replacement for an existing saved set" do
-    message["result"]["interview_questions"]["questions"][0]["category"] = "development"
-    apply
-    expect(task.reload).to be_completed
-    expect(question.reload.answer_text).to eq("")
-  end
-
   it "preserves question, answer, and feedback on worker failure" do
     InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
       embedding_client: FakeEmbeddingClient.new)
@@ -137,7 +132,7 @@ RSpec.describe "Applying an interview question replacement" do
   it "rejects changes to either revision, question text, or snapshot identity" do
     message
     [ { "question_revision" => 2 }, { "answer_revision" => 3 },
-      { "question_text" => "A changed question?" }, { "question_set_id" => SecureRandom.uuid },
+      { "source_version" => 2 }, { "question_set_id" => SecureRandom.uuid },
       { "question_id" => SecureRandom.uuid } ].each do |changes|
       new_task = replacement_task(question)
       new_task.update!(input: new_task.input.merge(changes))

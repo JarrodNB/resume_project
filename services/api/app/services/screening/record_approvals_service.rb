@@ -178,45 +178,26 @@ module Screening
 
       input = @ai_task.input
       set = @user.interview_question_sets.find_by(id: input["question_set_id"])
-      return unless set && set.set_type == input.fetch("set_type", "general")
+      return unless set && set.set_type == input["set_type"]
 
       target = set.questions.find_by(id: @ai_task.subject_id)
       return unless target && target.id == input["question_id"]
 
-      return unless [ nil, 1 ].include?(input["source_version"])
-      if @ai_task.review_interview_answer? && input["source_version"] == 1
+      return unless input["source_version"] == 1
+      if @ai_task.review_interview_answer?
         return { records: set.questions.where(id: target.id),
           revisions: { target.id => input.slice("question_revision", "answer_revision") }, target_id: target.id }
       end
 
-      if @ai_task.regenerate_interview_question? && input["source_version"] == 1
+      if @ai_task.regenerate_interview_question?
         peers = input["peer_revisions"]
         return unless peers.is_a?(Hash) && !peers.key?(target.id) &&
           peers.all? { |id, revision| id.is_a?(String) && revision.is_a?(Integer) && revision.positive? }
 
         revisions = peers.transform_values { |revision| { "question_revision" => revision } }
         revisions[target.id] = input.slice("question_revision", "answer_revision")
-        return { records: set.questions.where(id: revisions.keys), revisions: revisions, target_id: target.id }
+        { records: set.questions.where(id: revisions.keys), revisions: revisions, target_id: target.id }
       end
-      { records: set.questions, snapshots: interview_sources(set, target, input), target_id: target.id }
-    end
-
-    def interview_sources(set, target, input)
-      sources = { target.id => input }
-      return sources unless @ai_task.regenerate_interview_question?
-
-      peers, texts = input["other_question_snapshots"], input["other_questions"]
-      return sources unless peers.is_a?(Array) && texts.is_a?(Array) && peers.length == texts.length
-
-      ids = peers.filter_map { |peer| peer["question_id"] if peer.is_a?(Hash) }
-      return sources unless ids.length == peers.length && ids.uniq.length == ids.length && !ids.include?(target.id)
-
-      peers.zip(texts).each do |peer, text|
-        next unless peer["question_set_id"] == set.id && peer["question_text"] == text && peer["question_id"].is_a?(String)
-
-        sources[peer["question_id"]] = peer
-      end
-      sources
     end
 
     # The question must still be at the commanded revision. An answer is approved only on

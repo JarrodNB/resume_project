@@ -9,7 +9,7 @@ RSpec.describe "Concurrent interview results" do
   let(:user) { create(:user) }
   let(:question_set) { user.interview_question_sets.create!(number: 1) }
   let(:drafts) do
-    %w[introduction strengths development goals behavioral].map.with_index do |category, index|
+    %w[background motivation goals working_preferences contribution].map.with_index do |category, index|
       { "question_text" => "Question about career #{index}?", "category" => category,
         "evidence_quotes" => [ "Career" ] }
     end
@@ -45,7 +45,7 @@ RSpec.describe "Concurrent interview results" do
 
   it "applies duplicate deliveries only once across separate connections" do
     task = create(:ai_task, user: user, task_type: "generate_interview_questions", subject: question_set,
-                  input: { "question_set_id" => question_set.id })
+                  input: { "source_version" => 1, "set_type" => question_set.set_type, "question_set_id" => question_set.id })
     message = message_for(task, drafts).merge("attempt_id" => SecureRandom.uuid)
     expect(apply_concurrently([ message, message ])).to all(be_success)
     expect(question_set.questions.count).to eq(5)
@@ -84,7 +84,8 @@ RSpec.describe "Concurrent interview results" do
     tasks = questions.take(2).map do |question|
       create(:ai_task, user: user, task_type: "regenerate_interview_question", subject: question,
         input: { "question_set_id" => question_set.id, "question_id" => question.id,
-                 "question_text" => question.question_text, "question_revision" => 1, "answer_revision" => 0 })
+                 "source_version" => 1, "set_type" => question_set.set_type,
+                 "peer_revisions" => question_set.questions.where.not(id: question.id).to_h { |peer| [ peer.id, peer.question_revision ] }, "question_revision" => 1, "answer_revision" => 0 })
     end
     replacement = drafts.first.merge("question_text" => "What would you like to develop next?")
     apply_concurrently(tasks.map { |task| message_for(task, [ replacement ]) })

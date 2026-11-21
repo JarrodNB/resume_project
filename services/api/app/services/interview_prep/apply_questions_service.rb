@@ -3,13 +3,13 @@
 #   - call: validates task identity, revisions, draft shape, and distinctness before persistence
 module InterviewPrep
   class ApplyQuestionsService < ApplicationService
-    CATEGORIES = %w[introduction collaboration problem_solving learning_adaptation initiative_judgment].freeze
-    # Accept complete results still in flight from an older worker during deployment.
-    LEGACY_GENERAL_CATEGORIES = %w[introduction strengths development goals behavioral].freeze
-    TECHNICAL_CATEGORIES = %w[work_overview tools_methods decisions_tradeoffs problem_solving improvement_quality].freeze
-    KNOWLEDGE_CATEGORIES = %w[concepts mechanisms application reasoning limitations].freeze
-    CATEGORIES_BY_TYPE = { "general" => CATEGORIES, "technical" => TECHNICAL_CATEGORIES,
-                           "knowledge" => KNOWLEDGE_CATEGORIES }.freeze
+    CATEGORIES_BY_TYPE = {
+      "fit_motivation" => %w[background motivation goals working_preferences contribution].freeze,
+      "behavioral" => %w[collaboration problem_solving adaptation initiative judgment].freeze,
+      "hypothetical" => %w[prioritization ambiguity disagreement quality_risk accountability].freeze,
+      "technical" => %w[work_overview tools_methods decisions_tradeoffs problem_solving improvement_quality].freeze,
+      "knowledge" => %w[concepts mechanisms application reasoning limitations].freeze
+    }.freeze
     STALE_MESSAGE = "These questions are out of date. Request generation again.".freeze
     INVALID_MESSAGE = "We couldn't save valid, distinct interview questions. Try again.".freeze
 
@@ -52,6 +52,8 @@ module InterviewPrep
 
     # Resolves through the owner, subject and command revisions; deleted targets are obsolete.
     def current_subject
+      return unless @task.input["source_version"] == 1
+
       record = @task.subject
       return unless record
       return unless record.ai_tasks.order(created_at: :desc, id: :desc)
@@ -67,15 +69,12 @@ module InterviewPrep
                       record.interview_question_set_id == @task.input["question_set_id"]
         return unless record.question_revision == @task.input["question_revision"] &&
                       record.answer_revision == @task.input["answer_revision"]
-        return unless @task.input["source_version"] == 1 || record.question_text == @task.input["question_text"]
-        if @task.input["source_version"] == 1
-          peers = record.interview_question_set.questions.where.not(id: record.id).to_h { |peer| [ peer.id, peer.question_revision ] }
-          return unless peers == @task.input["peer_revisions"]
-        end
+        peers = record.interview_question_set.questions.where.not(id: record.id).to_h { |peer| [ peer.id, peer.question_revision ] }
+        return unless peers == @task.input["peer_revisions"]
         return unless record.interview_question_set.questions.count == 5
       end
       question_set = record.is_a?(InterviewQuestionSet) ? record : record.interview_question_set
-      return unless question_set.set_type == @task.input.fetch("set_type", "general")
+      return unless question_set.set_type == @task.input["set_type"]
 
       record
     end
@@ -103,15 +102,9 @@ module InterviewPrep
 
       drafts = @result["interview_questions"]["questions"]
       count = @task.generate_interview_questions? ? 5 : 1
-      categories = CATEGORIES_BY_TYPE[@task.input.fetch("set_type", "general")]
+      categories = CATEGORIES_BY_TYPE[@task.input["set_type"]]
       return unless categories
       return unless drafts.is_a?(Array) && drafts.length == count
-      if @task.input.fetch("set_type", "general") == "general"
-        received_categories = drafts.filter_map { |draft| draft["category"] if draft.is_a?(Hash) }
-        if received_categories.all? { |category| LEGACY_GENERAL_CATEGORIES.include?(category) }
-          categories = LEGACY_GENERAL_CATEGORIES
-        end
-      end
       return unless drafts.all? do |draft|
         draft.is_a?(Hash) && draft["question_text"].is_a?(String) &&
           draft["question_text"].strip.length.between?(10, 1000) &&
@@ -123,7 +116,6 @@ module InterviewPrep
       return if count == 5 && drafts.map { |draft| draft["category"] }.uniq.length != 5
 
       avoided = InterviewPreferences::AvoidedQuestions.snapshot(@task.user)
-      avoided += Array(@task.input["avoided_questions"]) unless @task.input["source_version"] == 1
       avoided = avoided.map { |text| normalize(text) }
       return if drafts.any? { |draft| avoided.include?(normalize(draft["question_text"])) }
 

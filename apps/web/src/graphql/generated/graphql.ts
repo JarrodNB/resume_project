@@ -118,7 +118,9 @@ export type InterviewPlaybackInput = {
 };
 
 export type InterviewQuestionSetTypeEnum =
-  | 'GENERAL'
+  | 'BEHAVIORAL'
+  | 'FIT_MOTIVATION'
+  | 'HYPOTHETICAL'
   | 'KNOWLEDGE'
   | 'TECHNICAL';
 

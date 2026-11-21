@@ -8,7 +8,8 @@ RSpec.describe "Saved practice screening" do
   let(:question_set) { user.interview_question_sets.create!(number: 1) }
   let(:question) { question_set.questions.create!(position: 1, question_text: "Describe a challenge?", answer_text: "I led a team.", answer_revision: 1) }
   let(:snapshot) { question.attributes.slice("question_text", "answer_text", "question_revision", "answer_revision").merge("question_id" => question.id, "question_set_id" => question_set.id) }
-  let(:task) { create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: snapshot) }
+  let(:command) { snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1, "set_type" => question_set.set_type) }
+  let(:task) { create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: command) }
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
@@ -27,7 +28,7 @@ RSpec.describe "Saved practice screening" do
 
   %w[completed failed].each do |outcome|
     it "retains exact reference-command answer approvals on #{outcome} and duplicate results" do
-      command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1)
+      command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1, "set_type" => question_set.set_type)
       task.update!(input: command)
       peer = question_set.questions.create!(position: 2, question_text: "Unselected?", answer_text: question.answer_text)
       foreign = create(:user).interview_question_sets.create!(number: 1).questions.create!(position: 1,
@@ -41,7 +42,7 @@ RSpec.describe "Saved practice screening" do
   end
 
   it "rejects reference receipts for changed answer revisions even after revert" do
-    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1)
+    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1, "set_type" => question_set.set_type)
     task.update!(input: command)
     receipt = report
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "Edited")
@@ -51,7 +52,7 @@ RSpec.describe "Saved practice screening" do
   end
 
   it "rejects reference receipts with stale fingerprints or revisions and unknown source versions" do
-    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1)
+    command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision").merge("source_version" => 1, "set_type" => question_set.set_type)
     task.update!(input: command)
     stale = report
     stale["fingerprints"]["answer_text"] = "0" * 64
@@ -68,7 +69,7 @@ RSpec.describe "Saved practice screening" do
     peer = question_set.questions.create!(position: 2, question_text: "Generated peer?")
     unselected = question_set.questions.create!(position: 3, question_text: "Unselected peer?")
     command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision")
-      .merge("source_version" => 1, "peer_revisions" => { peer.id => peer.question_revision })
+      .merge("source_version" => 1, "set_type" => question_set.set_type, "peer_revisions" => { peer.id => peer.question_revision })
     replacement = create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question", input: command)
     apply([ report(question), report(peer), report(unselected) ], target: replacement)
     expect(question.reload.screened_fields).to eq([ "question_text" ])
@@ -79,7 +80,7 @@ RSpec.describe "Saved practice screening" do
   it "rejects stale selected peer receipts even after text is restored" do
     peer = question_set.questions.create!(position: 2, question_text: "Generated peer?")
     command = snapshot.slice("question_id", "question_set_id", "question_revision", "answer_revision")
-      .merge("source_version" => 1, "peer_revisions" => { peer.id => peer.question_revision })
+      .merge("source_version" => 1, "set_type" => question_set.set_type, "peer_revisions" => { peer.id => peer.question_revision })
     replacement = create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question", input: command)
     peer.update!(question_revision: 2)
     apply([ report(peer) ], target: replacement)
@@ -119,10 +120,11 @@ RSpec.describe "Saved practice screening" do
     expect(question.reload.screened_fields).to be_empty
   end
 
-  it "matches the task snapshot as well as current values" do
+  it "rejects a fingerprint from before a source edit" do
     task
+    receipt = report
     question.update!(answer_text: "Newer answer")
-    expect(apply([ report ])).to be_success
+    expect(apply([ receipt ])).to be_success
     expect(question.reload.screened_fields).to eq([ "question_text" ])
   end
 
@@ -141,9 +143,9 @@ RSpec.describe "Saved practice screening" do
     reports = [ report ]
     task.update!(input: snapshot.merge("question_set_id" => SecureRandom.uuid))
     expect(apply(reports)).to be_success
-    other_task = create(:ai_task, user: user, subject: question, input: snapshot)
+    other_task = create(:ai_task, user: user, subject: question, input: command)
     expect(apply(reports, target: other_task)).to be_success
-    usage_task = create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: snapshot)
+    usage_task = create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: command)
     expect(AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => usage_task.id,
       "status" => "usage", "attempt_id" => SecureRandom.uuid, "record_screening" => reports })).to be_success
     expect(question.reload.screened_fields).to be_empty
@@ -174,41 +176,6 @@ RSpec.describe "Saved practice screening" do
     input = result.value.input
     expect(input["peer_revisions"]).to eq(peers.to_h { |peer| [ peer.id, peer.question_revision ] })
     expect(input.keys).not_to include("other_questions", "other_question_snapshots", "question_text", "answer_text", "screened_fields")
-  end
-
-  it "records every aligned sibling but never its unused answer" do
-    peers = (2..5).map { |position| question_set.questions.create!(position: position, question_text: "Same peer?", answer_text: "Not used") }
-    task.update!(task_type: "regenerate_interview_question", input: snapshot.merge(
-      "other_questions" => peers.map(&:question_text),
-      "other_question_snapshots" => peers.map { |peer| {
-        "question_id" => peer.id, "question_set_id" => question_set.id, "question_text" => peer.question_text,
-        "question_revision" => peer.question_revision, "answer_text" => peer.answer_text, "answer_revision" => peer.answer_revision
-      } }))
-    expect(apply([ report, *peers.map { |peer| report(peer) } ])).to be_success
-    [ question, *peers ].each { |record| expect(record.reload.screened_fields).to eq([ "question_text" ]) }
-  end
-
-  %i[text set revision legacy duplicate].each do |problem|
-    it "rejects #{problem} sibling provenance without approving unrelated fields" do
-      peers = (2..5).map { |position| question_set.questions.create!(position: position, question_text: "Peer #{position}?") }
-      sources = peers.map { |peer| { "question_id" => peer.id, "question_set_id" => question_set.id,
-        "question_text" => peer.question_text, "question_revision" => peer.question_revision } }
-      reports = peers.map { |peer| report(peer, [ "question_text" ]) }
-      case problem
-      when :text then sources[0]["question_text"] = "Different snapshot text"
-      when :set then sources[0]["question_set_id"] = SecureRandom.uuid
-      when :revision then peers[0].update!(question_revision: 2)
-      when :legacy then sources = []
-      when :duplicate then sources[1]["question_id"] = sources[0]["question_id"]
-      end
-      task.update!(task_type: "regenerate_interview_question", input: snapshot.merge(
-        "other_questions" => peers.map(&:question_text), "other_question_snapshots" => sources))
-      expect(apply(reports)).to be_success
-      expect(peers.first.reload.screened_fields).to be_empty
-      peers.drop(1).each do |record|
-        expect(record.reload.screened_fields).to eq(%i[legacy duplicate].include?(problem) ? [] : [ "question_text" ])
-      end
-    end
   end
 
   it "starts saved questions unchecked and shares Unicode fingerprint vectors" do

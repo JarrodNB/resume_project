@@ -13,9 +13,11 @@ import { useCareerLibrary } from '@/features/career-library/useCareerLibrary'
 import { interviewSetTypeLabel } from './interviewSetTypeLabel'
 import { useGenerateInterviewSet } from './useInterviewPrep'
 
-const SET_TYPES: InterviewQuestionSetTypeEnum[] = ['GENERAL', 'TECHNICAL', 'KNOWLEDGE']
+const SET_TYPES: InterviewQuestionSetTypeEnum[] = ['FIT_MOTIVATION', 'BEHAVIORAL', 'HYPOTHETICAL', 'TECHNICAL', 'KNOWLEDGE']
 const TYPE_HELP: Record<InterviewQuestionSetTypeEnum, string> = {
-  GENERAL: 'An introduction plus stories about working with people, solving problems, learning, and judgment.',
+  FIT_MOTIVATION: 'Your background, motivation, goals, working preferences, and contribution.',
+  BEHAVIORAL: 'Real examples of collaboration, problem solving, adaptation, initiative, and judgment.',
+  HYPOTHETICAL: 'How you would handle a situation: priorities, reasoning, communication, and checking the outcome.',
   TECHNICAL: 'How you actually do your work: methods, tools, decisions, tradeoffs, and quality.',
   KNOWLEDGE: 'Whether you understand the subjects in your field. Feedback corrects wrong facts.',
 }
@@ -25,7 +27,7 @@ export function GenerateQuestionSet() {
   const { library, loading: libraryLoading, error: libraryError } = useCareerLibrary()
   const generation = useGenerateInterviewSet()
   const navigate = useNavigate()
-  const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum>('GENERAL')
+  const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum>('FIT_MOTIVATION')
   const hasCareerContext = Boolean(library && (
     library.me.summary?.trim() || library.experiences.length || library.projects.length ||
     library.educations.length || library.certifications.length || library.skills.length || library.careerContexts.length
@@ -43,7 +45,7 @@ export function GenerateQuestionSet() {
       <p>Five questions built from your career library. Saved questions stay the same when your library changes.</p>
     </div>
     <div className="question-generate-controls">
-      <div className="view-switch" role="group" aria-label="Question type">
+      <div className="view-switch flex-wrap" role="group" aria-label="Question type">
         {SET_TYPES.map((type) => <button key={type} type="button" aria-pressed={setType === type} disabled={generation.loading} onClick={() => setSetType(type)}>{interviewSetTypeLabel(type)}</button>)}
       </div>
       <Button size="lg" disabled={generation.loading || !hasCareerContext} onClick={() => void generate()}>{generation.loading ? 'Starting…' : 'Get 5 questions'}</Button>

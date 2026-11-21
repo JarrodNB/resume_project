@@ -26,7 +26,7 @@ class InterviewQuestionsInput(BaseModel):
 
     avoided_questions: list[Annotated[str, Field(min_length=1, max_length=2000)]] = Field(default_factory=list, max_length=50)
     question_set_id: UUID
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     question_id: UUID | None = None
     question_text: str = ""
     other_questions: list[str] = Field(default_factory=list)

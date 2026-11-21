@@ -52,7 +52,7 @@ def dependencies(task_dependencies, monkeypatch):
                    read_interview_question_sources=lambda request: dict(request.input))
 
 
-@pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", [None, "fit_motivation", "technical", "knowledge"])
 def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, monkeypatch):
     """Sparse context still gives grounded feedback; snapshot remains unchanged."""
     request = task()
@@ -63,7 +63,7 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
 
     def inspect_context(prompt, **kwargs):
         """Checks type survives prompt assembly for sparse nonsoftware feedback."""
-        assert prompt.set_type == (set_type or "general")
+        assert prompt.set_type == (set_type or "fit_motivation")
         assert f"Set type: {prompt.set_type}" in prompt.text
         assert "Question:\nDescribe a challenge at work?" in prompt.text
         assert "Answer:\nI organized a workshop." in prompt.text
@@ -121,7 +121,7 @@ def test_feedback_boundary_stays_short_with_long_hyphen_input():
     from worker.interview_feedback_handler import format_feedback_prompt
 
     evidence = "-" * 2000
-    text = format_feedback_prompt("general", "What happened?", "I wrote a note.", CareerLibrary(summary=evidence))
+    text = format_feedback_prompt("fit_motivation", "What happened?", "I wrote a note.", CareerLibrary(summary=evidence))
     boundary = text.splitlines()[2]
     assert len(boundary) < 32
     assert boundary not in evidence
@@ -133,8 +133,8 @@ def test_same_feedback_sources_produce_same_prompt():
     from worker.interview_feedback_handler import format_feedback_prompt
 
     library = CareerLibrary(summary="Python")
-    first = format_feedback_prompt("general", "Describe Python", "I used Python", library)
-    second = format_feedback_prompt("general", "Describe Python", "I used Python", library)
+    first = format_feedback_prompt("fit_motivation", "Describe Python", "I used Python", library)
+    second = format_feedback_prompt("fit_motivation", "Describe Python", "I used Python", library)
     assert first == second
 
 
@@ -148,7 +148,7 @@ def test_feedback_prompt_dates_identify_current_role_and_project():
         projects=[LibraryProject(id="p", name="Search", start_date=date(2023, 2, 1),
             end_date=date(2024, 3, 1))],
     )
-    prompt = format_feedback_prompt("general", "Introduce yourself", "I build systems", library)
+    prompt = format_feedback_prompt("fit_motivation", "Introduce yourself", "I build systems", library)
     assert "Jan 2022 – present" in prompt
     assert "Feb 2023 – Mar 2024" in prompt
 
@@ -165,7 +165,7 @@ def test_feedback_prompt_retains_location_and_credential_evidence():
             expiry_date=date(2027, 1, 1), expiry_date_precision="year",
             credential_id="verified-123", credential_url="https://credentials.example/verified-123")],
     )
-    prompt = format_feedback_prompt("general", "Introduce yourself", "I hold a credential", library)
+    prompt = format_feedback_prompt("fit_motivation", "Introduce yourself", "I hold a credential", library)
     for detail in ("Manila", "Issued: 2021", "Expires: 2027", "verified-123",
                    "https://credentials.example/verified-123"):
         assert detail in prompt
@@ -344,7 +344,7 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     assert library.career_contexts[0].requirement == "Managed 20 people"
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_context_context_reaches_feedback_but_cannot_support_evidence_quotes(dependencies, monkeypatch, set_type):
     """The provider sees checked context while quote validation accepts only the saved response."""
     from pydantic_ai.messages import ModelResponse, ToolCallPart

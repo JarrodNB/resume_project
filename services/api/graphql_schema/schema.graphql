@@ -1271,7 +1271,7 @@ input GenerateInterviewQuestionSetInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
-  setType: InterviewQuestionSetTypeEnum = GENERAL
+  setType: InterviewQuestionSetTypeEnum = FIT_MOTIVATION
 }
 
 """
@@ -1496,7 +1496,9 @@ type InterviewQuestionSet {
 }
 
 enum InterviewQuestionSetTypeEnum {
-  GENERAL
+  BEHAVIORAL
+  FIT_MOTIVATION
+  HYPOTHETICAL
   KNOWLEDGE
   TECHNICAL
 }

@@ -26,7 +26,7 @@ class InterviewFeedbackInput(BaseModel):
     """Owned source fields loaded together at the commanded revisions."""
 
     question_set_id: UUID
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     question_id: UUID
     question_text: str = Field(min_length=1)
     answer_text: str = Field(min_length=1, max_length=text_limits.MAX_INTERVIEW_ANSWER)

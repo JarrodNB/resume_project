@@ -12,16 +12,17 @@ from worker.interview_questions_handler import InterviewQuestionsInput
 
 
 def test_question_snapshot_type_defaults_and_rejects_unknown():
-    """Legacy generation defaults to general; unknown scopes never reach an agent."""
+    """Generation defaults to fit and motivation; obsolete scopes never reach an agent."""
     data = {"question_set_id": "00000000-0000-0000-0000-000000000001"}
-    assert InterviewQuestionsInput.model_validate(data).set_type == "general"
-    for set_type in ("technical", "knowledge"):
+    assert InterviewQuestionsInput.model_validate(data).set_type == "fit_motivation"
+    for set_type in ("fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"):
         assert InterviewQuestionsInput.model_validate({**data, "set_type": set_type}).set_type == set_type
-    with pytest.raises(ValidationError):
-        InterviewQuestionsInput.model_validate({**data, "set_type": "quiz"})
+    for unsupported in ("quiz", "general"):
+        with pytest.raises(ValidationError):
+            InterviewQuestionsInput.model_validate({**data, "set_type": unsupported})
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_feedback_snapshot_scope(set_type):
     """All persisted scopes reach coaching through the shared queue contract."""
     data = {"question_set_id": "00000000-0000-0000-0000-000000000001",

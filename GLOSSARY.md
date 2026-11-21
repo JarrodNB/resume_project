@@ -32,6 +32,11 @@ The model work consumed while handling a user's AI tasks, including unsuccessful
 **Conversation transcript**:
 A readable record of the AI exchanges for one AI task, stored separately from other tasks even when they share a job or interview question set. It includes instructions, messages, tool calls and results, and repeated attempts as seen by the model. Local development transcripts also highlight observed validation/provider failures, actual fallback execution and task redeliveries; production uses tracing only.
 
+**Written question type**:
+The immutable practice scope: Fit & motivation (background, goals and preferences), Behavioral
+(real past examples), Hypothetical (a proposed approach), Technical (actual work methods),
+or Knowledge (subject understanding). Generation and feedback use the same scope.
+
 **Question bank**:
 Every written practice question a user has, shown together with each answer's progress
 (not answered, no feedback yet, feedback ready, or out of date). Questions still arrive in

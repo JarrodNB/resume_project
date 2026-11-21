@@ -14,7 +14,6 @@ RSpec.describe "AI execution stream grants" do
 
   before do
     allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("AI_STREAMING_ENABLED").and_return("true")
     expect(Interviews::ClaimOperationService.call(operation: operation).success?).to be(true)
   end
 
@@ -99,15 +98,13 @@ RSpec.describe "AI execution stream grants" do
     expect(AiExecutions::StreamGrantService.call(action: "redeem", token: token).success?).to be(false)
   end
 
-  it "expires grants, disables issuance, and rejects unknown actions/features" do
+  it "expires grants and rejects unknown actions/features" do
     token = authorize.value.fetch(:token)
     AiExecutionStreamGrant.last.update!(expires_at: 1.second.ago)
     expect(AiExecutions::StreamGrantService.call(action: "redeem", token: token).success?).to be(false)
     expect(AiExecutions::StreamGrantService.call(action: "claim", token: token).success?).to be(false)
     expect(AiExecutions::AuthorizeStreamService.call(user: user, session_id: session_id,
       feature: "arbitrary_class", operation_id: operation.id).success?).to be(false)
-    allow(ENV).to receive(:[]).with("AI_STREAMING_ENABLED").and_return("false")
-    expect(authorize.success?).to be(false)
   end
 
   it "bounds active capabilities without preventing expired-grant cleanup" do

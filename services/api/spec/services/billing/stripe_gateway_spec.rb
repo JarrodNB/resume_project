@@ -4,20 +4,20 @@ require "rails_helper"
 RSpec.describe Billing::StripeGateway do
   it "reads current_period_end from the subscription items in recent API versions" do
     stripe_subscription = Stripe::Subscription.construct_from(
-      id: "sub_1", customer: "cus_1", status: "active", cancel_at_period_end: true, metadata: { user_id: "u1" },
+      id: "sub_1", customer: "cus_1", status: "active", cancel_at_period_end: true, metadata: { user_id: "u1", source: "careerdrafter" },
       items: { object: "list", data: [ { id: "si_1", current_period_end: 1_800_000_000 }, { id: "si_2", current_period_end: 1_800_000_500 } ] }
     )
 
     expect(described_class.subscription_from(stripe_subscription)).to eq(
       Billing::Gateway::Subscription.new(id: "sub_1", customer_id: "cus_1", status: "active",
-        current_period_end: Time.zone.at(1_800_000_500), cancel_at_period_end: true, user_id: "u1")
+        current_period_end: Time.zone.at(1_800_000_500), cancel_at_period_end: true, user_id: "u1", source: "careerdrafter")
     )
   end
 
   it "prefers a top-level current_period_end when Stripe sends one" do
     stripe_subscription = Stripe::Subscription.construct_from(id: "sub_1", customer: { id: "cus_1" }, status: "past_due", current_period_end: 1_700_000_000)
 
-    expect(described_class.subscription_from(stripe_subscription)).to have_attributes(customer_id: "cus_1", current_period_end: Time.zone.at(1_700_000_000), cancel_at_period_end: false, user_id: nil)
+    expect(described_class.subscription_from(stripe_subscription)).to have_attributes(customer_id: "cus_1", current_period_end: Time.zone.at(1_700_000_000), cancel_at_period_end: false, user_id: nil, source: nil)
   end
 
   it "needs only the secret key for configured? (portal and cancel) but also the price id for checkout_configured?" do
@@ -109,7 +109,7 @@ RSpec.describe Billing::StripeGateway do
       expect(sent.size).to eq(1)
       expect(sent.first.flatten.first).to eq(
         mode: "subscription", customer: "cus_1", line_items: [ { price: "price_test_1", quantity: 1 } ],
-        client_reference_id: "user-1", subscription_data: { metadata: { user_id: "user-1" } },
+        client_reference_id: "user-1", subscription_data: { metadata: { user_id: "user-1", source: "careerdrafter" } },
         automatic_tax: { enabled: true }, customer_update: { address: "auto" },
         success_url: "https://app/ok", cancel_url: "https://app/no"
       )

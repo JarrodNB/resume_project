@@ -6,9 +6,9 @@ RSpec.describe Billing::SyncSubscriptionService do
   let!(:row) { create(:billing_subscription, user: user, stripe_customer_id: "cus_1", stripe_subscription_id: nil, status: nil, current_period_end: nil) }
   let(:period_end) { Time.zone.at(1_800_000_000) }
 
-  def stripe_subscription(id: "sub_1", status: "active", customer_id: "cus_1", user_id: user.id, cancel: false)
+  def stripe_subscription(id: "sub_1", status: "active", customer_id: "cus_1", user_id: user.id, cancel: false, source: Billing::Gateway::SOURCE)
     Billing::Gateway::Subscription.new(id: id, customer_id: customer_id, status: status, current_period_end: period_end,
-      cancel_at_period_end: cancel, user_id: user_id)
+      cancel_at_period_end: cancel, user_id: user_id, source: source)
   end
 
   def sync(id = "sub_1") = described_class.call(subscription_id: id)
@@ -117,6 +117,34 @@ RSpec.describe Billing::SyncSubscriptionService do
 
       expect(FakeStripeGateway.canceled).to eq([ "sub_9" ])
       expect(Rails.logger).to have_received(:warn).with(/sub_9.*refund/i)
+    end
+
+    it "only logs and skips when its user was deleted but it lacks our source marker" do
+      FakeStripeGateway.subscriptions["sub_9"] = stripe_subscription(id: "sub_9", customer_id: "cus_gone", user_id: SecureRandom.uuid, source: nil)
+
+      expect(sync("sub_9")).to be_success
+
+      expect(FakeStripeGateway.canceled).to be_empty
+    end
+
+    it "cancels it when the billing row disappears after it was found (account deleted mid-sync)" do
+      FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription
+      allow_any_instance_of(BillingSubscription).to receive(:with_lock).and_raise(ActiveRecord::RecordNotFound)
+      allow(Rails.logger).to receive(:warn)
+
+      expect(sync).to be_success
+
+      expect(FakeStripeGateway.canceled).to eq([ "sub_1" ])
+      expect(Rails.logger).to have_received(:warn).with(/sub_1.*refund/i)
+    end
+
+    it "does not cancel a vanished-row subscription that lacks our source marker" do
+      FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription(source: nil)
+      allow_any_instance_of(BillingSubscription).to receive(:with_lock).and_raise(ActiveRecord::RecordNotFound)
+
+      expect(sync).to be_success
+
+      expect(FakeStripeGateway.canceled).to be_empty
     end
 
     it "does not cancel one that is already over" do

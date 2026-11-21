@@ -28,7 +28,7 @@ module Billing
         id: data[:id], customer_id: customer.is_a?(Hash) ? customer[:id] : customer, status: data[:status],
         current_period_end: period_end && Time.zone.at(period_end),
         cancel_at_period_end: data[:cancel_at_period_end] ? true : false,
-        user_id: (data[:metadata] || {})[:user_id]
+        user_id: (data[:metadata] || {})[:user_id], source: (data[:metadata] || {})[:source]
       )
     end
 
@@ -59,7 +59,7 @@ module Billing
           customer: customer_id,
           line_items: [ { price: ENV.fetch("STRIPE_PRICE_ID"), quantity: 1 } ],
           client_reference_id: user_id,
-          subscription_data: { metadata: { user_id: user_id } },
+          subscription_data: { metadata: { user_id: user_id, source: Gateway::SOURCE } },
           automatic_tax: { enabled: true },
           customer_update: { address: "auto" },
           success_url: success_url,

@@ -7,7 +7,7 @@
 # create_portal_session, retrieve_subscription, cancel_subscription_now,
 # cancel_customer_subscriptions, construct_event.
 # Index:
-#   - Subscription: a subscription's current state (status, period end, cancel flag, user id from metadata)
+#   - Subscription: a subscription's current state (status, period end, cancel flag, user id and source marker from metadata)
 #   - Event: a verified webhook event reduced to its type and subscription id
 #   - InvalidSignature: raised by construct_event for a missing or wrong signature
 #   - Unavailable: the provider could not do the call (network, rate limit, auth, any other provider error)
@@ -15,7 +15,14 @@
 #   - current: the adapter instance to use
 module Billing
   module Gateway
-    Subscription = Data.define(:id, :customer_id, :status, :current_period_end, :cancel_at_period_end, :user_id)
+    # The value Careerdrafter writes to `source` in the metadata of every subscription it starts, so
+    # we can tell our own subscriptions from any other subscription on the same Stripe account.
+    SOURCE = "careerdrafter"
+
+    # `source` is the metadata marker above, or nil for a subscription we did not start.
+    Subscription = Data.define(:id, :customer_id, :status, :current_period_end, :cancel_at_period_end, :user_id, :source) do
+      def initialize(source: nil, **rest) = super
+    end
     Event = Data.define(:type, :subscription_id)
 
     # Subscription statuses that are over for good; there is nothing left to cancel.

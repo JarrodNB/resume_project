@@ -7,15 +7,16 @@ RSpec.describe InterviewQuestionSet do
   let(:user) { create(:user) }
   let(:question_set) { user.interview_question_sets.create!(number: 1) }
 
-  it "defaults legacy sets to general, validates types, and keeps the type immutable" do
-    expect(question_set.reload.set_type).to eq("general")
+  it "supports exactly five immutable practice types and rejects general" do
+    expect(InterviewQuestionSet::SET_TYPES).to eq(%w[fit_motivation behavioral hypothetical technical knowledge])
+    expect(user.interview_question_sets.build(number: 2, set_type: "general")).not_to be_valid
     expect(user.interview_question_sets.build(number: 2, set_type: "quiz")).not_to be_valid
-    technical = user.interview_question_sets.create!(number: 2, set_type: "technical")
-    expect { technical.update!(set_type: "general") }.to raise_error(ActiveRecord::ReadonlyAttributeError)
-    expect(technical.reload.set_type).to eq("technical")
-    knowledge = user.interview_question_sets.create!(number: 3, set_type: "knowledge")
-    expect { knowledge.update!(set_type: "technical") }.to raise_error(ActiveRecord::ReadonlyAttributeError)
-    expect(knowledge.reload.set_type).to eq("knowledge")
+    InterviewQuestionSet::SET_TYPES.each_with_index do |type, index|
+      record = user.interview_question_sets.create!(number: index + 2, set_type: type)
+      expect { record.update!(set_type: "technical") }.to raise_error(ActiveRecord::ReadonlyAttributeError) unless type == "technical"
+      expect(record.reload.set_type).to eq(type)
+    end
+    expect(question_set.set_type).to eq("fit_motivation")
   end
 
   it "rejects unsupported scopes at the database boundary" do
@@ -25,7 +26,7 @@ RSpec.describe InterviewQuestionSet do
         InterviewQuestionSet.where(id: question_set.id).update_all(set_type: "quiz")
       end
     end.to raise_error(ActiveRecord::StatementInvalid)
-    expect(question_set.reload.set_type).to eq("general")
+    expect(question_set.reload.set_type).to eq("fit_motivation")
   end
 
   # Builds a question within the user's practice set.

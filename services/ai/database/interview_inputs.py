@@ -85,13 +85,11 @@ def _preparation(cursor, row, params):
         "emails": [contact["contact_email"]] if contact["contact_email"] else [],
         "phones": [contact["phone"]] if contact["phone"] else [],
     }
-    context["avoided_questions"] = [
-        r["question_text"]
-        for r in cursor.execute(
-            "SELECT question_text FROM avoided_interview_questions WHERE user_id = %(user_id)s ORDER BY created_at, id LIMIT 51",
-            params,
-        ).fetchall()
-    ]
+    context["avoided_question_sources"] = cursor.execute(
+        "SELECT id::text, question_text, origin, screened_fields FROM avoided_interview_questions WHERE user_id = %(user_id)s ORDER BY created_at, id LIMIT 51",
+        params,
+    ).fetchall()
+    context["avoided_questions"] = [r["question_text"] for r in context["avoided_question_sources"]]
     if row["preparation_kind"] == "saved_job":
         job = cursor.execute(
             """SELECT id::text, title, company, description, requirements,

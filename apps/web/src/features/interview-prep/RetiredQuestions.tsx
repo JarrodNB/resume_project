@@ -24,6 +24,7 @@ export function RetiredQuestions({ questions }: { questions: BankQuestion[] }) {
           </summary>
           <div className="retired-question-body">
             <div className="grid min-w-0 content-start gap-2">
+              {question.memoryAnchor && <><h3 className="text-sm font-bold">Memory anchor</h3><p className="whitespace-pre-wrap break-words">{question.memoryAnchor}</p></>}
               <h3 className="text-sm font-bold">Your answer</h3>
               <p className="whitespace-pre-wrap break-words">{question.answerText}</p>
             </div>

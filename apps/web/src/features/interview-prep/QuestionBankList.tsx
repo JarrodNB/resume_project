@@ -1,13 +1,16 @@
 /**
  * Description: The question bank: every current practice question with its answer progress.
- * Filters by progress and type and searches question and answer text in the browser.
+ * Filters by progress and type and searches question, answer, and memory-anchor text in the browser.
  * Each row opens a question for writing and feedback, or confirms its deletion.
+ * Practice rehearses saved answers from this same filtered selection in local state.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { ChevronRight } from 'lucide-react'
 import type { InterviewQuestionBankQuery, InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { QuestionRehearsal } from './QuestionRehearsal'
 import { interviewSetDate } from './interviewSetDate'
 import { interviewSetTypeLabel } from './interviewSetTypeLabel'
 import { PROGRESS_LABELS, matchesFilter, questionProgress, type QuestionFilter } from './questionProgress'
@@ -25,6 +28,15 @@ const FILTERS: { value: QuestionFilter; label: string }[] = [
 
 /** Lists current questions with progress filters, a type filter, and text search. */
 export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
+  const [rehearsal, setRehearsal] = useState<BankQuestion[] | null>(null)
+  const practiceButton = useRef<HTMLButtonElement>(null)
+  const restoreFocus = useRef(false)
+  useEffect(() => {
+    if (!rehearsal && restoreFocus.current) {
+      practiceButton.current?.focus()
+      restoreFocus.current = false
+    }
+  }, [rehearsal])
   const [filter, setFilter] = useState<QuestionFilter>('all')
   const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
@@ -32,16 +44,26 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
   const typed = rows.filter(({ question }) => setType === 'ALL' || question.questionSet.setType === setType)
   const term = search.trim().toLowerCase()
   const visible = typed.filter(({ question, progress }) => matchesFilter(progress, filter) &&
-    (!term || question.questionText.toLowerCase().includes(term) || question.answerText.toLowerCase().includes(term)))
+    (!term || question.questionText.toLowerCase().includes(term) || question.answerText.toLowerCase().includes(term) || question.memoryAnchor.toLowerCase().includes(term)))
+
+  if (rehearsal) return <QuestionRehearsal questions={rehearsal} onReturn={() => {
+    restoreFocus.current = true
+    setRehearsal(null)
+  }} />
 
   return <section className="question-bank" aria-labelledby="question-bank-heading">
     <div className="question-bank-toolbar">
-      <h2 id="question-bank-heading">Your questions</h2>
+      <div className="flex flex-wrap items-center gap-4">
+        <h2 id="question-bank-heading">Your questions</h2>
+        <Button ref={practiceButton} onClick={() => setRehearsal(visible.map(({ question }) => question).filter((question) => !question.retiredAt && question.answerText.trim()))}>Practice</Button>
+      </div>
       <div className="question-bank-search">
         <label className="sr-only" htmlFor="question-bank-type">Filter by type</label>
         <select id="question-bank-type" className="question-bank-select" value={setType} onChange={(event) => setSetType(event.target.value as InterviewQuestionSetTypeEnum | 'ALL')}>
           <option value="ALL">All types</option>
-          <option value="GENERAL">General</option>
+          <option value="FIT_MOTIVATION">Fit &amp; motivation</option>
+          <option value="BEHAVIORAL">Behavioral</option>
+          <option value="HYPOTHETICAL">Hypothetical</option>
           <option value="TECHNICAL">Technical</option>
           <option value="KNOWLEDGE">Knowledge</option>
         </select>

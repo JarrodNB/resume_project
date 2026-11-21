@@ -7,9 +7,10 @@ module InterviewPrep
     TASK_TYPES = %w[regenerate_interview_question review_interview_answer].freeze
 
     # Receives an authorized question, optional feedback answer, and replacement confirmation.
-    def initialize(user:, question:, task_type:, answer_text: nil, confirmed: false)
+    def initialize(user:, question:, task_type:, answer_text: nil, memory_anchor: nil, confirmed: false)
       @user, @question, @task_type = user, question, task_type
       @answer_text, @confirmed = answer_text, confirmed
+      @memory_anchor = memory_anchor
     end
 
     # Feedback saves the typed answer even if the later allowance or queue check fails.
@@ -18,7 +19,7 @@ module InterviewPrep
       if @task_type == "review_interview_answer"
         return failure([ "Write an answer before asking for feedback." ]) if @answer_text.blank?
 
-        saved = SaveAnswerService.call(question: @question, answer_text: @answer_text)
+        saved = SaveAnswerService.call(question: @question, answer_text: @answer_text, memory_anchor: @memory_anchor)
         return saved unless saved.success?
 
         @saved_revisions = [ @question.question_revision, @question.answer_revision ]
@@ -32,6 +33,9 @@ module InterviewPrep
     # Rechecks state under the owner lock before persisting reference commands.
     def prepare_task(task)
       @question.reload
+      if @task_type == "regenerate_interview_question" && @question.interview_question_set.manual?
+        return failure([ "Custom questions cannot be replaced." ])
+      end
       if @question.ai_tasks.where(task_type: TASK_TYPES, status: "queued").exists?
         return failure([ "An AI operation is already running for this question." ])
       end

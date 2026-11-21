@@ -158,3 +158,24 @@ def _library_title(record_type, record):
 def _short(text):
     text = " ".join(text.split())
     return text if len(text) <= _TITLE_CHARACTERS else text[:_TITLE_CHARACTERS - 1].rstrip() + "…"
+
+
+def interview_question_records(sources: Iterable[Mapping], *, avoided: bool = False) -> list[ScreenableRecord]:
+    """Screen manual saved questions; generated provenance is selected by the owned reader."""
+    from screening.session import trust_generated_source
+
+    records = []
+    for source in sources:
+        if source["origin"] == "generated":
+            trust_generated_source(source["question_text"])
+        elif source["origin"] == "manual":
+            if avoided:
+                records.append(ScreenableRecord(record_type="avoided_interview_question",
+                    record_id=str(source["id"]), fields={"question_text": source["question_text"]},
+                    display_title=_short(source["question_text"]),
+                    approved_fields=frozenset(source.get("screened_fields", []))))
+            else:
+                records.append(interview_answer_record(source, "question_text", source["question_text"]))
+        else:
+            raise ValueError("Unknown interview question origin")
+    return records

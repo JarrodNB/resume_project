@@ -35,10 +35,24 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
+def owned_sources(data):
+    """Model the database reader's durable generated origins in old synthetic fixtures."""
+    result = dict(data)
+    for field, texts in (
+        ("question_sources", [*([data["question_text"], *data.get("other_questions", [])]
+          if data.get("question_text") else []), *([] if data.get("question_text") else data.get("recent_questions", []))]),
+        ("avoided_question_sources", data.get("avoided_questions", [])),
+    ):
+        known = {r["question_text"]: r for r in data.get(field, [])}
+        result[field] = [known.get(text, {"id": str(uuid4()), "question_id": str(uuid4()),
+            "question_revision": 1, "origin": "generated", "question_text": text}) for text in texts]
+    return result
+
+
 @pytest.fixture
 def task_dependencies(task_dependencies):
     """Existing prompt fixtures stand in for sources returned by the database reader."""
-    return replace(task_dependencies, read_interview_question_sources=lambda task: task.input)
+    return replace(task_dependencies, read_interview_question_sources=lambda task: owned_sources(task.input))
 
 
 def test_reference_command_uses_reader_sources_and_never_copied_fields(task_dependencies, monkeypatch):
@@ -47,7 +61,7 @@ def test_reference_command_uses_reader_sources_and_never_copied_fields(task_depe
     task.input = {"source_version": 1, "question_set_id": task.input["question_set_id"],
                   "question_text": "Untrusted transport text?"}
     dependencies = replace(task_dependencies,
-        read_interview_question_sources=lambda selected: sources,
+        read_interview_question_sources=lambda selected: owned_sources(sources),
         read_career_library=lambda _: CareerLibrary(skills=[LibrarySkill(id=str(uuid4()), name="Python")]))
     generate = interview_questions_handler.generate_interview_questions
 
@@ -89,7 +103,7 @@ def _task(replacement=False, set_type=None):
         task_type="regenerate_interview_question" if replacement else "generate_interview_questions")
 
 
-def _output(count=5, set_type="general"):
+def _output(count=5, set_type="fit_motivation"):
     """Distinct synthetic drafts grounded in a sparse skill library."""
     questions = [
         "How does Python fit into your background?",
@@ -98,10 +112,7 @@ def _output(count=5, set_type="general"):
         "Tell me about a time you adapted after receiving feedback.",
         "Tell me about a time you had to decide what to prioritize.",
     ]
-    categories = (("introduction", "collaboration", "problem_solving", "learning_adaptation", "initiative_judgment")
-                  if set_type == "general" else QUESTION_CATEGORIES[set_type])
-    if count == 1 and set_type == "general":
-        questions, categories = questions[3:4], categories[3:4]
+    categories = QUESTION_CATEGORIES[set_type]
     return {"questions": [{"question_text": text, "category": category,
                             "evidence_ids": ["E1"]}
         for text, category in zip(questions[:count],
@@ -163,7 +174,7 @@ def test_replacement_ignores_recent_full_set_context(task_dependencies, monkeypa
 
 
 @pytest.mark.parametrize("replacement", [False, True])
-@pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", [None, "fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_sparse_library_generates_questions(task_dependencies, replacement, set_type, monkeypatch):
     """One stated skill suffices, and both task types report billed usage."""
     library = CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")])
@@ -172,21 +183,21 @@ def test_sparse_library_generates_questions(task_dependencies, replacement, set_
 
     def inspect_context(prompt, **kwargs):
         """Verifies the immutable scope reaches the actual agent and prompt."""
-        assert prompt.set_type == (set_type or "general")
+        assert prompt.set_type == (set_type or "fit_motivation")
         assert f"{prompt.set_type} questions" in prompt.text
         return generate(prompt, **kwargs)
 
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
-    with accounted_override(interview_questions_agent, TestModel(custom_output_args=_output(1 if replacement else 5, set_type or "general"))) as usage:
+    with accounted_override(interview_questions_agent, TestModel(custom_output_args=_output(1 if replacement else 5, set_type or "fit_motivation"))) as usage:
         result = handle_ai_task(_task(replacement, set_type), deps)
     assert result.status == "completed"
     assert len(result.result["interview_questions"]["questions"]) == (1 if replacement else 5)
     assert usage.entries
 
 
-@pytest.mark.parametrize("set_type, output_type", [("technical", "general"), ("general", "technical"),
-                                                 ("knowledge", "technical"), ("knowledge", "general"),
-                                                 ("general", "knowledge"), ("technical", "knowledge")])
+@pytest.mark.parametrize("set_type, output_type", [("technical", "fit_motivation"), ("fit_motivation", "technical"),
+                                                 ("knowledge", "technical"), ("knowledge", "fit_motivation"),
+                                                 ("fit_motivation", "knowledge"), ("technical", "knowledge")])
 def test_wrong_scope_categories_fail(task_dependencies, set_type, output_type):
     """Five distinct but wrong-scope categories cannot be persisted."""
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
@@ -196,7 +207,7 @@ def test_wrong_scope_categories_fail(task_dependencies, set_type, output_type):
     assert usage.entries
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_category_prefix_is_not_question_text(task_dependencies, set_type):
     """Internal category labels remain metadata instead of leaking into displayed questions."""
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
@@ -230,66 +241,8 @@ def test_empty_context_fails_before_model(task_dependencies, library):
     assert "Add usable" in handle_ai_task(_task(), deps).error_message
 
 
-@pytest.mark.parametrize("legacy", [False, True])
-def test_general_replacement_keeps_all_saved_intents_excluded(task_dependencies, monkeypatch, legacy):
-    """New behavioral categories work in legacy sets without rewriting or recategorizing saved text."""
-    task = _task(True, "general")
-    saved = (["Tell me about your background.", "What are your strengths?", "What do you want to develop?",
-              "What are your career goals?", "Describe collaborating on a project."] if legacy else
-             [question["question_text"] for question in _output()["questions"]])
-    task.input.update(question_text=saved[0], other_questions=saved[1:])
-    deps = replace(task_dependencies, read_career_library=lambda user_id:
-                   CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
-    generate = interview_questions_handler.generate_interview_questions
-
-    def inspect_context(prompt, **kwargs):
-        """Checks all five original intents reach generation as exclusions, not evidence."""
-        assert set(prompt.excluded) == set(saved)
-        assert all(text in prompt.text for text in saved)
-        assert all(text not in prompt.library_text for text in saved)
-        return generate(prompt, **kwargs)
-
-    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
-    draft = {"questions": [{"question_text": "Tell me about a time you changed your approach after a setback.",
-                            "category": "learning_adaptation", "evidence_ids": ["E1"]}]}
-    with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
-        result = handle_ai_task(task, deps)
-    assert result.status == "completed"
-    assert result.result["interview_questions"]["questions"][0]["category"] == "learning_adaptation"
-
-
-def test_general_replacement_rejects_another_introduction(task_dependencies):
-    """Every saved set already has an excluded introduction; replacement must explore a behavioral theme."""
-    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
-    draft = {"questions": [{"question_text": "What draws you to a career using Python?",
-                            "category": "introduction", "evidence_ids": ["E1"]}]}
-    with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
-        result = handle_ai_task(_task(True, "general"), deps)
-    assert result.status == "failed"
-
-
-def test_general_replacement_retries_introduction_then_accepts_story(task_dependencies):
-    """Validation feedback lets the actual agent recover to a distinct behavioral draft."""
-    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
-    calls = []
-
-    def respond(messages, info):
-        """First reproduce the live motivation output, then return a valid story question."""
-        calls.append(messages)
-        draft = (_output(1) if len(calls) > 1 else {"questions": [{
-            "question_text": "What draws you to work using Python?", "category": "introduction",
-            "evidence_ids": ["E1"]}]})
-        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, json.dumps(draft))])
-
-    with interview_questions_agent.override(model=FunctionModel(respond)):
-        result = handle_ai_task(_task(True, "general"), deps)
-    assert result.status == "completed"
-    assert len(calls) == 2
-    assert result.result["interview_questions"]["questions"][0]["category"] == "learning_adaptation"
-
-
 @pytest.mark.parametrize("problem", ["duplicate", "unknown_evidence_id", "wrong_count", "old_question", "other_question"])
-@pytest.mark.parametrize("set_type", ["general", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "knowledge"])
 def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     """Exhausted validation retries produce an actionable failure."""
     deps = replace(task_dependencies, read_career_library=lambda user_id:
@@ -411,7 +364,7 @@ def test_question_boundary_retries_marker_found_in_source(monkeypatch, history):
     monkeypatch.setattr(interview_evidence, "sha256",
                         lambda *_: SimpleNamespace(hexdigest=lambda: next(candidates)))
     prompt = build_interview_question_context(
-        CareerLibrary(summary="Python" if history else "--deadbeef"), [], 5, "general",
+        CareerLibrary(summary="Python" if history else "--deadbeef"), [], 5, "fit_motivation",
         recent_questions=["A question with --deadbeef inside?"] if history else []).text
     assert "--01234567" in prompt
     assert prompt.endswith("--01234567")
@@ -421,15 +374,15 @@ def test_sparse_question_prompt_stays_below_old_json_size():
     """Readable labels should not cost more than the sparse serialized payload they replace."""
     library = CareerLibrary(summary="Synthetic: retail assistant who helped customers and restocked shelves.")
     excluded = ["Tell me about your retail background?", "How did you help customers?"]
-    prompt = build_interview_question_context(library, excluded, 1, "general").text
+    prompt = build_interview_question_context(library, excluded, 1, "fit_motivation").text
     assert len(prompt) < 340
 
 
 def test_same_question_sources_produce_same_prompt():
     """A repeat eval or retry receives the same source framing."""
     library = CareerLibrary(summary="Python")
-    first = build_interview_question_context(library, [], 5, "general").text
-    second = build_interview_question_context(library, [], 5, "general").text
+    first = build_interview_question_context(library, [], 5, "fit_motivation").text
+    second = build_interview_question_context(library, [], 5, "fit_motivation").text
     assert first == second
 
 
@@ -594,49 +547,24 @@ def test_quote_sources_exclude_hidden_and_formatted_fields() -> None:
     assert "private-id" not in quotes
 
 
-@pytest.mark.parametrize("malformed", [False, True])
-def test_replacement_trusts_generated_sibling_questions(task_dependencies, monkeypatch, malformed):
+def test_replacement_trusts_generated_sibling_questions(task_dependencies, monkeypatch):
+    """Current owned generated slots need no repeated classification on replacement."""
     from screening.session import prompt_is_covered, screening_session
+
     request = _task(True)
-    # Equal source text must not collapse two different saved question identities.
-    request.input["other_questions"][1] = request.input["other_questions"][0]
-    peers = [{"question_id": str(uuid4()), "question_set_id": request.input["question_set_id"],
-              "question_text": text, "question_revision": 2, "screened_fields": []}
-             for text in request.input["other_questions"]]
-    peers[2]["screened_fields"] = ["question_text"]
-    request.input["other_question_snapshots"] = peers
-    request.input["screened_fields"] = ["question_text"]
-    if malformed:
-        peers[2]["question_text"] = "Metadata differs from prompt source"
     calls = []
     monkeypatch.setattr("screening.records.screen_user_text",
         lambda text, *_args, **kwargs: calls.append(text) or ScreenOutcome(True))
     library = CareerLibrary(skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     generate = interview_questions_handler.generate_interview_questions
+
     def inspect(prompt, **kwargs):
         assert prompt_is_covered(prompt.text)
-        assert "screened_fields" not in prompt.text and "question_revision" not in prompt.text
-        assert all(peer["question_id"] not in prompt.text for peer in peers)
+        assert set(prompt.excluded) == {request.input["question_text"], *request.input["other_questions"]}
         return generate(prompt, **kwargs)
+
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
-    with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
-        assert handle_ai_task(request, deps).status == "completed"
-        assert session.record_screening == []
-        count = len(calls)
-        assert handle_ai_task(request, deps).status == "completed"
-        assert len(calls) == count
-    assert calls == []
-
-
-def test_legacy_replacement_trusts_target_and_unidentified_siblings(task_dependencies, monkeypatch):
-    from screening.session import screening_session
-    calls = []
-    monkeypatch.setattr("screening.records.screen_user_text",
-        lambda text, *_args, **kwargs: calls.append(text) or ScreenOutcome(True))
-    request = _task(True)
-    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(
-        skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])]))
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
         assert session.record_screening == []
@@ -681,3 +609,37 @@ def test_saved_preferences_overflow_fails_without_dropping_any_question(task_dep
     result = handle_ai_task(request, deps)
     assert result.status == "failed"
     assert "saved question preferences are too long" in result.error_message
+
+
+@pytest.mark.parametrize('kind', ['history', 'replacement', 'avoided'])
+@pytest.mark.parametrize('approved', [False, True])
+def test_manual_prompt_questions_screen_or_reuse_exact_saved_approval(task_dependencies, monkeypatch, kind, approved):
+    task = _task(replacement=kind == 'replacement')
+    text = task.input['question_text'] if kind == 'replacement' else 'Describe a calibration error?'
+    descriptor = {'question_id': str(uuid4()), 'question_revision': 1, 'question_text': text,
+                  'origin': 'manual', 'screened_fields': ['question_text'] if approved else []}
+    if kind == 'avoided':
+        descriptor['id'] = descriptor.pop('question_id')
+        task.input.update(avoided_questions=[text], avoided_question_sources=[descriptor])
+    else:
+        task.input['question_sources'] = [descriptor]
+        if kind == 'history':
+            task.input['recent_questions'] = [text]
+    checked = []
+    def check(blob, *args, **kwargs):
+        checked.append(blob)
+        return ScreenOutcome(allowed=text not in blob)
+    monkeypatch.setattr('screening.records.screen_user_text', check)
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary='Python'))
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1 if kind == 'replacement' else 5))):
+        result = handle_ai_task(task, deps)
+    assert result.status == ('completed' if approved else 'failed')
+    assert any(text in blob for blob in checked) is (not approved)
+
+
+def test_missing_question_provenance_fails_closed(task_dependencies):
+    request = _task()
+    sources = {**request.input, 'recent_questions': ['Unsourced question?']}
+    deps = replace(task_dependencies, read_interview_question_sources=lambda _: sources,
+                   read_career_library=lambda _: CareerLibrary(summary='Python'))
+    assert handle_ai_task(request, deps).status == 'failed'

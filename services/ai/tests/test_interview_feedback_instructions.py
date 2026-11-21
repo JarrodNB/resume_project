@@ -22,13 +22,13 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_provider_receives_scope_specific_instructions(task_dependencies, monkeypatch, set_type):
     """Exercises the real handler/agent request so knowledge never receives personal-only rules."""
     monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=True))
     deps = replace(task_dependencies, read_career_library=lambda user: CareerLibrary(),
-                   read_interview_question_sources=lambda request: dict(request.input))
+                   read_interview_question_sources=lambda request: {"origin": "generated", **request.input})
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_interview_answer",
         input={"question_set_id": str(uuid4()), "question_id": str(uuid4()), "set_type": set_type,
                "question_text": "How do lists and tuples differ?", "answer_text": "Lists cannot change.",
@@ -49,7 +49,9 @@ def test_provider_receives_scope_specific_instructions(task_dependencies, monkey
     assert result.status == "completed"
     assert seen and all(instructions for instructions in seen)
     for instructions in seen:
-        assert ("GENERAL BEHAVIORAL COACHING" in instructions) == (set_type == "general")
+        assert ("BEHAVIORAL COACHING" in instructions) == (set_type == "behavioral")
+        assert ("FIT & MOTIVATION COACHING" in instructions) == (set_type == "fit_motivation")
+        assert ("HYPOTHETICAL COACHING" in instructions) == (set_type == "hypothetical")
         if set_type == "technical":
             assert instructions == INTERVIEW_FEEDBACK_INSTRUCTIONS.strip()
         if set_type == "knowledge":

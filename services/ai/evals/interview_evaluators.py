@@ -27,7 +27,7 @@ class QuestionEvalInput(BaseModel):
 
     library: str = ""
     career_contexts: list[CareerContext] = Field(default_factory=list)
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
     recent_questions: list[str] = Field(default_factory=list)
@@ -37,7 +37,7 @@ class FeedbackEvalInput(BaseModel):
     """Synthetic saved answer with optional career evidence."""
 
     question: str
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     answer: str
     library: str = ""
     career_contexts: list[CareerContext] = Field(default_factory=list)
@@ -77,9 +77,7 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
         checks = {
             "question_count": len(questions) == ctx.inputs.count,
             "category_variety": all(q.category in QUESTION_CATEGORIES[ctx.inputs.set_type] for q in questions)
-            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5)
-            and not (ctx.inputs.set_type == "general" and ctx.inputs.count == 1
-                     and any(q.category == "introduction" for q in questions)),
+            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5),
             "distinct_wording": len(set(keys)) == len(keys) and not excluded.intersection(keys),
             "question_evidence": all(q.evidence_quotes and all(
                 quote.strip() and quote in source for quote in q.evidence_quotes

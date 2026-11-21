@@ -12,11 +12,11 @@ import { INTERVIEW_SET_QUERY, REQUEST_INTERVIEW_FEEDBACK, SAVE_INTERVIEW_ANSWER,
 
 /** Builds a saved question with grounded feedback. */
 function question(answerText = 'Saved answer', latestTask: unknown = null) {
-  return { __typename: 'InterviewQuestion', id: 'q1', position: 1, avoided: false, questionText: 'Tell me about yourself', answerText, answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: 1, feedbackAnswerRevision: 0, feedback: { strengths: ['Clear opening'], improvements: ['Add a result'], example_answer: 'I helped [add your result].' }, feedbackOutdated: false, latestTask }
+  return { __typename: 'InterviewQuestion', id: 'q1', position: 1, avoided: false, questionText: 'Tell me about yourself', memoryAnchor: '', answerText, answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: 1, feedbackAnswerRevision: 0, feedback: { strengths: ['Clear opening'], improvements: ['Add a result'], example_answer: 'I helped [add your result].' }, feedbackOutdated: false, latestTask }
 }
 /** Provides a complete set-query response. */
 function detail(answerText = 'Saved answer', latestTask: unknown = null) {
-  return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 's1' } }, result: { data: { interviewQuestionSet: { __typename: 'InterviewQuestionSet', id: 's1', number: 1, setType: 'GENERAL', createdAt: '2026-10-11T00:00:00Z', latestTask: null, questions: [question(answerText, latestTask)] } } } }
+  return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 's1' } }, result: { data: { interviewQuestionSet: { __typename: 'InterviewQuestionSet', origin: 'generated', id: 's1', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-11T00:00:00Z', latestTask: null, questions: [question(answerText, latestTask)] } } } }
 }
 /** Waits for the open question's answer box. */
 async function openAnswer() {
@@ -44,7 +44,7 @@ it('marks feedback out of date for a changed draft and warns before navigating a
 })
 
 it('saves the submitted snapshot while preserving edits typed during saving', async () => {
-  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Submitted answer' } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', answerRevision: 2, feedbackOutdated: true } } } } }, detail('Submitted answer')] })
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Submitted answer' } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Submitted answer', answerRevision: 2, feedbackOutdated: true } } } } }, detail('Submitted answer')] })
   const textarea = await openAnswer()
   fireEvent.change(textarea, { target: { value: 'Submitted answer' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -70,7 +70,7 @@ it('keeps feedback current for formatting edits while still offering to save the
 })
 
 it('preserves a draft reverted to the previous saved text while saving', async () => {
-  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Submitted answer' } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', answerRevision: 2, feedbackOutdated: true } } } } }, detail('Submitted answer')] })
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Submitted answer' } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Submitted answer', answerRevision: 2, feedbackOutdated: true } } } } }, detail('Submitted answer')] })
   const textarea = await openAnswer()
   fireEvent.change(textarea, { target: { value: 'Submitted answer' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -84,7 +84,7 @@ it('preserves a draft reverted to the previous saved text while saving', async (
 it('sends a typed answer for feedback without a separate save', async () => {
   const task = { __typename: 'AiTask', id: 'fb-1', status: 'QUEUED', taskType: 'REVIEW_INTERVIEW_ANSWER', errorMessage: null }
   renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(''), {
-    request: { query: REQUEST_INTERVIEW_FEEDBACK, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Typed for feedback' } },
+    request: { query: REQUEST_INTERVIEW_FEEDBACK, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Typed for feedback' } },
     result: { data: { requestInterviewAnswerFeedback: { __typename: 'RequestInterviewAnswerFeedbackPayload', errors: [], aiTask: task } } },
   }, detail('Typed for feedback', task), { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'fb-1' } }, delay: Infinity, result: { data: {} } }] })
   const textarea = await openAnswer()
@@ -141,7 +141,7 @@ it('keeps editing available during feedback after a failed replacement', async (
     request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 't1' } }, delay: 100,
     result: { data: { aiTaskUpdated: { ...failedTask, result: null, input: {}, pendingQuestions: [], acceptedAt: null, createdAt: '2026-10-11T00:00:00Z', job: null } } },
   }, detail('Saved answer', failedTask), {
-    request: { query: REQUEST_INTERVIEW_FEEDBACK, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Saved answer' } },
+    request: { query: REQUEST_INTERVIEW_FEEDBACK, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Saved answer' } },
     delay: 100,
     result: { data: { requestInterviewAnswerFeedback: { __typename: 'RequestInterviewAnswerFeedbackPayload', errors: [], aiTask: feedbackTask } } },
   }, detail('Saved answer', feedbackTask), { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 't2' } }, delay: Infinity, result: { data: {} } }] })
@@ -186,8 +186,8 @@ it('offers new feedback only once the answer changes, including after reload', a
   updated.result.data.interviewQuestionSet.questions[0].feedbackAnswerRevision = 1
   updated.result.data.interviewQuestionSet.questions[0].feedbackOutdated = true
   renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [reviewed, {
-    request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Changed saved answer' } },
-    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Changed saved answer', answerRevision: 2, feedbackOutdated: true } } } },
+    request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Changed saved answer' } },
+    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Changed saved answer', answerRevision: 2, feedbackOutdated: true } } } },
   }, updated] })
   const textarea = await openAnswer()
   expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
@@ -227,4 +227,71 @@ it('restores saved avoidance when opening a question set', async () => {
   expect(screen.getByText("Saved. New questions won't repeat this one.")).toBeVisible()
   await userEvent.setup().click(screen.getByRole('button', { name: 'Question actions' }))
   expect(screen.getByRole('menuitem', { name: 'Hidden from new questions' })).toHaveAttribute('aria-disabled', 'true')
+})
+
+it('keeps cue-only edits dirty without making feedback outdated', async () => {
+  const reviewed = detail()
+  reviewed.result.data.interviewQuestionSet.questions[0].feedbackAnswerRevision = 1
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [reviewed] })
+  await openAnswer()
+  const cue = screen.getByRole('textbox', { name: 'Memory anchor' })
+  expect(cue).toHaveAttribute('maxLength', '200')
+  fireEvent.change(cue, { target: { value: 'Launch: listen then plan' } })
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
+  expect(screen.queryByText(/Out of date/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('link', { name: 'All questions' }))
+  expect(await screen.findByText(/Leave and discard/)).toBeInTheDocument()
+})
+
+it('saves answer and cue together while preserving newer edits to both during saving', async () => {
+  const saved = detail('Submitted answer')
+  saved.result.data.interviewQuestionSet.questions[0].memoryAnchor = 'Submitted cue'
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), {
+    request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Submitted answer', memoryAnchor: 'Submitted cue' } }, delay: 100,
+    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', memoryAnchor: 'Submitted cue', answerRevision: 2, feedbackOutdated: true } } } },
+  }, saved] })
+  const answer = await openAnswer()
+  const cue = screen.getByRole('textbox', { name: 'Memory anchor' })
+  fireEvent.change(answer, { target: { value: 'Submitted answer' } })
+  fireEvent.change(cue, { target: { value: 'Submitted cue' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Saving…')).toBeInTheDocument()
+  fireEvent.change(answer, { target: { value: 'Newer answer' } })
+  fireEvent.change(cue, { target: { value: 'Newer cue' } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled())
+  expect(answer).toHaveValue('Newer answer')
+  expect(cue).toHaveValue('Newer cue')
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+})
+
+it('refreshes both saved drafts after feedback failure while preserving newer cue edits', async () => {
+  const saved = detail('Submitted answer')
+  saved.result.data.interviewQuestionSet.questions[0].memoryAnchor = 'Submitted cue'
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), {
+    request: { query: REQUEST_INTERVIEW_FEEDBACK, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Submitted answer', memoryAnchor: 'Submitted cue' } }, delay: 100,
+    result: { data: { requestInterviewAnswerFeedback: { __typename: 'RequestInterviewAnswerFeedbackPayload', errors: ['Monthly allowance exhausted'], aiTask: null } } },
+  }, saved] })
+  const answer = await openAnswer()
+  const cue = screen.getByRole('textbox', { name: 'Memory anchor' })
+  fireEvent.change(answer, { target: { value: 'Submitted answer' } })
+  fireEvent.change(cue, { target: { value: 'Submitted cue' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Get feedback' }))
+  expect(await screen.findByText('Saving and sending for feedback…')).toBeInTheDocument()
+  fireEvent.change(cue, { target: { value: 'Newer cue' } })
+  expect(await screen.findByText('Monthly allowance exhausted')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled())
+  expect(answer).toHaveValue('Submitted answer')
+  expect(cue).toHaveValue('Newer cue')
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+})
+
+it('reminds the user to check a retained cue after editing the answer', async () => {
+  const saved = detail()
+  saved.result.data.interviewQuestionSet.questions[0].memoryAnchor = 'My existing cue'
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [saved] })
+  fireEvent.change(await openAnswer(), { target: { value: 'Changed answer' } })
+  expect(screen.getByRole('textbox', { name: 'Memory anchor' })).toHaveValue('My existing cue')
+  expect(screen.getByText(/Check that your memory anchor still fits/)).toBeInTheDocument()
 })

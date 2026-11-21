@@ -1,6 +1,6 @@
 # Emails users whose free trial is about to end, at most once each.
 # The daily job looks 36 hours ahead (not 24) so a trial can never fall between two runs;
-# the email says "tomorrow", and a user is emailed only once however many runs see them.
+# the email names the end date (UTC), and a user is emailed only once however many runs see them.
 # Paid users and comped users (operator spend-cap override) never get it.
 module Accounts
   class SendTrialEndingEmailsService < ApplicationService

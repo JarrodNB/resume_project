@@ -15,12 +15,14 @@ RSpec.describe AccountMailer, type: :mailer do
 
     it "addresses the user with a clear subject" do
       expect(mail.to).to eq([ "pat@example.com" ])
-      expect(mail.subject).to eq("Your Careerdrafter free trial ends tomorrow")
+      expect(mail.subject).to eq("Your Careerdrafter free trial ends soon")
     end
 
     it "gives the end date, what stops, what stays, and a billing link" do
       body = mail.body.encoded
-      expect(body).to include("Saturday, November 28")
+      expect(body).to include("ends on Saturday, November 28 (UTC)")
+      expect(body).not_to match(/tomorrow/i)
+      expect(mail.subject).not_to match(/tomorrow/i)
       expect(body).to include("AI features")
       expect(body).to include("saved work")
       expect(body).to include("https://app.example.test/account/billing")

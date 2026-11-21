@@ -20,12 +20,15 @@ RSpec.describe Billing::StripeGateway do
     expect(described_class.subscription_from(stripe_subscription)).to have_attributes(customer_id: "cus_1", current_period_end: Time.zone.at(1_700_000_000), cancel_at_period_end: false, user_id: nil)
   end
 
-  it "reports whether checkout can run from its settings" do
+  it "needs only the secret key for configured? (portal and cancel) but also the price id for checkout_configured?" do
+    stub_const("ENV", ENV.to_hash.merge("STRIPE_SECRET_KEY" => "sk_test_x", "STRIPE_PRICE_ID" => ""))
+    expect(described_class.new).to have_attributes(configured?: true, checkout_configured?: false)
+
     stub_const("ENV", ENV.to_hash.merge("STRIPE_SECRET_KEY" => "sk_test_x", "STRIPE_PRICE_ID" => "price_1"))
-    expect(described_class.new.configured?).to be(true)
+    expect(described_class.new).to have_attributes(configured?: true, checkout_configured?: true)
 
     stub_const("ENV", ENV.to_hash.merge("STRIPE_SECRET_KEY" => "", "STRIPE_PRICE_ID" => "price_1"))
-    expect(described_class.new.configured?).to be(false)
+    expect(described_class.new).to have_attributes(configured?: false, checkout_configured?: false)
   end
 
   describe "error translation" do

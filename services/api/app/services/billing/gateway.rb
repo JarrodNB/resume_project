@@ -3,7 +3,7 @@
 # Billing code talks to `Billing::Gateway.current`, never to the Stripe gem directly. In
 # production that is Billing::StripeGateway; the test environment points
 # `config.x.billing_gateway` at an in-memory fake, so specs never call Stripe.
-# Every adapter answers: configured?, create_customer, create_checkout_session,
+# Every adapter answers: configured? (secret key set), checkout_configured? (also the price id), create_customer, create_checkout_session,
 # create_portal_session, retrieve_subscription, cancel_subscription_now,
 # cancel_customer_subscriptions, construct_event.
 # Index:

@@ -1,7 +1,8 @@
 # The real Stripe adapter behind Billing::Gateway. The only file that uses the stripe gem.
 #
-# Needs STRIPE_SECRET_KEY, STRIPE_PRICE_ID (checkout) and STRIPE_WEBHOOK_SECRET (webhooks).
-# `configured?` says whether checkout can run. Every call goes to Stripe over the network.
+# Needs STRIPE_SECRET_KEY (every call), STRIPE_PRICE_ID (checkout only) and STRIPE_WEBHOOK_SECRET (webhooks).
+# `configured?` says whether the secret key is set (portal, cancelling, syncing); `checkout_configured?`
+# also needs the price id. Every call goes to Stripe over the network.
 # Index:
 #   - API_VERSION: the one place the Stripe API version is pinned (the version the gem was built for)
 #   - create_customer, create_checkout_session, create_portal_session
@@ -39,9 +40,9 @@ module Billing
       Gateway::Event.new(type: stripe_event.type, subscription_id: subscription_id)
     end
 
-    def configured?
-      ENV["STRIPE_SECRET_KEY"].present? && ENV["STRIPE_PRICE_ID"].present?
-    end
+    def configured? = ENV["STRIPE_SECRET_KEY"].present?
+
+    def checkout_configured? = configured? && ENV["STRIPE_PRICE_ID"].present?
 
     # The idempotency key means a retry after a crash reuses the customer Stripe already made.
     def create_customer(user)

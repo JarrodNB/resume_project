@@ -52,11 +52,11 @@ signups cannot block paying customers.
   is the real adapter (the `stripe` gem); tests use `FakeStripeGateway`. It is chosen once in
   config (`config.x.billing_gateway`). It turns every Stripe error into `Gateway::Unavailable` (try
   again later) or `Gateway::NotFound` (Stripe has no such thing), so no other code names Stripe's
-  error classes; the sync job retries on `Unavailable`. Without keys, checkout and portal fail with a clear message
+  error classes; the sync job retries on `Unavailable`. Without the secret key, checkout and portal fail with a clear message (checkout also needs the price id)
   and limit checks still work.
 - **Checkout.** The `startBillingCheckout` mutation (`Billing::StartCheckoutService`) creates or
   reuses one Stripe customer per user, turns on automatic tax, passes the user id as metadata,
-  and returns the Stripe-hosted URL. It refuses when the user is already paid. The success and
+  and returns the Stripe-hosted URL. `Billing::BillingPage.url` builds the return links (and the trial email's link) from `WEB_APP_URL`. It refuses when the user is already paid. The success and
   cancel URLs go back to `/account/billing`; the webhook, not the redirect, makes the user paid.
 - **Portal.** `startBillingPortal` returns a Customer Portal URL for the user's customer.
 - **Webhook.** `POST /billing/stripe/webhook` (`Billing::StripeWebhooksController`) checks the
@@ -84,8 +84,8 @@ Set in `services/api/.env` (local) and `/opt/app/.env` (production); examples in
 
 | Variable | Meaning |
 | -------- | ------- |
-| `STRIPE_SECRET_KEY` | Stripe API key (`sk_test_...` locally, live key in production) |
-| `STRIPE_PRICE_ID` | The $12/month price (`price_...`) |
+| `STRIPE_SECRET_KEY` | Stripe API key (`sk_test_...` locally, live key in production). Enough for the portal and for cancelling on account deletion |
+| `STRIPE_PRICE_ID` | The $12/month price (`price_...`). Only checkout needs it |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (`whsec_...`) |
 | `TRIAL_DAILY_AI_SPEND_CAP_USD` | Trial daily cap, default 0.25 |
 | `PAID_DAILY_AI_SPEND_CAP_USD` | Paid daily cap, default 2.00 |

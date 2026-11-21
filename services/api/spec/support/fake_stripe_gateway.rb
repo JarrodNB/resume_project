@@ -3,7 +3,7 @@
 # Index:
 #   - cancel_customer_subscriptions: cancels (and records) that customer's live subscriptions
 #   - FakeStripeGateway.reset!: clears customers, subscriptions and recorded calls
-#   - .configured: set false to simulate missing Stripe keys
+#   - .configured: set false to simulate a missing Stripe secret key; .checkout_configured: false for a missing price id
 #   - .checkout_error, .portal_error, .cancel_error: set to a Billing::Gateway error to make that call raise it
 #   - .subscriptions: id => Billing::Gateway::Subscription you want retrieve_subscription to return
 #   - .later_states: id => states that replace .subscriptions[id] one per retrieve (after that call returns)
@@ -14,11 +14,12 @@ class FakeStripeGateway
   VALID_SIGNATURE = "fake-valid-signature"
 
   class << self
-    attr_accessor :configured, :checkout_error, :portal_error, :cancel_error
+    attr_accessor :configured, :checkout_configured, :checkout_error, :portal_error, :cancel_error
     attr_reader :subscriptions, :later_states, :customers_created, :checkout_sessions, :portal_sessions, :canceled
 
     def reset!
       @configured = true
+      @checkout_configured = true
       @checkout_error = nil
       @portal_error = nil
       @cancel_error = nil
@@ -39,6 +40,7 @@ class FakeStripeGateway
   reset!
 
   def configured? = self.class.configured
+  def checkout_configured? = configured? && self.class.checkout_configured
 
   def create_customer(user)
     self.class.customers_created << user.id

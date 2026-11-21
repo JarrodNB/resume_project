@@ -56,6 +56,12 @@ RSpec.describe "startBillingCheckout mutation" do
     expect(user.reload.billing_subscription).to be_nil
   end
 
+  it "says billing is unavailable when the checkout price isn't configured" do
+    FakeStripeGateway.checkout_configured = false
+
+    expect(start).to eq("url" => nil, "errors" => [ "Billing isn't available right now." ])
+  end
+
   it "says billing is unavailable when Stripe errors" do
     FakeStripeGateway.checkout_error = Billing::Gateway::Unavailable.new("down")
 

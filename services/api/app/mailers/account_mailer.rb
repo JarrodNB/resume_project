@@ -17,7 +17,7 @@ class AccountMailer < Devise::Mailer
   # Heads-up sent shortly before a free trial ends (the email gives the UTC end date). Not a Devise mail, so it builds its own message.
   def trial_ending(user)
     @trial_ends_on = user.trial_ends_at.utc.strftime("%A, %B %-d")
-    @billing_url = "#{ENV.fetch('WEB_APP_URL', 'http://localhost:5173').delete_suffix('/')}/account/billing"
+    @billing_url = Billing::BillingPage.url
     mail(to: user.email, from: Devise.mailer_sender, subject: "Your Careerdrafter free trial ends soon")
   end
 end

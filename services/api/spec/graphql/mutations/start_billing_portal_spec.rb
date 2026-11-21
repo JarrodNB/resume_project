@@ -27,6 +27,13 @@ RSpec.describe "startBillingPortal mutation" do
     expect(FakeStripeGateway.customers_created).to be_empty
   end
 
+  it "opens the portal even when no checkout price is configured" do
+    create(:billing_subscription, user: user)
+    FakeStripeGateway.checkout_configured = false
+
+    expect(start["url"]).to be_present
+  end
+
   it "says billing is unavailable when Stripe isn't configured" do
     create(:billing_subscription, user: user)
     FakeStripeGateway.configured = false

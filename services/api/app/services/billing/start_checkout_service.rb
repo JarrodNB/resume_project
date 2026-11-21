@@ -2,28 +2,25 @@
 #
 # Refuses if the user is already paid. Creates the user's Stripe customer once (kept on their
 # billing row, under a user row lock so double clicks can't make two) and reuses it after that.
-# If Stripe isn't set up or can't be reached, returns a plain user-facing error instead of raising.
+# Needs the Stripe key and price id (`checkout_configured?`). If Stripe isn't set up or can't be reached, returns a plain user-facing error instead of raising.
 module Billing
   class StartCheckoutService < ApplicationService
-    UNAVAILABLE = "Billing isn't available right now."
-
     def initialize(user:, gateway: Gateway.current)
       @user = user
       @gateway = gateway
     end
 
     def call
-      return failure([ UNAVAILABLE ]) unless @gateway.configured?
+      return failure([ BillingPage::UNAVAILABLE ]) unless @gateway.checkout_configured?
 
       customer_id = customer_id_for_unpaid_user
       return failure([ "You're already subscribed." ]) unless customer_id
 
-      base = ENV.fetch("WEB_APP_URL", "http://localhost:5173").delete_suffix("/")
       success(@gateway.create_checkout_session(customer_id: customer_id, user_id: @user.id,
-        success_url: "#{base}/account/billing?checkout=success", cancel_url: "#{base}/account/billing"))
+        success_url: BillingPage.url(checkout: "success"), cancel_url: BillingPage.url))
     rescue Gateway::Unavailable, Gateway::NotFound => error
       Rails.logger.error("Stripe checkout failed for user #{@user.id}: #{error.class}")
-      failure([ UNAVAILABLE ])
+      failure([ BillingPage::UNAVAILABLE ])
     end
 
     private

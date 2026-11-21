@@ -1,6 +1,7 @@
 # Gives every verified account a trial end date and adds the one per-user daily spend cap override.
 # Accounts that are already verified get a fresh 7-day trial starting when this migration runs.
-# The older monthly/hourly/in-flight override columns stay in place but are no longer read.
+# The older monthly/hourly/in-flight override columns were left in place here; migration 20261121040000
+# (remove_old_ai_limit_overrides_from_users) drops them.
 class AddTrialAndDailySpendCapToUsers < ActiveRecord::Migration[8.1]
   def up
     add_column :users, :trial_ends_at, :datetime

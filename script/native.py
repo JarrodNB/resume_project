@@ -113,7 +113,6 @@ def app_env(service):
         "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS": urlsplit(web_origin).hostname or "localhost",
         "INTERVIEW_SERVICE_SECRET": cfg["interview_secret"],
         "INTERVIEW_RAILS_ORIGIN": "http://127.0.0.1:3000",
-        "AI_HTTP_ENABLED": "true",
         "AI_HTTP_ORIGIN": "http://127.0.0.1:8000",
         "INTERVIEW_BROWSER_ORIGINS": web_origin,
         "INTERVIEW_STORAGE_ORIGINS": "http://127.0.0.1:9090",

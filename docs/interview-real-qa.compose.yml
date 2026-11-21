@@ -101,7 +101,6 @@ services:
       DB_PASSWORD: ai_reader
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
       INTERVIEW_PROVIDER_MODE: fake
-      AI_HTTP_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
       INTERVIEW_RAILS_ORIGIN: http://api:3000
       INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret

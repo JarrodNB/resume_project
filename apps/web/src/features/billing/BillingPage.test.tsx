@@ -4,11 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { BillingPage } from './BillingPage'
-import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION } from './billingOperations'
+import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION, START_BILLING_PORTAL_MUTATION } from './billingOperations'
 
 type Plan = 'TRIAL' | 'PAID' | 'ENDED'
-type BillingData = { plan: Plan; trialEndsAt: string | null; currentPeriodEndsAt: string | null; cancelAtPeriodEnd: boolean }
-const billingResult = (billing: BillingData) => ({ data: { me: { __typename: 'User', id: '1', billing: { __typename: 'Billing', ...billing } } } })
+type BillingData = { plan: Plan; trialEndsAt: string | null; currentPeriodEndsAt: string | null; cancelAtPeriodEnd: boolean; canManageBilling?: boolean }
+const billingResult = (billing: BillingData) => ({ data: { me: { __typename: 'User', id: '1', billing: { __typename: 'Billing', canManageBilling: false, ...billing } } } })
 const trial: BillingData = { plan: 'TRIAL', trialEndsAt: '2026-12-05T12:00:00Z', currentPeriodEndsAt: null, cancelAtPeriodEnd: false }
 const paid: BillingData = { plan: 'PAID', trialEndsAt: null, currentPeriodEndsAt: '2026-12-20T12:00:00Z', cancelAtPeriodEnd: false }
 const originalLocation = window.location
@@ -116,4 +116,34 @@ it('shows no payment message on a normal visit', async () => {
   renderBilling(trial)
   await screen.findByText(/Free trial/)
   expect(screen.queryByText(/Payment received/)).not.toBeInTheDocument()
+})
+
+const portalResult = (url: string | null, errors: string[] = []) =>
+  ({ request: { query: START_BILLING_PORTAL_MUTATION }, result: { data: { startBillingPortal: { __typename: 'StartPortalPayload', url, errors } } } })
+
+it('shows Manage billing for a paid user and sends them to the portal', async () => {
+  const location = captureRedirects()
+  renderBilling({ ...paid, canManageBilling: true }, { mocks: [portalResult('https://billing.stripe.com/p/session/abc')] })
+  await userEvent.click(await screen.findByRole('button', { name: 'Manage billing' }))
+  await waitFor(() => expect(location.href).toBe('https://billing.stripe.com/p/session/abc'))
+})
+
+it('shows both Upgrade and Manage billing for an ended user who once had a customer', async () => {
+  renderBilling({ plan: 'ENDED', trialEndsAt: '2026-11-10T12:00:00Z', currentPeriodEndsAt: null, cancelAtPeriodEnd: false, canManageBilling: true })
+  expect(await screen.findByRole('button', { name: 'Manage billing' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument()
+})
+
+it('hides Manage billing for a user with no Stripe customer', async () => {
+  renderBilling(trial)
+  await screen.findByRole('button', { name: 'Upgrade' })
+  expect(screen.queryByRole('button', { name: 'Manage billing' })).not.toBeInTheDocument()
+})
+
+it('shows the error when the portal cannot open', async () => {
+  const location = captureRedirects()
+  renderBilling({ ...paid, canManageBilling: true }, { mocks: [portalResult(null, ["Billing isn't available right now."])] })
+  await userEvent.click(await screen.findByRole('button', { name: 'Manage billing' }))
+  expect(await screen.findByText("Billing isn't available right now.")).toBeInTheDocument()
+  expect(location.href).toBe('http://localhost/account/billing')
 })

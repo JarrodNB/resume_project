@@ -2,7 +2,7 @@
  * (trial end, renewal, or the end of a cancelling plan). Shows dates only, never usage or limits.
  * Trial and ended users get an Upgrade button that sends them to Stripe Checkout; after paying, the
  * page refetches the plan for a short while until the Stripe webhook has made it Paid.
- * The Manage billing button will go in the marked spot (ticket 04). */
+ * Users with a Stripe customer also get Manage billing, which opens the Stripe Customer Portal. */
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useSearchParams } from 'react-router'
@@ -11,7 +11,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import type { BillingQuery } from '@/graphql/generated/graphql'
-import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION } from './billingOperations'
+import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION, START_BILLING_PORTAL_MUTATION } from './billingOperations'
 
 const PLAN_REFETCH_INTERVAL_MS = 2000
 const PLAN_REFETCH_ATTEMPTS = 10
@@ -54,7 +54,9 @@ function useRefetchPlanAfterCheckout(returning: boolean, plan: string | undefine
 export function BillingPage() {
   const { data, loading, error, refetch } = useQuery(BILLING_QUERY)
   const [startCheckout, { loading: starting }] = useMutation(START_BILLING_CHECKOUT_MUTATION)
+  const [startPortal, { loading: openingPortal }] = useMutation(START_BILLING_PORTAL_MUTATION)
   const [checkoutErrors, setCheckoutErrors] = useState<string[]>([])
+  const [portalErrors, setPortalErrors] = useState<string[]>([])
   const [params] = useSearchParams()
   const plan = data?.me.billing.plan
   const { waiting, gaveUp } = useRefetchPlanAfterCheckout(params.get('checkout') === 'success', plan, refetch)
@@ -69,6 +71,18 @@ export function BillingPage() {
       else setCheckoutErrors(payload?.errors.length ? payload.errors : ["Billing isn't available right now."])
     } catch (caught) {
       setCheckoutErrors([requestErrorMessage(caught, "Billing isn't available right now.")])
+    }
+  }
+
+  async function manageBilling() {
+    setPortalErrors([])
+    try {
+      const { data: result } = await startPortal()
+      const payload = result?.startBillingPortal
+      if (payload?.url) window.location.href = payload.url
+      else setPortalErrors(payload?.errors.length ? payload.errors : ["Billing isn't available right now."])
+    } catch (caught) {
+      setPortalErrors([requestErrorMessage(caught, "Billing isn't available right now.")])
     }
   }
   return (
@@ -93,7 +107,13 @@ export function BillingPage() {
             </div>
           )}
           <ErrorAlert messages={checkoutErrors} />
-          {/* Manage billing button (ticket 04) goes here. */}
+          {data?.me.billing.canManageBilling && (
+            <div className="mt-4">
+              <Button variant="outline" onClick={manageBilling} disabled={openingPortal}>{openingPortal ? 'Opening billing…' : 'Manage billing'}</Button>
+              <p className="mt-1 text-sm text-muted-foreground">Update your card, see invoices or cancel.</p>
+              <ErrorAlert messages={portalErrors} />
+            </div>
+          )}
         </section>
       )}
     </div>

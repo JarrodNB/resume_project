@@ -35,6 +35,31 @@ RSpec.describe "startBillingCheckout mutation" do
     expect(FakeStripeGateway.checkout_sessions.map { |session| session[:customer_id] }).to eq(%w[cus_fake_1 cus_fake_1])
   end
 
+  it "does not call Stripe to make the customer while a transaction or row lock is open" do
+    baseline = ActiveRecord::Base.connection.open_transactions
+
+    start
+
+    expect(FakeStripeGateway.customer_call_depths).to eq([ baseline ])
+  end
+
+  it "reuses the row another request saved first when two clicks race" do
+    FakeStripeGateway.on_create_customer = -> { create(:billing_subscription, user: user, stripe_customer_id: "cus_winner", status: nil) }
+
+    payload = start
+
+    expect(payload["url"]).to be_present
+    expect(user.reload.billing_subscription.stripe_customer_id).to eq("cus_winner")
+    expect(FakeStripeGateway.checkout_sessions.last[:customer_id]).to eq("cus_winner")
+  end
+
+  it "refuses when the racing request already made the user paid" do
+    FakeStripeGateway.on_create_customer = -> { create(:billing_subscription, user: user, stripe_customer_id: "cus_winner", status: "active") }
+
+    expect(start).to eq("url" => nil, "errors" => [ "You're already subscribed." ])
+    expect(FakeStripeGateway.checkout_sessions).to be_empty
+  end
+
   it "does not treat a customer-only row as a paid plan" do
     start
 

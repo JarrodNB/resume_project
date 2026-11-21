@@ -8,14 +8,16 @@
 #   - .subscriptions: id => Billing::Gateway::Subscription you want retrieve_subscription to return
 #   - .later_states: id => states that replace .subscriptions[id] one per retrieve (after that call returns)
 #   - .customers_created, .checkout_sessions, .canceled: what the code under test asked for
+#   - .customer_call_depths: open database transaction count at each create_customer call (to prove no lock is held)
+#   - .on_create_customer: a block run inside create_customer, to simulate another request winning a race
 #   - VALID_SIGNATURE: the only signature construct_event accepts
 #   - .event_payload: a webhook JSON body for a given event type and subscription id
 class FakeStripeGateway
   VALID_SIGNATURE = "fake-valid-signature"
 
   class << self
-    attr_accessor :configured, :checkout_configured, :checkout_error, :portal_error, :cancel_error
-    attr_reader :subscriptions, :later_states, :customers_created, :checkout_sessions, :portal_sessions, :canceled
+    attr_accessor :configured, :checkout_configured, :checkout_error, :portal_error, :cancel_error, :on_create_customer
+    attr_reader :subscriptions, :later_states, :customers_created, :customer_call_depths, :checkout_sessions, :portal_sessions, :canceled
 
     def reset!
       @configured = true
@@ -26,6 +28,8 @@ class FakeStripeGateway
       @subscriptions = {}
       @later_states = {}
       @customers_created = []
+      @customer_call_depths = []
+      @on_create_customer = nil
       @checkout_sessions = []
       @portal_sessions = []
       @canceled = []
@@ -43,7 +47,9 @@ class FakeStripeGateway
   def checkout_configured? = configured? && self.class.checkout_configured
 
   def create_customer(user)
+    self.class.customer_call_depths << ActiveRecord::Base.connection.open_transactions
     self.class.customers_created << user.id
+    self.class.on_create_customer&.call
     "cus_fake_#{self.class.customers_created.size}"
   end
 

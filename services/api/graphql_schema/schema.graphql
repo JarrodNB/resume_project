@@ -2836,7 +2836,6 @@ type Query {
   """
   interviewQuestions: [InterviewQuestion!]!
   interviewSession(id: ID!): InterviewSession!
-  interviewsEnabled: Boolean!
   job(id: ID!): Job!
   jobBoardLocations(query: String!): JobBoardLocationsPage!
   jobBoardSearch(cursor: String, experienceLevels: [JobBoardExperienceLevel!] = [], filters: JobBoardFiltersInput, keyword: String!, remoteOnly: Boolean = false): JobBoardSearchPage!

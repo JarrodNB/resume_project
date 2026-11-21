@@ -4,15 +4,7 @@ from fastapi.testclient import TestClient
 from app import create_app
 
 
-def test_disabled_real_process_is_alive_and_actionably_unready(monkeypatch):
-    monkeypatch.delenv("AI_HTTP_ENABLED", raising=False)
-    with TestClient(create_app()) as client:
-        assert client.get("/health").json() == {"status": "alive", "service": "ai-http"}
-        assert client.get("/ready").json() == {"ready": False, "reason": "runtime_disabled"}
-
-
 def test_missing_keys_are_safe_readiness_failure_without_destroying_environment(monkeypatch):
-    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-secret")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-key")
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
@@ -27,7 +19,6 @@ def test_missing_keys_are_safe_readiness_failure_without_destroying_environment(
 
 def test_http_setup_rejects_malformed_origin(monkeypatch):
     from app import configuration
-    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic")
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic")
@@ -74,7 +65,7 @@ def test_health_probes_emit_no_native_fastapi_spans(monkeypatch):
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     monkeypatch.setattr(trace, "_TRACER_PROVIDER", provider)
-    monkeypatch.setenv("AI_HTTP_ENABLED", "false")
+    monkeypatch.delenv("INTERVIEW_SERVICE_SECRET", raising=False)
     app = create_app()
 
     @app.get("/ordinary")
@@ -93,7 +84,6 @@ def test_health_probes_emit_no_native_fastapi_spans(monkeypatch):
 def test_enabled_http_configuration_is_not_limited_to_development(monkeypatch):
     from app import configuration
 
-    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
     monkeypatch.setenv("LOGFIRE_ENVIRONMENT", "production")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-service-secret")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-provider-key")
@@ -109,8 +99,6 @@ def test_enabled_http_configuration_is_not_limited_to_development(monkeypatch):
 def test_chat_and_interview_share_one_enabled_execution_runner(monkeypatch):
     monkeypatch.setattr("database.interview_inputs.interview_database_ready", lambda _: True)
     monkeypatch.setattr("database.chat_inputs.chat_database_ready", lambda _: True)
-    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
-    monkeypatch.setenv("AI_STREAMING_ENABLED", "false")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-service")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-provider")
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-screening")
@@ -128,8 +116,7 @@ def test_chat_and_interview_share_one_enabled_execution_runner(monkeypatch):
 
 
 def test_chat_reader_grant_failure_keeps_enabled_runtime_unready(monkeypatch):
-    for name, value in {"AI_HTTP_ENABLED": "true", "AI_STREAMING_ENABLED": "false",
-                        "INTERVIEW_SERVICE_SECRET": "synthetic", "OPENAI_API_KEY": "synthetic",
+    for name, value in {"INTERVIEW_SERVICE_SECRET": "synthetic", "OPENAI_API_KEY": "synthetic",
                         "TYPESAFE_API_KEY": "synthetic"}.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setattr("database.interview_inputs.interview_database_ready", lambda _: True)

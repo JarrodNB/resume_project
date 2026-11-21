@@ -15,7 +15,6 @@ module AiExecutions
     end
 
     def call
-      return failure("Streaming unavailable") unless ENV["AI_STREAMING_ENABLED"] == "true"
       return failure("Invalid stream action") unless %w[redeem check].include?(@action)
       if @action == "redeem"
         return failure("Invalid capability") unless @token.is_a?(String) && @token.length.between?(40, 100)

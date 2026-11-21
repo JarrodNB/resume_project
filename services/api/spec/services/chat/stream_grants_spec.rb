@@ -7,7 +7,6 @@ RSpec.describe "Chat stream authority" do
   let(:operation) { Chat::StartMessageService.call(conversation: chat, message: "Career help", idempotency_key: "stream").value }
   before do
     allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("AI_STREAMING_ENABLED").and_return("true")
     allow(AiExecutions::NudgeService).to receive(:call).and_return(ServiceResult.new(success: true, value: :accepted, errors: []))
     ActiveRecord::SessionStore::Session.create!(session_id: session_id.private_id,
       data: { "warden.user.user.key" => User.serialize_into_session(user), "authenticated_at" => Time.current.to_i })

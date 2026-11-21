@@ -4,7 +4,6 @@ services:
   api:
     image: cg-interview-qa-api
     environment:
-      INTERVIEW_ADMISSION_ENABLED: "true"
       INTERVIEW_SYNTHETIC_PROVIDER_CHECK: "true"
       AI_HTTP_ORIGIN: http://ai-http:8000
   api-jobs-worker:
@@ -15,7 +14,6 @@ services:
     command: python -m scripts.interview_mock_runtime
     environment:
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
-      AI_HTTP_ENABLED: "true"
       OPENAI_API_KEY: synthetic-offline
       TYPESAFE_API_KEY: synthetic-offline
       LOGFIRE_TOKEN: ""

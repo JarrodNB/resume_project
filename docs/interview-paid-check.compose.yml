@@ -4,7 +4,6 @@ services:
   api:
     image: cg-interview-qa-api
     environment:
-      INTERVIEW_ADMISSION_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
       # Only explicitly reviewed historical unknown receipts may be carried forward.
       # Their full reservations still count; a new unknown stops admission again.
@@ -21,7 +20,6 @@ services:
       - ${INTERVIEW_VERIFICATION_AI_ENV:?Set the absolute original ignored AI env path}
     environment:
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
-      AI_HTTP_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
       LOGFIRE_TOKEN: ""
       LOGFIRE_SEND_TO_LOGFIRE: "false"

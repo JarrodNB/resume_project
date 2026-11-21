@@ -32,4 +32,4 @@ guidance. Resource indexes are not required.
 Only local pieces exist so far: `elasticmq/`, `postgres/` and `compose.auth-review.yml`
 (the isolated auth QA overlay used by
 [Account rollout and human QA](../docs/operations/authentication-rollout.md)).
-`terraform/` (applied to AWS, local state) and `compose/` (production stack, not yet run on the server) are scaffolded.
+`terraform/` (applied to AWS; state in the versioned S3 bucket `jobapp-tfstate-016170038537`, created by hand) and `compose/` (production stack, not yet run on the server) are scaffolded.

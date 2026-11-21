@@ -60,7 +60,7 @@ def test_stream_observer_websocket_does_not_create_transport_spans(monkeypatch):
     from app import create_app
     from telemetry.tracing import configure_tracing
 
-    monkeypatch.setenv("AI_HTTP_ENABLED", "false")
+    monkeypatch.delenv("INTERVIEW_SERVICE_SECRET", raising=False)
     spans = InMemorySpanExporter()
     configure_tracing([SimpleSpanProcessor(spans)])
     with TestClient(create_app()) as client, pytest.raises(WebSocketDisconnect), client.websocket_connect("/ai/executions/stream"):

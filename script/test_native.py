@@ -81,7 +81,6 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
         self.assertNotIn("CABLE_DATABASE_URL", ai)
         self.assertEqual(api["INTERVIEW_SERVICE_SECRET"], ai["INTERVIEW_SERVICE_SECRET"])
-        self.assertEqual(api["INTERVIEW_ADMISSION_ENABLED"], "true")
         self.assertEqual(api["AI_HTTP_ORIGIN"], "http://127.0.0.1:8000")
         self.assertNotEqual(api["DB_PASSWORD"], ai["DB_PASSWORD"])
 

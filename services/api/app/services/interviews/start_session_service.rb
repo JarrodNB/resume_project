@@ -11,9 +11,6 @@ module Interviews
     def call
       return failure("Scripted interviews are retired. Start a real spoken interview.") unless @execution_mode == "real"
 
-      if !Access.admission_enabled?
-        return failure("Interview service is unavailable. Check the interview runtime and admission settings.")
-      end
       if !RuntimeReadiness.ready?
         return failure("Real interview unavailable. Check the real runtime readiness and required provider configuration.")
       end

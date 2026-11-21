@@ -4,7 +4,6 @@ require "rails_helper"
 RSpec.describe "Spoken interview preparation" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   before do
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
   end
 

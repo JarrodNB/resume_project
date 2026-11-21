@@ -3,9 +3,7 @@
  */
 import { useRef } from 'react'
 import { skillMentionCount } from '@/features/jobs/skillMentionCounts'
-import type { SkillMatchesQuery, JobPreferencesQuery } from '@/graphql/generated/graphql'
-import { PreferenceAssessment } from './PreferenceAssessment'
-import type { ListingAssessment } from './preferenceAssessments'
+import type { SkillMatchesQuery } from '@/graphql/generated/graphql'
 import { Link } from 'react-router'
 import { ArrowUpRight, Check, MapPin, Plus, Radio } from 'lucide-react'
 import { CollapsePanel } from '@/components/CollapsePanel'
@@ -20,7 +18,6 @@ import type { BoardListing } from './jobBoardVisit'
 import { formatPostedDate, formatSalary, stripRecruiterTags } from './listingDisplay'
 
 interface Props {
-  assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }
   skills: SkillMatchesQuery['skills'] | null
   skillsMessage?: string
   listing: BoardListing
@@ -31,7 +28,7 @@ interface Props {
   onCreate: (listingId: string) => void
 }
 
-export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate, assessment, skills, skillsMessage }: Props) {
+export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreate, skills, skillsMessage }: Props) {
   const skillSection = useOpenSection('job-board:skill-mentions')
   const titleOpener = useRef<HTMLButtonElement | null>(null)
   const previewOpener = useRef<HTMLButtonElement | null>(null)
@@ -81,7 +78,6 @@ export function JobBoardListingRow({ listing, busyId, savedHere, errors, onCreat
           </div>
           {action}
         </div>
-        {assessment && <PreferenceAssessment listing={listing} {...assessment} />}
       </article>
       <DialogContent className="board-preview" aria-describedby={`preview-company-${listing.id}`} onCloseAutoFocus={event => { event.preventDefault(); (previewOpener.current?.isConnected ? previewOpener.current : titleOpener.current)?.focus() }}>
         <div className="board-preview-heading">

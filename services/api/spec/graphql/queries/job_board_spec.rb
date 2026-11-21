@@ -14,6 +14,14 @@ RSpec.describe "Job Board search" do
     GQL
   end
 
+  it "does not expose the removed preference feature" do
+    expect(Types::QueryType.fields).not_to have_key("jobPreferences")
+    expect(Types::MutationType.fields.keys).not_to include(
+      "saveJobPreferenceDraft", "confirmJobPreferences", "clearJobPreferences", "checkJobBoardPreferenceResults")
+    expect(Types::JobBoardListingType.fields).not_to have_key("preferenceSourceDigest")
+    expect(ActiveRecord::Base.connection.table_exists?(:job_preference_profiles)).to be(false)
+  end
+
   def search(**variables)
     execute_graphql(query, user: user, variables: { keyword: "Engineer" }.merge(variables))
   end

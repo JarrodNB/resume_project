@@ -71,6 +71,9 @@ it('searches a submitted keyword and displays a retrieved listing', async () => 
   expect(screen.getByText('United States')).toBeInTheDocument()
   expect(screen.getByText(/Retrieved/)).toBeInTheDocument()
   expect(result).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('What I want next')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Check against my preferences' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Preference fit' })).not.toBeInTheDocument()
 })
 
 it('submits multiple experience levels and preserves them on pagination despite unsent changes', async () => {
@@ -210,7 +213,7 @@ it('clears selected levels back to an unrestricted search', async () => {
 })
 
 function listing(id = 'one', title = 'Platform Engineer'): Omit<BoardListing, '__typename' | 'savedJob'> & { __typename: 'JobBoardListing'; savedJob: ({ id: string; __typename: 'Job' }) | null } {
-  return { __typename: 'JobBoardListing' as const, preferenceSourceDigest: 'fixture-digest', id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', applicationUrl: null, hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', applicationUrl: null, hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function page(listings = [listing()], overrides: Record<string, unknown> = {}) {
   return { __typename: 'JobBoardSearchPage', listings, nextCursor: null, retrievedAt: '2026-10-19T00:00:00Z', stale: false, errors: [], ...overrides }

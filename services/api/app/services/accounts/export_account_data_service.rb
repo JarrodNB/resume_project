@@ -25,7 +25,6 @@ module Accounts
           chat_conversations: chat_conversations,
           interview_question_sets: interview_question_sets,
           interview_sessions: interview_sessions,
-          job_preferences: job_preferences,
           avoided_interview_questions: pick(@user.avoided_interview_questions, :question_text, :created_at)
         }
       end
@@ -95,10 +94,6 @@ module Accounts
           messages: pick(interview.messages, :kind, :content, :created_at),
           feedback: interview.feedback&.content)
       end
-    end
-
-    def job_preferences
-      @user.job_preference_profile&.slice(:confirmed_criteria, :draft_criteria, :updated_at)
     end
 
     def pick(records, *fields)

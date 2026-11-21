@@ -5,7 +5,9 @@
 # No message ever contains a cap or spend amount; users must not be able to tune against them.
 # Optional references have their own bounded in-flight pool so they never block answering.
 # Development-only unmetered interview testing skips spend/start gates; concurrency still bounds work.
+# A refusal for an ended plan carries `code: :plan_ended`; the web app matches PLAN_ENDED_MESSAGE's exact text.
 # Index:
+#   - refusal_code: the failure code to store when a refusal ends an operation
 #   - call: succeeds when the user may start a task; fails with a user-facing reason otherwise
 module AiUsage
   class CheckAiTaskAllowanceService < ApplicationService
@@ -18,7 +20,7 @@ module AiUsage
     # Failure code to store on an operation whose allowance check was refused: a distinct code for an
     # ended plan (the web app shows a subscribe prompt), the general limit code for everything else.
     def self.refusal_code(result)
-      result.errors.first == PLAN_ENDED_MESSAGE ? "plan_ended" : "ai_usage_limit_reached"
+      result.code == :plan_ended ? "plan_ended" : "ai_usage_limit_reached"
     end
 
     # An already-owned logical HTTP task rechecks spend/concurrency without counting
@@ -33,7 +35,7 @@ module AiUsage
     def call
       unless @interview && Interviews::LocalTesting.unmetered?
         plan = Billing::ResolvePlanService.call(user: @user).value
-        return failure([ PLAN_ENDED_MESSAGE ]) unless plan.ai_access?
+        return failure([ PLAN_ENDED_MESSAGE ], code: :plan_ended) unless plan.ai_access?
         return failure([ DAILY_LIMIT_MESSAGE ]) if DailySpend.known_microdollars(@user) >= plan.daily_spend_cap_microdollars
         return failure([ SITE_LIMIT_MESSAGE ]) if plan.plan == "trial" && SiteDailySpend.limit_reached?
         return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?

@@ -101,6 +101,11 @@ signups cannot block paying customers.
 
 - **No periodic reconciliation with Stripe.** A webhook sync that is lost after the retry window
   (see above) is only corrected by the next event for that subscription.
+- **Deletion cancels first.** Account deletion cancels the Stripe subscription before deleting the
+  account. If the delete itself then fails, the account stays but its subscription is already
+  cancelled (no refund); the user can subscribe again from Plan & billing.
+- **The shown price is fixed text.** The web billing page and the Terms say $12/month, while Checkout
+  charges whatever `STRIPE_PRICE_ID` points at. Changing the price means updating both.
 
 ## Configuration
 

@@ -26,7 +26,7 @@ module Billing
     # Paid wins over trial; a trial counts until trial_ends_at; no trial date and never confirmed means the trial never started.
     def call
       subscription = @user.billing_subscription
-      paid = subscription && BillingSubscription::PAID_STATUSES.include?(subscription.status)
+      paid = subscription&.paid? || false
       trial_ends_at = Trial.ends_at_for(@user)
       plan = if paid then "paid"
       elsif trial_ends_at && trial_ends_at > Time.current then "trial"

@@ -42,9 +42,8 @@ module Billing
       # The Stripe call happens inside the lock on purpose: two syncs running at once can't then write
       # stale state over newer state. It locks only this user's billing row, and the job retries.
       fetched = @gateway.retrieve_subscription(@subscription_id)
-      paid = BillingSubscription::PAID_STATUSES
-      other_paid_held = row.stripe_subscription_id.present? && row.stripe_subscription_id != fetched.id && row.status.in?(paid)
-      return fetched.id if other_paid_held && fetched.status.in?(paid)
+      other_paid_held = row.stripe_subscription_id.present? && row.stripe_subscription_id != fetched.id && row.paid?
+      return fetched.id if other_paid_held && BillingSubscription.paid_status?(fetched.status)
       return if other_paid_held
 
       row.update!(stripe_subscription_id: fetched.id, status: fetched.status,

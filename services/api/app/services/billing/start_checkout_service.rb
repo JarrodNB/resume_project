@@ -30,12 +30,12 @@ module Billing
     # user lets only one row in, and the loser uses that row.
     def customer_id_for_unpaid_user
       row = BillingSubscription.find_by(user_id: @user.id)
-      return if paid?(row)
+      return if row&.paid?
       return row.stripe_customer_id if row
 
       customer_id = @gateway.create_customer(@user)
       row = save_customer_row(customer_id)
-      paid?(row) ? nil : row.stripe_customer_id
+      row.paid? ? nil : row.stripe_customer_id
     end
 
     def save_customer_row(customer_id)
@@ -43,7 +43,5 @@ module Billing
     rescue ActiveRecord::RecordNotUnique
       BillingSubscription.find_by!(user_id: @user.id)
     end
-
-    def paid?(row) = row&.status.in?(BillingSubscription::PAID_STATUSES)
   end
 end

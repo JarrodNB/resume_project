@@ -10,6 +10,8 @@
 #     career_contexts (answers the user added from gap analysis, by created_at)
 #   - jobs, resumes, ai_tasks, ai_task_outcomes, interview_question_sets, interview_sessions, chat_conversations
 #   - library_embeddings: vectors of the career library entries (derived data)
+#   - trial_ends_at: end of the free trial; billing_subscription: the paid plan (see Billing::ResolvePlanService)
+#   - daily_ai_spend_cap_microdollars: operator override of the daily AI spend cap; also grants AI access (comped)
 class User < ApplicationRecord
   include ScreenedFields
   screenable_fields %w[summary]
@@ -32,6 +34,7 @@ class User < ApplicationRecord
   has_many :ai_tasks, dependent: :destroy
   has_many :ai_embedding_requests, dependent: :delete_all
   has_many :library_embeddings, dependent: :delete_all
+  has_one :billing_subscription, dependent: :delete
 
   validates :include_summary, inclusion: { in: [ true, false ] }
 

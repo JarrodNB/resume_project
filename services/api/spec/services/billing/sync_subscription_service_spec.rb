@@ -42,6 +42,37 @@ RSpec.describe Billing::SyncSubscriptionService do
     expect(row.reload.status).to eq("active")
   end
 
+  it "applies the latest Stripe state when it changes while the sync is running" do
+    FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription(status: "incomplete")
+    FakeStripeGateway.later_states["sub_1"] = [ stripe_subscription(status: "active") ]
+
+    sync
+
+    expect(row.reload.status).to eq("active")
+  end
+
+  it "keeps the existing paid subscription, cancels the duplicate and warns with both ids" do
+    row.update!(stripe_subscription_id: "sub_first", status: "active")
+    FakeStripeGateway.subscriptions["sub_second"] = stripe_subscription(id: "sub_second", status: "active")
+    allow(Rails.logger).to receive(:warn)
+
+    expect(sync("sub_second")).to be_success
+
+    expect(row.reload).to have_attributes(stripe_subscription_id: "sub_first", status: "active")
+    expect(FakeStripeGateway.canceled).to eq([ "sub_second" ])
+    expect(Rails.logger).to have_received(:warn).with(a_string_including("sub_first", "sub_second"))
+  end
+
+  it "does not cancel anything when the same subscription is synced again" do
+    row.update!(stripe_subscription_id: "sub_1", status: "active")
+    FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription(status: "past_due")
+
+    sync
+
+    expect(row.reload.status).to eq("past_due")
+    expect(FakeStripeGateway.canceled).to be_empty
+  end
+
   it "keeps a newer paid subscription when an old canceled one is synced" do
     FakeStripeGateway.subscriptions["sub_new"] = stripe_subscription(id: "sub_new", status: "active")
     FakeStripeGateway.subscriptions["sub_old"] = stripe_subscription(id: "sub_old", status: "canceled")

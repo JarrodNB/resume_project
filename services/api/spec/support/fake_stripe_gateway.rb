@@ -6,6 +6,7 @@
 #   - .configured: set false to simulate missing Stripe keys
 #   - .checkout_error, .portal_error, .cancel_error: set to a Billing::Gateway error to make that call raise it
 #   - .subscriptions: id => Billing::Gateway::Subscription you want retrieve_subscription to return
+#   - .later_states: id => states that replace .subscriptions[id] one per retrieve (after that call returns)
 #   - .customers_created, .checkout_sessions, .canceled: what the code under test asked for
 #   - VALID_SIGNATURE: the only signature construct_event accepts
 #   - .event_payload: a webhook JSON body for a given event type and subscription id
@@ -14,7 +15,7 @@ class FakeStripeGateway
 
   class << self
     attr_accessor :configured, :checkout_error, :portal_error, :cancel_error
-    attr_reader :subscriptions, :customers_created, :checkout_sessions, :portal_sessions, :canceled
+    attr_reader :subscriptions, :later_states, :customers_created, :checkout_sessions, :portal_sessions, :canceled
 
     def reset!
       @configured = true
@@ -22,6 +23,7 @@ class FakeStripeGateway
       @portal_error = nil
       @cancel_error = nil
       @subscriptions = {}
+      @later_states = {}
       @customers_created = []
       @checkout_sessions = []
       @portal_sessions = []
@@ -55,7 +57,13 @@ class FakeStripeGateway
     "https://billing.stripe.test/portal/#{self.class.portal_sessions.size}"
   end
 
-  def retrieve_subscription(subscription_id) = self.class.subscriptions.fetch(subscription_id)
+  # Each call returns the current state; any queued later states are then moved in, so a second fetch can differ.
+  def retrieve_subscription(subscription_id)
+    current = self.class.subscriptions.fetch(subscription_id)
+    following = self.class.later_states[subscription_id]&.shift
+    self.class.subscriptions[subscription_id] = following if following
+    current
+  end
 
   def cancel_subscription_now(subscription_id)
     raise self.class.cancel_error if self.class.cancel_error

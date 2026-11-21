@@ -65,8 +65,11 @@ signups cannot block paying customers.
   `Billing::SyncSubscriptionJob` with the subscription id and answers 200. Other events get 200 and are ignored.
 - **Sync job.** `Billing::SyncSubscriptionService` always fetches the subscription's current
   state from Stripe and copies it to `billing_subscriptions`. Because it never trusts the event
-  body, duplicate and out-of-order deliveries end in the same correct state. Ordering guard: an
-  old canceled subscription never overwrites a newer one that is still paid.
+  body, duplicate and out-of-order deliveries end in the same correct state. It fetches again
+  after locking the row, so two jobs at once cannot write older state. Guards: an old canceled
+  subscription never overwrites a newer one that is still paid; and if a second paid subscription
+  arrives for a row that already holds a paid one (two checkouts at once), the row keeps the first,
+  the newcomer is cancelled right away, and a warning log names both ids so an operator can refund it.
 - **Account deletion.** `Accounts::DeleteAccountService` cancels every not-yet-ended subscription
   of the user's Stripe customer right away (no refund) before deleting the user. It asks Stripe for
   the customer's subscriptions instead of trusting our row, because a user can finish Checkout and

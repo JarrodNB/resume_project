@@ -121,12 +121,14 @@ All business logic, as service objects grouped by domain folder.
   keeps the resume
 - `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
   resume (`updateResume`) and optionally changes section order (contact stays first) and summary inclusion under owner/resume locks; type and title stay put
-- `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
-  flight within separate general/spoken-interview buckets (`config/initializers/ai_usage_limits.rb`;
-  per-user override columns apply only to general AI)
-- `ai_usage/summarize_monthly_ai_usage_service.rb` — combined monthly spend, summed allowances,
-  reset time and incomplete-attempt count, including background embedding receipts;
-  admission checks select `:general` or `:interview` scope
+- `billing/resolve_plan_service.rb` — the user's plan (trial, paid or ended), trial end, period end,
+  cancel-at-period-end and hidden daily spend cap (override wins; an override also grants AI access).
+  Reads Rails data only; everything else asks it instead of re-deriving the plan
+- `ai_usage/check_ai_task_allowance_service.rb` — plan, daily spend cap, trial-only site cap, tasks per
+  hour and tasks in flight (hourly/in-flight within separate general/spoken-interview buckets;
+  `config/initializers/ai_usage_limits.rb`). Messages never contain amounts; `refusal_code` maps a refusal to
+  `plan_ended` or `ai_usage_limit_reached`
+- `ai_usage/daily_spend.rb` — a user's known spend today (UTC) across tasks and background embedding receipts
 - `ai_usage/embedding_accounting.rb` — commits each background embedding marker/receipt on
   an independent connection so source/vector rollbacks cannot erase provider charges
 - `ai_usage/reconcile_receipt_service.rb` — operator-only verified receipt import with default
@@ -180,8 +182,8 @@ All business logic, as service objects grouped by domain folder.
   snapshots exclude execution secrets. New real sessions require the dedicated runtime.
   Prepared sessions persist one preparation-task hourly admission before acknowledgment;
   `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
-  root link. Interview monthly spend and in-flight checks include every spoken stage,
-  independently of general AI limits. The public usage summary combines both scopes' costs.
+  root link. Interview in-flight checks include every spoken stage,
+  independently of general AI limits; daily spend is one shared total across both scopes.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
 

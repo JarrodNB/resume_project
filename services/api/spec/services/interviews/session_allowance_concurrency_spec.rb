@@ -10,7 +10,10 @@ RSpec.describe "Prepared interview admission contention" do
 
   self.use_transactional_tests = false
 
-  before { @user = create(:user, summary: "Maintain instruments", ai_tasks_per_hour_limit: 30) }
+  before do
+    stub_const("DEFAULT_AI_TASKS_PER_HOUR", 30)
+    @user = create(:user, summary: "Maintain instruments")
+  end
   after do
     media_ids = InterviewSessionMedia.where(interview_session_id: @user.interview_sessions.select(:id)).pluck(:id)
     @user.destroy!

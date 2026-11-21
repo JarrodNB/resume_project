@@ -85,7 +85,7 @@ RSpec.describe "Interview verification allowance" do
   end
 
   it "preserves the owner's existing allowance at provider admission" do
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 0)
     expect(start).not_to be_success
     expect(InterviewVerificationReservation.count).to eq(0)
   end

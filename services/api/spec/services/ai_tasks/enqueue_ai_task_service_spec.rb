@@ -32,7 +32,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
   end
 
   it "creates nothing and publishes nothing when the user has reached an AI usage limit" do
-    user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 1)
     create(:ai_task, user: user)
 
     result = described_class.call(user: user, task_type: "analyze_gaps")
@@ -57,7 +57,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
 
   it "returns resolved work before limits without saving or publishing another task" do
     existing = create(:ai_task, user: user)
-    user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 1)
     resolver = -> { ServiceResult.new(success: true, value: existing, errors: []) }
 
     result = described_class.call(user: user, task_type: "analyze_gaps", resolve_existing: resolver)

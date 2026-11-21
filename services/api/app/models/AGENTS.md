@@ -26,15 +26,18 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   unknown reports may reconcile once to known through `Interviews::RecordUsageService`;
   known reports remain immutable.
 - `ai_embedding_request.rb` — independent background embedding batches retained through
-  vector/source deletion; included in general/combined monthly spend without task-rate slots.
+  vector/source deletion; counted in the user's daily spend without task-rate slots.
 - `ai_usage_reconciliation.rb` — audited operator-verified replacements of task/embedding
   receipts; runtime reports cannot overwrite reconciled charges.
 
 - `user.rb` — account (Devise + Rails sessions); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
-  where blank and copied into tailored resumes. Nullable
-  `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` override
-  the general AI usage limits; spoken interviews have separate environment-backed limits
+  where blank and copied into tailored resumes. `trial_ends_at` (set at
+  email verification) and `billing_subscription` decide the plan (`Billing::ResolvePlanService`); nullable
+  `daily_ai_spend_cap_microdollars` overrides the plan's daily spend cap and grants AI access. The old
+  `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` columns are no longer read
+- `billing_subscription.rb` — a user's paid subscription and status as last reported by the payment provider;
+  `paid` means status active or past_due
 - `jwt_denylist.rb` — legacy token records retained for migration safety; browser
   authentication no longer accepts JWTs.
 - Career library (source of truth for the user's facts):

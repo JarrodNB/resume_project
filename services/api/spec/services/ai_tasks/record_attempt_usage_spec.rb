@@ -37,14 +37,14 @@ RSpec.describe AiTasks::ApplyAiResultService do
     started = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,
                 "attempt_finished" => false, "usage_incomplete" => true, "usage" => [] }
     described_class.call(message: started)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: task.user).value.incomplete_attempts).to eq(1)
+    expect(AiUsageAttempt.where(ai_task: task, incomplete: true).count).to eq(1)
     finished = started.merge("status" => "completed", "attempt_finished" => true, "usage_incomplete" => false,
                              "usage" => [ { "model" => "openai:gpt-5-mini", "cost_microdollars" => 35 } ])
     2.times { described_class.call(message: finished) }
     described_class.call(message: started)
     expect(task.reload).to be_completed
     expect(task.cost_microdollars).to eq(35)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: task.user).value.incomplete_attempts).to eq(0)
+    expect(AiUsageAttempt.where(ai_task: task, incomplete: true).count).to eq(0)
   end
 
   it "adds retry costs exactly once and accepts late usage after completion" do

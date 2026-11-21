@@ -153,7 +153,7 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
 
   it "resumes at the usage cap and publishes no duplicate task" do
     existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "queued")
-    user.update!(ai_tasks_per_hour_limit: 1)
+    stub_const("DEFAULT_AI_TASKS_PER_HOUR", 1)
 
     2.times do
       expect(described_class.call(user: user.reload, job: job.reload).value).to eq(existing)

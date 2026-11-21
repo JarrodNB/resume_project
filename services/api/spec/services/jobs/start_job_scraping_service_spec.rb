@@ -87,12 +87,12 @@ RSpec.describe Jobs::StartJobScrapingService do
   end
 
   it "respects the user's AI usage limits" do
-    user.update!(monthly_ai_budget_microdollars: 100)
+    user.update!(daily_ai_spend_cap_microdollars: 100)
     create(:ai_task, :completed_resume_parse, user: user, cost_microdollars: 100)
 
     result = described_class.call(user: user, url: canonical_url)
 
-    expect(result.errors.first).to start_with("You've reached this month's AI usage limit")
+    expect(result.errors.first).to start_with("You've reached today's usage limit")
     expect(queue).not_to have_received(:send_message)
   end
 end

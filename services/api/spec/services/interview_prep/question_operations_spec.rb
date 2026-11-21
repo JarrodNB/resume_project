@@ -99,7 +99,7 @@ RSpec.describe "Interview practice services" do
   end
 
   it "does not create a set when AI allowance is exhausted" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     result = InterviewPrep::StartQuestionSetService.call(user: user)
     expect(result).not_to be_success
     expect(user.interview_question_sets).to be_empty
@@ -160,7 +160,7 @@ RSpec.describe "Interview practice services" do
   end
 
   it "retains the saved answer when allowance prevents feedback" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     expect(start_operation("review_interview_answer", answer_text: "My answer")).not_to be_success
     expect(question.reload.answer_text).to eq("My answer")
     expect(question.ai_tasks).to be_empty

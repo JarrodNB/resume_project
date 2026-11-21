@@ -101,7 +101,6 @@ def install_contact_hooks() -> None:
     from agents.interview_feedback_agent import interview_feedback_agent
     from agents.interview_questions_agent import interview_questions_agent
     from agents.interview_session_feedback_agent import interview_session_feedback_agent
-    from agents.job_preference_agent import job_preference_agent
     from agents.library_edit_agent import library_edit_agent
     from agents.library_review_agent import library_review_agent
     from agents.parse_job_posting_agent import parse_job_posting_agent
@@ -111,7 +110,6 @@ def install_contact_hooks() -> None:
     from agents.user_text_screen_agent import user_text_screen_agent
 
     for agent in (
-        job_preference_agent,
         resume_parsing_agent,
         parse_job_posting_agent,
         gap_analysis_agent,

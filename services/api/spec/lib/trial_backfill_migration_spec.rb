@@ -1,7 +1,7 @@
 # Runs the real migration against a temporary users table: verified accounts get a fresh 7-day
 # trial from migration time, unverified accounts get none, and nothing else changes.
 require "rails_helper"
-require Rails.root.join("db/migrate/20261121010000_add_trial_and_daily_spend_cap_to_users")
+require Rails.root.join("db/migrate/20261121050000_add_trial_and_daily_spend_cap_to_users")
 
 RSpec.describe AddTrialAndDailySpendCapToUsers do
   it "starts a trial for confirmed users only" do

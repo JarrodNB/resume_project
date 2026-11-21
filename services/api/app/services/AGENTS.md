@@ -6,21 +6,15 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
-- `job_preferences/start_check_service.rb` — one 1–100-listing reference command with exact source/passage fingerprints and bounded input/result budgets; completed checks reuse only matching exact-source approvals. Result validation checks complete coverage, current sources and finite native preference probabilities.
-
-- `job_preferences/` — owner-scoped reusable next-job preference reads and version-fenced draft/confirm/clear writes. No catalogue changes.
-- `job_preferences/start_check_service.rb` and `validate_check_result_service.rb` — owner-confirmed search-listing references, queued JEV checks, source-digest currentness and finite probability/result acceptance.
-
 - `chat/` — private saved chat pagination and durable execution policy. `ContextPlanService` checks uncovered accepted dialogue without copying sources into claims and fixes rolling-summary checkpoints; summaries, replies and optional career-context save proposals commit atomically. No provider calls occur in Rails.
 
 - `screening/record_approvals_service.rb` — one recorder for unified `record_screening` receipts
-  (career library, job, gap response, interview question and job preferences). Its `RECORD_TYPES` registry owns each
+  (career library, job, gap response, interview question). Its `RECORD_TYPES` registry owns each
   type's screened fields, owner/task scope and extra checks; a field is approved only when its
   fingerprint matches the locked current value (and the task snapshot where one exists).
   Accepted chat replies explicitly enable owned active-job receipts after locked claim fences;
   other taskless callers remain limited to career-library records.
-  Spoken preparation/turns produce no screening approvals. Preference criteria use text
-  fingerprints on their owner profile; shared catalogue listings use exact passage fingerprints.
+  Spoken preparation/turns produce no screening approvals.
 - `billing/` — plan and Stripe subscriptions (see [billing](../../../../docs/architecture/billing.md)). `resolve_plan_service.rb` derives the plan from Rails data only.
   `gateway.rb` + `stripe_gateway.rb` are the only Stripe seam (config `config.x.billing_gateway`; specs use
   `FakeStripeGateway`). `start_checkout_service.rb` makes one Stripe customer per user and returns the Checkout URL;

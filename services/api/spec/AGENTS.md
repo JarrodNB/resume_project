@@ -6,6 +6,7 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 
 ## Contents
 
+- `migrations/remove_job_search_preferences_spec.rb` — preference storage removal, pending task retirement, and preservation of saved jobs and task charges.
 - `models/` — validations, enums, ordering
 - `services/` — service object behavior, mirrored from `app/services/`
 - `graphql/queries/`, `graphql/mutations/` — operations run directly against the schema

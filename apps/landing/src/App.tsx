@@ -1,27 +1,24 @@
-/** The Careerdrafter landing page: one ride from a person’s history to an interview, then sign-up.
+/** The Careerdrafter landing page: what the product does, shown with one made-up job seeker, then sign-up.
  * Static and public. Its only state is the scripted gap answer in the worked example, and its
  * only ways out are links to the web app.
  */
 import { useState } from 'react'
 import { PRIVACY_URL, SIGN_IN_URL, SIGN_UP_URL, TERMS_URL } from './appLinks'
 import { LineStrip } from './LineStrip'
-import { ExamplePreview } from './ExamplePreview'
 import { GapsStop, InterviewStop, JobStop, LibraryStop, ResumeStop } from './RideStops'
 import { SearchMap } from './SearchMap'
 
 function Hero() {
   return (
     <section className="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title">Your experience.<br />A resume for the job you want.</h1>
-      <div className="hero-action">
-        <p>
-          Build a career library from what you’ve actually done. Use it to write a tailored resume
-          you review, keep your search organized, and practice with an AI interviewer.
-        </p>
-        <div className="hero-links">
-          <a className="button button-primary button-huge" href={SIGN_UP_URL}>Sign up and start</a>
-          <a className="text-link" href="#example">Try the example</a>
-        </div>
+      <h1 id="hero-title">Stop sending the same resume everywhere.</h1>
+      <p className="hero-lede">
+        Careerdrafter keeps everything you’ve done in one place, then helps you write a resume for
+        each job you really want. Nothing goes on the page that you can’t back up.
+      </p>
+      <div className="hero-links">
+        <a className="button button-primary button-huge" href={SIGN_UP_URL}>Create your account</a>
+        <a className="text-link" href="#library">See how it works</a>
       </div>
     </section>
   )
@@ -30,30 +27,21 @@ function Hero() {
 function Limits() {
   return (
     <section className="limits" aria-labelledby="limits-title">
-      <h2 id="limits-title">What Careerdrafter won’t do.</h2>
+      <h2 id="limits-title">What it won’t do.</h2>
       <dl className="limits-list">
         <div>
           <dt>Make things up.</dt>
-          <dd>It writes only from your library and your answers, and checks drafts for claims they don’t support. Read every draft anyway, because a check can miss something.</dd>
+          <dd>It only writes from what you’ve told it, and it checks drafts for claims you can’t back up. Still, read every line before you send it.</dd>
         </div>
         <div>
-          <dt>Send 500 applications.</dt>
-          <dd>It never applies for you. It’s built for fewer, better applications, and you decide what goes out.</dd>
+          <dt>Apply for you.</dt>
+          <dd>It never sends anything. It’s for the handful of jobs you care about, not five hundred you don’t.</dd>
         </div>
         <div>
           <dt>Promise you a job.</dt>
-          <dd>AI gets things wrong, so everything it writes is a draft for you to check. The hiring decision stays with the hiring team.</dd>
+          <dd>It helps you show up prepared. Who gets hired is still up to the people hiring.</dd>
         </div>
       </dl>
-      <div className="honest-note">
-        <h3>How the AI is kept honest</h3>
-        <p>
-          Writing is checked for unsupported claims and retried when a check fails. Text from
-          postings and uploads is screened for hidden instructions before it reaches a model.
-          Prompts and models are tested against labelled, made-up examples, and every run is traced.
-          These checks reduce mistakes rather than remove them, which is why you review the result.
-        </p>
-      </div>
     </section>
   )
 }
@@ -62,10 +50,10 @@ function Close() {
   return (
     <section className="close" aria-labelledby="close-title">
       <h2 id="close-title">Start with the job you want most.</h2>
-      <p className="close-value">Your experience, ready to reuse. A resume you control. Practice for the interview ahead.</p>
+      <p className="close-value">Add your experience once. Tailor it for every job. Practice before the interview.</p>
       <div className="close-arrival">
         <span className="close-track" aria-hidden><span className="close-terminal" /></span>
-        <a className="button button-inverse button-huge" href={SIGN_UP_URL}>Sign up and start</a>
+        <a className="button button-inverse button-huge" href={SIGN_UP_URL}>Create your account</a>
       </div>
     </section>
   )
@@ -91,7 +79,6 @@ function App() {
       <LineStrip gapNeedsAnswer={!gapAnswered} />
       <main id="top">
         <Hero />
-        <ExamplePreview gapAnswered={gapAnswered} onToggleGapAnswer={() => setGapAnswered((answered) => !answered)} />
         <LibraryStop />
         <JobStop />
         <GapsStop gapAnswered={gapAnswered} onToggleGapAnswer={() => setGapAnswered((answered) => !answered)} />
@@ -103,7 +90,7 @@ function App() {
       </main>
       <footer className="footer">
         <p>Careerdrafter</p>
-        <p>Maya Okafor, her jobs and every company on this page are made up.</p>
+        <p>Maya, her jobs and every company on this page are made up.</p>
         <nav aria-label="Footer">
           <a href={SIGN_IN_URL}>Sign in</a>
           <a href={PRIVACY_URL}>Privacy</a>

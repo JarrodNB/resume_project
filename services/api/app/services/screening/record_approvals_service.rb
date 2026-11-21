@@ -25,10 +25,6 @@ module Screening
     # Types are processed in this order (task-bound types first, then the career library),
     # which keeps the lock order the older recorders used.
     RECORD_TYPES = {
-      "job_preference_criterion" => { model: JobPreferenceProfile, fields: %w[text].freeze,
-        scope: :preference_scope, approve: :approve_preference_criterion },
-      "job_board_listing" => { model: JobBoardListing, fields: %w[passages].freeze,
-        scope: :preference_scope, approve: :approve_preference_listing },
       "interview_question" => { model: InterviewQuestion,
                                 scope: :interview_question_scope, check: :interview_revision_matches? },
       "job" => { model: Job, scope: :job_scope },
@@ -48,27 +44,6 @@ module Screening
     # Matches Python's compact UTF-8 JSON encoding, without Rails HTML escaping.
     def self.field_fingerprint(value)
       Digest::SHA256.hexdigest(JSON.generate(value))
-    end
-
-    # Retired preference conversations cannot emit new receipts. Preserve their exact
-    # successful input checks by importing them into the ordinary fingerprint store.
-    # Current preference checks never infer approval from previous check-task inputs.
-    def self.import_legacy_preference_checks(user:, profile:)
-      return unless profile.user_id == user.id
-
-      profile.with_lock do
-        historical = user.ai_tasks.where(task_type: "elicit_job_preferences", status: %w[completed needs_user_input])
-        fingerprints = profile.confirmed_criteria.filter_map do |criterion|
-          text = criterion["text"]
-          fingerprint = field_fingerprint(text)
-          next if profile.screened_criteria_sha256.include?(fingerprint)
-          next unless historical.where("input @> ?", { criteria: [ { text: text } ] }.to_json).exists?
-
-          fingerprint
-        end
-        combined = profile.screened_criteria_sha256 | fingerprints
-        profile.update!(screened_criteria_sha256: combined) if combined != profile.screened_criteria_sha256
-      end
     end
 
     # @param user [User] owner of every record that may be approved
@@ -108,8 +83,6 @@ module Screening
     end
 
     def approve_record(entry, scope, record_id, receipts)
-      return send(entry[:approve], record_id, receipts) if entry[:approve]
-
       snapshot = nil
       if scope[:snapshots]
         snapshot = scope[:snapshots][record_id]
@@ -137,56 +110,6 @@ module Screening
         next if entry[:check] && !send(entry[:check], scope: scope, record: record, snapshot: snapshot, receipt: receipt, field: field)
 
         field
-      end
-    end
-
-    # Preferences are JSON entries inside one owned profile, while catalogue listings
-    # are shared rows. Both still use the common receipt shape and exact-value rule.
-    def preference_scope(_record_type)
-      return unless task_for_user? && @ai_task.check_job_preferences?
-
-      { profile_id: @ai_task.input["profile_id"] }
-    end
-
-    def approve_preference_criterion(record_id, receipts)
-      snapshot = Array(@ai_task.input["criteria"]).find { |item| item.is_a?(Hash) && item["id"] == record_id }
-      return unless snapshot
-      profile = @user.job_preference_profile
-      return unless profile && profile.id == @ai_task.input["profile_id"]
-
-      profile.with_lock do
-        next unless profile.confirmed_revision == @ai_task.input["confirmed_revision"]
-        current = profile.confirmed_criteria.find { |item| item["id"] == record_id }
-        next unless JobPreferences::CheckSources.criterion_matches?(snapshot, current)
-        fingerprint = self.class.field_fingerprint(current["text"])
-        next unless receipts.any? { |receipt| receipt["fingerprints"]["text"] == fingerprint }
-
-        combined = profile.screened_criteria_sha256 | [ fingerprint ]
-        profile.update!(screened_criteria_sha256: combined) if combined != profile.screened_criteria_sha256
-      end
-    end
-
-    def approve_preference_listing(record_id, receipts)
-      return unless @ai_task.check_job_preferences?
-      listings = @ai_task.input["listings"]
-      return unless listings.is_a?(Array) && listings.size.between?(1, JobPreferences::StartCheckService::MAX_LISTINGS)
-      snapshot = listings.find { |item| item.is_a?(Hash) && item["id"] == record_id }
-      return unless snapshot
-      record = JobBoardListing.find_by(id: record_id)
-      return unless record
-
-      record.with_lock do
-        # Rebuild the same bounded excerpt, not the whole source digest: a previous
-        # partial check must never approve passages that were not in that check.
-        budget = [ JobPreferences::StartCheckService::TEXT_BUDGET_BYTES / listings.size,
-          JobBoard::PreferenceListingSources::MAX_TEXT_BYTES ].min
-        current = JobBoard::PreferenceListingSources.new(record).projection(max_text_bytes: budget)
-        next unless JobPreferences::CheckSources.listing_matches?(snapshot, current)
-
-        fingerprint = self.class.field_fingerprint(current["passages"].pluck("text"))
-        next unless receipts.any? { |receipt| receipt["fingerprints"]["passages"] == fingerprint }
-
-        record.update!(screened_sha256: fingerprint) unless record.screened_sha256 == fingerprint
       end
     end
 

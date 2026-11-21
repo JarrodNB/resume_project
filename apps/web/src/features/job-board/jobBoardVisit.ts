@@ -9,7 +9,6 @@ import type { ApolloClient } from '@apollo/client'
 import type { AiTaskStatusEnum, JobBoardSearchQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
-import { createJobBoardPreferenceCheck } from './jobBoardPreferenceCheck'
 import { boardPageSize, type BoardSearch } from './searchFilters'
 
 type SearchPage = JobBoardSearchQuery['jobBoardSearch']
@@ -24,7 +23,7 @@ interface VisitState {
   errors: string[]
   failedCursor: string | null
   hideSaved: boolean
-  ordering: 'provider' | 'library' | 'preferences'
+  ordering: 'provider' | 'library'
   savedHere: Record<string, { jobId: string; warnings: string[] }>
   busyId: string | null
   importErrors: string[]
@@ -63,7 +62,6 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
   let scrollY = 0
   const listeners = new Set<() => void>()
   const rankings = new Map<SearchSnapshot, RerankingRequest>()
-  const preferenceCheck = createJobBoardPreferenceCheck(client, () => state.snapshot, () => update({}))
 
   function discardOversizedVisit() {
     if (listeners.size === 0 && state.snapshot.pages.reduce((count, page) => count + page.listings.length, 0) > 200) discard()
@@ -236,7 +234,6 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
     search, clear, retry, loadMore, save, nextCursor, getResults, goToPage,
     setHideSaved(hideSaved: boolean) { update({ hideSaved }) },
     setOrdering(ordering: VisitState['ordering']) { update({ ordering }) },
-    checkPreferences: preferenceCheck.check, receivePreferenceCheck: preferenceCheck.receive, getPreferenceCheck: preferenceCheck.getState,
     startReranking, receiveRanking, getReranking, retryReranking,
   }
 }

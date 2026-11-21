@@ -6,7 +6,6 @@ export const JOB_BOARD_SEARCH_QUERY = graphql(`
     jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor, experienceLevels: $experienceLevels, filters: $filters) {
       listings {
         id
-        preferenceSourceDigest
         title
         company
         location

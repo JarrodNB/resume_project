@@ -9,7 +9,7 @@ period here changes, change the code, this page and `legalDetails.ts` together.
 
 | Data | Kept for | Enforced by |
 | --- | --- | --- |
-| Account, profile, career library, jobs, gap responses, resumes, chats, written interview practice, job preferences | Until the user deletes it or the account | User actions; `Accounts::DeleteAccountService` |
+| Account, profile, career library, jobs, gap responses, resumes, chats, written interview practice | Until the user deletes it or the account | User actions; `Accounts::DeleteAccountService` |
 | Uploaded resume files (PDF/DOCX) | 30 days after the parse finishes (completed or failed) | `ResumeImports::PurgeOldUploadsService`, daily via `PurgeOldUploadsJob` |
 | Parsed resume result on the AI task | With the account | Account deletion |
 | Spoken interview questions, transcripts, feedback and answer recordings | 7 days after the interview starts (`interview_sessions.expires_at`) | `Interviews::CleanupService`, every minute |
@@ -42,7 +42,7 @@ its own customer and invoice records. On success the controller signs the browse
 What the destroy does:
 
 - `dependent:` associations remove the career library, jobs (with gap responses and
-  dismissals), resumes, chats, interview practice, job preferences, embeddings, AI tasks
+  dismissals), resumes, chats, interview practice, embeddings, AI tasks
   and their usage records. Foreign keys without a cascade make a missed association fail
   loudly instead of leaving orphans.
 - Interview sessions run `Interviews::DetachMediaService` first, which turns their audio rows
@@ -64,7 +64,7 @@ The `accountExport` GraphQL query returns a JSON document built by
 fields explicitly, so password hashes, sessions, screening receipts, embeddings and AI
 bookkeeping are never included. It covers the profile, career library, jobs with gap
 responses, resumes with sections, chats, written practice, spoken interviews whose content
-has not expired, job preferences and avoided questions. Uploaded files are not included.
+has not expired and avoided questions. Uploaded files are not included.
 The field has a high complexity cost so a request can fetch it only once.
 
 The web app saves the result as `careerdrafter-export-YYYY-MM-DD.json` without caching it in

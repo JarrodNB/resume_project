@@ -1,5 +1,6 @@
 /** Capture one complete recording for explicit answer submission, with optional live recognition.
  * Stopping pauses the same audio container; continuing appends audio without joining files.
+ * Live recognition failures pause capture and keep its audio and visible words for recovery.
  * Recording and recognition finish independently; review waits for both. Tracks are released
  * on every exit, including a permission prompt that resolves after the page has gone away.
  * Speech processing and mono capture are preferences; the browser negotiates device support.
@@ -47,6 +48,17 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
     setStatus('idle'); setRecording(null); setError(null)
     setTranscript(''); setCandidateTranscript(null); setFallbackReason(null); setEffectiveMode(mode)
   }, [discard, mode])
+
+  const stop = useCallback(() => {
+    const current = capture.current
+    if (!current || current.recorder.state !== 'recording') return
+    clearTimeout(current.timer)
+    current.remaining -= Date.now() - current.started
+    setStatus('finalizing')
+    if (!finalized.current) finalized.current = transcription.current?.finish() ?? null
+    current.stream.getAudioTracks().forEach((track) => { track.enabled = false })
+    current.recorder.pause()
+  }, [])
 
   const start = useCallback(async () => {
     if (busy.current && capture.current?.recorder.state !== 'paused') return
@@ -100,13 +112,24 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       }
       recorder.onstop = () => { release(current.stream) }
       recorder.start(1000)
-      const callbacks: TranscriptionCallbacks = {
-        text(text) { if (capture.current === current && !current.discard) setTranscript(text) },
-        fallback(reason) { if (capture.current === current && !current.discard) { setEffectiveMode('recorded'); setFallbackReason(reason) } },
-      }
+      let listening = 0
       current.listen = () => {
+        const attempt = ++listening
+        let failed = false
         finalized.current = null
+        setEffectiveMode(mode); setFallbackReason(null)
         setTranscript(''); setCandidateTranscript(null)
+        const callbacks: TranscriptionCallbacks = {
+          text(text) { if (capture.current === current && !current.discard && attempt === listening && !failed) setTranscript(text) },
+          fallback(reason) {
+            if (capture.current !== current || current.discard || attempt !== listening || failed) return
+            failed = true
+            setEffectiveMode('recorded'); setFallbackReason(reason)
+            // Startup can fail synchronously, before pause listeners are ready.
+            // Fence queued failures so they cannot pause a resumed or replacement capture.
+            queueMicrotask(() => { if (capture.current === current && !current.discard && attempt === listening) stop() })
+          },
+        }
         if (mode === 'browser') transcription.current = startBrowserTranscription(callbacks)
         if (mode === 'streaming') {
           if (startStreaming) {
@@ -131,18 +154,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       setError(cause instanceof Error && /format|browser/.test(cause.message) ? cause.message : 'Could not start the microphone. Check permission and your recording device, then try again.')
       setStatus('idle')
     }
-  }, [discard, reset, mode, startStreaming])
-
-  const stop = useCallback(() => {
-    const current = capture.current
-    if (!current || current.recorder.state !== 'recording') return
-    clearTimeout(current.timer)
-    current.remaining -= Date.now() - current.started
-    setStatus('finalizing')
-    if (!finalized.current) finalized.current = transcription.current?.finish() ?? null
-    current.stream.getAudioTracks().forEach((track) => { track.enabled = false })
-    current.recorder.pause()
-  }, [])
+  }, [discard, reset, mode, startStreaming, stop])
 
   const resume = useCallback(() => {
     const current = capture.current

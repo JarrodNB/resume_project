@@ -73,8 +73,8 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
   }
   function fail(message: string) {
     if (ended) return
-    callbacks.fallback(message)
     complete(null)
+    callbacks.fallback(message)
   }
   function send(value: ArrayBuffer | string) {
     if (!socket || socket.readyState !== 1 || socket.bufferedAmount > 256_000) throw new Error('Streaming disconnected')

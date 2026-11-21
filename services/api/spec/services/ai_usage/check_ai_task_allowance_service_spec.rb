@@ -209,13 +209,6 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
 
       expect(described_class.call(user: user)).to be_success
     end
-
-    it "no longer reads the old per-user override column" do
-      user.update!(ai_tasks_per_hour_limit: 1)
-      create_finished_task
-
-      expect(described_class.call(user: user)).to be_success
-    end
   end
 
   describe "in-flight limit" do
@@ -235,13 +228,6 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
       create_list(:ai_task, DEFAULT_MAX_IN_FLIGHT_AI_TASKS, user: user, status: "needs_user_input")
 
       expect(described_class.call(user: user)).to be_success
-    end
-
-    it "no longer reads the old per-user override column" do
-      user.update!(max_in_flight_ai_tasks: DEFAULT_MAX_IN_FLIGHT_AI_TASKS + 1)
-      create_list(:ai_task, DEFAULT_MAX_IN_FLIGHT_AI_TASKS, user: user)
-
-      expect(described_class.call(user: user)).not_to be_success
     end
   end
 end

@@ -32,8 +32,7 @@ The check runs these in order and fails with the first one that applies:
 
 `users.daily_ai_spend_cap_microdollars` is an operator override set from the Rails console. It wins
 over the plan's cap and also grants AI access when the plan has ended (a **comped account**).
-The older override columns (`monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`,
-`max_in_flight_ai_tasks`) are no longer read.
+Plans, the trial and Stripe are covered in [billing](billing.md).
 
 **Caps and spend are never shown to users.** No GraphQL field exposes them, and no refusal message
 contains an amount. Hourly and in-flight limits use the environment defaults only. Spoken
@@ -174,7 +173,7 @@ requests get a JSON 429 with `Retry-After`.
   characters. Those failures tell the user the text is too long. They are not reported as
   unsafe, and rows are not silently truncated. A request body over 8 MB is a
   JSON 413. Provider screening usage is reported under its actual model and counts
-  toward the monthly budget, including completed responses before later failures and validation
+  toward the daily spend cap, including completed responses before later failures and validation
   retries. Missing usage stays explicitly unknown. JEV token rates are TypeSafe's published
   $0.042 per 1M input tokens (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
 
@@ -196,8 +195,8 @@ requests get a JSON 429 with `Retry-After`.
   is the only writer and returns the total change for the caller to apply.
   Under the task lock, final reports add known totals once, including retries and late or
   out-of-order reports. Finished tasks keep their outcome. Legacy messages without an
-  attempt identity assign totals only when their outcome can still apply. Monthly totals still use
-  tasks created in the UTC calendar month; unknown costs flag incomplete accounting and do
+  attempt identity assign totals only when their outcome can still apply. Daily totals use
+  the UTC day; unknown costs flag incomplete accounting and do
   not independently block work. The existing hourly and in-flight caps remain in place.
   Deploy the Rails migration/consumer before the new worker message format. This accounting
   covers queued AI tasks and their query embeddings. Independent Rails career-library/interview

@@ -34,8 +34,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
   where blank and copied into tailored resumes. `trial_ends_at` (set at
   email verification) and `billing_subscription` decide the plan (`Billing::ResolvePlanService`); nullable
-  `daily_ai_spend_cap_microdollars` overrides the plan's daily spend cap and grants AI access. The old
-  `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` columns are no longer read
+  `daily_ai_spend_cap_microdollars` overrides the plan's daily spend cap and grants AI access (see
+  [billing](../../../../docs/architecture/billing.md))
 - `billing_subscription.rb` — a user's paid subscription and status as last reported by the payment provider;
   `paid` means status active or past_due
 - `jwt_denylist.rb` — legacy token records retained for migration safety; browser

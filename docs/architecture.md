@@ -17,6 +17,7 @@ when changing a contract or feature:
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [Privacy and account data](architecture/privacy-and-data.md) | Retention periods, account deletion, data export, outside data processors |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |
+| [Billing](architecture/billing.md) | Trial, paid plan, Stripe checkout and webhooks, hidden daily caps, production rollout |
 | [AI cost accounting](architecture/ai-cost-accounting.md) | Combined spend, background embedding receipts, price checks, verified reconciliation |
 | [Career library](architecture/career-library.md) | Imports, merging, retrieval, embeddings, gap analysis, tailoring, job ingestion |
 

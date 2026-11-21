@@ -119,6 +119,16 @@ it('stops refetching after a bounded wait', async () => {
   expect(await screen.findByText(/taking longer than usual/)).toBeInTheDocument()
 })
 
+it('enables Upgrade again once the page stops waiting', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const stillTrial = { request: { query: BILLING_QUERY }, result: billingResult(trial) }
+  renderBilling(trial, { url: '/account/billing?checkout=success', mocks: Array.from({ length: 10 }, () => stillTrial) })
+  await screen.findByText('Payment received — updating your plan…')
+  await act(async () => { await vi.advanceTimersByTimeAsync(21000) })
+  await screen.findByText(/taking longer than usual/)
+  expect(screen.getByRole('button', { name: 'Upgrade' })).toBeEnabled()
+})
+
 it('shows no payment message on a normal visit', async () => {
   renderBilling(trial)
   await screen.findByText(/Free trial/)

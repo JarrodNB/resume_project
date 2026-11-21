@@ -5,7 +5,7 @@ Runs on the single EC2 server created by `../terraform`. Reach the server with
 
 ## Deploys
 
-Merging to master runs `.github/workflows/deploy.yml`: it builds the four images, pushes them
+Merging to master (a release PR from `develop`) runs `.github/workflows/deploy.yml`: it builds the four images, pushes them
 to ECR tagged with the commit, copies these compose files to the server, restarts the stack
 and checks the three public addresses. AWS access is a role GitHub assumes for runs on master
 only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
@@ -32,8 +32,10 @@ only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
    docker compose --env-file .env up -d
    ```
 
-## Still needed before a real launch
+## Secrets
 
-- Fill the blank values in `.env`: `OPENAI_API_KEY`, `TURNSTILE_SECRET_KEY` and the `SMTP_*`
-  settings. The passwords and shared secrets are generated on the server, not stored in git.
-- Test a restore from the S3 backups.
+Production secrets are in `/opt/app/.env` on the server, and the original eleven have a copy in
+Parameter Store under `/jobapp/prod/` (the server can read it, not write it). `TYPESAFE_API_KEY`
+and `CLEANJOBDATA_API_KEY` were added later and are not copied there yet. When you change a
+secret that has a copy, change both. A container reads `.env` only when it starts, so recreate the services that use the
+value. Restore tested from the S3 backups on 2026-11-20.

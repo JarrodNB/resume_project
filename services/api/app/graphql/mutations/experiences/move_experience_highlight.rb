@@ -18,7 +18,7 @@ module Mutations
         result = ::Experiences::MoveHighlightService.call(
           highlight: highlight, experience: current_user.experiences.find(experience_id), position: position
         )
-        { experience: result.value, source_experience: result.success? ? source_experience.reload : nil, errors: result.errors }
+        { experience: result.value, source_experience: result.success? ? source_experience.reload : nil }.merge(error_fields_from(result))
       end
     end
   end

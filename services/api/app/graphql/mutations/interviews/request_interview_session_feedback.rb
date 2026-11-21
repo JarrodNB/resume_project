@@ -8,7 +8,7 @@ module Mutations
 
       def resolve(interview_id:, retry_failed: false)
         result = ::Interviews::SessionFeedback.new.request(interview: interview(interview_id), retry_failed: retry_failed)
-        { feedback: result.value, errors: result.errors, error_code: result.code&.to_s }
+        { feedback: result.value }.merge(error_fields_from(result))
       end
     end
   end

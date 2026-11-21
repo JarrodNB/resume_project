@@ -415,8 +415,8 @@ speech US$0.60/million input text tokens and US$12/million output audio tokens
 ([speech model](https://developers.openai.com/api/docs/models/gpt-4o-mini-tts)).
 [Jev model pricing](https://docs.typesafe.ai/models) was checked as well. The approved model
 names were preserved. Official documentation describes TTS retirement on 6 January 2027;
-no replacement was selected. The cumulative US$5 allowance is a target with conservative
-reservations and actual reconciliation, not a provider-side guaranteed ceiling.
+no replacement was selected. Conservative reservations and actual reconciliation are
+recorded on the ledger; they are not a provider-side guaranteed ceiling and do not block calls.
 
 ## Bounded manual use
 
@@ -424,10 +424,9 @@ Use [the real browser QA guide](interview-real-qa.md) for authorized manual test
 `cg-interview-12-paid`. Public scripted sessions are retired. Offline deterministic recovery
 checks remain available through [the recovery guide](interview-recovery.md).
 
-The original unknown observation remains counted at its reserved estimate and is the only
-human-reviewed admission exception. Any new unknown observation stops further paid calls.
-Never enable paid processing on the former fake QA database, reset or copy the paid ledger,
-or add reviewed observation IDs automatically. The cumulative US$5 target remains unchanged.
+Unknown observations stay on the ledger at their reserved estimates and do not stop other
+paid calls. Never enable paid processing on the former fake QA database, or reset or copy
+the paid ledger.
 
 Review aggregate ledger state and all pending real operations **before** starting execution.
 The separate conservative diagnostic runner, `script/interview_paid_check.sh`,

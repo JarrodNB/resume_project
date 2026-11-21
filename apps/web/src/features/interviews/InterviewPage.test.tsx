@@ -936,6 +936,7 @@ it('shows the effective recorded fallback and keeps explicit submission availabl
   await userEvent.keyboard('{Escape}')
   expect(screen.getByText(recorder.fallbackReason)).toBeVisible()
   expect(screen.getByText('Live transcription stopped')).toBeVisible()
+  expect(screen.getByText(/Your microphone is paused and your recording is safe/)).toBeVisible()
   expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
 })
 

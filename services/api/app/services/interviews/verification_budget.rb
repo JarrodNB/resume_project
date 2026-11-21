@@ -1,9 +1,8 @@
-# Record conservative cost estimates and optionally enforce a durable $5 verification target.
-# Call inside the owner/operation transaction. The shared lock always comes last, and
-# no provider or network work runs while it is held. Local unmetered testing retains all records.
+# Record conservative cost estimates for each provider call and reconcile them with actual usage.
+# This is bookkeeping only: it does not cap or pause spending. Call inside the owner/operation
+# transaction; reconciliation takes a shared lock and no provider work runs while it is held.
 module Interviews
   module VerificationBudget
-    LIMIT_MICRODOLLARS = 5_000_000
     LOCK_ID = 741_009
     # Transcription: 120 seconds at $0.0045/minute. Speech: human-approved $0.25
     # estimate for <=4,000 characters; NOT a proven provider billing ceiling.
@@ -20,39 +19,15 @@ module Interviews
       %w[interviewer openai gpt-6-luna] => 50_000,
       %w[interviewer openai gpt-6.1-terra] => 150_000 }.freeze
 
+    # Records the estimate for one dispatch. It never blocks on other calls' usage:
+    # an unresolved or failed call must not stop every user. Per-user allowances still
+    # apply separately. Only a model with no registered price is refused.
     def self.reserve(observation_id:, stage:, provider:, model:)
       amount = RESERVATIONS[[ stage, provider, model ]]
       return false unless amount
 
-      lock
-      # Enforced verification permits one unresolved dispatch globally. Local
-      # unmetered testing skips that stop while retaining every estimate.
-      if enforced?
-        return false if unreviewed_reservations.exists?
-
-        used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")
-        return false if used + amount > LIMIT_MICRODOLLARS
-      end
-
       InterviewVerificationReservation.create!(observation_id: observation_id, reserved_microdollars: amount)
       true
-    end
-
-    def self.enforced?
-      !LocalTesting.unmetered?
-    end
-
-    # Enforced verification can carry explicitly reviewed historical estimates.
-    # Local unmetered QA never consults this list to admit requests.
-    def self.unreviewed_reservations
-      reviewed = if Rails.env.development? && ENV["INTERVIEW_PAID_VERIFICATION"] == "true"
-        ENV.fetch("INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS", "").split(",").select do |id|
-          id.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/)
-        end
-      else
-        []
-      end
-      InterviewVerificationReservation.where(actual_microdollars: nil).where.not(observation_id: reviewed)
     end
 
     def self.reconcile(observation_id:, cost:)

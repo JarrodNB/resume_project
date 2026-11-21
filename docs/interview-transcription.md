@@ -101,9 +101,11 @@ adding new spending gates. Historical audio-turn API callers remain compatible.
 Settings explains each mode and suggests streaming or recorded transcription when browser
 recognition is unreliable. The answer box fills while live words arrive. Before any words
 arrive, a Listening for words status explains how to recover; silence alone is not treated
-as a failure. Known recognition/connection errors show Live transcription stopped and keep
-the complete recording. Finish recording, then explicitly choose Transcribe recording to
-fill the answer for review. Nothing is automatically submitted. Submit or discard the
+as a failure. Known recognition/connection errors show Live transcription stopped and automatically
+pause microphone recording, retaining the complete audio and words already shown.
+Successful live recognition finalizes on Pause recording and needs no separate
+transcription pass. After a failure, live words may be incomplete: review or edit
+them, or explicitly choose Transcribe recording to recover the retained audio. Nothing is automatically submitted. Submit or discard the
 current recording before changing modes, or type/correct the answer instead.
 
 Use the retained local QA stack at `http://127.0.0.2:15176/practice/interviews`. On each mode,

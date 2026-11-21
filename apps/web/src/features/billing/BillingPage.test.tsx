@@ -103,6 +103,13 @@ it('after Checkout, says the payment arrived and refetches until the plan is Pai
   expect(screen.queryByText('Payment received — updating your plan…')).not.toBeInTheDocument()
 })
 
+it('disables Upgrade while waiting for the plan to update after Checkout', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  renderBilling(trial, { url: '/account/billing?checkout=success', mocks: [{ request: { query: BILLING_QUERY }, result: billingResult(paid) }] })
+  await screen.findByText('Payment received — updating your plan…')
+  expect(screen.getByRole('button', { name: 'Upgrade' })).toBeDisabled()
+})
+
 it('stops refetching after a bounded wait', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   const stillTrial = { request: { query: BILLING_QUERY }, result: billingResult(trial) }

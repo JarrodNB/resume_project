@@ -1,7 +1,8 @@
 /** "Plan & billing" (`/account/billing`): says which plan the user is on and the date that matters
  * (trial end, renewal, or the end of a cancelling plan). Shows dates only, never usage or limits.
  * Trial and ended users get an Upgrade button that sends them to Stripe Checkout; after paying, the
- * page refetches the plan for a short while until the Stripe webhook has made it Paid.
+ * page refetches the plan for a short while until the Stripe webhook has made it Paid (Upgrade is
+ * disabled meanwhile, so a second subscription can't be started).
  * Users with a Stripe customer also get Manage billing, which opens the Stripe Customer Portal. */
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
@@ -102,7 +103,7 @@ export function BillingPage() {
           )}
           {(plan === 'TRIAL' || plan === 'ENDED') && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Button onClick={upgrade} disabled={starting}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
+              <Button onClick={upgrade} disabled={starting || waiting}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
               <span className="text-sm text-muted-foreground">$12/month</span>
             </div>
           )}

@@ -20,13 +20,16 @@ Cancelling keeps `paid` until the period ends (`cancel_at_period_end`), then the
 are not paid.
 
 **Comped accounts.** An operator can set `users.daily_ai_spend_cap_microdollars` from the Rails
-console. It replaces the plan's daily cap and grants AI access even when the plan is `ended`.
+console (`User#comped?`). It replaces the plan's daily cap and grants AI access even when the plan is `ended`.
 
 ## Trial
 
 - `trial_ends_at` is set when the email is confirmed (`Accounts::ConfirmAccountService`): confirmed
   time plus 7 days. One trial per account, ever; re-subscribing never restarts it.
 - The migration that added the column gave every already-confirmed user launch time plus 7 days.
+  A confirmed user still missing `trial_ends_at` (confirmed between that migration and the new code
+  going live) gets confirmed time plus 7 days from `Billing::ResolvePlanService`; the trial-ending
+  email does not cover that rare case.
 - `Accounts::SendTrialEndingEmailsJob` (daily, `config/recurring.yml`) emails non-paid users whose
   trial ends within about a day. `trial_ending_email_sent_at` makes it once per user.
 
@@ -52,10 +55,10 @@ signups cannot block paying customers.
   is the real adapter (the `stripe` gem); tests use `FakeStripeGateway`. It is chosen once in
   config (`config.x.billing_gateway`). It turns every Stripe error into `Gateway::Unavailable` (try
   again later) or `Gateway::NotFound` (Stripe has no such thing), so no other code names Stripe's
-  error classes; the sync job retries on `Unavailable`. Without the secret key, checkout and portal fail with a clear message (checkout also needs the price id)
+  error classes; the sync job retries on `Unavailable` and logs and drops the job on `NotFound`. Without the secret key, checkout and portal fail with a clear message (checkout also needs the price id)
   and limit checks still work.
 - **Checkout.** The `startBillingCheckout` mutation (`Billing::StartCheckoutService`) creates or
-  reuses one Stripe customer per user, turns on automatic tax, passes the user id as metadata,
+  reuses one Stripe customer per user (Stripe is called with no lock held; the idempotency key and the unique user index settle double clicks), turns on automatic tax, passes the user id as metadata,
   and returns the Stripe-hosted URL. `Billing::BillingPage.url` builds the return links (and the trial email's link) from `WEB_APP_URL`. It refuses when the user is already paid. The success and
   cancel URLs go back to `/account/billing`; the webhook, not the redirect, makes the user paid.
 - **Portal.** `startBillingPortal` returns a Customer Portal URL for the user's customer.
@@ -70,12 +73,14 @@ signups cannot block paying customers.
   subscription never overwrites a newer one that is still paid; and if a second paid subscription
   arrives for a row that already holds a paid one (two checkouts at once), the row keeps the first,
   the newcomer is cancelled right away, and a warning log names both ids so an operator can refund it.
+  A subscription with no billing row whose metadata names a user that no longer exists (account
+  deleted) is cancelled with a refund warning; one that names no user is logged and skipped.
 - **Account deletion.** `Accounts::DeleteAccountService` cancels every not-yet-ended subscription
   of the user's Stripe customer right away (no refund) before deleting the user. It asks Stripe for
   the customer's subscriptions instead of trusting our row, because a user can finish Checkout and
   delete their account before the webhook sync has run. If Stripe fails, deletion is blocked with a
   retry message; a customer Stripe no longer has counts as done.
-- **GraphQL.** `me.billing { plan, trialEndsAt, currentPeriodEndsAt, cancelAtPeriodEnd, canManageBilling }`.
+- **GraphQL.** `me.billing { plan, trialEndsAt, currentPeriodEndsAt, cancelAtPeriodEnd, canManageBilling }`. The web page disables Upgrade while it waits for a just-paid plan to appear.
 
 ## Configuration
 

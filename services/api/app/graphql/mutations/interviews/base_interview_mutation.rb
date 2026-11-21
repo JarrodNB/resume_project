@@ -13,7 +13,7 @@ module Mutations
       end
 
       def snapshot_result(result, session)
-        { interview: result.success? ? session.reload : nil, errors: result.errors }
+        { interview: result.success? ? session.reload : nil, errors: result.errors, error_code: result.code&.to_s }
       end
     end
   end

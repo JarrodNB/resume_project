@@ -5,7 +5,7 @@
 # No message ever contains a cap or spend amount; users must not be able to tune against them.
 # Optional references have their own bounded in-flight pool so they never block answering.
 # Development-only unmetered interview testing skips spend/start gates; concurrency still bounds work.
-# A refusal for an ended plan carries `code: :plan_ended`; the web app matches PLAN_ENDED_MESSAGE's exact text.
+# A refusal for an ended plan carries `code: :plan_ended`, which mutations expose as `errorCode: PLAN_ENDED`; clients never match the message text.
 # Index:
 #   - refusal_code: the failure code to store when a refusal ends an operation
 #   - call: succeeds when the user may start a task; fails with a user-facing reason otherwise

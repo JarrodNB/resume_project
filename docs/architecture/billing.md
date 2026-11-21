@@ -13,7 +13,7 @@ reads only Rails data and never calls Stripe.
 | ---- | ---- |
 | `paid` | The user's `billing_subscriptions` row has status `active` or `past_due` (Stripe is still retrying the card). Paid wins over trial. |
 | `trial` | No paid subscription and `users.trial_ends_at` is in the future. |
-| `ended` | Everything else. AI work is refused with a subscribe message and a link to `/account/billing`. |
+| `ended` | Everything else. AI work is refused with a subscribe message and `errorCode: PLAN_ENDED` on the mutation payload; the web app uses the code to link to `/account/billing`. |
 
 Cancelling keeps `paid` until the period ends (`cancel_at_period_end`), then the status becomes
 `canceled` and the plan is `ended`. `unpaid`, `canceled`, `incomplete` and `incomplete_expired`

@@ -25,15 +25,10 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
       expect(described_class::PLAN_ENDED_MESSAGE).not_to match(/\$|\d/)
     end
 
-    it "pins the exact refusal text and marks it with the plan_ended code" do
+    it "marks the refusal with the plan_ended code" do
       user.update!(trial_ends_at: 1.minute.ago)
 
-      result = described_class.call(user: user)
-
-      # The web app matches this exact text to show a subscribe link: apps/web/src/lib/planEnded.test.ts
-      # pins the same literal. Change both together.
-      expect(described_class::PLAN_ENDED_MESSAGE).to eq("Your free trial has ended. Subscribe to keep using AI features.")
-      expect(result.code).to eq(:plan_ended)
+      expect(described_class.call(user: user).code).to eq(:plan_ended)
     end
 
     it "gives a refusal for any other reason no plan_ended code" do

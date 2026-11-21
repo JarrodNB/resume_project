@@ -9,7 +9,7 @@ module Mutations
 
       def resolve(interview_id:, **args)
         result = ::Interviews::CurrentPromptWork::Clarification.new.request(interview: interview(interview_id), **args)
-        { clarification: result.success? ? result.value : nil, errors: result.errors }
+        { clarification: result.success? ? result.value : nil, errors: result.errors, error_code: result.code&.to_s }
       end
     end
   end

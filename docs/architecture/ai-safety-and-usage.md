@@ -14,8 +14,9 @@ The check runs these in order and fails with the first one that applies:
    `billing_subscriptions` row) and returns `trial`, `paid` or `ended`. A trial lasts 7 days from email
    verification. Paid means a subscription status of `active` or `past_due`. When the plan has
    `ended`, AI work is refused with `PLAN_ENDED_MESSAGE` ("Your free trial has ended. Subscribe to keep
-   using AI features."). Operations that were already queued record the failure code `plan_ended` so the
-   web app can show a subscribe prompt; every other refusal records `ai_usage_limit_reached`.
+   using AI features.") and the result code `plan_ended`. Mutation payloads expose it as
+   `errorCode: PLAN_ENDED`, and the web app shows a subscribe prompt from that code, not from the text.
+   Operations that were already queued record the failure code `plan_ended` the same way; every other refusal records `ai_usage_limit_reached`.
 2. **Daily spend cap.** One hidden cap per user per UTC day, shared by general AI and spoken
    interviews: trial `TRIAL_DAILY_AI_SPEND_CAP_USD` (fallback $0.25), paid `PAID_DAILY_AI_SPEND_CAP_USD`
    (fallback $2.00). `AiUsage::DailySpend` adds the user's known task costs (general AI and every

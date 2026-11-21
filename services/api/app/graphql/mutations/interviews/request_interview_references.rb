@@ -10,7 +10,7 @@ module Mutations
 
       def resolve(interview_id:, **args)
         result = ::Interviews::CurrentPromptWork::References.new.request(interview: interview(interview_id), **args)
-        { career_references: result.success? ? result.value : nil, errors: result.errors }
+        { career_references: result.success? ? result.value : nil, errors: result.errors, error_code: result.code&.to_s }
       end
     end
   end

@@ -10,7 +10,7 @@ module Mutations
 
       def resolve(interview_id:, **args)
         result = ::Interviews::AuthorizeTranscriptionService.call(interview: interview(interview_id), **args)
-        (result.success? ? result.value : {}).merge(errors: result.errors)
+        (result.success? ? result.value : {}).merge(errors: result.errors, error_code: result.code&.to_s)
       end
     end
   end

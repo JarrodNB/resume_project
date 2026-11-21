@@ -33,3 +33,9 @@ variable "domain" {
   type        = string
   default     = "careerdrafter.app"
 }
+
+variable "alert_email" {
+  description = "Where site-down alerts are sent."
+  type        = string
+  default     = "jnb.cb38@gmail.com"
+}

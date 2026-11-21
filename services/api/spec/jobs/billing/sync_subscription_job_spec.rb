@@ -19,6 +19,14 @@ RSpec.describe Billing::SyncSubscriptionJob do
     expect { described_class.perform_now("sub_1") }.to have_enqueued_job(described_class).with("sub_1")
   end
 
+  it "drops the job without retrying when Stripe no longer has the subscription" do
+    allow(Billing::SyncSubscriptionService).to receive(:call).and_raise(Billing::Gateway::NotFound, "No such subscription")
+    allow(Rails.logger).to receive(:warn)
+
+    expect { described_class.perform_now("sub_gone") }.not_to have_enqueued_job(described_class)
+    expect(Rails.logger).to have_received(:warn).with(/sub_gone/)
+  end
+
   it "uses an existing queue" do
     expect(described_class.new.queue_name).to eq("default")
   end

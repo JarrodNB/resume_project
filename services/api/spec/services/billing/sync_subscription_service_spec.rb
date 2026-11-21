@@ -108,6 +108,34 @@ RSpec.describe Billing::SyncSubscriptionService do
     expect(row.reload.status).to eq("active")
   end
 
+  describe "a subscription that matches no billing row" do
+    it "cancels it and warns to refund when its user was deleted" do
+      FakeStripeGateway.subscriptions["sub_9"] = stripe_subscription(id: "sub_9", customer_id: "cus_gone", user_id: SecureRandom.uuid)
+      allow(Rails.logger).to receive(:warn)
+
+      expect(sync("sub_9")).to be_success
+
+      expect(FakeStripeGateway.canceled).to eq([ "sub_9" ])
+      expect(Rails.logger).to have_received(:warn).with(/sub_9.*refund/i)
+    end
+
+    it "does not cancel one that is already over" do
+      FakeStripeGateway.subscriptions["sub_9"] = stripe_subscription(id: "sub_9", customer_id: "cus_gone", status: "canceled", user_id: SecureRandom.uuid)
+
+      sync("sub_9")
+
+      expect(FakeStripeGateway.canceled).to be_empty
+    end
+
+    it "only logs and skips when the subscription names no user" do
+      FakeStripeGateway.subscriptions["sub_9"] = stripe_subscription(id: "sub_9", customer_id: "cus_gone", user_id: nil)
+
+      expect(sync("sub_9")).to be_success
+
+      expect(FakeStripeGateway.canceled).to be_empty
+    end
+  end
+
   describe "plan outcomes after a sync" do
     def plan_after_sync(status:, cancel: false)
       user.update!(trial_ends_at: 1.day.ago)

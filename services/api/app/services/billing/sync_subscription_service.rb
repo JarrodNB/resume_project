@@ -2,7 +2,7 @@
 #
 # Asks Stripe for the subscription as it is now, so duplicate or out-of-order webhooks end in the
 # same, correct state. The row is found by Stripe customer (falling back to the user id stored in
-# the subscription's metadata); an unknown customer is logged and skipped. The state that gets
+# the subscription's metadata); an unknown customer is logged and skipped, unless its metadata names a user who no longer exists (a deleted account): then it is cancelled and a warning says to refund it. The state that gets
 # written is fetched again after the row is locked, so two jobs running at once cannot leave
 # older state behind. Guards: an old canceled subscription never overwrites a newer one that is
 # still paid, and if a second paid subscription turns up (two checkouts at once) the row keeps the
@@ -18,7 +18,7 @@ module Billing
       located = @gateway.retrieve_subscription(@subscription_id)
       row = find_row(located)
       unless row
-        Rails.logger.warn("Stripe subscription #{located.id} matches no billing row; skipping sync")
+        handle_unmatched(located)
         return success(nil)
       end
 
@@ -45,6 +45,17 @@ module Billing
     def cancel_duplicate(duplicate_id, kept:)
       Rails.logger.warn("Duplicate paid Stripe subscription #{duplicate_id} arrived while #{kept} is kept; cancelling #{duplicate_id}. Refund it if the customer was charged.")
       @gateway.cancel_subscription_now(duplicate_id)
+    end
+
+    # No row to update. If the subscription names a user that no longer exists, the account was
+    # deleted and this is a late checkout, so end it now. With no user named, just log and skip.
+    def handle_unmatched(fetched)
+      if fetched.user_id.present? && !Gateway::ENDED_STATUSES.include?(fetched.status)
+        Rails.logger.warn("Stripe subscription #{fetched.id} belongs to a deleted account (user #{fetched.user_id}); cancelling it. Refund it if the customer was charged.")
+        @gateway.cancel_subscription_now(fetched.id)
+      else
+        Rails.logger.warn("Stripe subscription #{fetched.id} matches no billing row; skipping sync")
+      end
     end
 
     def find_row(fetched)

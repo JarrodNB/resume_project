@@ -42,6 +42,10 @@ Every written practice question a user has, shown together with each answer's pr
 (not answered, no feedback yet, feedback ready, or out of date). Questions still arrive in
 practice sets of five; the bank is how the user browses and returns to them.
 
+**Rehearsal**:
+Recalling saved written answers one question at a time, with optional memory anchors and
+answer reveal to check recall.
+
 **Retired question**:
 A read-only copy of an answered practice question that was replaced. It keeps the old
 question, answer, and feedback in the question bank but no longer fills one of its set's five slots.

@@ -144,6 +144,16 @@ or out of date. Progress and type filters and text search run in the browser. An
 replaced questions sit in a collapsed read-only section; finished sets, with answered counts and
 confirmed deletion, sit in another.
 
+Practice rehearses active questions with nonblank saved answers from the bank's current
+progress/type filters and question/answer/memory-anchor search. It starts in the displayed order,
+shows one question and optional saved cue, and renders its answer only after Reveal. Navigation
+hides the answer, stops at the ends, and focuses the new question; Left/Right arrows work within
+rehearsal outside editable fields and modified shortcuts. Shuffle creates a complete permutation;
+another shuffled pass can start only after reaching the end. Return restores bank filters and
+focus; Edit answer opens the existing editor. Rehearsal is local UI state with no model calls,
+saved sessions, scores, or progress mutations. Empty selections explain how to save answers or
+change filters.
+
 `/practice/questions/:id/:questionId?` works one question at a time. Without a question id it
 pins the first unanswered question (or the first) in the URL, so saving never moves the open
 question. The set's five questions form a linked stop line. All cards stay mounted and only the

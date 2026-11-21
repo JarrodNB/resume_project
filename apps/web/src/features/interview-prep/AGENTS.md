@@ -13,7 +13,8 @@ Written interview practice (the Practice section's Questions tab): the question 
 - `QuestionProgressMark.tsx` — the stop/signal mark for a progress step.
 - `InterviewPrepPage.tsx` — the bank page: generation, pending requests, bank list, and replaced answers.
 - `GenerateQuestionSet.tsx` — type switch, generation, and the empty-library prompt.
-- `QuestionBankList.tsx` — progress/type filters, search, and question rows linking to individual practice, with confirmed deletion from each row.
+- `QuestionBankList.tsx` — progress/type filters, cue-aware search, question rows, confirmed deletion, and the shared selection for rehearsal.
+- `QuestionRehearsal.tsx` — local recall of filtered saved answers, optional cues, reveal/hide, navigation, shuffle passes, and editor links.
 - `RetiredQuestions.tsx` — read-only answers kept from replaced questions.
 - `PendingQuestionGeneration.tsx` — pending/failed generation requests above the bank with live status and dismissal.
 - `InterviewSetPage.tsx` — one question, generation restoration, and unsaved-answer navigation protection.
@@ -33,6 +34,7 @@ Written interview practice (the Practice section's Questions tab): the question 
 - Progress labels and marks come from `questionProgress.ts` so progress stays consistent.
 - Signals follow `DESIGN.md`: blue only while feedback is being prepared, red only for out-of-date feedback or failures; other steps use ink stops.
 - Practice opens one question at a time. Leaving an unsaved answer or memory anchor requires confirmation, including navigation to another question.
+- Rehearsal uses active questions with nonblank saved answers from the current bank filters; it makes no API requests or durable progress changes. Hidden answers must be absent from the DOM. Arrow navigation stays inside rehearsal and ignores editable fields and modified shortcuts; return restores filters and focus. Shuffle starts another pass only at the end of a shuffled pass.
 - Sets remain a backend storage detail: do not show batch numbers, batch management, or navigation limited to a generation batch.
 - Without a question id, pin the default question in the URL once so saving never moves the open question.
 - Feedback requests send the typed answer and memory anchor and the server saves both first; queue or allowance failures still refresh the saved answer without replacing newer drafts.

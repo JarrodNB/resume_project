@@ -40,3 +40,10 @@ module "email" {
   name   = var.name
   domain = var.domain
 }
+
+module "uptime" {
+  source      = "./modules/uptime"
+  name        = var.name
+  domain      = var.domain
+  alert_email = var.alert_email
+}

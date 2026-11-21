@@ -180,6 +180,19 @@ docker compose run --rm ai-worker python -m evals.run_prompt_guardrail_evals
 
 Evaluations call external model APIs and incur usage charges; unit tests use test doubles.
 
+## Production
+
+Careerdrafter runs on one AWS server at [careerdrafter.app](https://careerdrafter.app), with the
+app at `app.careerdrafter.app` and the API at `api.careerdrafter.app`. Setup, deploys and
+secrets are in [`infra/compose/README.md`](infra/compose/README.md); the AWS resources are
+Terraform in [`infra/terraform`](infra/terraform).
+
+- **`develop` is the base branch.** Branch from it and open pull requests into it. Merging
+  there deploys nothing.
+- **`master` is production.** To release, open a pull request from `develop` into `master` and
+  merge it with a merge commit. GitHub Actions then builds only the images whose source changed
+  and deploys them.
+
 ## Development
 
 Run commands from the repository root. Commands using `exec` require the relevant

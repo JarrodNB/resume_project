@@ -1,12 +1,15 @@
 # Account rollout and human QA
 
 This runbook covers cookie sessions, the password policy, email verification and
-account recovery. It is a release checklist, not evidence that production was
-configured or deployed. The behavior and API contracts live in
+account recovery. It is a release checklist; the status section below says what is
+confirmed in production. The behavior and API contracts live in
 [Browser authentication](../architecture/authentication.md).
 
-Careerdrafter currently runs only in local development. Production steps below are
-future setup guidance; local review uses Letter Opener Web and needs no SMTP provider.
+Careerdrafter has been in production since 2026-11-20 (see
+[`infra/compose/README.md`](../../infra/compose/README.md)). Checked on the live site: HTTPS with
+host-scoped cookies, CORS and the web URL set to `app.careerdrafter.app`, real client IPs
+reaching Rails behind Caddy, Turnstile on sign-up, and verification email through Amazon SES.
+Local review still uses Letter Opener Web and needs no SMTP provider.
 
 ## Before production traffic
 

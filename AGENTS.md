@@ -4,7 +4,26 @@ Guidance for LLM agents (and humans) working anywhere in this monorepo.
 Read applicable ancestor `AGENTS.md` files and any local instructions before editing.
 Add nested instructions only where a module needs rules beyond its parent.
 
-Before planning or implementing, fetch origin and compare HEAD with origin/master. Report stale code before making architectural recommendations.
+Before planning or implementing, fetch origin and compare HEAD with origin/develop. Report stale code before making architectural recommendations.
+
+## Branches and releases
+
+Careerdrafter is in production (careerdrafter.app, live since 2026-11-20).
+
+- **`develop` is the base branch.** Branch from it and open every PR into it. Merging into
+  `develop` deploys nothing.
+- **`master` is production.** Release with a PR from `develop` into `master`, merged with a
+  merge commit (not a squash) so the two branches stay in sync. Merging to `master` deploys
+  automatically; only images whose source changed are rebuilt and restarted.
+- Both branches are protected: a PR is required, with no force pushes or deletions. Never commit
+  or PR to `master` directly, even for a production fix. Fix it on a branch from `develop` and
+  release it, or the branches drift apart and PRs start to conflict.
+- **No feature switches.** Do not add environment variables that turn a feature on or off.
+  Features are always on. Environment variables are for real configuration: keys, secrets,
+  addresses and limits.
+- Production secrets live in `/opt/app/.env` on the server, with a copy of most of them in AWS
+  Parameter Store (`/jobapp/prod/*`). A container reads `.env` only when it starts, so restart a service after
+  changing a value. See `infra/compose/README.md`.
 
 ## Project Summary
 

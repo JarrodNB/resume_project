@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { MultiSelect } from '@/components/MultiSelect'
 import { useAuth } from '@/features/auth/useAuth'
+import { PlanBillingLink } from '@/features/billing/PlanBillingLink'
+import { PLAN_ENDED_ERROR_CODE } from '@/lib/planEnded'
 import { useStartInterview } from './useInterviewSession'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewAnswerSettings } from './InterviewAnswerSettings'
@@ -20,7 +22,7 @@ import type { InterviewJob } from './InterviewJobContext'
 const focusChoices = Object.entries(focusOptions).map(([value, label]) => ({ value, label }))
 
 export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { notice?: ReactNode; onChangeRole?: () => void; initialSetup?: unknown; job?: InterviewJob & { id: string } }) {
-  const { start, loading, error } = useStartInterview()
+  const { start, loading, error, errorCode } = useStartInterview()
   const { user } = useAuth()
   const microphone = useInterviewMicSettings(user?.id ?? '')
   const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
@@ -97,7 +99,7 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
         ? <Button key="continue" type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button>
         : <Button key="start" type="submit" size="lg" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Starting…' : 'Start interview'}</Button>}
     </div>
-    {step === 'settings' && error && <p role="alert" className="text-destructive">{error}</p>}
+    {step === 'settings' && error && <p role="alert" className="text-destructive">{error}{errorCode === PLAN_ENDED_ERROR_CODE && <> <PlanBillingLink /></>}</p>}
     {notice && <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>}
   </form>
 }

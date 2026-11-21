@@ -20,7 +20,7 @@ export function createJobBoardPreferenceCheck(client: ApolloClient, getSnapshot:
   let active = false
   let request: Request | null = null
   let pending: Identity | null = null
-  let failure: (Identity & { message: string }) | null = null
+  let failure: (Identity & { message: string; errorCode?: string | null }) | null = null
   let lock: Identity | null = null
 
   const revision = () => client.readQuery({ query: JOB_PREFERENCES_QUERY })?.jobPreferences.confirmedRevision
@@ -37,7 +37,7 @@ export function createJobBoardPreferenceCheck(client: ApolloClient, getSnapshot:
     notify()
     const isCurrent = () => operation.scope === getSnapshot()
       && (operation.revision === undefined || revision() === undefined || revision() === operation.revision)
-    const fail = (message: string) => { if (isCurrent()) { failure = { ...operation, message }; notify() } }
+    const fail = (message: string, errorCode?: string | null) => { if (isCurrent()) { failure = { ...operation, message, errorCode }; notify() } }
     try {
       const profile = (await client.query({ query: JOB_PREFERENCES_QUERY, fetchPolicy: 'network-only' })).data?.jobPreferences
       if (!isCurrent()) return
@@ -50,7 +50,7 @@ export function createJobBoardPreferenceCheck(client: ApolloClient, getSnapshot:
         listings: snapshot.listings.map((listing) => ({ listingId: listing.id, expectedDigest: listing.preferenceSourceDigest })),
       } })).data?.checkJobBoardPreferenceResults
       if (!isCurrent()) return
-      if (!response?.aiTask || response.errors.length) { fail(response?.errors.join(' ') || 'Could not start this check. Please try again.'); return }
+      if (!response?.aiTask || response.errors.length) { fail(response?.errors.join(' ') || 'Could not start this check. Please try again.', response?.errorCode); return }
       request = { ...operation, profile, task: response.aiTask }
       notify()
     } catch (cause) { fail(requestErrorMessage(cause, 'Could not check these results. Please try again.')) }
@@ -81,6 +81,7 @@ export function createJobBoardPreferenceCheck(client: ApolloClient, getSnapshot:
       error: (failure && same(failure, confirmedRevision) ? failure.message : null)
         || (task?.status === 'FAILED' ? task.errorMessage || 'The preference check failed. Please try again.' : null)
         || (task?.status === 'COMPLETED' && !assessments ? 'The check returned invalid probabilities. Please try again.' : null),
+      errorCode: failure && same(failure, confirmedRevision) ? failure.errorCode ?? null : null,
       limitReached: snapshot.listings.length > 100,
     }
   }

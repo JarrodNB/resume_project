@@ -6,7 +6,7 @@
  */
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -18,7 +18,7 @@ import { useScrapeJob } from './useScrapeJob'
 /** A URL form that calls scrapeJob and opens the new task's page. */
 export function AddJobFromUrlPage() {
   const navigate = useNavigate()
-  const { scrapeJob, submitting, errors } = useScrapeJob()
+  const { scrapeJob, submitting, errors, errorCode } = useScrapeJob()
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState<string | null>(null)
 
@@ -52,7 +52,7 @@ export function AddJobFromUrlPage() {
         </CardHeader>
         <CardContent>
           <form noValidate className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
-            <ErrorAlert messages={errors} title="Couldn't add this job" />
+            <MutationErrorAlert errors={errors} errorCode={errorCode} title="Couldn't add this job" />
             <div className="grid gap-2">
               <Label htmlFor="job-url" className="after:ml-0.5 after:content-['*']">Link</Label>
               <Input

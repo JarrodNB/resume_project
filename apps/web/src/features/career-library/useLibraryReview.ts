@@ -13,6 +13,7 @@ export function useLibraryReview(section: string, sourceRevision: string) {
   const [request, { loading: starting }] = useMutation(REVIEW_LIBRARY_SECTION_MUTATION)
   const [started, setStarted] = useState<{ id: string; previousId: string | null } | null>(null)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const task = data?.libraryReview.aiTask
   const localId = started && (task?.id ?? null) === started.previousId ? started.id : ''
   const followedId = localId || (task?.status === 'QUEUED' ? task.id : '')
@@ -40,10 +41,12 @@ export function useLibraryReview(section: string, sourceRevision: string) {
     if (busy || requesting.current) return
     requesting.current = true
     setErrors([])
+    setErrorCode(null)
     try {
       const response = await request({ variables: { section } })
       const payload = response.data?.reviewLibrarySection
       setErrors(payload?.errors ?? [])
+      setErrorCode(payload?.errorCode ?? null)
       if (payload?.aiTask) setStarted({ id: payload.aiTask.id, previousId: task?.id ?? null })
     } catch (error) {
       setErrors([requestErrorMessage(error, 'Could not start the review. Please try again.')])
@@ -56,6 +59,7 @@ export function useLibraryReview(section: string, sourceRevision: string) {
     if (requesting.current) return false
     requesting.current = true
     setErrors([])
+    setErrorCode(null)
     try {
       const response = await dismissRequest({ variables: { reviewTaskId, kind, recordId, scope } })
       const messages = response.data?.dismissLibraryReview?.errors ?? ['Could not dismiss this review.']
@@ -73,7 +77,7 @@ export function useLibraryReview(section: string, sourceRevision: string) {
   const uncertain = !!error || checkingFreshness || checkedSource !== sourceRevision
   return {
     assessments: (data?.libraryReview.assessments ?? []).map((item) => uncertain ? { ...item, stale: true } : item),
-    start, busy, dismiss, dismissing,
+    start, busy, dismiss, dismissing, errorCode,
     errors: [...errors, ...(error ? ['Could not load the assessments. Reload to try again.'] : []),
       ...(status === 'FAILED' && errorMessage ? [errorMessage] : []),
       ...(subscriptionError ? ['Live updates disconnected. Reload to check the review.'] : [])],

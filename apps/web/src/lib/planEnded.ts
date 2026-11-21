@@ -1,6 +1,6 @@
-/** The refusal text Rails sends when an AI action is blocked because the free trial ended
- * (`AiUsage::CheckAiTaskAllowanceService::PLAN_ENDED_MESSAGE`). Keep the two in step
- * (`planEnded.test.ts` and the Rails allowance spec each pin the exact literal). Chat and
- * interview operations report the same refusal as the failure code `plan_ended`. */
+/** Text shown for chat and interview failures whose failure code is `plan_ended`. Rails sends the code, not
+ * this text; mutation refusals use `errorCode: PLAN_ENDED` (see `MutationErrorAlert` in features/billing). */
 export const PLAN_ENDED_MESSAGE = 'Your free trial has ended. Subscribe to keep using AI features.'
+/** The mutation payload `errorCode` for an ended trial. */
+export const PLAN_ENDED_ERROR_CODE = 'PLAN_ENDED'
 export const PLAN_ENDED_FAILURE_CODE = 'plan_ended'

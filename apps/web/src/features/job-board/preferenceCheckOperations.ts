@@ -12,6 +12,8 @@ export const CHECK_JOB_BOARD_PREFERENCE_RESULTS = graphql(`
     checkJobBoardPreferenceResults(input: { listings: $listings, confirmedRevision: $confirmedRevision }) {
       aiTask { id status result errorMessage }
       errors
+      errorCode
+
     }
   }
 `)

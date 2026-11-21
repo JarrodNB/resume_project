@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router'
 import { useState } from 'react'
 import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { useCareerLibrary } from '@/features/career-library/useCareerLibrary'
@@ -58,7 +59,7 @@ export function GenerateQuestionSet() {
         </div>
       </>}
     </div>}
-    <ErrorAlert title="Couldn't get questions" messages={generation.errors} />
+    <MutationErrorAlert title="Couldn't get questions" errors={generation.errors} errorCode={generation.errorCode} />
     {libraryError && <ErrorAlert title="Couldn't check your career library" messages={[requestErrorMessage(libraryError, libraryError.message)]} />}
   </section>
 }

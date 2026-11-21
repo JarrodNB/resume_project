@@ -11,6 +11,7 @@ import { FileText } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { AiWaitingLine } from '@/components/AiWaitingLine'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useJobWorkspace } from '@/features/jobs/useJobWorkspace'
@@ -39,7 +40,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
   // Writing uses paid AI, so the write route waits for an explicit confirmation before starting.
   const [confirmed, setConfirmed] = useState(false)
   const hasDescription = Boolean(workspaceJob.description?.trim())
-  const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id, { autoStart: autoStart && confirmed })
+  const { job, task, loading, error, startErrors, startErrorCode, subscriptionError, retry, refetch } = useResumeTailoring(id, { autoStart: autoStart && confirmed })
   const actions = useTailorActions(task?.id ?? '', () => {
     void refetch()
     if (autoStart) void navigate(`/jobs/${id}/resume`, { replace: true })
@@ -53,7 +54,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
     <div className="resume-page grid w-full gap-6">
       {error && <ErrorAlert title="Couldn't load this resume" messages={[requestErrorMessage(error, error.message)]} />}
       {subscriptionError && <ErrorAlert title="Couldn't follow the resume" messages={[subscriptionError.message]} />}
-      <ErrorAlert messages={startErrors} title="Couldn't start the resume" />
+      <MutationErrorAlert errors={startErrors} errorCode={startErrorCode} title="Couldn't start the resume" />
       {job && !job.resume && startErrors.length > 0 && !task && (
         <Button type="button" variant="outline" className="justify-self-start" onClick={retry}>Try again</Button>
       )}

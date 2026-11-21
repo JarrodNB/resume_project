@@ -17,7 +17,7 @@ export type BoardListing = SearchPage['listings'][number]
 type LoadedPage = Omit<SearchPage, 'retrievedAt'> & { retrievedAt: string; cursor: string | null }
 export type SearchSnapshot = { submitted: BoardSearch | null; pages: LoadedPage[]; listings: BoardListing[] }
 export interface RerankingTask { id: string; status: AiTaskStatusEnum; result: unknown; errorMessage?: string | null }
-interface RerankingRequest { starting: boolean; task?: RerankingTask; error?: string; order?: string[] }
+interface RerankingRequest { starting: boolean; task?: RerankingTask; error?: string; errorCode?: string | null; order?: string[] }
 interface VisitState {
   snapshot: SearchSnapshot
   loading: boolean
@@ -168,7 +168,10 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
     update({})
     void client.mutate({ mutation: RERANK_JOB_BOARD_LISTINGS_MUTATION, variables: { keyword, listingIds: ids } }).then(({ data }) => {
       const payload = data?.rerankJobBoardListings
-      if (!payload?.aiTask || payload.errors.length) request.error = payload?.errors.join(' ') || 'Could not start reranking. Please try again.'
+      if (!payload?.aiTask || payload.errors.length) {
+        request.error = payload?.errors.join(' ') || 'Could not start reranking. Please try again.'
+        request.errorCode = payload?.errorCode
+      }
       else acceptRanking(request, payload.aiTask, snapshot)
     }).catch((error: unknown) => {
       request.error = requestErrorMessage(error, 'Could not start reranking. Please try again.')
@@ -197,7 +200,7 @@ export function createJobBoardVisit(client: ApolloClient, preferences: VisitPref
     return {
       listings: ranked ? order!.map((id) => byId.get(id)!) : listings,
       busy: Boolean(available && !error && !order && (current?.starting || task?.status === 'QUEUED')),
-      ranked, error: available ? error : null,
+      ranked, error: available ? error : null, errorCode: available ? current?.errorCode ?? null : null,
       taskId: available && task?.status === 'QUEUED' ? task.id : '',
       limitReached: listings.length > 100,
     }

@@ -19,7 +19,7 @@ export const INTERVIEW_UPDATED = graphql(`
   subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }
 `)
 export const START_INTERVIEW = graphql(`
-  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId}) { interview { ...InterviewSnapshot } errors } }
+  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId}) { interview { ...InterviewSnapshot } errors errorCode } }
 `)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {

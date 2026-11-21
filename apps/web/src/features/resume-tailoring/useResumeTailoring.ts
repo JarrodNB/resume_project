@@ -38,6 +38,7 @@ export function useResumeTailoring(jobId: string, { autoStart = true }: { autoSt
   const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
   const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
   const [startErrors, setStartErrors] = useState<string[]>([])
+  const [startErrorCode, setStartErrorCode] = useState<string | null>(null)
   const [savedResumeJobId, setSavedResumeJobId] = useState<string | null>(null)
   const started = useRef(false)
   const job = data?.job ?? null
@@ -52,6 +53,7 @@ export function useResumeTailoring(jobId: string, { autoStart = true }: { autoSt
 
   const begin = useCallback(async () => {
     setStartErrors([])
+    setStartErrorCode(null)
     try {
       const { data: startedData } = await startTailoring({ variables: { jobId } })
       const payload = startedData?.startResumeTailoring
@@ -59,6 +61,7 @@ export function useResumeTailoring(jobId: string, { autoStart = true }: { autoSt
         setStartedTask(taskFrom(payload.aiTask))
         return
       }
+      setStartErrorCode(payload?.errorCode ?? null)
       setStartErrors(payload?.errors.length ? payload.errors : ["Couldn't start the resume. Please try again."])
     } catch (startError) {
       setStartErrors([requestErrorMessage(startError, "Couldn't reach the server. Check your connection and try again.")])
@@ -80,7 +83,7 @@ export function useResumeTailoring(jobId: string, { autoStart = true }: { autoSt
   }
 
   const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt || !usableExisting ? null : existing)
-  return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
+  return { job, task, loading, error, startErrors, startErrorCode, subscriptionError, retry, refetch }
 }
 
 /** Copies the fields the page reads off a query task or a subscription task. */

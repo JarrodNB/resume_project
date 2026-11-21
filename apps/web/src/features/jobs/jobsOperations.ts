@@ -107,6 +107,7 @@ export const SCRAPE_JOB_MUTATION = graphql(`
         status
       }
       errors
+      errorCode
     }
   }
 `)
@@ -119,6 +120,7 @@ export const PARSE_JOB_POSTING_MUTATION = graphql(`
         status
       }
       errors
+      errorCode
     }
   }
 `)

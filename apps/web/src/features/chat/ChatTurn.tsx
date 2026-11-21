@@ -14,6 +14,7 @@ import { ChatReplyWaiting } from './ChatReplyWaiting'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert, planEndedFailureAction } from '@/features/billing/PlanBillingLink'
 import { chatFailureMessage, useChatTurn } from './useChatTurn'
 
 type SavedMessage = { id: string; role: string; content: string; thumbsDown: boolean; thumbsUp: boolean }
@@ -104,10 +105,10 @@ export function ChatTurn({ conversationId, maxCharacters, onAccepted, messages =
         <Button variant="outline" onClick={() => { if (turn.operation) refreshHistory(turn.operation.id) }}>Retry loading reply</Button>
       </div>}
       {failed && <div className="chat-alert">
-        <ErrorAlert title="Reply not saved" messages={[chatFailureMessage(turn.operation?.failureCode ?? null)]} />
+        <ErrorAlert title="Reply not saved" messages={[chatFailureMessage(turn.operation?.failureCode ?? null)]} action={planEndedFailureAction(turn.operation?.failureCode)} />
         <Button variant="outline" disabled={turn.busy} onClick={() => void turn.retry()}>{turn.busy ? 'Retrying…' : 'Retry reply'}</Button>
       </div>}
-      <ErrorAlert title="Couldn't send your message" messages={turn.errors} />
+      <MutationErrorAlert title="Couldn't send your message" errors={turn.errors} errorCode={turn.errorCode} />
       {(turn.error || turn.liveError) && <div className="chat-alert">
         <ErrorAlert title="Live status unavailable" messages={['Live updates are unavailable. Check the saved status to recover your latest reply.']} />
         <Button variant="outline" onClick={() => void turn.refetch().catch(() => undefined)}>Check saved status</Button>

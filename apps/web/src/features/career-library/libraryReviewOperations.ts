@@ -15,6 +15,8 @@ export const REVIEW_LIBRARY_SECTION_MUTATION = graphql(`
     reviewLibrarySection(input: { section: $section }) {
       aiTask { id status errorMessage }
       errors
+      errorCode
+
     }
   }
 `)

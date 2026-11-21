@@ -14,6 +14,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
   const { data, error, loading, refetch } = useQuery(LIBRARY_EDIT_QUERY, { variables: { kind, recordId }, fetchPolicy: 'network-only' })
   const [submitted, setSubmitted] = useState<EditTask | null>(null)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [request, requestState] = useMutation(START_LIBRARY_EDIT_MUTATION)
   const [answerRequest, answerState] = useMutation(ANSWER_LIBRARY_REVIEW_MUTATION)
   const [accept, acceptState] = useMutation(ACCEPT_LIBRARY_EDIT_MUTATION)
@@ -43,6 +44,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     if (busy || pending.current) return false
     pending.current = true
     setErrors([])
+    setErrorCode(null)
     try {
       const result = await request({ variables: {
         kind, recordId, feedback, skip,
@@ -50,6 +52,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
       } })
       const payload = result.data?.startLibraryEdit
       setErrors(payload?.errors ?? ['Could not start this edit.'])
+      setErrorCode(payload?.errorCode ?? null)
       if (payload?.aiTask) {
         setSubmitted(payload.aiTask)
         setCheckedSource(sourceRevision)
@@ -65,10 +68,12 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     if (busy || pending.current) return false
     pending.current = true
     setErrors([])
+    setErrorCode(null)
     try {
       const result = await answerRequest({ variables: { reviewTaskId, kind, recordId, answers } })
       const payload = result.data?.answerLibraryReview
       setErrors(payload?.errors ?? ['Could not submit your answer.'])
+      setErrorCode(payload?.errorCode ?? null)
       if (payload?.aiTask && payload.errors.length === 0) {
         setSubmitted(payload.aiTask)
         setCheckedSource(sourceRevision)
@@ -85,6 +90,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     if (!task || pending.current || busy || stale) return
     pending.current = true
     setErrors([])
+    setErrorCode(null)
     try {
       const result = await accept({ variables: { aiTaskId: task.id },
         refetchQueries: [CAREER_LIBRARY_QUERY, LIBRARY_REVIEW_QUERY], awaitRefetchQueries: true })
@@ -101,6 +107,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     if (pending.current) return false
     pending.current = true
     setErrors([])
+    setErrorCode(null)
     try {
       const result = await discard({ variables: { aiTaskId: task.id }, refetchQueries: [LIBRARY_REVIEW_QUERY], awaitRefetchQueries: true })
       const messages = result.data?.discardLibraryEdit?.errors ?? ['Could not discard this draft.']
@@ -112,7 +119,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     } finally { pending.current = false }
   }
 
-  return { task, busy, loading, stale, submit, answerReview, save, closeDraft,
+  return { task, busy, loading, stale, submit, answerReview, save, closeDraft, errorCode,
     errors: [...errors, ...(error && !submitted ? ['Could not load this edit. Close and reopen to try again.'] : []),
       ...(subscriptionError ? ['Live updates disconnected. Close and reopen to check the edit.'] : []),
       ...(task?.status === 'FAILED' && task.errorMessage ? [task.errorMessage] : [])] }

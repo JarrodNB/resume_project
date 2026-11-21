@@ -24,7 +24,7 @@ Shared UI used by more than one feature.
 - `RedirectToPath.tsx` — route element that keeps old bookmarks working by redirecting to the new
   path, carrying route params along
 - `AiWaitingLine.tsx` — the shuttling blue signal and changing caption shown while AI work has nothing to show yet (chat replies, interview preparation); screen readers hear one steady status
-- `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty; a plan-ended refusal also gets a Plan & billing link
+- `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty; an optional `action` node shows after the messages (features pass links; this component knows nothing about billing)
 - `TransientAlert.tsx` — shared dismiss button, eight-second timeout and a short fade in and out; ErrorAlert opts in with a notification id.
 - `ErrorAlert.test.tsx` — task-notification dismissal, timeout, and retry regression coverage.
 - `CollapseToggle.tsx` — header button (chevron, `aria-expanded`) for a collapsible section

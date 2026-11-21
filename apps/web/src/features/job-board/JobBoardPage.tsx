@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { PageHeading } from '@/components/PageHeading'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
@@ -140,7 +141,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
           <p role="status">Preference check updates disconnected. Reconnect to recover the result.</p>
           <Button type="button" variant="outline" className="justify-self-start" onClick={preferenceCheck.reconnect}>Reconnect preference updates</Button>
         </div>}
-        <ErrorAlert title="Couldn't check preferences" messages={preferenceCheck.error ? [preferenceCheck.error] : []} />
+        <MutationErrorAlert title="Couldn't check preferences" errors={preferenceCheck.error ? [preferenceCheck.error] : []} errorCode={preferenceCheck.errorCode} />
       </div>}
       {submittedSearch && <JobBoardAppliedFilters search={submittedSearch} onSearch={submitSearch} />}
       {board.loading && <div role="status" className="board-loading"><span>Loading jobs…</span>
@@ -158,7 +159,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
         <Button type="button" variant="outline" className="justify-self-start" onClick={reranking.reconnect}>Reconnect ranking updates</Button>
       </div>}
       {reranking.error && <div className="grid gap-3">
-        <ErrorAlert title="Couldn't rerank jobs" messages={[reranking.error]} />
+        <MutationErrorAlert title="Couldn't rerank jobs" errors={[reranking.error]} errorCode={reranking.errorCode} />
         {ordering === 'library' && <p className="board-ranking-status">Showing search order.</p>}
         <Button type="button" variant="outline" className="justify-self-start" onClick={visit.retryReranking}>Retry reranking</Button>
       </div>}

@@ -14,9 +14,11 @@ export function useStartGapAnalysis(jobId: string) {
   const client = useApolloClient()
   const [mutate, { loading }] = useMutation(ANALYZE_JOB_GAPS_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
 
   async function startGapAnalysis(): Promise<string | null> {
     setErrors([])
+    setErrorCode(null)
     try {
       const { data } = await mutate({ variables: { jobId } })
       const payload = data?.analyzeJobGaps
@@ -40,6 +42,7 @@ export function useStartGapAnalysis(jobId: string) {
         })
         return task.id
       }
+      setErrorCode(payload?.errorCode ?? null)
       setErrors(payload?.errors.length ? payload.errors : ["Couldn't start the comparison. Please try again."])
     } catch (error) {
       setErrors([requestErrorMessage(error, "Couldn't reach the server. Check your connection and try again.")])
@@ -47,5 +50,5 @@ export function useStartGapAnalysis(jobId: string) {
     return null
   }
 
-  return { startGapAnalysis, starting: loading, errors }
+  return { startGapAnalysis, starting: loading, errors, errorCode }
 }

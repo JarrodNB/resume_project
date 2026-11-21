@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
-import { MutationErrorAlert, PlanEndedHint, planEndedFailureAction } from './PlanBillingLink'
+import { MutationErrorAlert, PlanEndedFailureLink, PlanEndedHint } from './PlanBillingLink'
 
 it('links to billing when the failure code is plan_ended', () => {
   render(<MemoryRouter><PlanEndedHint failureCode="plan_ended" /></MemoryRouter>)
@@ -27,10 +27,13 @@ describe('MutationErrorAlert', () => {
   })
 })
 
-describe('planEndedFailureAction', () => {
+describe('PlanEndedFailureLink', () => {
   it('gives the billing link only for the plan_ended failure code', () => {
-    expect(planEndedFailureAction('plan_ended')).toBeTruthy()
-    expect(planEndedFailureAction('execution_failed')).toBeUndefined()
-    expect(planEndedFailureAction(null)).toBeUndefined()
+    const { rerender } = render(<MemoryRouter><PlanEndedFailureLink failureCode="plan_ended" /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: 'Plan & billing' })).toBeInTheDocument()
+    rerender(<MemoryRouter><PlanEndedFailureLink failureCode="execution_failed" /></MemoryRouter>)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    rerender(<MemoryRouter><PlanEndedFailureLink failureCode={null} /></MemoryRouter>)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })

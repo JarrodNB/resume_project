@@ -4,7 +4,7 @@
  * page refetches the plan for a short while until the Stripe webhook has made it Paid (Upgrade is
  * disabled meanwhile, so a second subscription can't be started).
  * Users with a Stripe customer also get Manage billing, which opens the Stripe Customer Portal. */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -33,22 +33,20 @@ function planSummary(billing: Billing) {
 /** After Checkout, refetch the plan every few seconds (bounded) until the webhook makes it Paid. */
 function useRefetchPlanAfterCheckout(returning: boolean, plan: string | undefined, refetch: () => unknown) {
   const [gaveUp, setGaveUp] = useState(false)
-  const refetchRef = useRef(refetch)
-  refetchRef.current = refetch
   const waiting = returning && plan !== undefined && plan !== 'PAID'
   useEffect(() => {
     if (!waiting) return
     let attempts = 0
     const timer = setInterval(() => {
       attempts += 1
-      void refetchRef.current()
+      void refetch()
       if (attempts >= PLAN_REFETCH_ATTEMPTS) {
         clearInterval(timer)
         setGaveUp(true)
       }
     }, PLAN_REFETCH_INTERVAL_MS)
     return () => clearInterval(timer)
-  }, [waiting])
+  }, [waiting, refetch])
   return { waiting, gaveUp }
 }
 

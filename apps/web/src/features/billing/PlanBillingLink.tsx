@@ -23,8 +23,8 @@ export function MutationErrorAlert({ errors, errorCode, ...alertProps }: Mutatio
 }
 
 /** The action for an ErrorAlert about a failed chat reply: the billing link when the failure code is `plan_ended`. */
-export function planEndedFailureAction(failureCode: string | null | undefined) {
-  return failureCode === PLAN_ENDED_FAILURE_CODE ? <PlanBillingLink /> : undefined
+export function PlanEndedFailureLink({ failureCode }: { failureCode: string | null | undefined }) {
+  return failureCode === PLAN_ENDED_FAILURE_CODE ? <PlanBillingLink /> : null
 }
 
 /** Under an interview failure line: when the failure code is `plan_ended`, says why and links to billing. */

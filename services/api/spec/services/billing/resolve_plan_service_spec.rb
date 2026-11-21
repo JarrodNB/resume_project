@@ -20,9 +20,29 @@ RSpec.describe Billing::ResolvePlanService do
   end
 
   it "treats a user with no trial date (never verified) as ended" do
-    user.update_columns(trial_ends_at: nil)
+    user.update_columns(trial_ends_at: nil, confirmed_at: nil)
 
     expect(plan_for(user).plan).to eq("ended")
+  end
+
+  describe "a confirmed user whose trial date was never filled in (confirmed during a deploy)" do
+    it "gets the trial from seven days after confirming" do
+      user.update_columns(trial_ends_at: nil, confirmed_at: 2.days.ago)
+
+      expect(plan_for(user)).to have_attributes(plan: "trial", trial_ends_at: be_within(1.second).of(5.days.from_now), ai_access?: true)
+    end
+
+    it "is ended once those seven days have passed" do
+      user.update_columns(trial_ends_at: nil, confirmed_at: 8.days.ago)
+
+      expect(plan_for(user).plan).to eq("ended")
+    end
+
+    it "stays ended and has no trial date when never confirmed" do
+      user.update_columns(trial_ends_at: nil, confirmed_at: nil)
+
+      expect(plan_for(user)).to have_attributes(plan: "ended", trial_ends_at: nil)
+    end
   end
 
   %w[active past_due].each do |status|

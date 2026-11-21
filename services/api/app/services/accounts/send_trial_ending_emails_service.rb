@@ -26,7 +26,7 @@ module Accounts
       now = Time.current
       User.where.not(confirmed_at: nil)
         .where(trial_ends_at: now..(now + WINDOW))
-        .where(trial_ending_email_sent_at: nil, daily_ai_spend_cap_microdollars: nil)
+        .where(trial_ending_email_sent_at: nil).not_comped
         .where.not(id: BillingSubscription.paid.select(:user_id))
         .order(:trial_ends_at)
     end

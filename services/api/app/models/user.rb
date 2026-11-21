@@ -12,6 +12,7 @@
 #   - library_embeddings: vectors of the career library entries (derived data)
 #   - trial_ends_at: end of the free trial; billing_subscription: the paid plan (see Billing::ResolvePlanService)
 #   - daily_ai_spend_cap_microdollars: operator override of the daily AI spend cap; also grants AI access (comped)
+#   - comped?, User.comped, User.not_comped: whether an operator cap override is set
 class User < ApplicationRecord
   include ScreenedFields
   screenable_fields %w[summary]
@@ -36,6 +37,9 @@ class User < ApplicationRecord
   has_many :library_embeddings, dependent: :delete_all
   has_one :billing_subscription, dependent: :delete
 
+  scope :comped, -> { where.not(daily_ai_spend_cap_microdollars: nil) }
+  scope :not_comped, -> { where(daily_ai_spend_cap_microdollars: nil) }
+
   validates :include_summary, inclusion: { in: [ true, false ] }
 
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
@@ -43,6 +47,9 @@ class User < ApplicationRecord
   validate :links_within_limits
   validate :resume_section_order_lists_each_section_once
   validate :password_safe_for_bcrypt
+
+  # True when an operator set this user's own daily AI spend cap (they may use AI on any plan).
+  def comped? = !daily_ai_spend_cap_microdollars.nil?
 
   # The saved section order, with any section type added after it was saved at the end.
   def ordered_resume_section_types

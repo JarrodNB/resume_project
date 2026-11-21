@@ -15,7 +15,10 @@ what the repository cannot do on its own.
    legal advice. Have someone qualified check them for the places you'll accept users from
    (for example GDPR/UK GDPR if you accept EU/UK users, CCPA/CPRA for California). Decisions
    baked into the draft to confirm: minimum age 18, US hosting, a 30-day response time for
-   privacy requests, and the liability cap.
+   privacy requests, and the liability cap. Billing wording to confirm: the 7-day free trial
+   (starts on email verification, no card), $12/month auto-renewal through Stripe, cancel any
+   time, no partial-month refunds, and price changes with advance notice. Check the auto-renewal
+   and refund wording against the rules for the places you'll sell to.
 3. **Match the outside retention settings to the policy.**
    - Logfire: set the project's data retention to 30 days.
    - Database backups: the nightly `pg_dump` files in S3 need a lifecycle rule that deletes
@@ -26,8 +29,10 @@ what the repository cannot do on its own.
    - Server and container logs: keep them for 30 days or less. Rails filters passwords, but
      logs can still contain IP addresses.
 4. **Review provider terms.** Accept OpenAI's data processing addendum and confirm the API
-   organization isn't opted into data sharing. Do the same for TypeSafe, Logfire, your email
-   provider and AWS where they offer one.
+   organization isn't opted into data sharing. Do the same for TypeSafe, Logfire, Stripe, your
+   email provider and AWS where they offer one. Stripe handles card details; Rails stores only
+   Stripe customer and subscription identifiers, subscription status and billing dates, and
+   the privacy policy says so. Keep it that way, or update the policy first.
 5. **Name the email provider** in the privacy policy once it's chosen.
 6. **Cookie notice.** The app sets only a strictly necessary session cookie (plus
    Turnstile at sign-up), so no consent banner is needed today. Adding analytics or other

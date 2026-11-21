@@ -106,7 +106,7 @@ optional ephemeral replay buffer, not canonical history. Reconnect and missing-b
 resets fetch authoritative Rails state; losing a stream does not restart paid work.
 Buffer outages degrade to saved-result delivery.
 
-Both Rails and FastAPI must enable `AI_STREAMING_ENABLED=true`. Configure the existing
+Streaming is always on. Configure the existing
 `AI_STREAM_REDIS_URL` and exact `AI_BROWSER_ORIGINS` for the deployed browser origin.
 See [streaming](ai-streaming.md) for replay, authorization, lease and runtime rules.
 

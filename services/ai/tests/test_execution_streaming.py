@@ -299,7 +299,7 @@ def test_optional_stream_outage_cannot_fail_canonical_acceptance_or_enable_inter
         await runner.close()
         await buffer.close()
         interviews = ExecutionRunner({"interviews": Adapter()})
-        async with optional_streaming(FastAPI(), interviews, enabled=True, redis_url=None,
+        async with optional_streaming(FastAPI(), interviews, redis_url=None,
                 rails_origin="not-an-origin", secret=""):
             assert interviews.output_factory is None
             assert interviews.ready

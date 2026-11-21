@@ -72,25 +72,23 @@ after an executor or Redis crash is not promised.
 If Rails has accepted the result but the final buffer event was lost, observers also
 receive a saved-state reset rather than waiting indefinitely for an absent event.
 
-## Optional runtime
+## Runtime
 
-Final-only execution neither constructs a Redis client nor adds Redis to readiness,
-even if the optional environment flag is enabled. A server-registered streaming feature
-and `AI_STREAMING_ENABLED=true` are both required. Configure that flag on Rails and
-FastAPI, an explicit `AI_STREAM_REDIS_URL`, and exact `AI_BROWSER_ORIGINS` (which defaults
-to the existing interview browser origins).
+Streaming is always on; there is no feature switch. Final-only execution (a runner with no
+server-registered streaming feature, such as interviews) neither constructs a Redis client nor
+adds Redis to readiness. A streaming feature needs `AI_STREAM_REDIS_URL` on FastAPI (without it
+the stream stays unconfigured and delivery falls back to saved results) and exact
+`AI_BROWSER_ORIGINS` (which defaults to the existing interview browser origins).
 
-Local Compose starts Redis and enables streaming by default. Set `AI_STREAMING_ENABLED=false`
-to use final-only delivery. The Redis port is not published. Its 256 MiB limit uses `noeviction`,
+Local Compose starts Redis. The Redis port is not published. Its 256 MiB limit uses `noeviction`,
 so exhausted memory produces a safe buffer outage rather than unbounded growth.
 PostgreSQL remains the source of truth for jobs, accepted results and accounting;
 Redis persistence is disabled because this history is replaceable.
 
-In native cloud, export `AI_STREAMING_ENABLED=true` before install/start. The installer
-builds optional Redis 8.10.2 under `.native/bin` if absent. Startup manages a loopback
+In native cloud, the installer builds Redis 8.10.2 under `.native/bin` if absent. Startup manages a loopback
 buffer on port 56379 and records its process identity; stop/check use that same identity.
 An explicit external `AI_STREAM_REDIS_URL` is preserved and no local Redis is started.
-The default native setup requires no Redis. Never expose an unauthenticated buffer
+Never expose an unauthenticated buffer
 outside the trusted application network; production should configure its supported
 private/authenticated Redis endpoint through environment secrets.
 

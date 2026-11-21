@@ -124,8 +124,7 @@ def app_env(service):
         "MCP_TOOLS_SECRET": cfg["mcp_secret"],
         "MCP_TOOLS_URL": f"http://127.0.0.1:{MCP_PORT}/mcp",
     })
-    env.setdefault("AI_STREAMING_ENABLED", "false")
-    if env["AI_STREAMING_ENABLED"] == "true" and not env.get("AI_STREAM_REDIS_URL"):
+    if not env.get("AI_STREAM_REDIS_URL"):
         env["AI_STREAM_REDIS_URL"] = LOCAL_REDIS
     if service in {"ai", "ai-worker", "ai-http", "ai-mcp"}:
         env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
@@ -198,8 +197,8 @@ def install():
 
 
 def local_redis(env):
-    """Only the explicitly enabled default stream buffer belongs to this stack."""
-    return env.get("AI_STREAMING_ENABLED") == "true" and env.get("AI_STREAM_REDIS_URL", "") in {"", LOCAL_REDIS}
+    """Only the default stream buffer belongs to this stack; an external URL is left alone."""
+    return env.get("AI_STREAM_REDIS_URL", "") in {"", LOCAL_REDIS}
 
 
 def install_redis(env):

@@ -82,7 +82,6 @@ def create_app():
                                               input_reader=build_chat_input_reader(database_settings))})
                 app.state.execution_runner = runner
                 async with optional_streaming(app, runner,
-                        enabled=os.getenv("AI_STREAMING_ENABLED") == "true",
                         redis_url=os.getenv("AI_STREAM_REDIS_URL"), rails_origin=origin,
                         secret=execution_service_secret()):
                     try:

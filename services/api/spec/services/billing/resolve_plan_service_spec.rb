@@ -70,17 +70,44 @@ RSpec.describe Billing::ResolvePlanService do
     expect(plan_for(user.reload)).to have_attributes(plan: "paid", trial_ends_at: user.trial_ends_at)
   end
 
-  describe "operator override" do
-    it "wins over the plan's cap" do
-      user.update!(daily_ai_spend_cap_microdollars: 42)
+  describe "plan predicates" do
+    it "says trial? only on the trial plan" do
+      user.update!(trial_ends_at: 3.days.from_now)
 
-      expect(plan_for(user).daily_spend_cap_microdollars).to eq(42)
+      expect(plan_for(user)).to have_attributes(trial?: true, paid?: false, ended?: false)
     end
 
-    it "grants AI access even when the plan ended" do
+    it "says paid? only on the paid plan" do
+      create(:billing_subscription, user: user)
+
+      expect(plan_for(user.reload)).to have_attributes(trial?: false, paid?: true, ended?: false)
+    end
+
+    it "says ended? only on the ended plan" do
+      user.update!(trial_ends_at: 1.day.ago)
+
+      expect(plan_for(user)).to have_attributes(trial?: false, paid?: false, ended?: true)
+    end
+  end
+
+  describe "operator cap override" do
+    it "wins over the trial plan's cap" do
+      user.update!(trial_ends_at: 3.days.from_now, daily_ai_spend_cap_microdollars: 42)
+
+      expect(plan_for(user)).to have_attributes(plan: "trial", daily_spend_cap_microdollars: 42, ai_access?: true)
+    end
+
+    it "wins over the paid plan's cap" do
+      create(:billing_subscription, user: user)
+      user.update!(daily_ai_spend_cap_microdollars: 42)
+
+      expect(plan_for(user.reload)).to have_attributes(plan: "paid", daily_spend_cap_microdollars: 42, ai_access?: true)
+    end
+
+    it "never grants AI access when the plan ended" do
       user.update!(trial_ends_at: 1.day.ago, daily_ai_spend_cap_microdollars: 42)
 
-      expect(plan_for(user)).to have_attributes(plan: "ended", daily_spend_cap_microdollars: 42, ai_access?: true)
+      expect(plan_for(user)).to have_attributes(plan: "ended", daily_spend_cap_microdollars: 42, ai_access?: false)
     end
   end
 end

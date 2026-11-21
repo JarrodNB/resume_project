@@ -1,4 +1,4 @@
-# The billing summary shows only the plan and its dates; never caps, spend, comped state or Stripe ids.
+# The billing summary shows only the plan and its dates; never caps, spend, cap overrides or Stripe ids.
 require "rails_helper"
 
 RSpec.describe "me.billing query" do
@@ -34,7 +34,7 @@ RSpec.describe "me.billing query" do
     expect(billing_for(create(:user, :trial_ended))).to include("plan" => "ENDED", "currentPeriodEndsAt" => nil)
   end
 
-  it "does not expose caps, spend, comped state or Stripe ids" do
+  it "does not expose caps, spend, cap overrides or Stripe ids" do
     type = ApiSchema.types["Billing"]
 
     expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd", "canManageBilling")

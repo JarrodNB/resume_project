@@ -32,7 +32,7 @@ The check runs these in order and fails with the first one that applies:
    minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
 `users.daily_ai_spend_cap_microdollars` is an operator override set from the Rails console. It wins
-over the plan's cap and also grants AI access when the plan has ended (a **comped account**).
+over the plan's cap size. It never grants AI access: an ended plan is always refused, override or not.
 Plans, the trial and Stripe are covered in [billing](billing.md).
 
 **Caps and spend are never shown to users.** No GraphQL field exposes them, and no refusal message

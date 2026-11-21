@@ -37,7 +37,7 @@ module AiUsage
         plan = Billing::ResolvePlanService.call(user: @user).value
         return failure([ PLAN_ENDED_MESSAGE ], code: :plan_ended) unless plan.ai_access?
         return failure([ DAILY_LIMIT_MESSAGE ]) if DailySpend.known_microdollars(@user) >= plan.daily_spend_cap_microdollars
-        return failure([ SITE_LIMIT_MESSAGE ]) if plan.plan == "trial" && SiteDailySpend.limit_reached?
+        return failure([ SITE_LIMIT_MESSAGE ]) if plan.trial? && SiteDailySpend.limit_reached?
         return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
       end
       return failure([ "You already have #{@interview ? (@reference_work ? 'career references' : 'interview operations') : 'AI tasks'} running. Wait for them to finish, then try again." ]) if in_flight_limit_reached?

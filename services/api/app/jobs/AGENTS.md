@@ -25,7 +25,7 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 - `accounts/delete_unverified_accounts_job.rb` — hourly bounded removal of accounts never verified;
   see `Accounts::DeleteUnverifiedAccountsService`.
-- `accounts/send_trial_ending_emails_job.rb` — daily bounded trial-ending email (once per user, skips paid/comped);
+- `accounts/send_trial_ending_emails_job.rb` — daily bounded trial-ending email (once per user, skips paid users);
   see `Accounts::SendTrialEndingEmailsService`.
 - `resume_imports/purge_old_uploads_job.rb` — daily bounded purge of uploaded resume files 30 days
   after their parse finished; see `docs/architecture/privacy-and-data.md`.

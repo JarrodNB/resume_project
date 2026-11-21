@@ -68,10 +68,10 @@ RSpec.describe Accounts::SendTrialEndingEmailsService do
     expect(canceled.reload.trial_ending_email_sent_at).to be_present
   end
 
-  it "skips comped users" do
+  it "still emails a user with a spend-cap override, since the override does not extend the trial" do
     create(:user, trial_ends_at: 20.hours.from_now, daily_ai_spend_cap_microdollars: 1_000_000)
     described_class.call
-    expect(trial_ending_mails).to be_empty
+    expect(trial_ending_mails.size).to eq(1)
   end
 
   it "releases the claim when the email cannot be queued so a later run retries" do

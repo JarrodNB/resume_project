@@ -55,7 +55,7 @@ isolated test database.
 `Accounts::SendTrialEndingEmailsJob` (`maintenance` queue) runs daily at 9:10am UTC and
 emails users whose free trial ends within the next 36 hours. The window is longer than the
 "tomorrow" in the email so a daily run can never skip someone. Only confirmed users with no
-paid subscription and no operator spend-cap override (comped) are included. Each user is
+paid subscription are included (a spend-cap override does not exclude anyone). Each user is
 claimed with a conditional update of `users.trial_ending_email_sent_at` before the mail is
 queued, so reruns and overlapping runs send at most one email; if queuing fails the claim is
 released so the next run retries. The mail goes through `AccountMailer#trial_ending` and

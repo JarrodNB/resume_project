@@ -12,5 +12,5 @@ The "Plan & billing" page (`/account/billing`): which plan the user is on and th
 
 ## Local Rules
 
-- Show plan names and dates only. Never show usage, spend, daily limits, comped state or Stripe ids; Rails does not expose them.
+- Show plan names and dates only. Never show usage, spend, daily limits, cap overrides or Stripe ids; Rails does not expose them.
 - Recognise an ended trial by machine code only (`errorCode` on mutation payloads, `plan_ended` failure code on operations). Never compare message text. Every AI-start mutation document requests `errorCode` and its screen uses `MutationErrorAlert`.

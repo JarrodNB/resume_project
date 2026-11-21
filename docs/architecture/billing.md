@@ -19,8 +19,10 @@ Cancelling keeps `paid` until the period ends (`cancel_at_period_end`), then the
 `canceled` and the plan is `ended`. `unpaid`, `canceled`, `incomplete` and `incomplete_expired`
 are not paid.
 
-**Comped accounts.** An operator can set `users.daily_ai_spend_cap_microdollars` from the Rails
-console (`User#comped?`). It replaces the plan's daily cap and grants AI access even when the plan is `ended`.
+**Spend cap override.** An operator can set `users.daily_ai_spend_cap_microdollars` from the Rails
+console. It replaces the plan's daily cap size and nothing else: it does not change the plan or
+grant access. Once the plan is `ended` there is no AI access unless the user pays. Only `trial` and
+`paid` plans have AI access (`Plan#ai_access?`).
 
 ## Trial
 

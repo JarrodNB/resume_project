@@ -51,10 +51,13 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
       expect(described_class.call(user: user.reload)).to be_success
     end
 
-    it "still allows a comped account (cap override) on an ended plan" do
+    it "refuses an ended plan even with a cap override" do
       user.update!(trial_ends_at: 1.day.ago, daily_ai_spend_cap_microdollars: 1_000_000)
 
-      expect(described_class.call(user: user)).to be_success
+      result = described_class.call(user: user)
+
+      expect(result).not_to be_success
+      expect(result.code).to eq(:plan_ended)
     end
 
     it "skips the plan check for development-only unmetered interview testing" do

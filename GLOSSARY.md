@@ -54,8 +54,8 @@ A user's paid plan and its status, as last reported by the payment provider. Act
 **Daily spend cap**:
 A hidden per-user limit on known AI cost per UTC day, set by plan and shared by general AI and spoken interviews. It only protects against runaway cost; users are never shown it or their spend.
 
-**Comped account**:
-A user the operator has given AI access through the daily spend cap override, regardless of plan.
+**Daily spend cap override**:
+A cap size an operator sets for one user. It replaces the plan's daily spend cap only; it never grants AI access, and an ended plan has none.
 
 **Conversation transcript**:
 A readable record of the AI exchanges for one AI task, stored separately from other tasks even when they share a job or interview question set. It includes instructions, messages, tool calls and results, and repeated attempts as seen by the model. Local development transcripts also highlight observed validation/provider failures, actual fallback execution and task redeliveries; production uses tracing only.

@@ -1,7 +1,7 @@
 # Emails users whose free trial is about to end, at most once each.
 # The daily job looks 36 hours ahead (not 24) so a trial can never fall between two runs;
 # the email names the end date (UTC), and a user is emailed only once however many runs see them.
-# Paid users and comped users (operator spend-cap override) never get it.
+# Paid users never get it. An operator spend-cap override does not change that.
 module Accounts
   class SendTrialEndingEmailsService < ApplicationService
     WINDOW = 36.hours
@@ -26,7 +26,7 @@ module Accounts
       now = Time.current
       User.where.not(confirmed_at: nil)
         .where(trial_ends_at: now..(now + WINDOW))
-        .where(trial_ending_email_sent_at: nil).not_comped
+        .where(trial_ending_email_sent_at: nil)
         .where.not(id: BillingSubscription.paid.select(:user_id))
         .order(:trial_ends_at)
     end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Description: The signed-in user's plan and its dates, for the Plan & billing page.
-# Deliberately small: AI caps, spend, comped state and Stripe ids are never exposed here.
+# Deliberately small: AI caps, spend, cap overrides and Stripe ids are never exposed here.
 # Index:
 #   - plan (trial / paid / ended), trial_ends_at, current_period_ends_at, cancel_at_period_end, can_manage_billing
 module Types

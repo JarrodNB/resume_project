@@ -11,6 +11,11 @@ export function PlanBillingLink() {
   return <Link to="/account/billing" className="underline underline-offset-4">Plan &amp; billing</Link>
 }
 
+/** The Plan & billing link when a mutation payload's `errorCode` is PLAN_ENDED; nothing otherwise. */
+export function PlanEndedErrorLink({ errorCode }: { errorCode: string | null | undefined }) {
+  return errorCode === PLAN_ENDED_ERROR_CODE ? <PlanBillingLink /> : null
+}
+
 type MutationErrorAlertProps = Omit<ComponentProps<typeof ErrorAlert>, 'messages' | 'action'> & {
   errors: string[]
   /** The mutation payload's `errorCode`. */
@@ -19,7 +24,7 @@ type MutationErrorAlertProps = Omit<ComponentProps<typeof ErrorAlert>, 'messages
 
 /** ErrorAlert for a mutation's `errors`, with the Plan & billing link when `errorCode` is PLAN_ENDED. */
 export function MutationErrorAlert({ errors, errorCode, ...alertProps }: MutationErrorAlertProps) {
-  return <ErrorAlert {...alertProps} messages={errors} action={errorCode === PLAN_ENDED_ERROR_CODE ? <PlanBillingLink /> : undefined} />
+  return <ErrorAlert {...alertProps} messages={errors} action={<PlanEndedErrorLink errorCode={errorCode} />} />
 }
 
 /** The action for an ErrorAlert about a failed chat reply: the billing link when the failure code is `plan_ended`. */

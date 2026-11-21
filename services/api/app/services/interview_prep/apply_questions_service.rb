@@ -39,7 +39,7 @@ module InterviewPrep
         retained = retain_answered_copy(record)
         record.update!(question_text: drafts.first["question_text"],
                        question_revision: record.question_revision + 1,
-                       screened_fields: [], answer_text: "", answer_revision: record.answer_revision + 1,
+                       screened_fields: [], answer_text: "", memory_anchor: "", answer_revision: record.answer_revision + 1,
                        feedback: {}, feedback_question_revision: nil, feedback_answer_revision: nil)
         record.embedding&.destroy! unless retained
       end
@@ -69,7 +69,7 @@ module InterviewPrep
                       record.answer_revision == @task.input["answer_revision"]
         return unless @task.input["source_version"] == 1 || record.question_text == @task.input["question_text"]
         if @task.input["source_version"] == 1
-          peers = record.interview_question_set.questions.where.not(id: record.id).to_h { |peer| [peer.id, peer.question_revision] }
+          peers = record.interview_question_set.questions.where.not(id: record.id).to_h { |peer| [ peer.id, peer.question_revision ] }
           return unless peers == @task.input["peer_revisions"]
         end
         return unless record.interview_question_set.questions.count == 5
@@ -87,7 +87,7 @@ module InterviewPrep
 
       copy = record.interview_question_set.retired_questions.create!(
         retired_at: Time.current, position: nil, question_text: record.question_text,
-        answer_text: record.answer_text, question_revision: record.question_revision,
+        answer_text: record.answer_text, memory_anchor: record.memory_anchor, question_revision: record.question_revision,
         answer_revision: record.answer_revision, feedback: record.feedback,
         feedback_question_revision: record.feedback_question_revision,
         feedback_answer_revision: record.feedback_answer_revision, screened_fields: record.screened_fields)

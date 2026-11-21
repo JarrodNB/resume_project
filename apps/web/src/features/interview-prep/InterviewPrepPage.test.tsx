@@ -24,7 +24,7 @@ const SETS = {
 
 /** Builds one bank row; set membership decides its type label. */
 function bankQuestion(id: string, overrides: Record<string, unknown> = {}, setId: keyof typeof SETS = 'set-1') {
-  return { __typename: 'InterviewQuestion', id, position: 1, retiredAt: null, questionText: `Question ${id}?`, answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
+  return { __typename: 'InterviewQuestion', id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
 }
 const reviewed = { answerText: 'I shipped the scheduler.', feedback: { strengths: ['Specific'] } }
 function defaultBank() {
@@ -204,4 +204,14 @@ it('keeps a list row when deletion fails and supports retry', async () => {
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   expect(screen.queryByRole('link', { name: /Question q-tech/ })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: /Question q-empty/ })).toBeVisible()
+})
+
+it('finds questions by their saved memory anchors and shows retired cues', async () => {
+  render([], { bank: [bankQuestion('q-cue', { memoryAnchor: 'Launch checklist' }), bankQuestion('q-other'),
+    bankQuestion('q-retired', { memoryAnchor: 'Retired launch cue', answerText: 'Old answer', retiredAt: '2026-10-12T00:00:00Z' })] })
+  fireEvent.change(await screen.findByRole('searchbox', { name: 'Search questions and answers' }), { target: { value: 'checklist' } })
+  expect(screen.getByText('Question q-cue?')).toBeInTheDocument()
+  expect(screen.queryByText('Question q-other?')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Answers from replaced questions/ }))
+  expect(screen.getByText('Retired launch cue')).toBeInTheDocument()
 })

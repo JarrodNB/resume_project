@@ -28,9 +28,24 @@ load the same current owned history; copied command text is ignored.
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
 an empty answer and increment the answer revision only when text changes. The answer limit is
-10,000 characters, defined in Rails `config/initializers/text_limits.rb`, Python `text_limits.py`,
+2,000 characters, defined in Rails `config/initializers/text_limits.rb`, Python `text_limits.py`,
 and web `src/lib/textLimits.ts`. Answers never become career-library entries. Deleting a set
 cascades its questions and nullifies AI task subjects, retaining usage records and task inputs.
+
+Questions also store an optional plain-text `memory_anchor` of up to 200 characters.
+Save and feedback mutations require this cue alongside the answer; feedback saves both
+before allowance or publication checks. A cue-only change preserves answer revision,
+feedback, screening approvals and vectors, and queues no embedding work. An ordinary
+unchanged save still schedules the existing embedding job. Cues never enter model
+inputs or Q&A embeddings. Answer edits retain cues and the editor reminds the user to
+check them. Both fields participate in unsaved-navigation and in-flight draft protection;
+only answer edits affect feedback freshness. Bank search includes cues.
+
+Answered replacement copies the cue to the read-only retired record and clears it on
+the active slot. Replacing an unanswered slot clears its cue without retaining a copy.
+Failed replacement preserves both. Account export includes active and retired questions
+with `memory_anchor` and `retired_at`; deleting questions, sets or accounts removes cues
+with their owning records.
 
 `InterviewPrep` services own generation, saving, replacement, feedback, and deletion. GraphQL
 exposes owned `interviewQuestionSets` / `interviewQuestionSet(id)` queries, the question-bank

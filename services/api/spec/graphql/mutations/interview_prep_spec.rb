@@ -53,7 +53,7 @@ RSpec.describe "Interview practice mutations" do
     [ "My example", "" ].each do |answer|
       result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id, answer: answer })
         mutation($set: ID!, $question: ID!, $answer: String!) {
-          saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, answerText: $answer }) {
+          saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, memoryAnchor: "", answerText: $answer }) {
             question { id answerText answerRevision } errors
           }
         }
@@ -74,7 +74,7 @@ RSpec.describe "Interview practice mutations" do
     question.ai_tasks.last.update!(status: "failed")
     result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
       mutation($set: ID!, $question: ID!) {
-        requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, answerText: "My answer" }) {
+        requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, memoryAnchor: "", answerText: "My answer" }) {
           aiTask { id } errors
         }
       }
@@ -96,8 +96,8 @@ RSpec.describe "Interview practice mutations" do
     other_set = create(:user).interview_question_sets.create!(number: 1)
     other_question = other_set.questions.create!(position: 1, question_text: "Private?")
     operations = {
-      "saveInterviewAnswer" => 'answerText: "Attempt"',
-      "requestInterviewAnswerFeedback" => 'answerText: "Attempt"',
+      "saveInterviewAnswer" => 'memoryAnchor: "", answerText: "Attempt"',
+      "requestInterviewAnswerFeedback" => 'memoryAnchor: "", answerText: "Attempt"',
       "regenerateInterviewQuestion" => 'confirmed: true'
     }
     operations.each do |name, argument|
@@ -119,9 +119,33 @@ RSpec.describe "Interview practice mutations" do
     another_set = user.interview_question_sets.create!(number: 2)
     result = execute_graphql(<<~GQL, user: user, variables: { set: another_set.id, question: question.id })
       mutation($set: ID!, $question: ID!) {
-        saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, answerText: "Attempt" }) { errors }
+        saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, memoryAnchor: "", answerText: "Attempt" }) { errors }
       }
     GQL
     expect(result["errors"].first["message"]).to eq("Record not found")
+  end
+
+  it "saves and returns a bounded memory anchor without changing the answer revision" do
+    question.update!(answer_text: "Saved answer", answer_revision: 1)
+    result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
+      mutation($set: ID!, $question: ID!) {
+        saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, answerText: "Saved answer", memoryAnchor: "Listen then plan" }) {
+          question { memoryAnchor answerRevision } errors
+        }
+      }
+    GQL
+    expect(result.dig("data", "saveInterviewAnswer", "errors")).to eq([])
+    expect(result.dig("data", "saveInterviewAnswer", "question")).to include("memoryAnchor" => "Listen then plan", "answerRevision" => 1)
+  end
+
+  it "persists the memory anchor and answer before feedback admission fails" do
+    user.update!(max_in_flight_ai_tasks: 0)
+    result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
+      mutation($set: ID!, $question: ID!) {
+        requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, answerText: "Saved answer", memoryAnchor: "Listen then plan" }) { errors }
+      }
+    GQL
+    expect(result.dig("data", "requestInterviewAnswerFeedback", "errors")).not_to be_empty
+    expect(question.reload).to have_attributes(answer_text: "Saved answer", memory_anchor: "Listen then plan")
   end
 end

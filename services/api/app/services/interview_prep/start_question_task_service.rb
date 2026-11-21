@@ -7,9 +7,10 @@ module InterviewPrep
     TASK_TYPES = %w[regenerate_interview_question review_interview_answer].freeze
 
     # Receives an authorized question, optional feedback answer, and replacement confirmation.
-    def initialize(user:, question:, task_type:, answer_text: nil, confirmed: false)
+    def initialize(user:, question:, task_type:, answer_text: nil, memory_anchor: nil, confirmed: false)
       @user, @question, @task_type = user, question, task_type
       @answer_text, @confirmed = answer_text, confirmed
+      @memory_anchor = memory_anchor
     end
 
     # Feedback saves the typed answer even if the later allowance or queue check fails.
@@ -18,7 +19,7 @@ module InterviewPrep
       if @task_type == "review_interview_answer"
         return failure([ "Write an answer before asking for feedback." ]) if @answer_text.blank?
 
-        saved = SaveAnswerService.call(question: @question, answer_text: @answer_text)
+        saved = SaveAnswerService.call(question: @question, answer_text: @answer_text, memory_anchor: @memory_anchor)
         return saved unless saved.success?
 
         @saved_revisions = [ @question.question_revision, @question.answer_revision ]

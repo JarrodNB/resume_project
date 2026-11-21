@@ -1470,6 +1470,7 @@ type InterviewQuestion {
   feedbackQuestionRevision: Int
   id: ID!
   latestTask: AiTask
+  memoryAnchor: String!
 
   """
   Slot 1–5 for active questions; null for retired copies.
@@ -2828,6 +2829,7 @@ input RequestInterviewAnswerFeedbackInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
+  memoryAnchor: String!
   questionId: ID!
   questionSetId: ID!
 }
@@ -3145,6 +3147,7 @@ input SaveInterviewAnswerInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
+  memoryAnchor: String!
   questionId: ID!
   questionSetId: ID!
 }

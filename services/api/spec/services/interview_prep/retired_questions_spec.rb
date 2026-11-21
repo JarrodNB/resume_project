@@ -31,7 +31,7 @@ RSpec.describe "Retired interview questions" do
   end
 
   it "keeps an answered question, its feedback, and its vector as a retired copy" do
-    question.update!(answer_text: "I led the migration.", answer_revision: 1,
+    question.update!(answer_text: "I led the migration.", memory_anchor: "Migration: listen then plan", answer_revision: 1,
       feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
     InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
       embedding_client: FakeEmbeddingClient.new)
@@ -40,12 +40,12 @@ RSpec.describe "Retired interview questions" do
     expect(replace(question)).to be_completed
     copy = question_set.retired_questions.sole
     expect(copy).to have_attributes(position: nil, question_text: "Old question number 0?",
-      answer_text: "I led the migration.", question_revision: 1, answer_revision: 1,
+      answer_text: "I led the migration.", memory_anchor: "Migration: listen then plan", question_revision: 1, answer_revision: 1,
       feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
     expect(copy.retired_at).to be_present
     expect(copy.embedding.id).to eq(embedding_id)
     expect(InterviewPrep::FeedbackOutdatedService.call(question: copy).value).to be(false)
-    expect(question.reload).to have_attributes(question_text: replacement_text, answer_text: "", position: 1)
+    expect(question.reload).to have_attributes(question_text: replacement_text, answer_text: "", memory_anchor: "", position: 1)
     expect(question.embedding).to be_nil
     expect(question_set.reload.questions.count).to eq(5)
   end
@@ -70,7 +70,7 @@ RSpec.describe "Retired interview questions" do
     replace(question)
     copy = question_set.retired_questions.sole
     operations = {
-      "saveInterviewAnswer" => 'answerText: "Edit"', "requestInterviewAnswerFeedback" => 'answerText: "Edit"',
+      "saveInterviewAnswer" => 'memoryAnchor: "", answerText: "Edit"', "requestInterviewAnswerFeedback" => 'memoryAnchor: "", answerText: "Edit"',
       "regenerateInterviewQuestion" => "confirmed: true", "avoidInterviewQuestion" => "expectedRevision: 1"
     }
     operations.each do |name, argument|

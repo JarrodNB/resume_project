@@ -18,7 +18,7 @@ function taskFixture(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
 function setMock(status: 'QUEUED' | 'COMPLETED' | 'FAILED', answered: number[] = []) {
   return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 'set-1' } }, result: { data: { interviewQuestionSet: {
     __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-11T00:00:00Z', latestTask: taskFixture(status),
-    questions: status === 'COMPLETED' ? [5, 4, 3, 2, 1].map((position) => ({ __typename: 'InterviewQuestion', id: `question-${position}`, avoided: false, position, questionText: `Saved question text ${position}`, answerText: answered.includes(position) ? `Answer ${position}` : '', answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null, feedback: {}, feedbackOutdated: false, latestTask: null })) : [],
+    questions: status === 'COMPLETED' ? [5, 4, 3, 2, 1].map((position) => ({ __typename: 'InterviewQuestion', id: `question-${position}`, avoided: false, position, questionText: `Saved question text ${position}`, memoryAnchor: '', answerText: answered.includes(position) ? `Answer ${position}` : '', answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null, feedback: {}, feedbackOutdated: false, latestTask: null })) : [],
   } } } }
 }
 function render(url: string, mocks: unknown[]) {
@@ -97,7 +97,7 @@ it('confirms deletion, preserves a canceled draft, and returns to the bank after
   await user.click(await screen.findByRole('menuitem', { name: 'Delete question' }))
   expect(await screen.findByText(/Your unsaved answer will also be lost/)).toBeVisible()
   await user.click(screen.getByRole('button', { name: 'Cancel' }))
-  expect(screen.getByRole('textbox')).toHaveValue('My unsaved answer')
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('My unsaved answer')
   await user.click(screen.getByRole('button', { name: 'Question actions' }))
   await user.click(await screen.findByRole('menuitem', { name: 'Delete question' }))
   await user.click(await screen.findByRole('button', { name: 'Delete question' }))
@@ -113,7 +113,7 @@ it('keeps the answer available and lets deletion retry after server failure', as
   }, {
     request, result: { data: { deleteInterviewQuestion: { __typename: 'DeleteInterviewQuestionPayload', errors: [] } } },
   }])
-  await screen.findByRole('textbox')
+  await screen.findByRole('textbox', { name: 'Your answer' })
   await user.click(screen.getByRole('button', { name: 'Question actions' }))
   await user.click(await screen.findByRole('menuitem', { name: 'Delete question' }))
   await user.click(await screen.findByRole('button', { name: 'Delete question' }))

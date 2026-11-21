@@ -1,6 +1,6 @@
 /**
  * Description: The question bank: every current practice question with its answer progress.
- * Filters by progress and type and searches question and answer text in the browser.
+ * Filters by progress and type and searches question, answer, and memory-anchor text in the browser.
  * Each row opens a question for writing and feedback, or confirms its deletion.
  */
 import { useState } from 'react'
@@ -32,7 +32,7 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
   const typed = rows.filter(({ question }) => setType === 'ALL' || question.questionSet.setType === setType)
   const term = search.trim().toLowerCase()
   const visible = typed.filter(({ question, progress }) => matchesFilter(progress, filter) &&
-    (!term || question.questionText.toLowerCase().includes(term) || question.answerText.toLowerCase().includes(term)))
+    (!term || question.questionText.toLowerCase().includes(term) || question.answerText.toLowerCase().includes(term) || question.memoryAnchor.toLowerCase().includes(term)))
 
   return <section className="question-bank" aria-labelledby="question-bank-heading">
     <div className="question-bank-toolbar">

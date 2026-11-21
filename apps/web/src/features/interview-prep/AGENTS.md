@@ -32,10 +32,10 @@ Written interview practice (the Practice section's Questions tab): the question 
 - Follow `apps/web/AGENTS.md`; GraphQL fetching stays in hooks.
 - Progress labels and marks come from `questionProgress.ts` so progress stays consistent.
 - Signals follow `DESIGN.md`: blue only while feedback is being prepared, red only for out-of-date feedback or failures; other steps use ink stops.
-- Practice opens one question at a time. Leaving an unsaved answer requires confirmation, including navigation to another question.
+- Practice opens one question at a time. Leaving an unsaved answer or memory anchor requires confirmation, including navigation to another question.
 - Sets remain a backend storage detail: do not show batch numbers, batch management, or navigation limited to a generation batch.
 - Without a question id, pin the default question in the URL once so saving never moves the open question.
-- Feedback requests send the typed answer and the server saves it first; queue or allowance failures still refresh the saved answer without replacing newer drafts.
+- Feedback requests send the typed answer and memory anchor and the server saves both first; queue or allowance failures still refresh the saved answer without replacing newer drafts.
 - Existing feedback is outdated for local unsaved edits as well as persisted revision changes.
 - Capitalization and whitespace edits keep feedback current: Get feedback stays disabled for them, while Save stays available and navigation protection still applies.
 - Disable feedback after success for the current question/answer revisions; a substantive change enables another request. Failed requests remain retryable.

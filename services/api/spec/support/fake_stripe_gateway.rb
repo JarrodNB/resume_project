@@ -3,6 +3,7 @@
 # Index:
 #   - FakeStripeGateway.reset!: clears customers, subscriptions and recorded calls
 #   - .configured: set false to simulate missing Stripe keys
+#   - .portal_error, .cancel_error: set to a Stripe error to make that call raise it
 #   - .subscriptions: id => Billing::Gateway::Subscription you want retrieve_subscription to return
 #   - .customers_created, .checkout_sessions, .canceled: what the code under test asked for
 #   - VALID_SIGNATURE: the only signature construct_event accepts
@@ -11,11 +12,13 @@ class FakeStripeGateway
   VALID_SIGNATURE = "fake-valid-signature"
 
   class << self
-    attr_accessor :configured
+    attr_accessor :configured, :portal_error, :cancel_error
     attr_reader :subscriptions, :customers_created, :checkout_sessions, :portal_sessions, :canceled
 
     def reset!
       @configured = true
+      @portal_error = nil
+      @cancel_error = nil
       @subscriptions = {}
       @customers_created = []
       @checkout_sessions = []
@@ -44,6 +47,7 @@ class FakeStripeGateway
   end
 
   def create_portal_session(customer_id:, return_url:)
+    raise self.class.portal_error if self.class.portal_error
     self.class.portal_sessions << { customer_id: customer_id, return_url: return_url }
     "https://billing.stripe.test/portal/#{self.class.portal_sessions.size}"
   end
@@ -51,6 +55,7 @@ class FakeStripeGateway
   def retrieve_subscription(subscription_id) = self.class.subscriptions.fetch(subscription_id)
 
   def cancel_subscription_now(subscription_id)
+    raise self.class.cancel_error if self.class.cancel_error
     self.class.canceled << subscription_id
     nil
   end

@@ -76,4 +76,27 @@ RSpec.describe Billing::SyncSubscriptionService do
 
     expect(row.reload.status).to eq("active")
   end
+
+  describe "plan outcomes after a sync" do
+    def plan_after_sync(status:, cancel: false)
+      user.update!(trial_ends_at: 1.day.ago)
+      FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription(status: status, cancel: cancel)
+      sync
+      Billing::ResolvePlanService.call(user: user.reload).value
+    end
+
+    it "keeps a cancel-at-period-end subscription paid and flags it as cancelling" do
+      expect(plan_after_sync(status: "active", cancel: true)).to have_attributes(plan: "paid", cancel_at_period_end: true, current_period_end: period_end)
+    end
+
+    it "keeps access while a payment is past due" do
+      expect(plan_after_sync(status: "past_due")).to have_attributes(plan: "paid", ai_access?: true)
+    end
+
+    %w[unpaid canceled].each do |status|
+      it "ends the plan for a #{status} subscription, with no new trial" do
+        expect(plan_after_sync(status: status)).to have_attributes(plan: "ended", ai_access?: false)
+      end
+    end
+  end
 end

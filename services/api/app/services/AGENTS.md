@@ -24,6 +24,8 @@ All business logic, as service objects grouped by domain folder.
 - `billing/` — plan and Stripe subscriptions. `resolve_plan_service.rb` derives the plan from Rails data only.
   `gateway.rb` + `stripe_gateway.rb` are the only Stripe seam (config `config.x.billing_gateway`; specs use
   `FakeStripeGateway`). `start_checkout_service.rb` makes one Stripe customer per user and returns the Checkout URL;
+  `start_portal_service.rb` opens the Stripe Customer Portal (manage billing). Account deletion cancels a live subscription first
+  (`accounts/delete_account_service.rb`).
   `sync_subscription_service.rb` copies Stripe's current subscription state onto `billing_subscriptions`.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`

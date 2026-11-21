@@ -5,11 +5,11 @@
 # Also says how much known AI spend the user may use per UTC day (their hidden daily cap).
 # The cap is never shown to users.
 # Index:
-#   - Plan: plan, trial_ends_at, current_period_end, cancel_at_period_end, daily_spend_cap_microdollars, ai_access?
+#   - Plan: can_manage_billing (a Stripe customer exists), plan, trial_ends_at, current_period_end, cancel_at_period_end, daily_spend_cap_microdollars, ai_access?
 #   - call: returns a Plan for the user
 module Billing
   class ResolvePlanService < ApplicationService
-    Plan = Data.define(:plan, :trial_ends_at, :current_period_end, :cancel_at_period_end, :daily_spend_cap_microdollars, :comped) do
+    Plan = Data.define(:plan, :trial_ends_at, :current_period_end, :cancel_at_period_end, :daily_spend_cap_microdollars, :comped, :can_manage_billing) do
       # A comped user (operator cap override) may use AI on any plan; otherwise an ended plan may not.
       def ai_access?
         comped || plan != "ended"
@@ -33,7 +33,8 @@ module Billing
         current_period_end: subscription&.current_period_end,
         cancel_at_period_end: subscription ? subscription.cancel_at_period_end : false,
         daily_spend_cap_microdollars: @user.daily_ai_spend_cap_microdollars || plan_cap,
-        comped: !@user.daily_ai_spend_cap_microdollars.nil?))
+        comped: !@user.daily_ai_spend_cap_microdollars.nil?,
+        can_manage_billing: subscription.present?))
     end
   end
 end

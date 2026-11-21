@@ -21,6 +21,10 @@ All business logic, as service objects grouped by domain folder.
   other taskless callers remain limited to career-library records.
   Spoken preparation/turns produce no screening approvals. Preference criteria use text
   fingerprints on their owner profile; shared catalogue listings use exact passage fingerprints.
+- `billing/` — plan and Stripe subscriptions. `resolve_plan_service.rb` derives the plan from Rails data only.
+  `gateway.rb` + `stripe_gateway.rb` are the only Stripe seam (config `config.x.billing_gateway`; specs use
+  `FakeStripeGateway`). `start_checkout_service.rb` makes one Stripe customer per user and returns the Checkout URL;
+  `sync_subscription_service.rb` copies Stripe's current subscription state onto `billing_subscriptions`.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;

@@ -11,6 +11,7 @@ GraphQL mutations grouped by domain, including interview_prep/.
 
 - `.keep`
 - `base_mutation.rb`
+- `billing` — `startBillingCheckout`: returns a Stripe Checkout URL via `Billing::StartCheckoutService`.
 - `career_library` — subfolder; inherits these rules unless overridden locally.
 - `certifications` — subfolder; inherits these rules unless overridden locally.
 - `educations` — subfolder; inherits these rules unless overridden locally.

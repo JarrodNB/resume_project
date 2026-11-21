@@ -65,6 +65,8 @@ module Types
 
     field :update_profile, mutation: Mutations::Users::UpdateProfile
 
+    field :start_billing_checkout, mutation: Mutations::Billing::StartCheckout
+
     field :rerank_job_board_listings, mutation: Mutations::JobBoard::RerankJobBoardListings
     field :import_job_board_listing, mutation: Mutations::JobBoard::ImportListing
 

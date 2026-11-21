@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -199,7 +199,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_020000) do
     t.uuid "user_id", null: false
     t.string "stripe_customer_id", null: false
     t.string "stripe_subscription_id"
-    t.string "status", null: false
+    t.string "status"
     t.datetime "current_period_end"
     t.boolean "cancel_at_period_end", default: false, null: false
     t.datetime "created_at", null: false

@@ -1,4 +1,4 @@
-/** Confirmation links are captured before auth bootstrap and require an explicit submit. */
+/** Confirmation links are captured before auth bootstrap and verify automatically after bootstrap. */
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
@@ -19,7 +19,7 @@ vi.mock('./TurnstileWidget', async () => {
 const issuedTurnstileTokens = vi.hoisted(() => ({ count: 0 }))
 
 afterEach(() => { vi.unstubAllGlobals(); history.replaceState(null, '', '/') })
-it('clears the fragment before bootstrap, waits for consent and does not sign in', async () => {
+it('clears the fragment before bootstrap, verifies automatically and does not sign in', async () => {
   history.replaceState(null, '', '/verify-email#confirmation_token=token-from-email')
   captureConfirmationToken()
   expect(location.hash).toBe('')
@@ -27,11 +27,9 @@ it('clears the fragment before bootstrap, waits for consent and does not sign in
     ? { user: null, csrfToken: 'csrf' } : { message: 'Email verified. You can now sign in.' })))
   vi.stubGlobal('fetch', fetcher)
   render(<StrictMode><MemoryRouter><AuthProvider><VerifyEmailPage /></AuthProvider></MemoryRouter></StrictMode>)
-  await screen.findByRole('button', { name: 'Verify email' })
   expect(screen.queryByRole('button', { name: 'Resend verification email' })).not.toBeInTheDocument()
-  expect(fetcher.mock.calls.every(([url]) => url.endsWith('/auth/session'))).toBe(true)
-  await userEvent.click(screen.getByRole('button', { name: 'Verify email' }))
   expect(await screen.findByText('Email verified. You can now sign in.')).toBeInTheDocument()
+  expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/auth/confirmation/verify'))).toHaveLength(1)
   expect(fetcher).toHaveBeenLastCalledWith(expect.stringContaining('/auth/confirmation/verify'), expect.objectContaining({
     method: 'POST', credentials: 'include', body: JSON.stringify({ confirmation_token: 'token-from-email' }),
   }))
@@ -103,10 +101,9 @@ it('lets signed-in users verify without switching their account, cancel and requ
   vi.stubGlobal('fetch', fetcher)
   render(<MemoryRouter><AuthProvider><VerifyEmailPage /></AuthProvider></MemoryRouter>)
   const user = userEvent.setup()
-  await user.click(await screen.findByRole('button', { name: 'Verify email' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('invalid or expired')
   await user.click(screen.getByRole('button', { name: 'Cancel' }))
-  expect(screen.queryByRole('button', { name: 'Verify email' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Resend verification email' })).toBeInTheDocument()
   expect(fetcher).toHaveBeenCalledTimes(2)
 })
@@ -121,11 +118,11 @@ it('blocks duplicate verification submissions and allows a retry after network f
   vi.stubGlobal('fetch', fetcher)
   render(<MemoryRouter><AuthProvider><VerifyEmailPage /></AuthProvider></MemoryRouter>)
   const user = userEvent.setup()
-  await user.dblClick(await screen.findByRole('button', { name: 'Verify email' }))
+  await user.dblClick(await screen.findByRole('button', { name: 'Verifying…' }))
   expect(screen.getByRole('button', { name: 'Verifying…' })).toBeDisabled()
   expect(fetcher).toHaveBeenCalledTimes(2)
   fail(new TypeError('offline'))
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server')
-  await user.click(screen.getByRole('button', { name: 'Verify email' }))
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
   expect(await screen.findByRole('status')).toHaveTextContent('Email verified')
 })

@@ -15,7 +15,7 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
   password acceptance remains server-owned, with no native truncating maximum length
 - `*.test.ts(x)` — auth API and sign-in flow tests
 - `VerifyEmailPage.tsx`, `ResendConfirmationForm.tsx`, `confirmationLink.ts` — public
-  explicit verification and resend; capture/clear fragment before app bootstrap
+  automatic verification and explicit resend; capture/clear fragment before app bootstrap
 - `ForgotPasswordPage.tsx`, `PasswordUpdatePage.tsx`, `resetPasswordLink.ts` — public recovery
   and signed-in current-password change; success survives session/cache refresh on a public route.
   The signed-in page also renders `features/account/AccountDataSection` (export and deletion)

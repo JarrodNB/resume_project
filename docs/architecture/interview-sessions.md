@@ -700,7 +700,7 @@ rate units, conservative reservations, unknown-cost recovery, and the paid-check
 
 ### Interview admission
 
-The shared FastAPI app starts with `uvicorn app:app` and is enabled by `AI_HTTP_ENABLED=true`; execution is not restricted to a development environment. It constructs fixed approved audio/model clients only after service/storage origins and required provider credentials pass validation. Client shutdown closes both provider SDK transports and the audio transport. The fake entrypoint retains its environment isolation and disables paid model requests.
+The shared FastAPI app starts with `uvicorn app:app`; execution is not restricted to a development environment. It constructs fixed approved audio/model clients only after service/storage origins and required provider credentials pass validation. Client shutdown closes both provider SDK transports and the audio transport. The fake entrypoint retains its environment isolation and disables paid model requests.
 
 New real sessions additionally require Rails `INTERVIEW_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the AI HTTP app. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the AI HTTP process is the separate action that stops execution of already saved real work.
 

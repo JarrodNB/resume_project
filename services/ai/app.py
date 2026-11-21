@@ -1,6 +1,6 @@
 """Serve interactive AI endpoints and supervise chat and interview execution.
 
-No provider client is constructed until service enablement and credentials pass.
+No provider client is constructed until service configuration and credentials pass.
 Readiness exposes stable setup reasons, never credentials or exception contents.
 """
 import asyncio
@@ -21,8 +21,6 @@ from routes.executions import execution_service_secret
 
 def configuration():
     """Return HTTP service configuration or an actionable, non-sensitive reason."""
-    if os.getenv("AI_HTTP_ENABLED") != "true":
-        return None, "runtime_disabled"
     if not os.getenv("INTERVIEW_SERVICE_SECRET", "").strip():
         return None, "service_secret_missing"
     if not all(os.getenv(name, "").strip() for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")):
@@ -114,7 +112,7 @@ def create_app():
     async def ready():
         runner = getattr(app.state, "execution_runner", None)
         is_ready = bool(runner and runner.ready)
-        reason = getattr(app.state, "reason", "runtime_disabled") or "execution_unavailable"
+        reason = getattr(app.state, "reason", None) or "execution_unavailable"
         if is_ready:
             from database.chat_inputs import chat_database_ready
             from database.interview_inputs import interview_database_ready

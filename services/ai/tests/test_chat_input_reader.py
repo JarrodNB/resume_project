@@ -119,7 +119,7 @@ def test_configured_http_adapter_hydrates_real_database_before_offline_models(ad
                          user='postgres', password='postgres', row_factory=dict_row, autocommit=True) as source:
         current = seed(source)
         try:
-            for name, value in {'AI_HTTP_ENABLED': 'true', 'AI_STREAMING_ENABLED': 'false',
+            for name, value in {'AI_STREAMING_ENABLED': 'false',
                                 'INTERVIEW_SERVICE_SECRET': 'synthetic-secret', 'OPENAI_API_KEY': 'offline-test-placeholder',
                                 'TYPESAFE_API_KEY': 'offline-test-placeholder', 'DB_USERNAME': 'ai_reader',
                                 'DB_PASSWORD': 'ai_reader'}.items():

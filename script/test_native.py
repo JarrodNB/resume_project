@@ -72,7 +72,6 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(api["npm_config_cache"], str(self.state / "cache/npm"))
         self.assertEqual(http["DB_USERNAME"], "ai_reader")
         self.assertEqual(http["DATABASE_URL"], ai["DATABASE_URL"])
-        self.assertEqual(http["AI_HTTP_ENABLED"], "true")
         self.assertEqual(http["MCP_TOOLS_URL"], "http://127.0.0.1:8001/mcp")
         self.assertEqual(http["MCP_TOOLS_SECRET"], mcp["MCP_TOOLS_SECRET"])
         self.assertEqual(mcp["DATABASE_URL"], ai["DATABASE_URL"])

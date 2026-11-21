@@ -21,7 +21,6 @@ services:
       - ${INTERVIEW_VERIFICATION_AI_ENV:?Set the absolute original ignored AI env path}
     environment:
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
-      AI_HTTP_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
       LOGFIRE_TOKEN: ""
       LOGFIRE_SEND_TO_LOGFIRE: "false"

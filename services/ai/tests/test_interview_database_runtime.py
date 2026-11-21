@@ -30,8 +30,6 @@ def test_database_outage_is_not_reported_ready(monkeypatch, runtime):
     else:
         from app import create_app
 
-        for name in ("AI_HTTP_ENABLED",):
-            monkeypatch.setenv(name, "true")
         for name in ("INTERVIEW_SERVICE_SECRET", "OPENAI_API_KEY", "TYPESAFE_API_KEY"):
             monkeypatch.setenv(name, "synthetic-offline")
         monkeypatch.setenv("AI_STREAMING_ENABLED", "false")

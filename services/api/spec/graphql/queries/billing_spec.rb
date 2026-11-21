@@ -37,6 +37,6 @@ RSpec.describe "me.billing query" do
   it "does not expose caps, spend, comped state or Stripe ids" do
     type = ApiSchema.types["Billing"]
 
-    expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd")
+    expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd", "canManageBilling")
   end
 end

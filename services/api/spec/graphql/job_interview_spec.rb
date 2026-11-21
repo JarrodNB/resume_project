@@ -9,7 +9,6 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
   end
 
   before do
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
   end
 

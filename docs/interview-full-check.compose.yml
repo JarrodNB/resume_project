@@ -4,7 +4,6 @@ services:
   api:
     image: cg-interview-qa-api
     environment:
-      INTERVIEW_ADMISSION_ENABLED: "true"
       INTERVIEW_SYNTHETIC_PROVIDER_CHECK: "true"
       AI_HTTP_ORIGIN: http://ai-http:8000
   api-jobs-worker:

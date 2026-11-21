@@ -70,6 +70,15 @@ RSpec.describe Billing::StripeGateway do
       expect(cancelled).to eq(%w[sub_active sub_incomplete])
     end
 
+    it "lists the ids of a customer's subscriptions that have not ended" do
+      subs = %w[active canceled past_due incomplete_expired].map { |status| Stripe::Subscription.construct_from(id: "sub_#{status}", status: status) }
+      listing = double(auto_paging_each: nil)
+      allow(listing).to receive(:auto_paging_each) { |&block| subs.each(&block) }
+      allow(client).to receive_message_chain(:v1, :subscriptions, :list).with({ customer: "cus_1", status: "all" }).and_return(listing)
+
+      expect(described_class.new.live_subscription_ids("cus_1")).to eq(%w[sub_active sub_past_due])
+    end
+
     it "translates errors from cancelling a subscription too" do
       allow(client).to receive_message_chain(:v1, :subscriptions, :cancel).and_raise(Stripe::APIConnectionError.new("down"))
 
@@ -90,6 +99,13 @@ RSpec.describe Billing::StripeGateway do
       sent = []
       allow(client).to receive_message_chain(*chain) { |*args, **kwargs| sent << [ args, kwargs ]; result }
       sent
+    end
+
+    it "reads the configured price" do
+      price = Stripe::Price.construct_from(id: "price_test_1", unit_amount: 1200, currency: "usd", recurring: { interval: "month" })
+      allow(client).to receive_message_chain(:v1, :prices, :retrieve).with("price_test_1").and_return(price)
+
+      expect(described_class.new.retrieve_price).to eq(Billing::Gateway::Price.new(unit_amount: 1200, currency: "usd", interval: "month"))
     end
 
     it "makes a customer with the user's email and id, using an idempotency key per user" do

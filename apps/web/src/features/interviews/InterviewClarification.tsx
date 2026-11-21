@@ -3,6 +3,7 @@
  */
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { PlanEndedErrorLink } from '@/features/billing/PlanBillingLink'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { useInterviewClarification } from './useInterviewClarification'
@@ -23,7 +24,7 @@ export function InterviewClarification({ interviewId, message, disabled }: Props
       <div className="flex items-center justify-between gap-3"><h3 className="font-medium">Question clarification</h3><Button variant="ghost" className="min-h-11" aria-label="Close clarification" onClick={() => setOpen(false)}>Close</Button></div>
       {clarification.pending && <p role="status">Explaining this question. Your answer stays in the editor.</p>}
       {clarification.explanation && <p className="whitespace-pre-wrap break-words">{clarification.explanation}</p>}
-      {clarification.error && <p role="alert">{clarification.error}</p>}
+      {clarification.error && <p role="alert">{clarification.error} <PlanEndedErrorLink errorCode={clarification.errorCode} /></p>}
       {clarification.subscriptionError && <p role="status">{clarification.subscriptionError}</p>}
       {(clarification.failed || clarification.error) && !clarification.pending && clarification.canRetry &&
         <Button variant="outline" disabled={disabled} onClick={() => void clarification.clarify(true)}>Retry clarification</Button>}

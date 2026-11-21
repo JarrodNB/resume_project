@@ -84,6 +84,11 @@ signups cannot block paying customers.
   job therefore retries `Billing::Gateway::Unavailable` up to 16 attempts with Rails'
   `polynomially_longer` waits (`n**4 + 2` seconds after attempt `n`), about 49.5 hours (just over two
   days) in total. A subscription Stripe no longer has (`Gateway::NotFound`) is logged and dropped.
+- **Daily reconciliation.** `Billing::ReconcileSubscriptionsJob` runs every day at 04:40 UTC. For
+  each billing row it asks Stripe for the customer's subscriptions that have not ended, adds the
+  one the row records if the row still thinks it is live, and queues the usual sync for each. That
+  catches a sync lost after its retry window, a checkout whose webhook never arrived, and a
+  cancellation we never heard about, within a day. It costs one Stripe list call per customer.
 - **One Stripe account per environment.** Production, staging and local must each use their own
   Stripe account or test mode. The sync cancels a subscription whose metadata user does not exist
   in this database (see above), so two environments sharing one Stripe account would cancel each
@@ -92,20 +97,20 @@ signups cannot block paying customers.
   of the user's Stripe customer right away (no refund) before deleting the user. It asks Stripe for
   the customer's subscriptions instead of trusting our row, because a user can finish Checkout and
   delete their account before the webhook sync has run. If Stripe fails, deletion is blocked with a
-  retry message; a customer Stripe no longer has counts as done. Locally this means deleting an
-  account that has a billing row (including seeded QA accounts with fake `cus_seed_` customer ids)
-  is refused unless a Stripe test key is set, because deletion must cancel subscriptions first.
-- **GraphQL.** `me.billing { plan, trialEndsAt, currentPeriodEndsAt, cancelAtPeriodEnd, canManageBilling }`. The web page disables Upgrade while it waits for a just-paid plan to appear.
+  retry message; a customer Stripe no longer has counts as done. Locally, deleting an account that
+  has a Stripe customer needs a Stripe test key. The seeded QA accounts have no Stripe records (a
+  ten-year trial with the paid daily cap instead), so they can be deleted without one.
+- **GraphQL.** `me.billing { plan, trialEndsAt, currentPeriodEndsAt, cancelAtPeriodEnd, canManageBilling, priceLabel }`. `priceLabel` (such as "$12/month") comes from the Stripe price and is null when it can't be read. The web page disables Upgrade while it waits for a just-paid plan to appear.
 
 ## Known limitations
 
-- **No periodic reconciliation with Stripe.** A webhook sync that is lost after the retry window
-  (see above) is only corrected by the next event for that subscription.
 - **Deletion cancels first.** Account deletion cancels the Stripe subscription before deleting the
   account. If the delete itself then fails, the account stays but its subscription is already
   cancelled (no refund); the user can subscribe again from Plan & billing.
-- **The shown price is fixed text.** The web billing page and the Terms say $12/month, while Checkout
-  charges whatever `STRIPE_PRICE_ID` points at. Changing the price means updating both.
+- **The Terms state the price in words.** The billing page reads its price from the Stripe price
+  (`Billing::PlanPrice`, cached for an hour), so it always matches Checkout. The Terms page says
+  "$12 per month" as legal text; a price change needs advance notice anyway, so update the Terms
+  as part of that notice.
 
 ## Configuration
 
@@ -115,7 +120,7 @@ Set in `services/api/.env` (local) and `/opt/app/.env` (production); examples in
 | Variable | Meaning |
 | -------- | ------- |
 | `STRIPE_SECRET_KEY` | Stripe API key (`sk_test_...` locally, live key in production). Enough for the portal and for cancelling on account deletion |
-| `STRIPE_PRICE_ID` | The $12/month price (`price_...`). Only checkout needs it |
+| `STRIPE_PRICE_ID` | The $12/month price (`price_...`). Checkout charges it and the billing page shows it |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (`whsec_...`) |
 | `TRIAL_DAILY_AI_SPEND_CAP_USD` | Trial daily cap, default 0.25 |
 | `PAID_DAILY_AI_SPEND_CAP_USD` | Paid daily cap, default 2.00 |

@@ -292,7 +292,7 @@ services:
   # `docker compose --profile billing up stripe-cli` (see docs/testing.md, "Billing in Stripe test mode").
   stripe-cli:
     profiles: [billing]
-    image: stripe/stripe-cli:latest
+    image: stripe/stripe-cli:v1.55.8
     # The CLI reads STRIPE_API_KEY; reuse the API's STRIPE_SECRET_KEY from services/api/.env.
     entrypoint: ["/bin/sh", "-c", "STRIPE_API_KEY=$$STRIPE_SECRET_KEY exec stripe listen --forward-to api:3000/billing/stripe/webhook"]
     env_file:

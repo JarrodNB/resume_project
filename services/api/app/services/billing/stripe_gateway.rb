@@ -6,7 +6,8 @@
 # Index:
 #   - API_VERSION: the one place the Stripe API version is pinned (the version the gem was built for)
 #   - create_customer, create_checkout_session, create_portal_session
-#   - retrieve_subscription, cancel_subscription_now, cancel_customer_subscriptions
+#   - retrieve_subscription, live_subscription_ids, cancel_subscription_now, cancel_customer_subscriptions
+#   - retrieve_price: the configured plan price, read from Stripe
 #   - translating: the one place Stripe errors become Gateway::Unavailable / Gateway::NotFound
 #   - construct_event: verifies the webhook signature and returns a Gateway::Event (or nil for ignored types)
 #   - subscription_from, event_from: turn Stripe objects into the plain Gateway values
@@ -74,6 +75,25 @@ module Billing
 
     def retrieve_subscription(subscription_id)
       translating { self.class.subscription_from(client.v1.subscriptions.retrieve(subscription_id)) }
+    end
+
+    # Ids of every subscription of the customer that has not ended, for the daily reconciliation.
+    def live_subscription_ids(customer_id)
+      translating do
+        ids = []
+        client.v1.subscriptions.list({ customer: customer_id, status: "all" }).auto_paging_each do |subscription|
+          ids << subscription.id unless Gateway::ENDED_STATUSES.include?(subscription.status)
+        end
+        ids
+      end
+    end
+
+    # The plan price STRIPE_PRICE_ID points at, so the page shows what Checkout will charge.
+    def retrieve_price
+      translating do
+        price = client.v1.prices.retrieve(ENV.fetch("STRIPE_PRICE_ID"))
+        Gateway::Price.new(unit_amount: price.unit_amount, currency: price.currency, interval: price.recurring&.interval)
+      end
     end
 
     def cancel_subscription_now(subscription_id)

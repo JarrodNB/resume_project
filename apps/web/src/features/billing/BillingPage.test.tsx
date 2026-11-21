@@ -7,8 +7,8 @@ import { BillingPage } from './BillingPage'
 import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION, START_BILLING_PORTAL_MUTATION } from './billingOperations'
 
 type Plan = 'TRIAL' | 'PAID' | 'ENDED'
-type BillingData = { plan: Plan; trialEndsAt: string | null; currentPeriodEndsAt: string | null; cancelAtPeriodEnd: boolean; canManageBilling?: boolean }
-const billingResult = (billing: BillingData) => ({ data: { me: { __typename: 'User', id: '1', billing: { __typename: 'Billing', canManageBilling: false, ...billing } } } })
+type BillingData = { plan: Plan; trialEndsAt: string | null; currentPeriodEndsAt: string | null; cancelAtPeriodEnd: boolean; canManageBilling?: boolean; priceLabel?: string | null }
+const billingResult = (billing: BillingData) => ({ data: { me: { __typename: 'User', id: '1', billing: { __typename: 'Billing', canManageBilling: false, priceLabel: '$12/month', ...billing } } } })
 const trial: BillingData = { plan: 'TRIAL', trialEndsAt: '2026-12-05T12:00:00Z', currentPeriodEndsAt: null, cancelAtPeriodEnd: false }
 const paid: BillingData = { plan: 'PAID', trialEndsAt: null, currentPeriodEndsAt: '2026-12-20T12:00:00Z', cancelAtPeriodEnd: false }
 const originalLocation = window.location
@@ -58,6 +58,12 @@ it('shows Upgrade with the price for a trial and for an ended plan', async () =>
   renderBilling(trial)
   expect(await screen.findByRole('button', { name: 'Upgrade' })).toBeEnabled()
   expect(screen.getByText('$12/month')).toBeInTheDocument()
+})
+
+it('leaves the price out when it could not be read', async () => {
+  renderBilling({ ...trial, priceLabel: null })
+  expect(await screen.findByRole('button', { name: 'Upgrade' })).toBeEnabled()
+  expect(screen.queryByText(/\/month/)).not.toBeInTheDocument()
 })
 
 it('shows Upgrade when the trial has ended', async () => {

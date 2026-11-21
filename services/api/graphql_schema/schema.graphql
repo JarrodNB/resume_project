@@ -522,6 +522,11 @@ type Billing {
   plan: BillingPlanEnum!
 
   """
+  The plan price as shown to people, such as "$12/month", read from Stripe. Null when it can't be read.
+  """
+  priceLabel: String
+
+  """
   When the free trial ends (or ended).
   """
   trialEndsAt: ISO8601DateTime

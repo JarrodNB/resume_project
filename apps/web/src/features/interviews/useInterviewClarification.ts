@@ -12,6 +12,7 @@ export function useInterviewClarification(interviewId: string, messageId: string
   const record = local && (!saved || local.attemptCount > saved.attemptCount) ? local : saved
   const [request, { loading }] = useMutation(REQUEST_INTERVIEW_CLARIFICATION)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [expired, setExpired] = useState(false)
   const locked = useRef(false)
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(record?.aiTaskId ?? '')
@@ -31,11 +32,13 @@ export function useInterviewClarification(interviewId: string, messageId: string
     if (locked.current || explanation || (pending && !retryFailed)) return
     locked.current = true
     setError(null)
+    setErrorCode(null)
     try {
       const response = await request({ variables: { input: { interviewId, messageId, retryFailed } } })
       const payload = response.data?.requestInterviewClarification
       if (payload?.errors.length || !payload?.clarification) {
         setError(payload?.errors.join('. ') || 'Could not request clarification. Please retry.')
+        setErrorCode(payload?.errorCode ?? null)
       } else {
         setExpired(false)
         setLocal(payload.clarification)
@@ -44,7 +47,7 @@ export function useInterviewClarification(interviewId: string, messageId: string
       setError('Could not confirm clarification. Retry to check its saved status.')
     } finally { locked.current = false }
   }
-  return { clarify, explanation, pending: pending || loading, failed, canRetry: (record?.attemptCount ?? 0) < 2,
+  return { clarify, explanation, errorCode, pending: pending || loading, failed, canRetry: (record?.attemptCount ?? 0) < 2,
     error: error || (failed ? currentTask?.errorMessage || 'Clarification did not finish. Please retry.' : null),
     subscriptionError: subscriptionError ? 'Live clarification updates disconnected. Reopen this interview to check saved status.' : null }
 }

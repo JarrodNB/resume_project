@@ -20,6 +20,9 @@ development: &recurring
   send_trial_ending_emails:
     class: Accounts::SendTrialEndingEmailsJob
     schedule: every day at 9:10am
+  reconcile_billing_subscriptions:
+    class: Billing::ReconcileSubscriptionsJob
+    schedule: every day at 4:40am
   purge_old_resume_uploads:
     class: ResumeImports::PurgeOldUploadsJob
     schedule: every day at 3:20am

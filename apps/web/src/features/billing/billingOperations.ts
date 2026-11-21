@@ -3,7 +3,7 @@ import { graphql } from '@/graphql/generated'
 
 export const BILLING_QUERY = graphql(`
   query Billing {
-    me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd canManageBilling } }
+    me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd canManageBilling priceLabel } }
   }
 `)
 

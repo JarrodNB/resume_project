@@ -2,6 +2,8 @@
 # State is class-level (the app builds a new gateway per call); reset it before each example.
 # Index:
 #   - cancel_customer_subscriptions: cancels (and records) that customer's live subscriptions
+#   - live_subscription_ids: ids of that customer's not-yet-ended subscriptions in .subscriptions
+#   - .price: the Billing::Gateway::Price retrieve_price returns; .price_error makes it raise
 #   - FakeStripeGateway.reset!: clears customers, subscriptions and recorded calls
 #   - .configured: set false to simulate a missing Stripe secret key; .checkout_configured: false for a missing price id
 #   - .checkout_error, .portal_error, .cancel_error: set to a Billing::Gateway error to make that call raise it
@@ -16,7 +18,7 @@ class FakeStripeGateway
   VALID_SIGNATURE = "fake-valid-signature"
 
   class << self
-    attr_accessor :configured, :checkout_configured, :checkout_error, :portal_error, :cancel_error, :on_create_customer
+    attr_accessor :configured, :checkout_configured, :checkout_error, :price, :price_error, :portal_error, :cancel_error, :on_create_customer
     attr_reader :subscriptions, :later_states, :customers_created, :customer_call_depths, :checkout_sessions, :portal_sessions, :canceled
 
     def reset!
@@ -25,6 +27,8 @@ class FakeStripeGateway
       @checkout_error = nil
       @portal_error = nil
       @cancel_error = nil
+      @price = Billing::Gateway::Price.new(unit_amount: 1200, currency: "usd", interval: "month")
+      @price_error = nil
       @subscriptions = {}
       @later_states = {}
       @customers_created = []
@@ -77,6 +81,17 @@ class FakeStripeGateway
     raise self.class.cancel_error if self.class.cancel_error
     self.class.canceled << subscription_id
     nil
+  end
+
+  def live_subscription_ids(customer_id)
+    self.class.subscriptions.each_value.filter_map do |subscription|
+      subscription.id if subscription.customer_id == customer_id && !Billing::Gateway::ENDED_STATUSES.include?(subscription.status)
+    end
+  end
+
+  def retrieve_price
+    raise self.class.price_error if self.class.price_error
+    self.class.price
   end
 
   # Cancels every not-yet-ended subscription of the customer, like the real adapter.

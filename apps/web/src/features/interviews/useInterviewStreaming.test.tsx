@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { MockedProvider } from '@apollo/client/testing/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { PlanEndedError } from '@/lib/planEnded'
 import { startStreamingTranscription } from './streamingTranscription'
 import { AUTHORIZE_TRANSCRIPTION, useInterviewStreaming } from './useInterviewStreaming'
 
@@ -11,7 +12,7 @@ const snapshot = { id: 'session', revision: 3, currentQuestionPosition: 2, quest
 
 it('requests the current owned question and revision and keeps its capability in the adapter', async () => {
   const grant = { captureId: 'capture', token: 'opaque' }
-  const authorizeResult = vi.fn(() => ({ data: { authorizeInterviewTranscription: { __typename: 'AuthorizeInterviewTranscriptionPayload', ...grant, errors: [] } } }))
+  const authorizeResult = vi.fn(() => ({ data: { authorizeInterviewTranscription: { __typename: 'AuthorizeInterviewTranscriptionPayload', errorCode: null, ...grant, errors: [] } } }))
   const mocks = [{ request: { query: AUTHORIZE_TRANSCRIPTION, variables: { input: { interviewId: 'session', questionId: 'current-question', expectedRevision: 3 } } }, result: authorizeResult }]
   const { result } = renderHook(() => useInterviewStreaming(snapshot), { wrapper: ({children}) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   const callbacks = { text: vi.fn(), fallback: vi.fn() }
@@ -22,9 +23,17 @@ it('requests the current owned question and revision and keeps its capability in
 })
 
 it('rejects denied authorization so the adapter can retain recorded fallback', async () => {
-  const mocks = [{ request: { query: AUTHORIZE_TRANSCRIPTION, variables: { input: { interviewId: 'session', questionId: 'current-question', expectedRevision: 3 } } }, result: { data: { authorizeInterviewTranscription: { captureId: null, token: null, errors: ['Interview revision is stale'] } } } }]
+  const mocks = [{ request: { query: AUTHORIZE_TRANSCRIPTION, variables: { input: { interviewId: 'session', questionId: 'current-question', expectedRevision: 3 } } }, result: { data: { authorizeInterviewTranscription: { errorCode: null, captureId: null, token: null, errors: ['Interview revision is stale'] } } } }]
   const { result } = renderHook(() => useInterviewStreaming(snapshot), { wrapper: ({children}) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   result.current({} as MediaStream, { text: vi.fn(), fallback: vi.fn() })
   const authorize = vi.mocked(startStreamingTranscription).mock.calls[0][2]
   await act(async () => { await expect(authorize()).rejects.toThrow('Interview revision is stale') })
+})
+
+it('rejects with the trial-ended message when the plan has ended', async () => {
+  const mocks = [{ request: { query: AUTHORIZE_TRANSCRIPTION, variables: { input: { interviewId: 'session', questionId: 'current-question', expectedRevision: 3 } } }, result: { data: { authorizeInterviewTranscription: { errorCode: 'PLAN_ENDED', captureId: null, token: null, errors: ['Your free trial has ended.'] } } } }]
+  const { result } = renderHook(() => useInterviewStreaming(snapshot), { wrapper: ({children}) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
+  result.current({} as MediaStream, { text: vi.fn(), fallback: vi.fn() })
+  const authorize = vi.mocked(startStreamingTranscription).mock.calls[0][2]
+  await act(async () => { await expect(authorize()).rejects.toBeInstanceOf(PlanEndedError) })
 })

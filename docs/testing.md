@@ -41,7 +41,8 @@ check that private data stays within its account. Use separate browser profiles
 for simultaneous sessions, since tabs in one profile share the session cookie.
 Use synthetic career and job information when adding data.
 
-`db:seed` only creates missing accounts in `RAILS_ENV=development`; it does nothing
+`db:seed` only creates missing accounts in `RAILS_ENV=development` (with a ten-year trial and the paid
+daily cap, so QA never hits the trial end); it does nothing
 in test or production. Rerunning it preserves existing passwords, confirmation
 state, and saved work. If a password test changes a QA password, restore the initial
 password through Account security afterward. If the password is unknown, request

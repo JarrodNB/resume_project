@@ -76,6 +76,7 @@ export function BillingPage() {
   const [portalErrors, setPortalErrors] = useState<string[]>([])
   const [params] = useSearchParams()
   const plan = data?.me.billing.plan
+  const priceLabel = data?.me.billing.priceLabel
   const { waiting, gaveUp } = useRefetchPlanAfterCheckout(params.get('checkout') === 'success', plan, refetch)
   const summary = data ? planSummary(data.me.billing) : null
 
@@ -99,7 +100,7 @@ export function BillingPage() {
           {(plan === 'TRIAL' || plan === 'ENDED') && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Button onClick={upgrade} disabled={starting || (waiting && !gaveUp)}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
-              <span className="text-sm text-muted-foreground">$12/month</span>
+              {priceLabel && <span className="text-sm text-muted-foreground">{priceLabel}</span>}
             </div>
           )}
           <ErrorAlert messages={checkoutErrors} />

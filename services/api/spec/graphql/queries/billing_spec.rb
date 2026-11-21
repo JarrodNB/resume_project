@@ -34,9 +34,15 @@ RSpec.describe "me.billing query" do
     expect(billing_for(create(:user, :trial_ended))).to include("plan" => "ENDED", "currentPeriodEndsAt" => nil)
   end
 
+  it "shows the plan price read from Stripe" do
+    price = execute_graphql("{ me { billing { priceLabel } } }", user: create(:user)).dig("data", "me", "billing", "priceLabel")
+
+    expect(price).to eq("$12/month")
+  end
+
   it "does not expose caps, spend, cap overrides or Stripe ids" do
     type = ApiSchema.types["Billing"]
 
-    expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd", "canManageBilling")
+    expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd", "canManageBilling", "priceLabel")
   end
 end

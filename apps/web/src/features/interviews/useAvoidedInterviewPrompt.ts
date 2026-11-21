@@ -9,16 +9,21 @@ export function useAvoidedInterviewPrompt(interviewId: string, messageId: string
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const pending = useRef(false)
   async function save() {
     if (pending.current || persisted || saved) return
     pending.current = true
     setSaving(true)
     setErrors([])
+    setErrorCode(null)
     try {
       const payload = (await mutate({ variables: { interviewId, messageId } })).data?.avoidInterviewPrompt
       if (payload?.saved && payload.errors.length === 0) setSaved(true)
-      else setErrors(payload?.errors.length ? payload.errors : ['Could not save this preference. Try again.'])
+      else {
+        setErrors(payload?.errors.length ? payload.errors : ['Could not save this preference. Try again.'])
+        setErrorCode(payload?.errorCode ?? null)
+      }
     } catch (error) {
       setErrors([requestErrorMessage(error, 'Could not save this preference. Try again.')])
     } finally {
@@ -26,5 +31,5 @@ export function useAvoidedInterviewPrompt(interviewId: string, messageId: string
       setSaving(false)
     }
   }
-  return { save, saved: persisted || saved, saving, errors }
+  return { save, saved: persisted || saved, saving, errors, errorCode }
 }

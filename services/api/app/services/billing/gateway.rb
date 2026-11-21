@@ -4,10 +4,11 @@
 # production that is Billing::StripeGateway; the test environment points
 # `config.x.billing_gateway` at an in-memory fake, so specs never call Stripe.
 # Every adapter answers: configured? (secret key set), checkout_configured? (also the price id), create_customer, create_checkout_session,
-# create_portal_session, retrieve_subscription, cancel_subscription_now,
-# cancel_customer_subscriptions, construct_event.
+# create_portal_session, retrieve_subscription, live_subscription_ids, cancel_subscription_now,
+# cancel_customer_subscriptions, retrieve_price, construct_event.
 # Index:
 #   - Subscription: a subscription's current state (status, period end, cancel flag, user id and source marker from metadata)
+#   - Price: the plan price (amount in the currency's smallest unit, ISO currency, billing interval)
 #   - Event: a verified webhook event reduced to its type and subscription id
 #   - InvalidSignature: raised by construct_event for a missing or wrong signature
 #   - Unavailable: the provider could not do the call (network, rate limit, auth, any other provider error)
@@ -24,6 +25,7 @@ module Billing
       def initialize(source: nil, **rest) = super
     end
     Event = Data.define(:type, :subscription_id)
+    Price = Data.define(:unit_amount, :currency, :interval)
 
     # Subscription statuses that are over for good; there is nothing left to cancel.
     ENDED_STATUSES = %w[canceled incomplete_expired].freeze

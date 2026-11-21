@@ -139,17 +139,17 @@ RSpec.describe "Prepared interview allowances" do
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
   end
 
-  it "preserves unknown-cost admission blocking for prepared stages" do
+  it "does not block prepared stages on another call's unresolved estimate" do
     session = prepare
     speech = session.operations.speech.first
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
     unknown = InterviewVerificationReservation.create!(observation_id: SecureRandom.uuid, reserved_microdollars: 250_000)
     expect(Interviews::StartProviderAttemptService.call(operation: speech, attempt_id: speech.attempt_id,
       claim_generation: speech.claim_generation, observation_id: SecureRandom.uuid, stage: "speech", provider: "openai",
-      model: "gpt-4o-mini-tts")).not_to be_success
-    expect(speech.reload).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached")
+      model: "gpt-4o-mini-tts")).to be_success
+    expect(speech.reload.status).not_to eq("failed")
     expect(unknown.reload.actual_microdollars).to be_nil
-    expect(InterviewVerificationReservation.count).to eq(1)
+    expect(InterviewVerificationReservation.count).to eq(2)
   end
 
   it "retains the task-creation-day policy while new children account in their execution day" do

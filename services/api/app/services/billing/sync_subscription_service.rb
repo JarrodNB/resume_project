@@ -31,6 +31,8 @@ module Billing
 
     # Runs inside the row lock. Returns the duplicate paid subscription's id when one must be cancelled.
     def apply_latest_state(row)
+      # The Stripe call happens inside the lock on purpose: two syncs running at once can't then write
+      # stale state over newer state. It locks only this user's billing row, and the job retries.
       fetched = @gateway.retrieve_subscription(@subscription_id)
       paid = BillingSubscription::PAID_STATUSES
       other_paid_held = row.stripe_subscription_id.present? && row.stripe_subscription_id != fetched.id && row.status.in?(paid)

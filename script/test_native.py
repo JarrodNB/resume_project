@@ -117,7 +117,8 @@ class NativeSetupTests(unittest.TestCase):
             return {"postgres": "postgres (PostgreSQL) 17.6\n", "node": "v24.0.0\n",
                     "pg_config": str(self.root) + "\n"}[args[0]]
 
-        with patch.object(native, "require_tools"), patch.object(native.os, "geteuid", return_value=1000), \
+        with patch.object(native, "require_tools"), patch.object(native, "install_redis"), \
+                patch.object(native.os, "geteuid", return_value=1000), \
                 patch.object(native.subprocess, "check_output", side_effect=output), \
                 patch.object(native.subprocess, "run", return_value=type("Result", (), {"returncode": 0})()), \
                 patch.object(native, "run") as run:
@@ -161,7 +162,7 @@ class NativeSetupTests(unittest.TestCase):
             events.append((name, args))
             return type("Process", (), {"poll": lambda self: None})()
 
-        with patch.object(native, "spawn", side_effect=spawn), \
+        with patch.object(native, "spawn", side_effect=spawn), patch.object(native, "require_tools"), \
                 patch.object(native, "prepare_database", side_effect=lambda env: events.append(("prepared", []))), \
                 patch.object(native, "run"), patch.object(native, "wait_port"), \
                 patch.object(native, "check"), patch.object(native.time, "sleep"), \
@@ -194,13 +195,12 @@ class NativeSetupTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
                     native.check()
 
-    def test_streaming_redis_is_opt_in_and_external_redis_is_not_started(self):
+    def test_default_redis_is_started_and_external_redis_is_not(self):
         (self.state / "emulators/bin").mkdir(parents=True)
         (self.state / "emulators/bin/moto_server").touch()
-        for enabled, redis_url, expected in [("false", "", False), ("true", "", True),
-                ("true", "redis://external:6379/0", False)]:
+        for redis_url, expected in [("", True), ("redis://external:6379/0", False)]:
             started = []
-            with patch.dict(os.environ, {"AI_STREAMING_ENABLED": enabled, "AI_STREAM_REDIS_URL": redis_url}), \
+            with patch.dict(os.environ, {"AI_STREAM_REDIS_URL": redis_url}), \
                     patch.object(native, "spawn", side_effect=lambda name, *args, started=started: (
                         started.append(name) or type("Process", (), {"poll": lambda self: None})())), \
                     patch.object(native, "require_tools"), patch.object(native, "prepare_database"), \
@@ -213,14 +213,15 @@ class NativeSetupTests(unittest.TestCase):
         self.state.mkdir()
         (self.state / "jobs.pid").write_text(json.dumps({
             "pid": os.getpid(), "started": native.process_start(os.getpid())}))
-        with patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+        with patch.dict(os.environ, {"AI_STREAM_REDIS_URL": "redis://external:6379/0"}), \
+                patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
             native.check()
 
     def test_optional_redis_check_requires_its_recorded_process_identity(self):
         self.state.mkdir()
         identity = {"pid": os.getpid(), "started": native.process_start(os.getpid())}
         (self.state / "jobs.pid").write_text(json.dumps(identity))
-        with patch.dict(os.environ, {"AI_STREAMING_ENABLED": "true", "AI_STREAM_REDIS_URL": ""}), \
+        with patch.dict(os.environ, {"AI_STREAM_REDIS_URL": ""}), \
                 patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
             with self.assertRaisesRegex(RuntimeError, "Optional stream buffer is not running"):
                 native.check()

@@ -110,7 +110,6 @@ def test_chat_and_interview_share_one_enabled_execution_runner(monkeypatch):
     monkeypatch.setattr("database.interview_inputs.interview_database_ready", lambda _: True)
     monkeypatch.setattr("database.chat_inputs.chat_database_ready", lambda _: True)
     monkeypatch.setenv("AI_HTTP_ENABLED", "true")
-    monkeypatch.setenv("AI_STREAMING_ENABLED", "false")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-service")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-provider")
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-screening")
@@ -128,8 +127,7 @@ def test_chat_and_interview_share_one_enabled_execution_runner(monkeypatch):
 
 
 def test_chat_reader_grant_failure_keeps_enabled_runtime_unready(monkeypatch):
-    for name, value in {"AI_HTTP_ENABLED": "true", "AI_STREAMING_ENABLED": "false",
-                        "INTERVIEW_SERVICE_SECRET": "synthetic", "OPENAI_API_KEY": "synthetic",
+    for name, value in {"AI_HTTP_ENABLED": "true", "INTERVIEW_SERVICE_SECRET": "synthetic", "OPENAI_API_KEY": "synthetic",
                         "TYPESAFE_API_KEY": "synthetic"}.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setattr("database.interview_inputs.interview_database_ready", lambda _: True)

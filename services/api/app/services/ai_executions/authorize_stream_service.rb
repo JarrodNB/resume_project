@@ -8,7 +8,6 @@ module AiExecutions
     end
 
     def call
-      return failure("Streaming unavailable") unless ENV["AI_STREAMING_ENABLED"] == "true"
       identity = BrowserSessions::ResolveSessionIdentityService.call(session_id: @session_id)
       return failure("Authentication required") unless @user && identity.success? && identity.value.id == @user.id
 

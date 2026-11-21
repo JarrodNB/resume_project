@@ -18,7 +18,6 @@ RSpec.describe "Execution stream authorization", type: :request do
 
   before do
     allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("AI_STREAMING_ENABLED").and_return("true")
     allow(ENV).to receive(:[]).with("INTERVIEW_SERVICE_SECRET").and_return("stream-machine-secret")
     Interviews::ClaimOperationService.call(operation: operation)
     get "/auth/session", headers: headers

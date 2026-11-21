@@ -1,10 +1,13 @@
 /**
- * Description: Red alert listing one or more user-facing error messages.
+ * Description: Red alert listing one or more user-facing error messages. A "free trial has ended"
+ * refusal gets a link to Plan & billing, so every screen that shows AI errors through here has it.
  * Index:
  *   - ErrorAlert: renders nothing when `messages` is empty
  */
 import { CircleAlert } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { PlanBillingLink } from '@/features/billing/PlanBillingLink'
+import { PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
 import { TransientAlert } from './TransientAlert'
 
 interface ErrorAlertProps {
@@ -23,7 +26,7 @@ export function ErrorAlert({ messages, title, notificationId }: ErrorAlertProps)
       {title && <AlertTitle>{title}</AlertTitle>}
       <AlertDescription>
         {messages.map((message) => (
-          <p key={message}>{message}</p>
+          <p key={message}>{message}{message === PLAN_ENDED_MESSAGE && <> <PlanBillingLink /></>}</p>
         ))}
       </AlertDescription>
     </Container>

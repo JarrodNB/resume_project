@@ -3,7 +3,9 @@
  * Index: notification lifecycle regression tests
  */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, expect, it, vi } from 'vitest'
+import { PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
 import { ErrorAlert } from './ErrorAlert'
 import { TRANSIENT_ALERT_EXIT_MS, TRANSIENT_ALERT_MS } from './TransientAlert'
 
@@ -33,4 +35,15 @@ it('keeps ordinary form errors visible', () => {
   act(() => vi.advanceTimersByTime(TRANSIENT_ALERT_MS))
   expect(screen.getByRole('alert')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+})
+
+it('links a plan-ended refusal to the billing page', () => {
+  render(<MemoryRouter><ErrorAlert messages={[PLAN_ENDED_MESSAGE]} /></MemoryRouter>)
+  expect(screen.getByText(PLAN_ENDED_MESSAGE)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+})
+
+it('adds no billing link to other errors', () => {
+  render(<MemoryRouter><ErrorAlert messages={['Answer is required']} /></MemoryRouter>)
+  expect(screen.queryByRole('link')).not.toBeInTheDocument()
 })

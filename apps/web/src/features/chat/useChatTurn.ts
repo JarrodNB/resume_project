@@ -5,6 +5,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import type { ChatOperationQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { PLAN_ENDED_FAILURE_CODE, PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
 import { observeChatOutput } from './chatOutputStream'
 import { AUTHORIZE_CHAT_OUTPUT, CHAT_CONVERSATION_UPDATED, CHAT_OPERATION_QUERY, RETRY_CHAT_MESSAGE, SEND_CHAT_MESSAGE } from './chatTurnOperations'
 
@@ -26,7 +27,7 @@ const failureMessages: Record<string, string> = {
   lease_expired: 'The reply was interrupted. You can try again.',
   dependency_unavailable: 'The AI service is unavailable. Try again shortly.',
   ai_usage_limit_reached: "You've reached today's usage limit. Try again tomorrow.",
-  plan_ended: 'Your free trial has ended. Subscribe to keep using AI features.',
+  [PLAN_ENDED_FAILURE_CODE]: PLAN_ENDED_MESSAGE,
 }
 export const chatFailureMessage = (code: string | null) => failureMessages[code ?? ''] ?? 'Careerdrafter could not finish the reply. You can try again.'
 

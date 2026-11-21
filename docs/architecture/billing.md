@@ -24,11 +24,12 @@ console (`User#comped?`). It replaces the plan's daily cap and grants AI access 
 
 ## Trial
 
-- `trial_ends_at` is set when the email is confirmed (`Accounts::ConfirmAccountService`): confirmed
+- `Billing::Trial` is the one home of the trial rule (7-day `LENGTH`, `start!`, `ends_at_for`).
+  `trial_ends_at` is set when the email is confirmed (`Accounts::ConfirmAccountService` calls `Billing::Trial.start!`): confirmed
   time plus 7 days. One trial per account, ever; re-subscribing never restarts it.
 - The migration that added the column gave every already-confirmed user launch time plus 7 days.
   A confirmed user still missing `trial_ends_at` (confirmed between that migration and the new code
-  going live) gets confirmed time plus 7 days from `Billing::ResolvePlanService`; the trial-ending
+  going live) gets confirmed time plus 7 days from `Billing::Trial.ends_at_for` (used by `Billing::ResolvePlanService`); the trial-ending
   email does not cover that rare case.
 - `Accounts::SendTrialEndingEmailsJob` (daily, `config/recurring.yml`) emails non-paid users whose
   trial ends within about a day. `trial_ending_email_sent_at` makes it once per user.

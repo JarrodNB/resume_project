@@ -63,13 +63,11 @@ RSpec.describe "Unmetered local interview testing" do
   end
 
   [ [ false, "true" ], [ false, nil ] ].each do |development, enabled|
-    it "preserves normal gates with development=#{development} and explicit mode=#{enabled.inspect}" do
+    it "preserves the monthly allowance gate with development=#{development} and explicit mode=#{enabled.inspect}" do
       local_testing(development: development, enabled: enabled)
       operation = claimed_operation
       InterviewVerificationReservation.create!(observation_id: SecureRandom.uuid, reserved_microdollars: 6_000_000)
-      expect(Interviews::VerificationBudget.enforced?).to be(true)
-      expect(start(operation)).not_to be_success
-      expect(operation.execution_attempts.first.provider_attempts).to be_empty
+      expect(start(operation)).to be_success
       stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
       expect(AiUsage::CheckAiTaskAllowanceService.call(user: user, interview: true)).not_to be_success
     end

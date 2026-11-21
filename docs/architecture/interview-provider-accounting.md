@@ -59,38 +59,28 @@ The chosen speech model is deprecated; official
 6 January 2027. This increment preserves the agreed model. Availability and quality still
 need account-level paid checks; no silent replacement is permitted.
 
-## One cumulative verification target
+## Verification ledger (no global stop)
 
-### Development-only unmetered local testing
-
-The real browser-QA overlay explicitly sets `INTERVIEW_LOCAL_TESTING_UNMETERED=true`.
-Only Rails development honors it. This mode skips unknown-cost and cumulative US$5
-verification admission gates, plus interview monthly/hourly allowance gates. It retains
-the original ledger, preregistered provider identities, pricing allowlist, all estimates,
-actual reconciliation, owner scoping, lease fences and resource/attempt limits. General AI
-allowances and non-development admission are unchanged. The launcher honors the same mode;
-local testing no longer requires approving each new unresolved observation.
+Every paid provider call records a conservative estimate in `InterviewVerificationReservation`
+and is reconciled with actual usage when reliable usage arrives. This ledger is bookkeeping
+only. It never blocks a call because another call is unresolved, failed, or because the
+total is large. One failed or unreported call (a dropped transcription stream, a lost
+receipt) must not stop interviews for everyone. Only a model with no registered price is
+refused. Per-user allowances and the resource, attempt and concurrency limits still apply.
 
 The 250,000-microdollar speech estimate is local bookkeeping, not money reserved with
 OpenAI, a confirmed charge or a card hold. Unknown estimates stay recorded without being
-assigned zero or deleted. Outside this explicit local mode, the verification rules below
-remain enforced.
+assigned zero or deleted.
 
-### Explicitly reviewed historical unknowns when verification is enforced
+### Development-only unmetered local testing
 
-The default remains stop-on-unknown. After new human authorization, a development-only
-paid verification process may set `INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS` to a comma-separated
-list of exact historical observation UUIDs. This requires both Rails development mode and
-`INTERVIEW_PAID_VERIFICATION=true`; the paid Compose overlay passes the list to Rails.
-Reviewed rows remain unresolved and count at their full reserved estimates toward the same
-US$5 target. A new unknown observation blocks all subsequent calls again. This neither
-reconciles old charges nor resumes old operations. Inspect pending work first and claim only
-the explicitly selected diagnostic operations; the general paid harness still refuses old
-unknown usage and pending work. Remove the override after the diagnostic and stop execution.
+The real browser-QA overlay sets `INTERVIEW_LOCAL_TESTING_UNMETERED=true`. Only Rails
+development honors it. This mode also skips the per-user interview monthly/hourly allowance
+gates. It retains the ledger, preregistered provider identities, pricing allowlist,
+all estimates, actual reconciliation, owner scoping, lease fences and resource/attempt limits.
 
-The human approved conservative estimates on 21 October 2026: aim for US$5 total,
-reconcile actual charges, and stop after any unknown charge. This is a local verification
-target, not a provider-side billing guarantee. The speech API exposes no documented hard
+Estimates are conservative and actual charges are reconciled. They are not a
+provider-side billing guarantee. The speech API exposes no documented hard
 output-token cap; input text limits, download byte limits and timeouts do not prove a
 maximum charge. An actual charge may exceed its estimate.
 
@@ -120,18 +110,15 @@ and known-cost reconciliation use that final lock. The transaction includes regi
 and the unfinished usage marker; no provider I/O runs under database locks. Existing
 user allowance applies when enabled; resource and operation/attempt caps always apply.
 
-By default, at most **one unresolved paid reservation** may exist globally. While a request is in
-flight, another paid admission is refused. A crash, lost receipt or unknown/error report
-leaves that reservation unresolved and blocks every subsequent paid verification call,
-even when budget remains or the old claim expires. There is no automatic timeout release.
-Once reliable late usage arrives, Rails reconciles that observation exactly once and may
-admit another request if actual totals plus its reservation fit the remaining target.
-Execution-completion summaries cannot release provider reservations or charge them again.
-Conflicting known reports fail; repeated matching reports and later unknown reports do
-not change known totals. Shared queued-task finalized-report behavior is unchanged.
+A crash, lost receipt or unknown/error report leaves that reservation unresolved. It
+stays on the ledger and does not block other calls. Once reliable late usage arrives, Rails
+reconciles that observation exactly once. Execution-completion summaries cannot release
+provider reservations or charge them again. Conflicting known reports fail; repeated
+matching reports and later unknown reports do not change known totals. Shared queued-task
+finalized-report behavior is unchanged.
 
-A lost registration response sends no provider request but conservatively leaves an
-unresolved reservation. Recover only by reconciling reliable provider evidence through
+A lost registration response sends no provider request but leaves an
+unresolved reservation on the ledger. Recover only by reconciling reliable provider evidence through
 the original scoped observation callback. If the owning operation/account was deleted,
 that callback is unavailable: an operator must verify the provider receipt and reconcile
 the original observation with `Interviews::VerificationBudget.reconcile` inside an explicit
@@ -140,9 +127,8 @@ occurred may establish actual zero; this operator path permits zero, while autom
 real-provider usage reports continue to reject it as an unsafe fallback. Do not create an automatic release,
 a public reconciliation endpoint, or an inferred zero charge. The helper requires an open
 transaction so its transaction-scoped advisory lock remains held until the update commits.
-If reliable evidence is unavailable, keep the actual cost unknown. Enforced verification
-remains stopped; local unmetered QA can continue without changing that record. Never delete
-ledger rows to keep testing. Old fake QA data remain retained offline.
+If reliable evidence is unavailable, keep the actual cost unknown. Never delete
+ledger rows. Old fake QA data remain retained offline.
 
 ## Accounted reasoning and screening
 
@@ -184,9 +170,8 @@ Luna and Terra use `prompt_cache_options: {"mode": "explicit"}` without breakpoi
 [official caching guidance](https://developers.openai.com/api/docs/guides/prompt-caching)
 confirms this creates no cache writes. The pinned Pydantic mapper preserves total write
 tokens but drops the 30-minute/12-hour split, so silently pricing writes as ordinary input
-would undercount. Unexpected Luna or Terra write tokens leave usage unknown and stop later paid
-dispatch when verification is enforced. Local unmetered QA retains the unknown record without
-that global stop. Nano retains its older implicit caching behavior; unrelated worker pricing is
+would undercount. Unexpected Luna or Terra write tokens leave usage unknown on the ledger without
+blocking later calls. Nano retains its older implicit caching behavior; unrelated worker pricing is
 unchanged.
 
 The feature supports Luna's and Terra's Standard short-context rates only. If reported input exceeds
@@ -194,7 +179,7 @@ The feature supports Luna's and Terra's Standard short-context rates only. If re
 The [model contract](https://developers.openai.com/api/docs/models/gpt-6-luna) applies
 higher rates above that boundary. The existing character-bound prompt checks are not a
 token-count guarantee; this post-response guard preserves truthful accounting and the
-unknown-cost record (and enforced stop where enabled), rather than promising a provider-side maximum bill.
+unknown-cost record, rather than promising a provider-side maximum bill.
 
 Verified 21 October 2026: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
 is US$0.10/0.01/0.50 per million input/cached/output tokens; [Nano](https://developers.openai.com/api/docs/models/gpt-5-nano)

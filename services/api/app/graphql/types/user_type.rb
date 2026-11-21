@@ -3,6 +3,7 @@
 # Description: The signed-in user.
 # Index:
 #   - id, email (sign-in), name
+#   - billing: plan and dates from Billing::ResolvePlanService
 #   - profile: contact_email, phone, location, links, summary; derived job search suggestions
 module Types
   class UserType < Types::BaseObject
@@ -18,6 +19,10 @@ module Types
     field :include_summary, Boolean, null: false
     field :resume_section_order, [ Types::ResumeSectionTypeEnum ], null: false, method: :ordered_resume_section_types,
           description: "Default section order for new resumes. Contact is always first and is not listed."
+
+    field :billing, Types::BillingType, null: false, description: "Plan and dates only; never limits or spend."
+
+    def billing = Billing::ResolvePlanService.call(user: object).value
 
     # Returns structured links while keeping legacy string rows readable.
     def links

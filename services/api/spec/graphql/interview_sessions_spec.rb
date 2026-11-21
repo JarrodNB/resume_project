@@ -6,10 +6,6 @@ RSpec.describe "Spoken interview GraphQL" do
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
   let(:snapshot) { "id status executionMode speechPlaybackMode revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
 
-  before do
-    allow(Interviews::Access).to receive(:enabled?).and_return(true)
-  end
-
   it "queues recorded review only for its owner and exposes a transcript only while current and live" do
     recording = ready_interview_recording(session)
     mutation = 'mutation($input: StartRecordedTranscriptionInput!) { startRecordedTranscription(input: $input) { operationId interview { revision } errors } }'
@@ -120,7 +116,6 @@ RSpec.describe "Spoken interview GraphQL" do
   end
 
   it "starts owned preparation without opening speech and safe operation progress" do
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
     result = execute_graphql("mutation { startInterview(input: {}) { interview { #{snapshot} } errors } }", user: user)
     expect(result["errors"]).to be_nil
@@ -153,22 +148,18 @@ RSpec.describe "Spoken interview GraphQL" do
   end
 
 
-  it "creates real only with explicit development admission and keeps saved mode after disabling" do
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+  it "creates real sessions and keeps the saved mode readable" do
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
     query = 'mutation { startInterview(input: {executionMode: "real"}) { interview { id executionMode } errors } }'
     result = execute_graphql(query, user: user)
     expect(result["errors"]).to be_nil
     real = result.dig("data", "startInterview", "interview")
     expect(real["executionMode"]).to eq("real")
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(false)
-    expect(execute_graphql(query, user: user).dig("data", "startInterview", "errors")).to include("Interview service is unavailable. Check the interview runtime and admission settings.")
     expect(execute_graphql("query { interviewSession(id: \"#{real['id']}\") { executionMode } }", user: user).dig("data", "interviewSession", "executionMode")).to eq("real")
     expect(Types::InterviewSessionType.fields.keys).not_to include("executionConfig")
   end
 
   it "fails new real admission actionably when its runtime is unavailable" do
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(false)
     result = execute_graphql('mutation { startInterview(input: {executionMode: "real"}) { interview { id } errors } }', user: user)
     expect(result.dig("data", "startInterview", "interview")).to be_nil
@@ -183,11 +174,9 @@ RSpec.describe "Spoken interview GraphQL" do
     expect(result.dig("errors", 0, "message")).to eq("Record not found")
   end
 
-  it "rejects unauthenticated and feature-disabled operations" do
+  it "rejects unauthenticated operations" do
     query = "mutation { startInterview(input: {}) { errors } }"
     expect(execute_graphql(query, user: nil).dig("errors", 0, "message")).to eq("Authentication required")
-    allow(Interviews::Access).to receive(:enabled?).and_return(false)
-    expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interviews unavailable in this environment")
   end
 
   it "keeps all recording, retry, submission, and playback actions owner-scoped" do
@@ -202,9 +191,6 @@ RSpec.describe "Spoken interview GraphQL" do
     actions.each do |name, arguments|
       query = "mutation { #{name}(input: {interviewId: \"#{session.id}\", #{arguments}}) { errors } }"
       expect(execute_graphql(query, user: outsider).dig("errors", 0, "message")).to eq("Record not found")
-      allow(Interviews::Access).to receive(:enabled?).and_return(false)
-      expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interviews unavailable in this environment")
-      allow(Interviews::Access).to receive(:enabled?).and_return(true)
     end
   end
 
@@ -240,17 +226,11 @@ RSpec.describe "Spoken interview GraphQL" do
     end
   end
 
-  it "allows ordinary authenticated interview access" do
-    allow(Interviews::Access).to receive(:enabled?).and_call_original
-    expect(Interviews::Access.enabled?).to be(true)
-  end
 end
 
 RSpec.describe "Interview snapshot subscriptions" do
   let(:user) { create(:user) }
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
-
-  before { allow(Interviews::Access).to receive(:enabled?).and_return(true) }
 
   it "returns a fresh accepted snapshot on reconnect and checks ownership" do
     query = "subscription($id: ID!) { interviewSessionUpdated(id: $id) { id revision messages { content } } }"
@@ -286,8 +266,6 @@ end
 
 RSpec.describe "Spoken preparation GraphQL privacy" do
   it "saves selected length and restores it through the owned public snapshot" do
-    allow(Interviews::Access).to receive(:enabled?).and_return(true)
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
     owner = create(:user, summary: "Private laboratory facts")
     invalid = execute_graphql('mutation { startInterview(input: {setup: {questionCount: 6}}) { interview { id } errors } }', user: owner)
@@ -311,8 +289,6 @@ RSpec.describe "Spoken preparation GraphQL privacy" do
   end
 
   it "exposes owned role progress but never raw frozen sources or another owner's session" do
-    allow(Interviews::Access).to receive(:enabled?).and_return(true)
-    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
     allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
     owner = create(:user, summary: "Private laboratory facts")
     result = execute_graphql('mutation { startInterview(input: {careerFocus: "laboratory"}) { interview { id status preparedRole operations { kind questionId } } errors } }', user: owner)

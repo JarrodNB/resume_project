@@ -49,14 +49,9 @@ module Types
       current_user.chat_conversations.find(id)
     end
 
-    field :interviews_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
     field :interview_session, Types::InterviewSessionType, null: false do
       argument :id, ID, required: true
-    end
-
-    def interviews_enabled
-      !!context[:current_user] && Interviews::Access.enabled?
     end
 
     def interview_session(id:)

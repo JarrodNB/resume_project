@@ -19,6 +19,7 @@ type Documents = {
     "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": typeof types.TaskOutcomeDocument,
     "\n  query TaskOutcomes($after: String!, $through: String!) {\n    taskOutcomes(after: $after, through: $through) {\n      cursor\n      hasMore\n      outcomes {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": typeof types.TaskOutcomesDocument,
     "\n  query Billing {\n    me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd } }\n  }\n": typeof types.BillingDocument,
+    "\n  mutation StartBillingCheckout {\n    startBillingCheckout(input: {}) { url errors }\n  }\n": typeof types.StartBillingCheckoutDocument,
     "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteExperienceDocument,
     "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteProjectDocument,
     "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteEducationDocument,
@@ -144,6 +145,7 @@ const documents: Documents = {
     "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": types.TaskOutcomeDocument,
     "\n  query TaskOutcomes($after: String!, $through: String!) {\n    taskOutcomes(after: $after, through: $through) {\n      cursor\n      hasMore\n      outcomes {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": types.TaskOutcomesDocument,
     "\n  query Billing {\n    me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd } }\n  }\n": types.BillingDocument,
+    "\n  mutation StartBillingCheckout {\n    startBillingCheckout(input: {}) { url errors }\n  }\n": types.StartBillingCheckoutDocument,
     "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteExperienceDocument,
     "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteProjectDocument,
     "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteEducationDocument,
@@ -298,6 +300,10 @@ export function graphql(source: "\n  query TaskOutcomes($after: String!, $throug
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query Billing {\n    me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd } }\n  }\n"): (typeof documents)["\n  query Billing {\n    me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation StartBillingCheckout {\n    startBillingCheckout(input: {}) { url errors }\n  }\n"): (typeof documents)["\n  mutation StartBillingCheckout {\n    startBillingCheckout(input: {}) { url errors }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

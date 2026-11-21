@@ -6,3 +6,10 @@ export const BILLING_QUERY = graphql(`
     me { id billing { plan trialEndsAt currentPeriodEndsAt cancelAtPeriodEnd } }
   }
 `)
+
+/** Asks Rails for a Stripe Checkout page to send the user to. */
+export const START_BILLING_CHECKOUT_MUTATION = graphql(`
+  mutation StartBillingCheckout {
+    startBillingCheckout(input: {}) { url errors }
+  }
+`)

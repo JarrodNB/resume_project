@@ -1,12 +1,20 @@
 /** "Plan & billing" (`/account/billing`): says which plan the user is on and the date that matters
  * (trial end, renewal, or the end of a cancelling plan). Shows dates only, never usage or limits.
- * Upgrade and Manage billing buttons will go in the marked spot once Stripe is wired in. */
-import { useQuery } from '@apollo/client/react'
+ * Trial and ended users get an Upgrade button that sends them to Stripe Checkout; after paying, the
+ * page refetches the plan for a short while until the Stripe webhook has made it Paid.
+ * The Manage billing button will go in the marked spot (ticket 04). */
+import { useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery } from '@apollo/client/react'
+import { useSearchParams } from 'react-router'
+import { Button } from '@/components/ui/button'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import type { BillingQuery } from '@/graphql/generated/graphql'
-import { BILLING_QUERY } from './billingOperations'
+import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION } from './billingOperations'
+
+const PLAN_REFETCH_INTERVAL_MS = 2000
+const PLAN_REFETCH_ATTEMPTS = 10
 
 type Billing = BillingQuery['me']['billing']
 
@@ -21,9 +29,48 @@ function planSummary(billing: Billing) {
   return { title: 'Your free trial has ended', detail: 'Your saved jobs, library and resumes are still here. AI features are paused.' }
 }
 
+/** After Checkout, refetch the plan every few seconds (bounded) until the webhook makes it Paid. */
+function useRefetchPlanAfterCheckout(returning: boolean, plan: string | undefined, refetch: () => unknown) {
+  const [gaveUp, setGaveUp] = useState(false)
+  const refetchRef = useRef(refetch)
+  refetchRef.current = refetch
+  const waiting = returning && plan !== undefined && plan !== 'PAID'
+  useEffect(() => {
+    if (!waiting) return
+    let attempts = 0
+    const timer = setInterval(() => {
+      attempts += 1
+      void refetchRef.current()
+      if (attempts >= PLAN_REFETCH_ATTEMPTS) {
+        clearInterval(timer)
+        setGaveUp(true)
+      }
+    }, PLAN_REFETCH_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [waiting])
+  return { waiting, gaveUp }
+}
+
 export function BillingPage() {
-  const { data, loading, error } = useQuery(BILLING_QUERY)
+  const { data, loading, error, refetch } = useQuery(BILLING_QUERY)
+  const [startCheckout, { loading: starting }] = useMutation(START_BILLING_CHECKOUT_MUTATION)
+  const [checkoutErrors, setCheckoutErrors] = useState<string[]>([])
+  const [params] = useSearchParams()
+  const plan = data?.me.billing.plan
+  const { waiting, gaveUp } = useRefetchPlanAfterCheckout(params.get('checkout') === 'success', plan, refetch)
   const summary = data ? planSummary(data.me.billing) : null
+
+  async function upgrade() {
+    setCheckoutErrors([])
+    try {
+      const { data: result } = await startCheckout()
+      const payload = result?.startBillingCheckout
+      if (payload?.url) window.location.href = payload.url
+      else setCheckoutErrors(payload?.errors.length ? payload.errors : ["Billing isn't available right now."])
+    } catch (caught) {
+      setCheckoutErrors([requestErrorMessage(caught, "Billing isn't available right now.")])
+    }
+  }
   return (
     <div className="account-security-page">
       <PageHeading title="Plan & billing" description="Your plan and when it changes." />
@@ -34,7 +81,19 @@ export function BillingPage() {
           <h2 id="current-plan-title" className="mb-2 text-xl font-semibold tracking-tight">Current plan</h2>
           <p className="text-lg font-medium">{summary.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{summary.detail}</p>
-          {/* Upgrade (ticket 03) and Manage billing (ticket 04) buttons go here. */}
+          {waiting && (
+            <p role="status" className="mt-3 text-sm">
+              {gaveUp ? 'Your payment is taking longer than usual to show up. Refresh this page in a minute.' : 'Payment received — updating your plan…'}
+            </p>
+          )}
+          {(plan === 'TRIAL' || plan === 'ENDED') && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button onClick={upgrade} disabled={starting}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
+              <span className="text-sm text-muted-foreground">$12/month</span>
+            </div>
+          )}
+          <ErrorAlert messages={checkoutErrors} />
+          {/* Manage billing button (ticket 04) goes here. */}
         </section>
       )}
     </div>

@@ -82,7 +82,7 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `study_guide_sources.py` binds queued task/owner/type/Job identity and expiry before
   reading current job text and valid completed prompts through narrow ordinary views.
   It preserves batch/slot order and rejects excess context without dropping history.
-- `interview_questions.py` reads queued task-owned written-practice sources in one repeatable-read transaction. It checks set/subject ownership, target and peer revisions, then selects active generated slots and account-owned preferences. Feedback reads only the selected active question’s answer and current approvals at its commanded revisions. Narrow grants exclude feedback, vectors, provider receipts and accounting. Written execution accepts only versioned identity/revision commands.
+- `interview_questions.py` reads queued task-owned written-practice sources in one repeatable-read transaction. It checks set/subject ownership, target and peer revisions, then selects active slots with durable generated/manual origins and account-owned preferences. Feedback reads only the selected active question’s answer and current approvals at its commanded revisions. Narrow grants exclude feedback, vectors, provider receipts and accounting. Written execution accepts only versioned identity/revision commands.
 
 - `chat_inputs.py` verifies live owned operation fences, expected message position and
   saved summary checkpoints/plans in one repeatable-read transaction. It loads only

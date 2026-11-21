@@ -3,6 +3,7 @@
 Python reads the source once from its domain row, reuses exact saved approvals and
 returns coaching only. Rails stores feedback against the reviewed revisions.
 """
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -25,6 +26,7 @@ from worker.task_dependencies import TaskDependencies
 class InterviewFeedbackInput(BaseModel):
     """Owned source fields loaded together at the commanded revisions."""
 
+    origin: Literal["generated", "manual"]
     question_set_id: UUID
     set_type: InterviewSetType = "fit_motivation"
     question_id: UUID
@@ -56,15 +58,18 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         return fail("Write an answer before asking for feedback.")
     source = saved.model_dump(mode="json")
     source["screened_fields"] = saved.screened_fields
-    outcome = screen_records_sync([interview_answer_record(source, "answer_text", saved.answer_text)],
-                                  approved_sources=[saved.answer_text]).decision
+    fields = ["answer_text", "question_text"] if saved.origin == "manual" else ["answer_text"]
+    outcome = screen_records_sync(
+        [interview_answer_record(source, field, source[field]) for field in fields],
+        approved_sources=[source[field] for field in fields],
+    ).decision
     usage.extend(outcome.model_usages)
     if not outcome.allowed:
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
-    # The owned reader selects a saved generated question, never browser-supplied text.
-    trust_generated_source(saved.question_text)
+    if saved.origin == "generated":
+        trust_generated_source(saved.question_text)
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)

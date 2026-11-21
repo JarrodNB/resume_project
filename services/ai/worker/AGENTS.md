@@ -122,7 +122,7 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   generated sources. Retained copies are freshness checks only, never prompt sources.
 
 - `interview_feedback_handler.py` — reuses saved question/answer checks or screens pending
-  answer checks before model use, trusts the Rails-owned generated question, screens library
+  answer checks before model use, trusts Rails-owned generated questions, screens manual questions or reuses their exact saved checks, screens library
   notes and career context requirement context, and reports coaching plus usage without writes.
   Requirement context clarifies a response but cannot support personal claims or evidence quotes.
   Knowledge inputs allow corrected subject examples while preserving the original answer and source-only optional evidence.
@@ -142,9 +142,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   questions are not. Saved history restores coverage so later feedback does not rescreen old pairs.
   Source/input/history/turn caps bound every exchange.
 
-- Written question generation/replacement reads owned saved preferences and generated
-  active slots directly. Trust those exact database values without rescreening generated
-  text. Recent same-type questions are bounded soft context, separate from hard exclusions
+- Written question generation/replacement reads owned saved preferences and active
+  slots directly with immutable generated/manual origins. Trust generated text; screen
+  manual text or reuse its exact saved checks. Missing provenance fails closed. Recent same-type questions are bounded soft context, separate from hard exclusions
   and career evidence; never add overlap retries or drop exclusions at the prompt cap.
 
 - `study_guide_handler.py` — loads current owned job text and successful prior question prompts by durable task identity; returns bounded guide material and a source fingerprint without injection classification, source copies, or career-library reads.

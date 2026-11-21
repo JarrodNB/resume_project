@@ -16,7 +16,9 @@ from llm.run_generative_agent import GenerativeOutputInvalid
 from schemas.interview_questions import InterviewSetType
 from screening.interview_question_inputs import prepare_interview_question_context
 from screening.library_inputs import LibraryScreeningError, screen_library_inputs
-from screening.session import trust_generated_source, within_screening_session
+from screening.record_adapters import interview_question_records
+from screening.records import screen_records_sync
+from screening.session import within_screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
@@ -24,6 +26,8 @@ from worker.task_dependencies import TaskDependencies
 class InterviewQuestionsInput(BaseModel):
     """Current owned question sources selected by the database reader."""
 
+    question_sources: list[dict] = Field(default_factory=list)
+    avoided_question_sources: list[dict] = Field(default_factory=list)
     avoided_questions: list[Annotated[str, Field(min_length=1, max_length=2000)]] = Field(default_factory=list, max_length=50)
     question_set_id: UUID
     set_type: InterviewSetType = "fit_motivation"
@@ -84,20 +88,22 @@ def handle_interview_questions_task(
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
     excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
-    # The owned database reader selects generated active slots, never browser text.
-    for question in excluded:
-        trust_generated_source(question)
-    # Preferences come only from preferences saved using owned, generated
-    # question/message records. It never accepts arbitrary browser text or user edits.
-    for question in snapshot.avoided_questions:
-        trust_generated_source(question)
+    recent = [] if replacement else snapshot.recent_questions
+    descriptors = [*snapshot.question_sources, *snapshot.avoided_question_sources]
+    if {r["question_text"] for r in descriptors} != {*excluded, *snapshot.avoided_questions, *recent}:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+            error_message="Question provenance is unavailable. Reload and try again.")
+    records = [*interview_question_records(snapshot.question_sources),
+               *interview_question_records(snapshot.avoided_question_sources, avoided=True)]
+    if records:
+        outcome = screen_records_sync(records, approved_sources=[
+            value for record in records for value in record.fields.values()]).decision
+        usage.extend(outcome.model_usages)
+        if not outcome.allowed:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                error_message="We could not check your custom questions. Revise them or try again.")
     excluded = tuple(dict.fromkeys((*excluded, *snapshot.avoided_questions)))
     count = 1 if replacement else 5
-    # Like exclusions, these are Rails-owned generated slots with no user-edit path.
-    # Recent practice is soft guidance and never joins the hard exclusion list.
-    recent = [] if replacement else snapshot.recent_questions
-    for question in recent:
-        trust_generated_source(question)
     with logfire.span("interview_questions.build_prompt"):
         prompt = prepare_interview_question_context(
             selected, excluded, count, snapshot.set_type, recent_questions=recent,

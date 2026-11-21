@@ -13,7 +13,7 @@ from worker.interview_questions_handler import InterviewQuestionsInput
 
 def test_question_snapshot_type_defaults_and_rejects_unknown():
     """Generation defaults to fit and motivation; obsolete scopes never reach an agent."""
-    data = {"question_set_id": "00000000-0000-0000-0000-000000000001"}
+    data = {"origin": "generated", "question_set_id": "00000000-0000-0000-0000-000000000001"}
     assert InterviewQuestionsInput.model_validate(data).set_type == "fit_motivation"
     for set_type in ("fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"):
         assert InterviewQuestionsInput.model_validate({**data, "set_type": set_type}).set_type == set_type
@@ -25,7 +25,7 @@ def test_question_snapshot_type_defaults_and_rejects_unknown():
 @pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_feedback_snapshot_scope(set_type):
     """All persisted scopes reach coaching through the shared queue contract."""
-    data = {"question_set_id": "00000000-0000-0000-0000-000000000001",
+    data = {"origin": "generated", "question_set_id": "00000000-0000-0000-0000-000000000001",
             "question_id": "00000000-0000-0000-0000-000000000002", "question_text": "Question?",
             "answer_text": "An answer.", "question_revision": 1, "answer_revision": 1,
             "set_type": set_type}
@@ -38,7 +38,7 @@ def test_feedback_snapshot_scope(set_type):
 def test_feedback_snapshot_limits(answer):
     """Rejects empty and oversized feedback snapshots before model use."""
     with pytest.raises(ValidationError):
-        InterviewFeedbackInput.model_validate({"question_set_id": "00000000-0000-0000-0000-000000000001",
+        InterviewFeedbackInput.model_validate({"origin": "generated", "question_set_id": "00000000-0000-0000-0000-000000000001",
             "question_id": "00000000-0000-0000-0000-000000000002", "question_text": "Question?",
             "answer_text": answer, "question_revision": 1, "answer_revision": 1})
 
@@ -46,7 +46,7 @@ def test_feedback_snapshot_limits(answer):
 def test_feedback_snapshot_at_answer_limit_is_accepted():
     """The documented maximum remains usable; only longer answers are rejected."""
     snapshot = InterviewFeedbackInput.model_validate({
-        "question_set_id": "00000000-0000-0000-0000-000000000001",
+        "origin": "generated", "question_set_id": "00000000-0000-0000-0000-000000000001",
         "question_id": "00000000-0000-0000-0000-000000000002",
         "question_text": "Question?", "answer_text": "x" * MAX_INTERVIEW_ANSWER,
         "question_revision": 1, "answer_revision": 1,

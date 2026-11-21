@@ -49,7 +49,7 @@ def dependencies(task_dependencies, monkeypatch):
     monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
     return replace(task_dependencies, read_career_library=lambda user: CareerLibrary(),
-                   read_interview_question_sources=lambda request: dict(request.input))
+                   read_interview_question_sources=lambda request: {"origin": "generated", **request.input})
 
 
 @pytest.mark.parametrize("set_type", [None, "fit_motivation", "technical", "knowledge"])
@@ -482,7 +482,7 @@ def test_reference_feedback_uses_database_sources_and_ignores_command_text(depen
     request.input = {key: value for key, value in saved.items() if key not in {"question_text", "answer_text"}}
     request.input.update(source_version=1, answer_text="Forged command copy")
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
-        result = handle_ai_task(request, replace(dependencies, read_interview_question_sources=lambda _: saved))
+        result = handle_ai_task(request, replace(dependencies, read_interview_question_sources=lambda _: {"origin": "generated", **saved}))
     assert result.status == "completed"
     assert result.result["interview_feedback"]["evidence_quotes"] == [saved["answer_text"]]
 
@@ -493,3 +493,38 @@ def test_stale_feedback_fails_before_screening_or_library_or_provider(dependenci
         read_career_library=lambda _: pytest.fail("stale source read library")))
     assert result.status == "failed"
     assert not result.usage and "out of date" in result.error_message
+
+
+def test_manual_question_is_screened_before_feedback(dependencies, monkeypatch):
+    request = task()
+    request.input['origin'] = 'manual'
+    request.input['screened_fields'] = ['answer_text']
+    seen = []
+    def reject(text, *args, **kwargs):
+        seen.append(text)
+        return ScreenOutcome(allowed=False)
+    monkeypatch.setattr('screening.records.screen_user_text', reject)
+    monkeypatch.setattr('worker.interview_feedback_handler.generate_interview_feedback',
+                        lambda *a, **kw: pytest.fail('blocked manual question reached generation'))
+    result = handle_ai_task(request, dependencies)
+    assert result.status == 'failed'
+    assert len(seen) == 1 and request.input['question_text'] in seen[0]
+
+
+def test_manual_question_and_answer_share_one_screen_and_report_revision_fences(dependencies, monkeypatch):
+    from screening.session import screening_session
+    request = task()
+    request.input['origin'] = 'manual'
+    checked = []
+    def allow(blob, *args, **kwargs):
+        checked.append(blob)
+        return ScreenOutcome(allowed=True)
+    monkeypatch.setattr('screening.records.screen_user_text', allow)
+    with screening_session() as session, accounted_override(interview_feedback_agent, TestModel(custom_output_args=output())):
+        result = handle_ai_task(request, dependencies)
+    assert result.status == 'completed'
+    assert len(checked) == 1
+    assert request.input['question_text'] in checked[0] and request.input['answer_text'] in checked[0]
+    receipts = [r for r in session.record_screening if r.record_type == 'interview_question']
+    assert {tuple(sorted(r.revision.items())) for r in receipts} == {
+        (('question_revision', 1),), (('answer_revision', 2), ('question_revision', 1))}

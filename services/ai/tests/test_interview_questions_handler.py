@@ -35,10 +35,24 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
+def owned_sources(data):
+    """Model the database reader's durable generated origins in old synthetic fixtures."""
+    result = dict(data)
+    for field, texts in (
+        ("question_sources", [*([data["question_text"], *data.get("other_questions", [])]
+          if data.get("question_text") else []), *([] if data.get("question_text") else data.get("recent_questions", []))]),
+        ("avoided_question_sources", data.get("avoided_questions", [])),
+    ):
+        known = {r["question_text"]: r for r in data.get(field, [])}
+        result[field] = [known.get(text, {"id": str(uuid4()), "question_id": str(uuid4()),
+            "question_revision": 1, "origin": "generated", "question_text": text}) for text in texts]
+    return result
+
+
 @pytest.fixture
 def task_dependencies(task_dependencies):
     """Existing prompt fixtures stand in for sources returned by the database reader."""
-    return replace(task_dependencies, read_interview_question_sources=lambda task: task.input)
+    return replace(task_dependencies, read_interview_question_sources=lambda task: owned_sources(task.input))
 
 
 def test_reference_command_uses_reader_sources_and_never_copied_fields(task_dependencies, monkeypatch):
@@ -47,7 +61,7 @@ def test_reference_command_uses_reader_sources_and_never_copied_fields(task_depe
     task.input = {"source_version": 1, "question_set_id": task.input["question_set_id"],
                   "question_text": "Untrusted transport text?"}
     dependencies = replace(task_dependencies,
-        read_interview_question_sources=lambda selected: sources,
+        read_interview_question_sources=lambda selected: owned_sources(sources),
         read_career_library=lambda _: CareerLibrary(skills=[LibrarySkill(id=str(uuid4()), name="Python")]))
     generate = interview_questions_handler.generate_interview_questions
 
@@ -595,3 +609,37 @@ def test_saved_preferences_overflow_fails_without_dropping_any_question(task_dep
     result = handle_ai_task(request, deps)
     assert result.status == "failed"
     assert "saved question preferences are too long" in result.error_message
+
+
+@pytest.mark.parametrize('kind', ['history', 'replacement', 'avoided'])
+@pytest.mark.parametrize('approved', [False, True])
+def test_manual_prompt_questions_screen_or_reuse_exact_saved_approval(task_dependencies, monkeypatch, kind, approved):
+    task = _task(replacement=kind == 'replacement')
+    text = task.input['question_text'] if kind == 'replacement' else 'Describe a calibration error?'
+    descriptor = {'question_id': str(uuid4()), 'question_revision': 1, 'question_text': text,
+                  'origin': 'manual', 'screened_fields': ['question_text'] if approved else []}
+    if kind == 'avoided':
+        descriptor['id'] = descriptor.pop('question_id')
+        task.input.update(avoided_questions=[text], avoided_question_sources=[descriptor])
+    else:
+        task.input['question_sources'] = [descriptor]
+        if kind == 'history':
+            task.input['recent_questions'] = [text]
+    checked = []
+    def check(blob, *args, **kwargs):
+        checked.append(blob)
+        return ScreenOutcome(allowed=text not in blob)
+    monkeypatch.setattr('screening.records.screen_user_text', check)
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary='Python'))
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1 if kind == 'replacement' else 5))):
+        result = handle_ai_task(task, deps)
+    assert result.status == ('completed' if approved else 'failed')
+    assert any(text in blob for blob in checked) is (not approved)
+
+
+def test_missing_question_provenance_fails_closed(task_dependencies):
+    request = _task()
+    sources = {**request.input, 'recent_questions': ['Unsourced question?']}
+    deps = replace(task_dependencies, read_interview_question_sources=lambda _: sources,
+                   read_career_library=lambda _: CareerLibrary(summary='Python'))
+    assert handle_ai_task(request, deps).status == 'failed'

@@ -149,3 +149,20 @@ def test_feedback_rejects_changes_before_read_and_foreign_or_retired_rows(admin_
         admin_connection.execute("UPDATE ai_tasks SET status = 'completed' WHERE id = %s", (task.ai_task_id,))
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     assert read_interview_question_sources(admin_connection, task) is None
+
+
+def test_reader_retains_manual_origin_for_history_and_immutable_avoidance(admin_connection):
+    from database.interview_questions import read_interview_question_sources
+    task = saved_task(admin_connection)
+    set_id = _insert(admin_connection, 'interview_question_sets', user_id=task.user_id, number=2, origin='manual')
+    question_id = _insert(admin_connection, 'interview_questions', interview_question_set_id=set_id,
+        position=1, question_text='Manual calibration question?', screened_fields=['question_text'])
+    avoided_id = _insert(admin_connection, 'avoided_interview_questions', user_id=task.user_id,
+        question_text='Deleted manual question?', text_digest=str(uuid4()), origin='manual',
+        screened_fields=Jsonb(['question_text']))
+    admin_connection.execute('SET LOCAL ROLE ai_reader')
+    sources = read_interview_question_sources(admin_connection, task)
+    assert sources['question_sources'] == [{'question_id': str(question_id), 'question_text': 'Manual calibration question?',
+        'question_revision': 1, 'origin': 'manual', 'screened_fields': ['question_text']}]
+    assert sources['avoided_question_sources'] == [{'id': str(avoided_id), 'question_text': 'Deleted manual question?',
+        'origin': 'manual', 'screened_fields': ['question_text']}]

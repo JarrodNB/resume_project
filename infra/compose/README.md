@@ -39,3 +39,16 @@ Parameter Store under `/jobapp/prod/` (the server can read it, not write it). `T
 and `CLEANJOBDATA_API_KEY` were added later and are not copied there yet. When you change a
 secret that has a copy, change both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
+
+## Alerts
+
+Emails go to the address set in `alert_email` (`../terraform/modules/uptime`):
+
+- `jobapp-site-down`: a Lambda requests the three public addresses every 15 minutes.
+- `jobapp-disk-nearly-full`: root disk over 80%, or the server stopped reporting. The server
+  reports through `/etc/cron.d/jobapp-disk`, created by hand (it is not in Terraform or this
+  folder), so recreate it on a rebuilt server:
+
+  ```bash
+  echo '*/15 * * * * root aws cloudwatch put-metric-data --region us-east-2 --namespace jobapp/Server --metric-name RootDiskUsedPercent --unit Percent --value $(df --output=pcent / | tail -1 | tr -dc 0-9) >> /var/log/jobapp-disk.log 2>&1' | sudo tee /etc/cron.d/jobapp-disk
+  ```

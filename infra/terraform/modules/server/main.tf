@@ -116,6 +116,14 @@ resource "aws_iam_role_policy" "app" {
         Resource = "arn:aws:ssm:*:*:parameter/${var.name}/prod/*"
       },
       {
+        # The server reports its own disk use every 15 minutes (see the disk alarm in modules/uptime).
+        Sid       = "ReportDiskUse"
+        Effect    = "Allow"
+        Action    = "cloudwatch:PutMetricData"
+        Resource  = "*"
+        Condition = { StringEquals = { "cloudwatch:namespace" = "${var.name}/Server" } }
+      },
+      {
         Sid      = "EcrLogin"
         Effect   = "Allow"
         Action   = ["ecr:GetAuthorizationToken"]

@@ -123,3 +123,22 @@ resource "aws_cloudwatch_metric_alarm" "down" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
+
+# The server publishes root disk use with a cron job (/etc/cron.d/jobapp-disk, see
+# infra/compose/README.md). A full disk stops Postgres writes. Missing data counts as breaching,
+# so this also fires if the server stops reporting at all.
+resource "aws_cloudwatch_metric_alarm" "disk" {
+  alarm_name          = "${var.name}-disk-nearly-full"
+  alarm_description   = "Root disk is over 80% full, or the server stopped reporting"
+  namespace           = "${var.name}/Server"
+  metric_name         = "RootDiskUsedPercent"
+  statistic           = "Maximum"
+  period              = 900
+  evaluation_periods  = 2
+  datapoints_to_alarm = 2
+  threshold           = 80
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}

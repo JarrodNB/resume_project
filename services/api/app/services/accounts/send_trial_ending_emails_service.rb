@@ -2,6 +2,8 @@
 # The daily job looks 36 hours ahead (not 24) so a trial can never fall between two runs;
 # the email names the end date (UTC), and a user is emailed only once however many runs see them.
 # Paid users never get it. An operator spend-cap override does not change that.
+# It selects on the stored `trial_ends_at` only, so a confirmed user with no stored date (only
+# possible if they were confirmed outside ConfirmAccountService) gets no reminder.
 module Accounts
   class SendTrialEndingEmailsService < ApplicationService
     WINDOW = 36.hours

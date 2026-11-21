@@ -3,7 +3,6 @@
 # A trial starts when the user confirms their email (Accounts::ConfirmAccountService calls
 # `start!`). Billing::ResolvePlanService reads the end date with `ends_at_for`, which also covers
 # a confirmed user whose stored date is missing (confirmed before trial dates existed).
-# The migration that added `users.trial_ends_at` backfills with its own SQL on purpose; it is history.
 # Index:
 #   - LENGTH: how long a trial lasts
 #   - start!: stores the trial end for a user who confirmed at the given time

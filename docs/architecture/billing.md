@@ -77,7 +77,9 @@ signups cannot block paying customers.
   arrives for a row that already holds a paid one (two checkouts at once), the row keeps the first,
   the newcomer is cancelled right away, and a warning log names both ids so an operator can refund it.
   A subscription with no billing row whose metadata names a user that no longer exists (account
-  deleted) is cancelled with a refund warning; one that names no user is logged and skipped.
+  deleted, or whose billing row vanished mid-sync) is cancelled with a refund warning, but only when
+  it is marked `source=careerdrafter` (set on every subscription we start at Checkout). Anything
+  else, including one that names no user, is logged and skipped.
   Stripe has already had its 200 by the time the job runs, so a lost sync is never redelivered. The
   job therefore retries `Billing::Gateway::Unavailable` up to 16 attempts with Rails'
   `polynomially_longer` waits (`n**4 + 2` seconds after attempt `n`), about 49.5 hours (just over two
@@ -90,8 +92,15 @@ signups cannot block paying customers.
   of the user's Stripe customer right away (no refund) before deleting the user. It asks Stripe for
   the customer's subscriptions instead of trusting our row, because a user can finish Checkout and
   delete their account before the webhook sync has run. If Stripe fails, deletion is blocked with a
-  retry message; a customer Stripe no longer has counts as done.
+  retry message; a customer Stripe no longer has counts as done. Locally this means deleting an
+  account that has a billing row (including seeded QA accounts with fake `cus_seed_` customer ids)
+  is refused unless a Stripe test key is set, because deletion must cancel subscriptions first.
 - **GraphQL.** `me.billing { plan, trialEndsAt, currentPeriodEndsAt, cancelAtPeriodEnd, canManageBilling }`. The web page disables Upgrade while it waits for a just-paid plan to appear.
+
+## Known limitations
+
+- **No periodic reconciliation with Stripe.** A webhook sync that is lost after the retry window
+  (see above) is only corrected by the next event for that subscription.
 
 ## Configuration
 

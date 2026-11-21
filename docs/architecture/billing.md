@@ -75,6 +75,14 @@ signups cannot block paying customers.
   the newcomer is cancelled right away, and a warning log names both ids so an operator can refund it.
   A subscription with no billing row whose metadata names a user that no longer exists (account
   deleted) is cancelled with a refund warning; one that names no user is logged and skipped.
+  Stripe has already had its 200 by the time the job runs, so a lost sync is never redelivered. The
+  job therefore retries `Billing::Gateway::Unavailable` up to 16 attempts with Rails'
+  `polynomially_longer` waits (`n**4 + 2` seconds after attempt `n`), about 49.5 hours (just over two
+  days) in total. A subscription Stripe no longer has (`Gateway::NotFound`) is logged and dropped.
+- **One Stripe account per environment.** Production, staging and local must each use their own
+  Stripe account or test mode. The sync cancels a subscription whose metadata user does not exist
+  in this database (see above), so two environments sharing one Stripe account would cancel each
+  other's real subscriptions.
 - **Account deletion.** `Accounts::DeleteAccountService` cancels every not-yet-ended subscription
   of the user's Stripe customer right away (no refund) before deleting the user. It asks Stripe for
   the customer's subscriptions instead of trusting our row, because a user can finish Checkout and

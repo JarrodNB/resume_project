@@ -19,6 +19,32 @@ RSpec.describe Billing::SyncSubscriptionJob do
     expect { described_class.perform_now("sub_1") }.to have_enqueued_job(described_class).with("sub_1")
   end
 
+  # Stripe has already had its 200, so a lost sync is never redelivered. polynomially_longer waits
+  # n**4 + 2 seconds after attempt n; 16 attempts add up to about 2 days.
+  describe "retry window" do
+    before { allow(Billing::SyncSubscriptionService).to receive(:call).and_raise(Billing::Gateway::Unavailable, "down") }
+
+    def perform_as_attempt(number)
+      job = described_class.new("sub_1")
+      job.exception_executions = { [ Billing::Gateway::Unavailable ].to_s => number - 1 }
+      job.perform_now
+    end
+
+    it "still retries after the fifteenth failed attempt" do
+      expect { perform_as_attempt(15) }.to have_enqueued_job(described_class).with("sub_1")
+    end
+
+    it "gives up (raising) after the sixteenth failed attempt" do
+      expect { perform_as_attempt(16) }.to raise_error(Billing::Gateway::Unavailable)
+    end
+
+    it "waits about two days in total across all retries" do
+      seconds = (1..15).sum { |attempt| attempt**4 + 2 } # 15 waits between 16 attempts, no jitter
+
+      expect(seconds).to be_between(2.days - 3.hours, 2.days + 3.hours)
+    end
+  end
+
   it "drops the job without retrying when Stripe no longer has the subscription" do
     allow(Billing::SyncSubscriptionService).to receive(:call).and_raise(Billing::Gateway::NotFound, "No such subscription")
     allow(Rails.logger).to receive(:warn)

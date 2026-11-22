@@ -36,7 +36,7 @@ function renderNotices() {
   const router = createMemoryRouter([{ element: <AppLayout />, children: [
     { path: '/jobs/:id', element: <p>Current job page</p> },
     { path: '/library', element: <p>Library page</p> },
-  ] }], { initialEntries: ['/jobs/job-1'] })
+  ] }], { initialEntries: ['/jobs/current'] })
   const tree = (session: AuthContextValue) => <AuthContext value={session}><ApolloProvider client={client}><RouterProvider router={router} /></ApolloProvider></AuthContext>
   const rendered = render(tree(auth))
   return { link, router, client, changeSession: (session: AuthContextValue) => rendered.rerender(tree(session)) }
@@ -141,4 +141,68 @@ it('clears the inbox and its unread count when another account takes over or sig
   changeSession({ ...auth, user: null })
   expect(screen.queryByRole('button', { name: /Notifications/ })).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+/** Emits the skipped destinations, then one visible "Library review" notice, and checks only that one shows. */
+async function expectOnlyLibraryNotice(link: ReturnType<typeof renderNotices>['link'], skipped: string[], status = 'COMPLETED') {
+  skipped.forEach((destination, index) => emit(link, outcome({ id: `skipped-${index}`, title: `Skipped ${index}`, status, destination }), String(index + 1)))
+  emit(link, outcome({ id: 'library', title: 'Library review completed', destination: '/library' }), '99')
+  await userEvent.setup().click(await screen.findByRole('button', { name: 'Notifications, 1 unread' }))
+  const inbox = screen.getByRole('dialog')
+  expect(within(inbox).getByText('Library review completed')).toBeInTheDocument()
+  expect(within(inbox).queryByText(/Skipped/)).not.toBeInTheDocument()
+}
+
+it('skips an outcome whose destination is the page the user is on', async () => {
+  const { link } = renderNotices()
+  await expectOnlyLibraryNotice(link, ['/jobs/current'])
+  expect(screen.queryByText(/Skipped/)).not.toBeInTheDocument()
+})
+
+it('does not announce a skipped outcome to screen readers', async () => {
+  const { link } = renderNotices()
+  emit(link, outcome({ destination: '/jobs/current' }))
+  await act(async () => { await Promise.resolve() })
+  expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument()
+  expect(screen.queryByText(/New notification/)).not.toBeInTheDocument()
+})
+
+it('matches the current page even when the destination has a query string, hash or trailing slash', async () => {
+  const { link } = renderNotices()
+  await expectOnlyLibraryNotice(link, ['/jobs/current?tab=resume', '/jobs/current#notes', '/jobs/current/'])
+})
+
+it('skips spoken-interview outcomes, completed or failed, at the list and session pages', async () => {
+  const { link } = renderNotices()
+  await expectOnlyLibraryNotice(link, ['/practice/interviews', '/practice/interviews/session-1', '/practice/interviews/session-1?x=1'])
+})
+
+it('skips failed spoken-interview outcomes', async () => {
+  const { link } = renderNotices()
+  await expectOnlyLibraryNotice(link, ['/practice/interviews', '/practice/interviews/session-1/'], 'FAILED')
+})
+
+it('still shows outcomes for lookalike practice paths and other pages', async () => {
+  const { link } = renderNotices()
+  emit(link, outcome({ id: 'old', title: 'Old interviews done', destination: '/practice/interviews-old' }), '1')
+  emit(link, outcome({ id: 'questions', title: 'Questions done', destination: '/practice/questions' }), '2')
+  emit(link, outcome({ id: 'other-job', title: 'Other job done', destination: '/jobs/other' }), '3')
+  await userEvent.setup().click(await screen.findByRole('button', { name: 'Notifications, 3 unread' }))
+  const inbox = screen.getByRole('dialog')
+  for (const title of ['Old interviews done', 'Questions done', 'Other job done']) expect(within(inbox).getByText(title)).toBeInTheDocument()
+})
+
+it('judges a hidden-tab outcome by where the user is when the tab becomes visible', async () => {
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+  const { link, router } = renderNotices()
+  emit(link, outcome({ id: 'here', title: 'Library review completed', destination: '/library' }))
+  emit(link, outcome({ id: 'elsewhere', title: 'Job review completed', destination: '/jobs/elsewhere' }), '2')
+  await act(() => router.navigate('/library'))
+  visibility.mockReturnValue('visible')
+  act(() => document.dispatchEvent(new Event('visibilitychange')))
+  await userEvent.setup().click(await screen.findByRole('button', { name: 'Notifications, 1 unread' }))
+  const inbox = screen.getByRole('dialog')
+  expect(within(inbox).getByText('Job review completed')).toBeInTheDocument()
+  expect(within(inbox).queryByText('Library review completed')).not.toBeInTheDocument()
+  visibility.mockRestore()
 })

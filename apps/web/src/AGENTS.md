@@ -43,7 +43,7 @@ Source of the web app, organized by feature.
   `components/dnd/`; see `components/AGENTS.md`); `components/ui/` is generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,
   401/explicit CSRF rejection handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`
-  (friendly message for HTTP 429 rate limiting); `generated/` is
+  (friendly message for HTTP 429 rate limiting, and "reload the page" when a tab left open across a deploy sends operations the API no longer accepts); `generated/` is
   GraphQL Code Generator output (don't edit)
 - `lib/` — `productName.ts` (product name; localStorage keys are derived from it), `textLimits.ts`
   (character caps matching Rails `TextLimits`), `apiConfig.ts` (API URLs), `colorTheme.ts` (light/dark preference in localStorage,

@@ -91,20 +91,37 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
       utterance.lang = selectedVoice?.lang ?? 'en-US'
       utterance.rate = 1.02
       utterance.pitch = 0.95
-      const timeout = () => { if (current.utterance === utterance) fail() }
+      let started = false
+      let waits = 0
+      const finish = () => {
+        utterance.onstart = null; utterance.onend = null; utterance.onerror = null
+        current.utterance = null
+        speakNext()
+      }
+      // Slow or network voices can start late or never report their end while audio is still playing,
+      // so only fail once the engine itself reports it is silent.
+      const timeout = () => {
+        if (!live() || current.utterance !== utterance) return
+        const speaking = globalThis.speechSynthesis?.speaking
+        if (speaking && ++waits <= 20) { current.timer = setTimeout(timeout, 5000); return }
+        if (started && speaking === false) { finish(); return }
+        fail()
+      }
       current.timer = setTimeout(timeout, 5000)
       utterance.onstart = () => {
         if (!live() || current.utterance !== utterance) return
+        started = true
         if (current.timer) clearTimeout(current.timer)
         current.timer = setTimeout(timeout, Math.max(15000, utterance.text.length * 150))
       }
       utterance.onend = () => {
         if (!live() || current.utterance !== utterance) return
-        utterance.onstart = null; utterance.onend = null; utterance.onerror = null
-        current.utterance = null
-        speakNext()
+        finish()
       }
-      utterance.onerror = () => { if (current.utterance === utterance) fail() }
+      utterance.onerror = (event?: SpeechSynthesisErrorEvent) => {
+        if (event?.error === 'interrupted' || event?.error === 'canceled') return
+        if (current.utterance === utterance) fail()
+      }
       try { speechSynthesis.speak(utterance) } catch { fail() }
     }
     setError(null)

@@ -187,6 +187,30 @@ it('stops the sequence and releases recording if a started chunk never ends', as
   } finally { vi.useRealTimers() }
 })
 
+it('does not report failure while the engine is still speaking, and advances if it finished without an end event', async () => {
+  vi.useFakeTimers()
+  try {
+    const engine = { speak, cancel, speaking: true }
+    vi.stubGlobal('speechSynthesis', engine)
+    render(<BrowserInterviewSpeech messageId="q" text="First. Second." />)
+    fireEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+    act(() => speak.mock.calls[0][0].onstart())
+    await act(async () => vi.advanceTimersByTimeAsync(30000))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    engine.speaking = false
+    await act(async () => vi.advanceTimersByTimeAsync(5000))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(speak).toHaveBeenCalledTimes(2)
+  } finally { vi.useRealTimers() }
+})
+
+it('ignores interrupted and canceled errors', () => {
+  render(<BrowserInterviewSpeech messageId="q" text="Question" />)
+  fireEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+  act(() => speak.mock.calls[0][0].onerror({ error: 'interrupted' }))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
 it('releases recording if the browser cannot construct an utterance', () => {
   vi.stubGlobal('SpeechSynthesisUtterance', class { constructor() { throw new Error('Voice engine unavailable') } })
   const changed = vi.fn()

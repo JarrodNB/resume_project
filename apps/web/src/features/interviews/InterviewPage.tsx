@@ -247,7 +247,7 @@ function OwnedInterview({ id }: { id: string }) {
       <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
         capturing={answer.capturing}
         disabled={!canRecord}
-        onSubmit={(text) => { setAnswerSubmitted(true); return answer.submit(text) }} />
+        onSubmit={async (text) => { const saved = await answer.submit(text); if (saved) setAnswerSubmitted(true); return saved }} />
       {recorder.recording && <div className="flex flex-wrap gap-3 [&_button]:min-h-11">
           {answer.review.canTranscribe && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => { if (canRecord) void answer.transcribe() }}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
           <Button variant="outline" disabled={recordingLocked} onClick={answer.discardRecording}>Discard recording</Button>

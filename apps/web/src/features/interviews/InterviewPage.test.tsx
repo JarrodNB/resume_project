@@ -362,6 +362,21 @@ describe('InterviewPage', () => {
     expect(screen.queryByText('Next question ready')).not.toBeInTheDocument()
   })
 
+  it('does not announce a next question after a submit that was not saved', async () => {
+    state.answerText.mockResolvedValue(false)
+    renderInterview()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'My reviewed answer.' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit answer' })) })
+    act(() => {
+      state.interview = { ...snapshot, messages: [...snapshot.messages,
+        { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', position: 2, content: 'How did you test it?' },
+      ] }
+      recorder.refresh()
+    })
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('How did you test it?')).toBeVisible()
+    expect(screen.queryByText('Next question ready')).not.toBeInTheDocument()
+  })
+
   it('appends the active interviewer message to history immediately and once', () => {
     renderInterview()
     const history = within(screen.getByRole('complementary', { name: 'History' }))

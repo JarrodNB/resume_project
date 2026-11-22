@@ -1,5 +1,5 @@
 # Description: Production stack for the single EC2 server. Images come from ECR; run with
-# `docker compose --env-file .env up -d` from this folder (see README.md).
+# `docker compose --env-file .env --env-file settings.env up -d` from this folder (see README.md).
 # Index:
 #   - caddy: HTTPS and hostname routing (the only service with published ports)
 #   - db: Postgres 17 with pgvector, data on the dedicated EBS volume
@@ -45,7 +45,7 @@ x-api: &api
   image: ${REGISTRY}/jobapp/api:${API_TAG:-latest}
   restart: unless-stopped
   logging: *logging
-  env_file: [.env]
+  env_file: [.env, settings.env]
   environment:
     <<: [*aws, *api-db]
     API_HOST: api.${DOMAIN}
@@ -64,7 +64,7 @@ x-ai: &ai
   restart: unless-stopped
   logging: *logging
   init: true
-  env_file: [.env]
+  env_file: [.env, settings.env]
 
 x-ai-queues: &ai-queues
   AI_TASKS_QUEUE_NAME: ${AI_TASKS_QUEUE_NAME:-jobapp-ai_tasks}

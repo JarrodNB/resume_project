@@ -1,4 +1,6 @@
 /** Keep the current interview turn in focus, with the complete saved dialogue nearby.
+ * After "Submit answer" the stage shows progress (spinner, dimmed question, "Answer received")
+ * and briefly announces "Next question ready" when the next reply lands; reloads announce nothing.
  * While the interview is active the workspace enters focus mode: its navigation steps aside.
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit.
@@ -16,7 +18,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { useFocusMode } from '@/components/useFocusMode'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Mic, Pause, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
+import { Mic, Pause, AudioLines, Check, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
@@ -114,6 +116,19 @@ function OwnedInterview({ id }: { id: string }) {
     answered: Boolean(draftText) || recorder.status !== 'idle' || Boolean(recorder.recording),
     start: startCapture,
   })
+  // Announce "Next question ready" only when a reply arrives after an answer submitted in this page session.
+  const [answerSubmitted, setAnswerSubmitted] = useState(false)
+  const [nextQuestionReady, setNextQuestionReady] = useState(false)
+  const [trackedPromptId, setTrackedPromptId] = useState(autoPrompt?.id)
+  if (autoPrompt?.id !== trackedPromptId) {
+    setTrackedPromptId(autoPrompt?.id)
+    if (autoPrompt?.id && answerSubmitted) { setAnswerSubmitted(false); setNextQuestionReady(true) }
+  }
+  useEffect(() => {
+    if (!nextQuestionReady) return
+    const timer = setTimeout(() => setNextQuestionReady(false), 4000)
+    return () => clearTimeout(timer)
+  }, [nextQuestionReady])
   if (!interview || state.loadError) return <>
     {recordingWarning}
     <div className="grid gap-3">
@@ -199,12 +214,14 @@ function OwnedInterview({ id }: { id: string }) {
     </div>
     {(state.loadError || state.subscriptionError) && <div className="grid gap-2"><p role="alert">Live updates are unavailable. Check saved status to recover the current state.</p><Button variant="outline" className="justify-self-start" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button></div>}
     <div className="interview-room">
-    <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
+    <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying} data-waiting={state.busy || turnActive}>
       <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
       {question && <p className="text-sm text-muted-foreground">Question {interview.questions.toSorted((a, b) => a.position - b.position).findIndex((item) => item.id === question.id) + 1} of {interview.questions.length}{reply?.kind === 'follow_up' && ` · Follow-up ${interview.messages.filter((message) => message.questionId === question.id && message.kind === 'follow_up' && message.position <= reply.position).length}`}</p>}
       <p className="interview-identity">{interviewerOptions.find((option) => option.value === interview.setup?.interviewer)?.label ?? 'Your interviewer'}</p>
       <div role="status" aria-live="polite" aria-busy={savingRecording || reviewPending || state.busy || turnActive} className="grid gap-2">
-        <h2 className="interview-status">{thinkingTime !== null ? `Thinking time — mic opens in ${thinkingTime}s` : roomTitle}</h2>
+        <h2 className="interview-status">{(state.busy || turnActive) && <LoaderCircle className="mr-2 inline animate-spin motion-reduce:animate-none" size={16} aria-hidden="true" />}{thinkingTime !== null ? `Thinking time — mic opens in ${thinkingTime}s` : roomTitle}</h2>
+        {turnActive && !state.busy && <p className="interview-received text-sm"><Check className="mr-1 inline" size={16} aria-hidden="true" />Answer received</p>}
+        {nextQuestionReady && <p className="text-sm font-medium">Next question ready</p>}
         {interview.status === 'completed' && <p className="text-sm text-muted-foreground">Your conversation is saved.</p>}
         {turnActive && <p className="text-sm text-muted-foreground">We’re processing your answer and preparing the next reply. You can reload safely.</p>}
         {savingRecording && <p className="text-sm text-muted-foreground">Your recording is being uploaded for transcription. Review and edit the text before submitting.</p>}
@@ -230,7 +247,7 @@ function OwnedInterview({ id }: { id: string }) {
       <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
         capturing={answer.capturing}
         disabled={!canRecord}
-        onSubmit={answer.submit} />
+        onSubmit={async (text) => { const saved = await answer.submit(text); if (saved) setAnswerSubmitted(true); return saved }} />
       {recorder.recording && <div className="flex flex-wrap gap-3 [&_button]:min-h-11">
           {answer.review.canTranscribe && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => { if (canRecord) void answer.transcribe() }}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
           <Button variant="outline" disabled={recordingLocked} onClick={answer.discardRecording}>Discard recording</Button>

@@ -8,13 +8,14 @@ import { useLocation } from 'react-router'
 import { useApolloClient } from '@apollo/client/react'
 import { followTaskOutcomes, type TaskNotice } from './followTaskOutcomes'
 
+// Matches the spoken-interview destinations built in services/api/app/services/ai_tasks/describe_task_outcome_service.rb.
 const INTERVIEW_PATH = '/practice/interviews'
 
 function pathOf(destination: string) {
   return destination.split(/[?#]/)[0].replace(/(.)\/$/, '$1')
 }
 
-function isHidden(notice: TaskNotice, currentPath: string) {
+function shouldSuppressNotice(notice: TaskNotice, currentPath: string) {
   const path = pathOf(notice.destination)
   return path === INTERVIEW_PATH || path.startsWith(`${INTERVIEW_PATH}/`) || path === currentPath
 }
@@ -28,7 +29,7 @@ export function useTaskNotifications(userId: string, initialCursor?: string | nu
   useEffect(() => {
     if (!userId) return
     return followTaskOutcomes(client, userId, initialCursor, (notice) => {
-      if (isHidden(notice, currentPath.current)) return
+      if (shouldSuppressNotice(notice, currentPath.current)) return
       setNotices((current) => current.some((item) => item.id === notice.id) ? current : [...current, notice])
     })
   }, [client, userId, initialCursor])

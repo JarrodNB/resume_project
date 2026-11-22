@@ -23,8 +23,8 @@ only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
    ```
 
 2. Copy this folder to the server (`/opt/app`), then `cp .env.example .env` and fill it in.
-   On a rebuilt server, fill in the mail lines (`MAIL_FROM`, `SMTP_*`), then run `./restore-secrets.sh` to pull every
-   secret back from Parameter Store (`/jobapp/prod/*`).
+   On a rebuilt server, fill in the mail lines (`MAIL_FROM`, `SMTP_*`), then run `bash restore-secrets.sh` to pull every
+   secret and setting back from Parameter Store (`/jobapp/prod/*`).
 3. Log in to ECR and start the stack:
 
    ```bash
@@ -38,6 +38,11 @@ Production secrets are in `/opt/app/.env` on the server, and each one has a copy
 under `/jobapp/prod/` (the server can read it, not write it). When you change a secret, change
 both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
+
+`settings.env` holds the settings that are not secret (registry, buckets, domain, AI models). It is not in git. Its copy is
+in Parameter Store under `/jobapp/prod/settings/`, and `bash restore-secrets.sh` writes it, the same way it writes `.env`.
+Change one with `aws ssm put-parameter --overwrite --name /jobapp/prod/settings/<NAME> --value <value>`, run the script,
+and recreate the services that use it. A deploy never touches either file.
 
 ## Alerts
 

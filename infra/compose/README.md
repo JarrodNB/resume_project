@@ -39,9 +39,9 @@ under `/jobapp/prod/` (the server can read it, not write it). When you change a 
 both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
 
-`settings.env` (settings that are not secret, such as the AI models) is edited directly on the server and is never
-overwritten by a deploy. The copy in git is only the starting point for a new server. A container reads it only when
-it starts too.
+`settings.env` (settings that are not secret, such as the registry, buckets, domain and AI models) exists only on the
+server, in `/opt/app`. It is not in git and a deploy never touches it. Edit it there. A container reads it only when it
+starts.
 
 ## Alerts
 

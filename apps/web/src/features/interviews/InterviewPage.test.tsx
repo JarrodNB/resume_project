@@ -306,6 +306,62 @@ describe('InterviewPage', () => {
     if (!saved) expect(screen.getByRole('alert')).toHaveTextContent('submission response was not confirmed')
   })
 
+  it('walks a submitted answer through sending, thinking and the next question arriving', async () => {
+    vi.useFakeTimers()
+    try {
+      let finish!: (saved: boolean) => void
+      state.answerText.mockImplementation(() => {
+        state.busy = true
+        recorder.refresh()
+        return new Promise<boolean>((resolve) => { finish = resolve })
+      })
+      renderInterview()
+      const stage = screen.getByRole('region', { name: 'Current interview turn' })
+      expect(stage).toHaveAttribute('data-waiting', 'false')
+      fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'My reviewed answer.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
+      const spinner = () => screen.getByRole('heading', { level: 2, name: /Saving changes|Your interviewer is thinking/ }).querySelector('svg.animate-spin')
+      expect(stage).toHaveAttribute('data-waiting', 'true')
+      expect(screen.getByRole('heading', { name: 'Saving changes' })).toBeVisible()
+      expect(spinner()).not.toBeNull()
+      await act(async () => {
+        state.busy = false
+        state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'turn', kind: 'turn', status: 'running' }] }
+        finish(true)
+        recorder.refresh()
+      })
+      expect(stage).toHaveAttribute('data-waiting', 'true')
+      expect(screen.getByRole('heading', { name: 'Your interviewer is thinking' })).toBeVisible()
+      expect(spinner()).not.toBeNull()
+      expect(screen.getByText('Answer received')).toBeVisible()
+      expect(screen.queryByText('Next question ready')).not.toBeInTheDocument()
+      act(() => {
+        state.interview = { ...snapshot, messages: [...snapshot.messages,
+          { ...snapshot.messages[0], id: 'answer', kind: 'answer', position: 2, content: 'My reviewed answer.' },
+          { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', position: 3, content: 'How did you test it?' },
+        ], operations: [...snapshot.operations, { id: 'turn', kind: 'turn', status: 'completed' }] }
+        recorder.refresh()
+      })
+      expect(stage).toHaveAttribute('data-waiting', 'false')
+      expect(screen.queryByText('Answer received')).not.toBeInTheDocument()
+      expect(screen.getByText('Next question ready')).toBeVisible()
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+      expect(screen.queryByText('Next question ready')).not.toBeInTheDocument()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('does not announce a next question when a reply arrives without a submitted answer', () => {
+    renderInterview()
+    act(() => {
+      state.interview = { ...snapshot, messages: [...snapshot.messages,
+        { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', position: 2, content: 'How did you test it?' },
+      ] }
+      recorder.refresh()
+    })
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('How did you test it?')).toBeVisible()
+    expect(screen.queryByText('Next question ready')).not.toBeInTheDocument()
+  })
+
   it('appends the active interviewer message to history immediately and once', () => {
     renderInterview()
     const history = within(screen.getByRole('complementary', { name: 'History' }))

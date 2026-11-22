@@ -12,6 +12,10 @@
 .interview-stage[data-recording="true"] .interview-presence { color: var(--destructive); background: var(--muted); }
 .interview-identity { font-weight: 600; margin-top: -12px; }
 .interview-status { font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
+.interview-question, .interview-received { transition: opacity 200ms ease-out; }
+.interview-stage[data-waiting="true"] .interview-question, .interview-stage[data-waiting="true"] .interview-question + .interview-question-actions { opacity: .55; }
+.interview-stage[data-waiting="true"] .interview-presence { animation: interview-waiting 1400ms ease-in-out infinite; }
+@keyframes interview-waiting { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 .interview-question { font-size: clamp(20px, 2vw, 26px); line-height: 1.5; font-weight: 500; text-wrap: pretty; }
 .interview-stage .flex, .interview-stage .interview-question-actions { display: flex; flex-wrap: wrap; align-items: start; justify-content: center; gap: 8px; }
 
@@ -56,7 +60,7 @@
 .interview-exchange button { height: auto; min-height: 36px; white-space: normal; }
 @container (max-width: 850px) { .interview-room { grid-template-columns: minmax(0, 1fr); } .interview-exchanges { max-height: 440px; } }
 @media (max-width: 600px) { .interview-stage { padding: 24px 16px; } .interview-evidence { padding: 20px 16px; } .interview-evidence-reveal { min-height: 44px; } .interview-transcript { padding: 20px 16px; } .interview-presence { width: 72px; height: 72px; } .interview-record-controls { flex-direction: column; } .interview-record-controls button { min-height: 44px; width: 100%; } }
-@media (prefers-reduced-motion: reduce) { .interview-presence, .interview-evidence-body { transition: none; } .interview-stage[data-speaking="true"] .interview-presence svg path { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .interview-presence, .interview-evidence-body, .interview-question, .interview-received { transition: none; } .interview-stage[data-waiting="true"] .interview-presence { animation: none; } .interview-stage[data-speaking="true"] .interview-presence svg path { animation: none; } }
 
 /* Setup follows the same ruled record as the career library; native inputs keep keyboard behavior. */
 .interview-setup { display: grid; gap: 24px; max-width: 1040px; min-width: 0; container-type: inline-size; }

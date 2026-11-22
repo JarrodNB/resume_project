@@ -1,6 +1,6 @@
 #!/bin/bash
 # Rewrites the secret lines of .env from Parameter Store (/jobapp/prod/*), using the instance role.
-# Use it on a rebuilt server after copying .env.example to .env and filling in the non-secret lines.
+# Use it on a rebuilt server after copying .env.example to .env and filling in the lines that are not in Parameter Store.
 set -euo pipefail
 
 cd "$(dirname "$0")"

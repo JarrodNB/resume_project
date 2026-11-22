@@ -23,13 +23,13 @@ only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
    ```
 
 2. Copy this folder to the server (`/opt/app`), then `cp .env.example .env` and fill it in.
-   On a rebuilt server, fill in the non-secret lines, then run `./restore-secrets.sh` to pull every
+   On a rebuilt server, fill in the mail lines (`MAIL_FROM`, `SMTP_*`), then run `./restore-secrets.sh` to pull every
    secret back from Parameter Store (`/jobapp/prod/*`).
 3. Log in to ECR and start the stack:
 
    ```bash
    aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin "$REGISTRY"
-   docker compose --env-file .env up -d
+   docker compose --env-file .env --env-file settings.env up -d
    ```
 
 ## Secrets

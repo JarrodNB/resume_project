@@ -4,6 +4,7 @@
 module Types
   class InterviewQuestionSetType < Types::BaseObject
     field :id, ID, null: false
+    field :origin, String, null: false
     field :number, Integer, null: false
     field :set_type, Types::InterviewQuestionSetTypeEnum, null: false
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false

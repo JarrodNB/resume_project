@@ -43,14 +43,14 @@ Credential dates retain `year`, `month`, or `day` precision. Exact expiration wi
 definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
-- `interview_question_instructions.py` — versioned shared rules plus only the selected English general, practical technical,
+- `interview_question_instructions.py` — versioned shared rules plus only the selected English fit/motivation, behavioral, hypothetical, practical technical,
   or subject knowledge scope; temporary evidence IDs and semantic comparison for replacement exclusions.
 
 - `interview_feedback_instructions.py` — versioned English coaching and freely paraphrased illustrative examples,
   with placeholders for missing personal facts and optional exact evidence quotes.
-  A general-only supplement uses flexible STAR coaching for behavioral examples; technical requests retain the base policy.
+  A behavioral-only supplement uses flexible STAR coaching for behavioral examples; technical requests retain the base policy.
 - `interview_knowledge_feedback_instructions.py` — separate subject corrections and direct illustrative answers without personal-experience invention or subject-fact placeholders.
-  The feedback agent selects these instructions using trusted deps; general/technical runs receive the personal-fact base policy, with STAR guidance added only for general.
+  The feedback agent selects these instructions using trusted deps; personal-answer runs receive the personal-fact base policy, with STAR guidance only for behavioral, honest motivation guidance for fit, and proposed-approach guidance for hypothetical.
 
 - Spoken preparation reads current owned job/library/preferences and scoped recent-question variety
   guidance once and uses no classifiers

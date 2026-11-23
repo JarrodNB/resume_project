@@ -18,13 +18,13 @@ function libraryMock() {
 }
 
 const SETS = {
-  'set-1': { __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, setType: 'GENERAL', createdAt: '2026-10-11T00:00:00Z' },
-  'set-2': { __typename: 'InterviewQuestionSet', id: 'set-2', number: 2, setType: 'TECHNICAL', createdAt: '2026-10-12T00:00:00Z' },
+  'set-1': { __typename: 'InterviewQuestionSet', origin: 'generated', id: 'set-1', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-11T00:00:00Z' },
+  'set-2': { __typename: 'InterviewQuestionSet', origin: 'generated', id: 'set-2', number: 2, setType: 'TECHNICAL', createdAt: '2026-10-12T00:00:00Z' },
 } as const
 
 /** Builds one bank row; set membership decides its type label. */
 function bankQuestion(id: string, overrides: Record<string, unknown> = {}, setId: keyof typeof SETS = 'set-1') {
-  return { __typename: 'InterviewQuestion', id, position: 1, retiredAt: null, questionText: `Question ${id}?`, answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
+  return { __typename: 'InterviewQuestion', id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
 }
 const reviewed = { answerText: 'I shipped the scheduler.', feedback: { strengths: ['Specific'] } }
 function defaultBank() {
@@ -85,9 +85,19 @@ it('filters by progress and type and searches answers', async () => {
   expect(screen.getByText('No questions match these filters.')).toBeInTheDocument()
 })
 
+it.each(['FIT_MOTIVATION', 'BEHAVIORAL', 'HYPOTHETICAL', 'TECHNICAL', 'KNOWLEDGE'])('filters the bank to saved %s questions', async (setType) => {
+  const selected = bankQuestion('q-selected', { questionSet: { ...SETS['set-1'], setType } })
+  render([], { bank: [selected, bankQuestion('q-other', { questionSet: { ...SETS['set-2'], setType: setType === 'TECHNICAL' ? 'KNOWLEDGE' : 'TECHNICAL' } })] })
+  await screen.findByRole('link', { name: /Question q-selected/ })
+  fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: setType } })
+  expect(screen.getByRole('link', { name: /Question q-selected/ })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /Question q-other/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'General' })).not.toBeInTheDocument()
+})
+
 it('opens new questions immediately after queuing generation', async () => {
   const { router } = render([{
-    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'GENERAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'task-1', input: { question_set_id: 'set-3' } } } } },
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'FIT_MOTIVATION' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'task-1', input: { question_set_id: 'set-3' } } } } },
   }])
   await waitFor(() => expect(screen.getByRole('button', { name: 'Get 5 questions' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Get 5 questions' }))
@@ -95,13 +105,12 @@ it('opens new questions immediately after queuing generation', async () => {
   expect(router.state.location.pathname).toBe('/practice/questions/set-3')
 })
 
-it.each(['TECHNICAL', 'KNOWLEDGE'])('submits a deliberately selected %s type', async (setType) => {
+it.each([['FIT_MOTIVATION', 'Fit & motivation'], ['BEHAVIORAL', 'Behavioral'], ['HYPOTHETICAL', 'Hypothetical'], ['TECHNICAL', 'Technical'], ['KNOWLEDGE', 'Knowledge']])('submits a deliberately selected %s type', async (setType, label) => {
   render([{
     request: { query: GENERATE_INTERVIEW_SET, variables: { setType } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'typed-task', input: { question_set_id: 'typed-set' } } } } },
   }])
   const types = within(screen.getByRole('group', { name: 'Question type' }))
-  expect(types.getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
-  const label = setType === 'TECHNICAL' ? 'Technical' : 'Knowledge'
+  expect(types.getByRole('button', { name: 'Fit & motivation' })).toHaveAttribute('aria-pressed', 'true')
   fireEvent.click(types.getByRole('button', { name: label }))
   expect(types.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'true')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Get 5 questions' })).toBeEnabled())
@@ -111,7 +120,7 @@ it.each(['TECHNICAL', 'KNOWLEDGE'])('submits a deliberately selected %s type', a
 
 it('shows usage-limit errors and leaves the bank available', async () => {
   render([{
-    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'GENERAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'FIT_MOTIVATION' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
   }])
   await waitFor(() => expect(screen.getByRole('button', { name: 'Get 5 questions' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Get 5 questions' }))
@@ -204,4 +213,14 @@ it('keeps a list row when deletion fails and supports retry', async () => {
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   expect(screen.queryByRole('link', { name: /Question q-tech/ })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: /Question q-empty/ })).toBeVisible()
+})
+
+it('finds questions by their saved memory anchors and shows retired cues', async () => {
+  render([], { bank: [bankQuestion('q-cue', { memoryAnchor: 'Launch checklist' }), bankQuestion('q-other'),
+    bankQuestion('q-retired', { memoryAnchor: 'Retired launch cue', answerText: 'Old answer', retiredAt: '2026-10-12T00:00:00Z' })] })
+  fireEvent.change(await screen.findByRole('searchbox', { name: 'Search questions and answers' }), { target: { value: 'checklist' } })
+  expect(screen.getByText('Question q-cue?')).toBeInTheDocument()
+  expect(screen.queryByText('Question q-other?')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Answers from replaced questions/ }))
+  expect(screen.getByText('Retired launch cue')).toBeInTheDocument()
 })

@@ -4,9 +4,8 @@
 #   - call: creates a numbered set and its task, then publishes after the transaction commits
 module InterviewPrep
   class StartQuestionSetService < ApplicationService
-
     # Receives the authenticated owner.
-    def initialize(user:, set_type: "general")
+    def initialize(user:, set_type: "fit_motivation")
       @user, @set_type = user, set_type
     end
 

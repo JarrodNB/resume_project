@@ -37,6 +37,8 @@ from prompts.interview_style import follow_up_style, preparation_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.conversation import screen_with_operation_models
 from screening.prompt_guardrail import screening_failure_code
+from screening.record_adapters import interview_question_records
+from screening.records import screen_records
 from settings import load_settings
 from telemetry.privacy import telemetry_scope
 from telemetry.tracing import record_prompt_version
@@ -132,6 +134,17 @@ class RealInterviewExecutor(InterviewExecutor):
         formatted = system_context(context) + "\n\n" + preparation_style(claim.payload.setup)
         if len(formatted) > MAX_PROMPT_TEXT:
             raise ScreeningRejected("context_limit")
+        avoided_sources = context.get("avoided_question_sources", [])
+        if [r["question_text"] for r in avoided_sources] != context.get("avoided_questions", []):
+            raise ValueError("Avoided question provenance is unavailable")
+        records = interview_question_records(avoided_sources, avoided=True)
+        if records:
+            async def screen_preferences(text):
+                return await screen_with_operation_models(text, 120,
+                    lambda model: self.models.accounted(self.client, claim, "screening", model))
+            outcome = await screen_records(records, screen=screen_preferences)
+            if not outcome.allowed:
+                raise ScreeningRejected(screening_failure_code(outcome.decision))
         if "job" in context:
             prompt = f"Prepare exactly {claim.payload.setup.question_count} main questions for the saved job in the system context. The output role must be null."
         else:

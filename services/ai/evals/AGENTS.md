@@ -137,20 +137,20 @@ score attached, so runs can be compared across prompt and model changes.
 ## Local Rules
 
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
-  twenty-three question cases and eighteen feedback cases for general/technical/knowledge full sets and replacements,
+  thirty-two question cases and twenty feedback cases for all five written types, full sets and replacements,
   software and nonsoftware practical work, sparse education, complete/incomplete stories, no matching example,
-  uncertain/negative outcomes, introductions, and legacy goals/development questions.
+  uncertain/negative outcomes, introductions, honest goals/development answers, proposed approaches, and missing intentions.
   Knowledge cases cover Python, nontechnology food safety, sparse historical source comparison,
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.
   Structured saved-career-context cases preserve requirement context without treating it as personal evidence.
   The knowledge accuracy judge checks corrections; scope-aware example grounding permits subject facts while forbidding invented experience.
 - `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
-  Recent-practice cases cover full sets across all three types, including sparse context.
+  Recent-practice cases cover full sets across all five types, including sparse context.
   The recent-practice variety rubric is a quality signal, never a production acceptance gate.
 - `interview_eval_reporting.py` — input-aware Pydantic Evals judging and Logfire scores;
   `interview_judge.py` submits all applicable rubrics in one attempt with independent
   `EVAL_JUDGE_MODEL` configuration. Output and HTTP retries are disabled; case errors
-  make the runner fail. Knowledge accuracy is omitted for general/technical inputs,
+  make the runner fail. Knowledge accuracy is omitted for nonknowledge inputs,
   so its aggregate is knowledge-only. Instructions live in the prompts package.
   Reports include raw output JSON so bracket placeholders can be checked without terminal
   markup. Feedback placeholder expectations live in metadata, outside agent/judge inputs;

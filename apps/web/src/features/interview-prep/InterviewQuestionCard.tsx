@@ -1,6 +1,6 @@
 /**
  * Description: One practice question: write and save an answer, get coaching, replace it, or permanently delete it.
- * Get feedback saves the typed answer first. Replacing an answered question keeps the old answer
+ * Get feedback saves the typed answer and recall cue first. Replacing an answered question keeps the old answer
  * as a read-only copy on the practice page. "Don't show this again" only affects future questions.
  */
 import { useEffect, useState } from 'react'
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { INTERVIEW_ANSWER_TEXT } from '@/lib/textLimits'
+import { INTERVIEW_ANSWER_TEXT, INTERVIEW_MEMORY_ANCHOR_TEXT } from '@/lib/textLimits'
 import type { InterviewSetQuery } from '@/graphql/generated/graphql'
 import { InterviewFeedback } from './InterviewFeedback'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
@@ -20,11 +20,15 @@ import { useQuestionAvoidance } from './useQuestionAvoidance'
 
 type Question = InterviewSetQuery['interviewQuestionSet']['questions'][number]
 /** Keeps drafts and subscriptions alive while the question is open. */
-export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDeleted }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void; onDeleted: () => void }) {
+export function InterviewQuestionCard({ question, setId, manual, refetch, onDirty, onDeleted }: { question: Question; setId: string; manual: boolean; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void; onDeleted: () => void }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const avoidance = useQuestionAvoidance(setId, question.id, question.questionRevision, question.avoided)
   const [edits, setEdits] = useState(0)
   const [submittedEdits, setSubmittedEdits] = useState<number | null>(null)
+  const [anchor, setAnchor] = useState(question.memoryAnchor)
+  const [anchorBaseline, setAnchorBaseline] = useState(question.memoryAnchor)
+  const [serverAnchor, setServerAnchor] = useState(question.memoryAnchor)
+  const [checkAnchor, setCheckAnchor] = useState(false)
   const [answer, setAnswer] = useState(question.answerText)
   const [baseline, setBaseline] = useState(question.answerText)
   const [serverAnswer, setServerAnswer] = useState(question.answerText)
@@ -34,7 +38,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
   const [observedTask, setObservedTask] = useState(question.latestTask)
   const { run, busy, errors } = useInterviewAnswer(setId, question.id)
   const [replacementRevision, setReplacementRevision] = useState(question.latestTask?.status === 'QUEUED' && question.latestTask.taskType === 'REGENERATE_INTERVIEW_QUESTION' ? question.questionRevision : null)
-  const dirty = answer !== baseline
+  const dirty = answer !== baseline || anchor !== anchorBaseline
   const feedbackDraftChanged = answer.trim().replace(/\s+/g, ' ').toLowerCase() !== baseline.trim().replace(/\s+/g, ' ').toLowerCase()
   const replacing = replacementRevision !== null && task?.taskType === 'REGENERATE_INTERVIEW_QUESTION' && task.status !== 'FAILED' && question.questionRevision === replacementRevision
   const reviewing = task?.status === 'QUEUED' && task.taskType === 'REVIEW_INTERVIEW_ANSWER'
@@ -46,8 +50,15 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
     setAnswer(question.answerText)
     setBaseline(question.answerText)
     setServerAnswer(question.answerText)
-  } else if (question.answerText !== serverAnswer) {
+    setAnchor(question.memoryAnchor)
+    setAnchorBaseline(question.memoryAnchor)
+    setServerAnchor(question.memoryAnchor)
+    setCheckAnchor(false)
+  } else if (question.answerText !== serverAnswer || question.memoryAnchor !== serverAnchor) {
     if (answer === baseline && (submittedEdits === null || submittedEdits === edits)) setAnswer(question.answerText)
+    if (anchor === anchorBaseline && (submittedEdits === null || submittedEdits === edits)) setAnchor(question.memoryAnchor)
+    setAnchorBaseline(question.memoryAnchor)
+    setServerAnchor(question.memoryAnchor)
     setSubmittedEdits(null)
     setBaseline(question.answerText)
     setServerAnswer(question.answerText)
@@ -60,9 +71,10 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
   /** Preserves edits made during a request and refreshes answers saved before queue errors. */
   async function perform(operation: 'save' | 'feedback' | 'replace') {
     const submitted = answer
+    const submittedAnchor = anchor
     setSubmittedEdits(edits)
-    const result = await run(operation, submitted)
-    if (result.ok && operation !== 'replace') setBaseline(submitted)
+    const result = await run(operation, submitted, submittedAnchor)
+    if (result.ok && operation !== 'replace') { setBaseline(submitted); setAnchorBaseline(submittedAnchor) }
     if (result.task) {
       setTask(result.task)
       if (operation === 'replace') setReplacementRevision(question.questionRevision)
@@ -71,7 +83,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
     try { await refetch() } catch { /* The page query exposes refresh errors and keeps the draft available. */ }
   }
   const canRequestFeedback = !busy && !replacing && !reviewing && !(feedbackForVersion && !feedbackDraftChanged) &&
-    answer.trim() !== '' && answer.length <= INTERVIEW_ANSWER_TEXT
+    answer.trim() !== '' && answer.length <= INTERVIEW_ANSWER_TEXT && anchor.length <= INTERVIEW_MEMORY_ANCHOR_TEXT
   const saveStatus = busy === 'save' ? 'Saving…' : busy === 'feedback' ? 'Saving and sending for feedback…'
     : reviewing ? 'Getting feedback. You can keep editing.' : dirty ? 'Unsaved changes' : 'Saved'
   return <article className="question-card" aria-labelledby={`question-${question.id}`}>
@@ -83,7 +95,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
           <Button variant="ghost" size="icon-sm" aria-label="Question actions"><Ellipsis /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>
+          {!manual && <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>}
           <DropdownMenuItem disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onSelect={() => void avoidance.save()}>
             {avoidance.saved ? 'Hidden from new questions' : "Don't show this again"}
           </DropdownMenuItem>
@@ -96,11 +108,16 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
     <div className="question-card-body">
       <div className="grid min-w-0 content-start gap-3">
         <label htmlFor={`answer-${question.id}`} className="font-bold">Your answer</label>
-        <Textarea id={`answer-${question.id}`} value={answer} maxLength={INTERVIEW_ANSWER_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnswer(event.target.value) }} className="min-h-64" />
+        <Textarea id={`answer-${question.id}`} value={answer} maxLength={INTERVIEW_ANSWER_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnswer(event.target.value); setCheckAnchor(true) }} className="min-h-64" />
         <div className="question-answer-status">
           <p role="status">{saveStatus}</p>
           <p>{answer.length.toLocaleString()} / {INTERVIEW_ANSWER_TEXT.toLocaleString()}</p>
         </div>
+        <label htmlFor={`anchor-${question.id}`} className="font-bold">Memory anchor</label>
+        <p id={`anchor-help-${question.id}`} className="text-sm text-muted-foreground">Optional: a short cue to help you recall your answer.</p>
+        <Textarea id={`anchor-${question.id}`} aria-describedby={`anchor-help-${question.id}`} value={anchor} maxLength={INTERVIEW_MEMORY_ANCHOR_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnchor(event.target.value); setCheckAnchor(false) }} />
+        <p className="text-sm text-muted-foreground">{anchor.length} / {INTERVIEW_MEMORY_ANCHOR_TEXT}</p>
+        {checkAnchor && anchor.trim() && <p className="text-sm text-muted-foreground">You changed your answer. Check that your memory anchor still fits.</p>}
         <ErrorAlert title="Couldn't complete this action" messages={errors} />
         <div className="flex flex-wrap gap-2">
           <Button disabled={!canRequestFeedback} onClick={() => void perform('feedback')}>
@@ -113,7 +130,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty, onDel
       </div>
       <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated || feedbackDraftChanged} unsavedChanges={feedbackDraftChanged} />
     </div>
-    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer and its feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><ErrorAlert title="Couldn't replace question" messages={errors} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer, memory anchor, and feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><ErrorAlert title="Couldn't replace question" messages={errors} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
     <DeleteQuestionDialog setId={setId} questionId={question.id} questionText={question.questionText} dirty={dirty} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onDeleted} />
   </article>
 }

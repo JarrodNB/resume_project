@@ -18,9 +18,9 @@ module AiReaderAccess
   READABLE_TASK_COLUMNS = %w[id user_id task_type status input subject_id subject_type].freeze
 
   READABLE_PRACTICE_COLUMNS = {
-    "interview_question_sets" => %w[id user_id number set_type created_at],
+    "interview_question_sets" => %w[id user_id number set_type origin created_at],
     "interview_questions" => %w[id interview_question_set_id position question_text question_revision answer_revision retired_at answer_text screened_fields],
-    "avoided_interview_questions" => %w[id user_id question_text created_at]
+    "avoided_interview_questions" => %w[id user_id question_text origin screened_fields created_at]
   }.freeze
 
   READABLE_RESUME_COLUMNS = %w[id user_id].freeze
@@ -36,7 +36,7 @@ module AiReaderAccess
     chat_conversations: %w[id user_id summary_text summary_version summary_through_position],
     chat_operations: %w[id chat_conversation_id message status attempt_id claim_generation lease_expires_at execution_deadline expected_position summary_base_version summary_plan],
     chat_messages: %w[chat_conversation_id position role content screened_sha256],
-    avoided_interview_questions: %w[user_id question_text created_at id]
+    avoided_interview_questions: %w[user_id question_text origin screened_fields created_at id]
   }.freeze
 
   module_function

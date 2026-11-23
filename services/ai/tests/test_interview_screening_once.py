@@ -15,7 +15,7 @@ from llm.run_generative_agent import GenerativeOutputInvalid
 from schemas.gap_analysis_context import CareerContext, CareerLibrary, LibrarySkill
 from screening.session import screening_session
 from tests.test_interview_feedback_handler import output, task
-from tests.test_interview_questions_handler import _output, _task
+from tests.test_interview_questions_handler import _output, _task, owned_sources
 from worker.task_handlers import handle_ai_task
 
 pytestmark = pytest.mark.real_guardrail
@@ -24,7 +24,7 @@ pytestmark = pytest.mark.real_guardrail
 @pytest.fixture
 def task_dependencies(task_dependencies):
     """Supply the owned-reader seam while these tests count actual classification."""
-    return replace(task_dependencies, read_interview_question_sources=lambda request: dict(request.input))
+    return replace(task_dependencies, read_interview_question_sources=lambda request: {"origin": "generated", **owned_sources(request.input)})
 
 
 def screened_answer(request):

@@ -15,11 +15,11 @@ export function useInterviewAnswer(questionSetId: string, questionId: string) {
   const [busy, setBusy] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   /** Executes one operation; feedback can persist the answer even when queueing fails. */
-  async function run(operation: 'save' | 'feedback' | 'replace', answerText: string) {
+  async function run(operation: 'save' | 'feedback' | 'replace', answerText: string, memoryAnchor: string) {
     setBusy(operation)
     setErrors([])
     try {
-      const variables = { questionSetId, questionId, answerText }
+      const variables = { questionSetId, questionId, answerText, memoryAnchor }
       const payload = operation === 'save'
         ? (await saveMutation({ variables })).data?.saveInterviewAnswer
         : operation === 'feedback'

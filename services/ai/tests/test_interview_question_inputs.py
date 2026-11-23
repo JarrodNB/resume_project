@@ -18,7 +18,7 @@ from screening.screen_user_text import ScreenOutcome
 from screening.session import prompt_is_covered, screening_session, trust_generated_source
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_question_context_keeps_visible_evidence_and_citations_together(set_type):
     library = CareerLibrary(
         summary="Built careful reports.",
@@ -60,7 +60,7 @@ def test_preparation_requires_approval_for_every_prompt_source(trust_history, mo
             trust_generated_source(excluded)
             trust_generated_source(recent)
         context = prepare_interview_question_context(
-            selected, [excluded], 5, "general", recent_questions=[recent],
+            selected, [excluded], 5, "fit_motivation", recent_questions=[recent],
         )
 
         assert prompt_is_covered(context.text) is trust_history

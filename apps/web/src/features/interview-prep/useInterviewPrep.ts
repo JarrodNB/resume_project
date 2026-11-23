@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
-import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
+import { CREATE_CUSTOM_INTERVIEW_QUESTION, DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
 
 /** Loads every saved question, split into current slots and answers kept from replaced questions. */
 export function useQuestionBank() {
@@ -74,4 +74,23 @@ export function useDeleteInterviewSet(id: string) {
     }
   }
   return { remove, loading, errors }
+}
+
+/** Saves candidate wording directly, without generation or library prerequisites. */
+export function useCreateCustomQuestion() {
+  const [mutate, { loading }] = useMutation(CREATE_CUSTOM_INTERVIEW_QUESTION)
+  const [errors, setErrors] = useState<string[]>([])
+  async function create(setType: InterviewQuestionSetTypeEnum, questionText: string, answerText: string) {
+    setErrors([])
+    try {
+      const { data } = await mutate({ variables: { setType, questionText, answerText } })
+      const payload = data?.createCustomInterviewQuestion
+      if (payload?.questionSet && !payload.errors.length) return payload.questionSet.id
+      setErrors(payload?.errors ?? ['Could not add your question.'])
+    } catch (error) {
+      setErrors([requestErrorMessage(error, 'Could not add your question.')])
+    }
+    return null
+  }
+  return { create, loading, errors }
 }

@@ -1,8 +1,11 @@
 # Daily job that emails users whose free trial is about to end.
-# Runs once a day and looks 36 hours ahead (see the service), so no trial is missed between runs.
+# Runs daily and looks 36 hours ahead. Temporary mail enqueue failures retry after a few minutes
+# so the remaining reminders do not have to wait until tomorrow.
 module Accounts
   class SendTrialEndingEmailsJob < ApplicationJob
     queue_as :maintenance
+
+    retry_on ActiveJob::EnqueueError, wait: 5.minutes, attempts: 12
 
     def perform
       result = SendTrialEndingEmailsService.call

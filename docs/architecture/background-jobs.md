@@ -58,8 +58,9 @@ emails users whose free trial ends within the next 36 hours. The window is longe
 paid subscription are included (a spend-cap override does not exclude anyone). Each user is
 claimed with a conditional update of `users.trial_ending_email_sent_at` before the mail is
 queued, so reruns and overlapping runs send at most one email; if queuing fails the claim is
-released so the next run retries. The mail goes through `AccountMailer#trial_ending` and
-`AccountMailDeliveryJob`. `Accounts::DeleteUnverifiedAccountsJob` is the hourly sibling.
+released so the next run retries. The job retries temporary mail enqueue failures every five
+minutes, for up to 12 attempts, without duplicating reminders already queued. The mail goes
+through `AccountMailer#trial_ending` and `AccountMailDeliveryJob`. `Accounts::DeleteUnverifiedAccountsJob` is the hourly sibling.
 
 ## Interactive AI delivery and recovery
 

@@ -115,11 +115,14 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
     <ErrorAlert title="Couldn't save preference" messages={avoidance.errors} />
     <div className="question-card-body">
       <div className="grid min-w-0 content-start gap-3">
-        <label htmlFor={`format-${question.id}`} className="font-bold">Answer format</label>
-        <select id={`format-${question.id}`} className="rounded-md border bg-background p-2" value={draft.format} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setDraft({ ...draft, format: normalizeAnswerFormat(event.target.value) }); setCheckAnchor(true) }}>
-          {Object.entries(answerFormats).map(([value, definition]) => <option key={value} value={value}>{definition.label}</option>)}
-        </select>
-        <p className="text-sm text-muted-foreground">{answerFormats[draft.format].explanation} Story formats suit experience questions; use only facts you can support. Each format keeps a separate draft.</p>
+        <div className="question-answer-format">
+          <label htmlFor={`format-${question.id}`} className="font-bold">Answer format</label>
+          <select id={`format-${question.id}`} className="question-format-select" aria-describedby={`format-help-${question.id} format-drafts-${question.id}`} value={draft.format} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setDraft({ ...draft, format: normalizeAnswerFormat(event.target.value) }); setCheckAnchor(true) }}>
+            {Object.entries(answerFormats).map(([value, definition]) => <option key={value} value={value}>{definition.label}</option>)}
+          </select>
+          <p id={`format-help-${question.id}`} className="text-sm">{answerFormats[draft.format].explanation}</p>
+          <p id={`format-drafts-${question.id}`} className="text-sm text-muted-foreground">Story formats suit experience questions; use only facts you can support. Each format keeps a separate draft.</p>
+        </div>
         {Object.entries(answerFormats[draft.format].fields).map(([field, label]) => <div key={`${draft.format}-${field}`} className="grid gap-2">
           <label htmlFor={`answer-${question.id}-${field}`} className="font-bold">{label}</label>
           {answerFieldHelp[field] && <p id={`field-help-${question.id}-${field}`} className="text-sm text-muted-foreground">{answerFieldHelp[field]}</p>}
@@ -129,15 +132,17 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
           <p role="status">{saveStatus}</p>
           <p>{answer.length.toLocaleString()} / {INTERVIEW_ANSWER_TEXT.toLocaleString()}</p>
         </div>
-        <label htmlFor={`anchor-${question.id}`} className="font-bold">Memory anchor</label>
-        <p id={`anchor-help-${question.id}`} className="text-sm text-muted-foreground">Optional: compress each answer sentence into a cue, in the same order. Write your own or generate one, then edit it.</p>
-        <Textarea id={`anchor-${question.id}`} aria-describedby={`anchor-help-${question.id}`} className="min-h-24" value={anchor} maxLength={INTERVIEW_MEMORY_ANCHOR_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnchor(event.target.value); setCheckAnchor(false) }} />
-        <Button variant="outline" className="justify-self-start" disabled={!!busy || replacing || reviewing || anchoring || oversizedFormats.length > 0 || !answer.trim() || answer.length > INTERVIEW_ANSWER_TEXT || anchor.length > INTERVIEW_MEMORY_ANCHOR_TEXT} onClick={() => void perform('anchor')}>
-          {(busy === 'anchor' || anchoring) && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-          {busy === 'anchor' || anchoring ? 'Generating anchor…' : anchor.trim() ? 'Regenerate anchor' : 'Generate anchor'}
-        </Button>
-        <p className="text-sm text-muted-foreground">{anchor.length} / {INTERVIEW_MEMORY_ANCHOR_TEXT}</p>
-        {checkAnchor && anchor.trim() && <p className="text-sm text-muted-foreground">You changed your answer. Check that your memory anchor still fits.</p>}
+        <div className="question-memory-anchor">
+          <label htmlFor={`anchor-${question.id}`} className="font-bold">Memory anchor</label>
+          <p id={`anchor-help-${question.id}`} className="text-sm text-muted-foreground">Optional: compress each answer sentence into a cue, in the same order. Write your own or generate one, then edit it.</p>
+          <Textarea id={`anchor-${question.id}`} aria-describedby={`anchor-help-${question.id}`} className="min-h-24" value={anchor} maxLength={INTERVIEW_MEMORY_ANCHOR_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnchor(event.target.value); setCheckAnchor(false) }} />
+          <Button variant="outline" className="justify-self-start" disabled={!!busy || replacing || reviewing || anchoring || oversizedFormats.length > 0 || !answer.trim() || answer.length > INTERVIEW_ANSWER_TEXT || anchor.length > INTERVIEW_MEMORY_ANCHOR_TEXT} onClick={() => void perform('anchor')}>
+            {(busy === 'anchor' || anchoring) && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+            {busy === 'anchor' || anchoring ? 'Generating anchor…' : anchor.trim() ? 'Regenerate anchor' : 'Generate anchor'}
+          </Button>
+          <p className="text-sm text-muted-foreground">{anchor.length} / {INTERVIEW_MEMORY_ANCHOR_TEXT}</p>
+          {checkAnchor && anchor.trim() && <p className="text-sm text-muted-foreground">You changed your answer. Check that your memory anchor still fits.</p>}
+        </div>
         {oversizedFormats.length > 0 && <p role="alert">Shorten {oversizedFormats.map((format) => answerFormats[format].label).join(', ')} to {INTERVIEW_ANSWER_TEXT.toLocaleString()} characters including section labels before saving.</p>}
         <ErrorAlert title="Couldn't complete this action" messages={errors} />
         <div className="flex flex-wrap gap-2">

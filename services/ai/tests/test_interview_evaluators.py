@@ -32,9 +32,11 @@ from schemas.interview_questions import (
 def test_feedback_eval_uses_readable_production_prompt() -> None:
     """Synthetic quality cases exercise the same feedback prompt shape as the worker."""
     context = feedback_context(FeedbackEvalInput(
-        set_type="knowledge", question="How does it work?", answer="I am unsure.",
+        set_type="knowledge", answer_format="carl", question="How does it work?", answer="I am unsure.",
         library='I studied "safety".\nThen practiced it.',
     ))
+    assert context.answer_format == "carl"
+    assert "Answer format: carl" in context.text
     assert "Set type: knowledge" in context.text
     assert "Question:\nHow does it work?" in context.text
     assert "Answer:\nI am unsure." in context.text
@@ -98,7 +100,7 @@ def test_recent_question_eval_context_is_soft_history():
 def test_feedback_structure() -> None:
     """Required placeholders and exact evidence cannot pass on invented or blank data."""
     dataset = load_interview_feedback_dataset()
-    assert len(dataset.cases) == 20
+    assert len(dataset.cases) == 24
     for case in dataset.cases:
         output = InterviewFeedback(strengths=["You identified a theme."],
                                    improvements=["Explain your own actions."],

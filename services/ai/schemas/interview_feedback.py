@@ -5,10 +5,13 @@ Index:
     - InterviewFeedbackContext: prompt and permitted evidence
 """
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from schemas.interview_questions import InterviewSetType
+
+InterviewAnswerFormat = Literal["plain_text", "car", "carl", "star"]
 
 
 class InterviewFeedback(BaseModel):
@@ -37,3 +40,4 @@ class InterviewFeedbackContext:
     text: str
     source_text: str
     set_type: InterviewSetType = "fit_motivation"
+    answer_format: InterviewAnswerFormat = "plain_text"

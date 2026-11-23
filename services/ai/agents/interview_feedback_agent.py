@@ -4,7 +4,7 @@ Index:
     - interview_feedback_agent / check_labels: agent and output validation
     - InterviewFeedbackRun / generate_interview_feedback: bounded run and billed usage
     - source_excerpt: removes presentation quotes only when the contents match source text
-    - interview_feedback_instructions: selects trusted scope policy and type-specific coaching
+    - interview_feedback_instructions: selects trusted scope and active-format coaching
 """
 import re
 
@@ -20,6 +20,8 @@ from prompts.interview_feedback_instructions import (
     HYPOTHETICAL_COACHING_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_PROMPT_VERSION,
+    SELECTED_FORMAT_INSTRUCTIONS,
+    STRUCTURED_FORMAT_LIMITS,
 )
 from prompts.interview_knowledge_feedback_instructions import (
     INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS,
@@ -42,16 +44,19 @@ interview_feedback_agent = Agent(
 
 @interview_feedback_agent.instructions
 def interview_feedback_instructions(context: RunContext[InterviewFeedbackContext]) -> str:
-    """Selects the saved type’s policy; STAR applies only to behavioral stories."""
-    if context.deps is not None and context.deps.set_type == "knowledge":
-        return INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS
+    """Combine the trusted question policy with the active saved answer format."""
+    format_policy = SELECTED_FORMAT_INSTRUCTIONS[context.deps.answer_format]
+    if context.deps.answer_format != "plain_text":
+        format_policy += STRUCTURED_FORMAT_LIMITS
+    if context.deps.set_type == "knowledge":
+        return INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS + format_policy
     supplement = {
         "fit_motivation": FIT_MOTIVATION_COACHING_INSTRUCTIONS,
         "behavioral": BEHAVIORAL_COACHING_INSTRUCTIONS,
         "hypothetical": HYPOTHETICAL_COACHING_INSTRUCTIONS,
         "technical": "",
     }[context.deps.set_type]
-    return INTERVIEW_FEEDBACK_INSTRUCTIONS + supplement
+    return INTERVIEW_FEEDBACK_INSTRUCTIONS + supplement + format_policy
 
 
 

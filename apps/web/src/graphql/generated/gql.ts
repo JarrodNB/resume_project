@@ -87,12 +87,12 @@ type Documents = {
     "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": typeof types.AuthorizeInterviewRecordingDocument,
     "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.RegisterInterviewRecordingDocument,
     "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.SubmitInterviewTurnDocument,
-    "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.RetryInterviewOperationDocument,
+    "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.RetryInterviewOperationDocument,
     "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": typeof types.InterviewPlaybackDocument,
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": typeof types.RecentInterviewSessionsDocument,
-    "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.StartRecordedTranscriptionDocument,
+    "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n      errorCode\n    }\n  }\n": typeof types.RequestInterviewClarificationDocument,
     "\n  mutation SkipInterviewQuestion($input: SkipInterviewQuestionInput!) {\n    skipInterviewQuestion(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.SkipInterviewQuestionDocument,
@@ -208,12 +208,12 @@ const documents: Documents = {
     "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": types.AuthorizeInterviewRecordingDocument,
     "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.RegisterInterviewRecordingDocument,
     "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.SubmitInterviewTurnDocument,
-    "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.RetryInterviewOperationDocument,
+    "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.RetryInterviewOperationDocument,
     "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": types.InterviewPlaybackDocument,
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": types.RecentInterviewSessionsDocument,
-    "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": types.StartRecordedTranscriptionDocument,
+    "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n      errorCode\n    }\n  }\n": types.RequestInterviewClarificationDocument,
     "\n  mutation SkipInterviewQuestion($input: SkipInterviewQuestionInput!) {\n    skipInterviewQuestion(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.SkipInterviewQuestionDocument,
@@ -565,7 +565,7 @@ export function graphql(source: "\n  mutation SubmitInterviewTurn($input: Submit
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"];
+export function graphql(source: "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n"): (typeof documents)["\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -585,7 +585,7 @@ export function graphql(source: "\n  query RecentInterviewSessions {\n    recent
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n"];
+export function graphql(source: "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }\n  }\n"): (typeof documents)["\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

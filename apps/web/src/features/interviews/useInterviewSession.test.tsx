@@ -6,7 +6,7 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession, useStartInterview } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION } from './interviewOperations'
+import { RETRY_OPERATION, ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION } from './interviewOperations'
 const snapshot = {
   feedback: null, jobContext: null,
   setup: { __typename: 'InterviewSetup' as const, questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
@@ -263,7 +263,7 @@ it('asks for re-entry after reload when a typed identity is absent from the serv
   expect(loadPendingSubmission('owner', 'session')).toBeNull()
 })
 
-it('uploads recorded review once and retries its exact capture after a lost receipt without submitting an answer', async () => {
+it.each(['network', 'plan'])('uploads recorded review once and preserves recovery after a %s refusal', async (failure) => {
   sessionStorage.clear()
   const put = vi.fn().mockResolvedValue({ ok: true })
   vi.stubGlobal('fetch', put)
@@ -272,13 +272,16 @@ it('uploads recorded review once and retries its exact capture after a lost rece
     { request: query, result: { data: { interviewSession: snapshot } } },
     { request: { query: AUTHORIZE_RECORDING, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, contentType: 'audio/webm', byteSize: 3, checksum: 'kAFQmDzST7DWlj99KOF/cg==' } } }, result: { data: { authorizeInterviewRecording: { __typename: 'AuthorizeInterviewRecordingPayload', errors: [], upload: { __typename: 'InterviewRecordingUpload', mediaId: 'recording', uploadUrl: 'https://storage.test/upload', headers: { 'Content-Type': 'audio/webm' }, expiresIn: 60 } } } } },
     { request: { query: REGISTER_RECORDING, variables: { input: { interviewId: 'session', mediaId: 'recording' } } }, result: { data: { registerInterviewRecording: { __typename: 'RegisterInterviewRecordingPayload', interview: snapshot, errors: [] } } } },
-    { request: startRequest, error: new Error('Lost capture receipt') },
-    { request: startRequest, result: { data: { startRecordedTranscription: { __typename: 'StartRecordedTranscriptionPayload', operationId: 'capture', interview: snapshot, errors: [] } } } },
+    failure === 'network' ? { request: startRequest, error: new Error('Lost capture receipt') } :
+      { request: startRequest, result: { data: { startRecordedTranscription: { __typename: 'StartRecordedTranscriptionPayload', operationId: null, interview: null, errors: ['Subscribe to continue.'], errorCode: 'PLAN_ENDED' } } } },
+    { request: startRequest, result: { data: { startRecordedTranscription: { __typename: 'StartRecordedTranscriptionPayload', operationId: 'capture', interview: snapshot, errors: [], errorCode: null } } } },
   ])
   await waitFor(() => expect(result.current.loading).toBe(false))
   const blob = new Blob(['abc'], { type: 'audio/webm' })
   await act(async () => expect(await result.current.transcribeRecording(blob)).toBeNull())
+  expect(result.current.errorCode).toBe(failure === 'plan' ? 'PLAN_ENDED' : null)
   await act(async () => expect(await result.current.transcribeRecording(blob)).toBe('capture'))
+  expect(result.current.errorCode).toBeNull()
   expect(put).toHaveBeenCalledOnce()
   expect(result.current.interview?.revision).toBe(0)
   expect(result.current.interview?.operations).toEqual([])
@@ -327,4 +330,20 @@ it('reconciles the original skip when live progression advances after a lost res
   expect(result.current.skipPending).toBe(false)
   expect(result.current.interview?.currentQuestionPosition).toBe(1)
   expect(crypto.randomUUID).toHaveBeenCalledOnce()
+})
+
+it('preserves a plan-ended retry refusal and clears it after a successful retry', async () => {
+  sessionStorage.clear()
+  const request = { query: RETRY_OPERATION, variables: { input: { interviewId: 'session', operationId: 'operation' } } }
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request, result: { data: { retryInterviewOperation: { __typename: 'RetryInterviewOperationPayload', interview: null, errors: ['Subscribe to continue.'], errorCode: 'PLAN_ENDED' } } } },
+    { request, result: { data: { retryInterviewOperation: { __typename: 'RetryInterviewOperationPayload', interview: snapshot, errors: [], errorCode: null } } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(() => result.current.retryOperation('operation'))
+  expect(result.current.errorCode).toBe('PLAN_ENDED')
+  await act(() => result.current.retryOperation('operation'))
+  expect(result.current.errorCode).toBeNull()
+  expect(result.current.error).toBeNull()
 })

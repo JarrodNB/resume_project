@@ -51,6 +51,16 @@ RSpec.describe "Retired interview questions" do
     expect(question_set.reload.questions.count).to eq(5)
   end
 
+  it "retains all drafts when only an inactive draft is answered" do
+    question.update!(answer_format: "star", answer_drafts: { "car" => { "action" => "Keep this" } })
+    expect(replace(question)).to be_completed
+    copy = question_set.retired_questions.sole
+    expect(copy.answer_drafts).to eq({ "car" => { "action" => "Keep this" } })
+    expect(copy.answer_format).to eq("star")
+    expect(question.reload.answer_drafts).to eq({})
+    expect(question.answer_format).to eq("plain_text")
+  end
+
   it "keeps no copy when the replaced question was unanswered" do
     question.update!(answer_text: "   ")
     expect(replace(question)).to be_completed

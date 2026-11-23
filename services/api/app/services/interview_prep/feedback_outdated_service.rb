@@ -19,6 +19,7 @@ module InterviewPrep
     def call
       return success(false) if @question.feedback.blank?
       return success(true) if @question.feedback_question_revision != @question.question_revision
+      return success(true) if @question.feedback_answer_revision.to_i < @question.answer_format_revision
       return success(false) if @question.feedback_answer_revision == @question.answer_revision
 
       task = @question.ai_tasks.where(task_type: "review_interview_answer", status: "completed")
@@ -27,7 +28,7 @@ module InterviewPrep
         .order(created_at: :desc, id: :desc).first
       fingerprint = task&.input&.fetch("normalized_answer_sha256", nil)
       matching_feedback = task&.result&.fetch("interview_feedback", nil) == @question.feedback
-      unchanged = fingerprint == self.class.answer_fingerprint(@question.answer_text)
+      unchanged = task&.input&.fetch("answer_format", "plain_text") == @question.answer_format && fingerprint == self.class.answer_fingerprint(@question.answer_text)
       success(!(matching_feedback && unchanged))
     end
   end

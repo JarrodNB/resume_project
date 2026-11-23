@@ -80,7 +80,7 @@ module Accounts
     def interview_question_sets
       @user.interview_question_sets.includes(:questions, :retired_questions).map do |set|
         set.slice(:number, :set_type, :created_at)
-          .merge(questions: pick(set.questions.to_a + set.retired_questions.to_a, :question_text, :answer_text, :memory_anchor, :feedback, :retired_at))
+          .merge(questions: pick(set.questions.to_a + set.retired_questions.to_a, :question_text, :answer_text, :answer_format, :answer_drafts, :memory_anchor, :feedback, :retired_at))
       end
     end
 

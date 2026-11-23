@@ -39,7 +39,7 @@ module InterviewPrep
         retained = retain_answered_copy(record)
         record.update!(question_text: drafts.first["question_text"],
                        question_revision: record.question_revision + 1,
-                       screened_fields: [], answer_text: "", memory_anchor: "", answer_revision: record.answer_revision + 1,
+                       screened_fields: [], answer_format_revision: 0, answer_format: "plain_text", answer_drafts: {}, answer_text: "", memory_anchor: "", answer_revision: record.answer_revision + 1,
                        feedback: {}, feedback_question_revision: nil, feedback_answer_revision: nil)
         record.embedding&.destroy! unless retained
       end
@@ -83,10 +83,11 @@ module InterviewPrep
     # Keeps an answered question as a retired, slotless copy before its slot is replaced.
     # The copy keeps the same revisions, so its feedback stays current and its vector moves with it.
     def retain_answered_copy(record)
-      return false if record.answer_text.strip.empty?
+      return false unless AnswerFormats.answered?(record)
 
       copy = record.interview_question_set.retired_questions.create!(
         retired_at: Time.current, position: nil, question_text: record.question_text,
+        answer_format_revision: record.answer_format_revision, answer_format: record.answer_format, answer_drafts: AnswerFormats.drafts(record),
         answer_text: record.answer_text, memory_anchor: record.memory_anchor, question_revision: record.question_revision,
         answer_revision: record.answer_revision, feedback: record.feedback,
         feedback_question_revision: record.feedback_question_revision,

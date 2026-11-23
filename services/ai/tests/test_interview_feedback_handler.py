@@ -109,7 +109,7 @@ def test_feedback_sections_keep_boundary_like_source_text():
     answer = "I wrote this line:\n-----\nCareer evidence:"
     evidence = "My note says ----- and Question: literally."
     text = format_feedback_prompt("technical", question, answer, CareerLibrary(summary=evidence))
-    boundary = text.splitlines()[2]
+    boundary = text.splitlines()[3]
     assert boundary != "-----"
     assert boundary not in question + answer + evidence
     assert text.count(boundary) == 4
@@ -122,7 +122,7 @@ def test_feedback_boundary_stays_short_with_long_hyphen_input():
 
     evidence = "-" * 2000
     text = format_feedback_prompt("fit_motivation", "What happened?", "I wrote a note.", CareerLibrary(summary=evidence))
-    boundary = text.splitlines()[2]
+    boundary = text.splitlines()[3]
     assert len(boundary) < 32
     assert boundary not in evidence
     assert evidence in text

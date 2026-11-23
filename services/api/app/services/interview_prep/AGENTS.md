@@ -10,7 +10,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks, using only set identity/type/number. Python reads up to 20 recent same-type active questions with durable origin as soft variety guidance.
 - `record_screening_service.rb` — delegates exact owned target/sibling receipt reports and
   records only current fingerprint/revision matches inside owner-first result application.
-- `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when text changes.
+- `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when active format/fields change.
 - `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues replacement/feedback identity/revision commands.
 - `delete_question_service.rb` — deletes one owned question and its derived vector while retaining AI usage records.
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.
@@ -30,7 +30,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - Serialize mutations through the owner lock; preserve revisions and task usage records.
 - Allow one successful feedback request per question/answer revision pair. Check completed task history under the owner lock; failed requests remain retryable.
 - Feedback saves a valid answer before allowance checks; queue or screening failure must preserve it. Saving an empty answer is allowed, but feedback requires nonblank text.
-- A successful replacement first keeps a nonblank answer as a retired copy (same revisions, feedback, approvals, and moved vector), then clears only that slot's answer and feedback; failures preserve existing content.
+- A successful replacement first keeps any nonblank format draft as a retired copy (same revisions, feedback, approvals, and moved vector), then clears only that slot's answer and feedback; failures preserve existing content.
 - Retired copies have `retired_at` and no position. `InterviewQuestionSet#questions` is active-only, so every slot rule and mutation ignores them; never make them editable through the slot mutations.
 
 - Result application acquires the owner lock before the task lock, matching enqueue/save/delete. Check replacement distinctness against the current set as well as the old question. Obsolete or invalid completions become failed tasks without modifying domain content; retain billed usage once.

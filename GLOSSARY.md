@@ -151,3 +151,7 @@ The requirement explains the response and is not itself evidence of the user’s
 **Job-title search suggestion**:
 A suggested role title to help start a job search. It is a search aid based on career evidence,
 not a claim that the person holds that title or meets every qualification for it.
+
+- **Written answer format**: An optional writing structure for one practice answer: Plain text, CAR (Context, Action, Result), CARL (adds Learning), or STAR (Situation, Task, Action, Result). Separate from question type and spoken interview format.
+- **Format draft**: One candidate-written version of a written question answer. Each format keeps its own fields; switching never converts text.
+- **Active answer**: The selected saved format draft, projected as readable text for feedback, search, rehearsal, anchors and embeddings. Alternatives remain saved privately.

@@ -120,7 +120,7 @@ RSpec.describe "Interview practice services" do
   it "saves the feedback answer and queues only references, revisions and a freshness digest" do
     result = start_operation("review_interview_answer", answer_text: "I led a project.")
     expect(result).to be_success
-    expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision normalized_answer_sha256])
+    expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision answer_format normalized_answer_sha256])
     expect(result.value.input).to include("question_revision" => 1, "answer_revision" => 1)
     expect(result.value.input.to_json).not_to include("I led a project.", question.question_text, "screened_fields")
     expect(question.reload.answer_text).to eq("I led a project.")

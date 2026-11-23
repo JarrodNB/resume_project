@@ -179,3 +179,24 @@ def test_memory_anchor_reads_current_owned_answer_and_rejects_changed_revision(a
     admin_connection.execute("UPDATE interview_questions SET answer_revision = 3 WHERE id = %s", (task.input["question_id"],))
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     assert read_interview_question_sources(admin_connection, task) is None
+
+
+def test_feedback_reads_selected_format_without_losing_saved_alternatives(admin_connection):
+    from database.interview_questions import read_interview_question_sources
+    owner = _insert_user(admin_connection)
+    set_id = _insert(admin_connection, "interview_question_sets", user_id=owner, number=1)
+    drafts = {"car": {"action": "I planned"}, "star": {"result": "Private alternative"}}
+    question = _insert(admin_connection, "interview_questions", interview_question_set_id=set_id,
+                       position=1, question_text="Describe a challenge?", answer_format="car",
+                       answer_drafts=Jsonb(drafts), answer_text="Action: I planned", answer_revision=1)
+    command = {"source_version": 1, "question_set_id": str(set_id), "question_id": str(question),
+               "set_type": "fit_motivation", "question_revision": 1, "answer_revision": 1}
+    task_id = _insert(admin_connection, "ai_tasks", user_id=owner, subject_id=question,
+                      subject_type="InterviewQuestion", task_type="review_interview_answer", status="queued", input=Jsonb(command))
+    task = AiTaskMessage(ai_task_id=task_id, user_id=owner, task_type="review_interview_answer", input=command)
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    source = read_interview_question_sources(admin_connection, task)
+    assert source["answer_format"] == "car"
+    assert source["answer_text"] == "Action: I planned"
+    assert source["answer_fields"] == drafts["car"]
+    assert "Private alternative" not in str(source)

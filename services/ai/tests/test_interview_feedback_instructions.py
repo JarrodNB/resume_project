@@ -22,13 +22,14 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
+@pytest.mark.parametrize("answer_format", ["plain_text", "car", "carl", "star"])
 @pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
-def test_provider_receives_scope_specific_instructions(task_dependencies, monkeypatch, set_type):
+def test_provider_receives_scope_specific_instructions(task_dependencies, monkeypatch, set_type, answer_format):
     """Exercises the real handler/agent request so knowledge never receives personal-only rules."""
     monkeypatch.setattr("screening.records.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=True))
     deps = replace(task_dependencies, read_career_library=lambda user: CareerLibrary(),
-                   read_interview_question_sources=lambda request: {"origin": "generated", **request.input})
+                   read_interview_question_sources=lambda request: {"origin": "generated", **request.input, "answer_format": answer_format})
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_interview_answer",
         input={"question_set_id": str(uuid4()), "question_id": str(uuid4()), "set_type": set_type,
                "question_text": "How do lists and tuples differ?", "answer_text": "Lists cannot change.",
@@ -38,6 +39,7 @@ def test_provider_receives_scope_specific_instructions(task_dependencies, monkey
     def respond(messages, info):
         """Captures the actual provider's selected policy and returns valid structured coaching."""
         seen.append(info.instructions)
+        assert f"Answer format: {answer_format}" in str(messages)
         draft = {"strengths": ["You attempt a comparison."],
                  "improvements": ["Explain the difference."],
                  "example_answer": "Lists are mutable sequences; tuples are immutable sequences.",
@@ -49,13 +51,18 @@ def test_provider_receives_scope_specific_instructions(task_dependencies, monkey
     assert result.status == "completed"
     assert seen and all(instructions for instructions in seen)
     for instructions in seen:
+        assert "SELECTED ANSWER FORMAT" in instructions
+        assert ("Context, Action, Result, Learning" in instructions) == (answer_format == "carl")
+        assert ("Situation, Task, Action, Result" in instructions) == (answer_format == "star")
+        if answer_format == "plain_text":
+            assert "Do not impose named story labels" in instructions
         assert ("BEHAVIORAL COACHING" in instructions) == (set_type == "behavioral")
         assert ("FIT & MOTIVATION COACHING" in instructions) == (set_type == "fit_motivation")
         assert ("HYPOTHETICAL COACHING" in instructions) == (set_type == "hypothetical")
         if set_type == "technical":
-            assert instructions == INTERVIEW_FEEDBACK_INSTRUCTIONS.strip()
+            assert INTERVIEW_FEEDBACK_INSTRUCTIONS.strip() in instructions
         if set_type == "knowledge":
-            assert instructions == INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS.strip()
+            assert INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS.strip() in instructions
             assert "Supply a DIRECT, corrected illustrative SUBJECT answer" in instructions
             assert "Do not replace missing subject knowledge" in instructions
             assert "Professional knowledge and your coaching suggestions are NOT" not in instructions

@@ -4,6 +4,7 @@ evaluators:
 cases:
   - name: detailed-behavioral-answer
     inputs:
+      answer_format: car
       set_type: behavioral
       question: "Describe a time you improved a process with colleagues."
       answer: "Our onboarding instructions were scattered. I asked two colleagues about recurring questions and combined their notes into a checklist. We used it with the next new starter, who said it was easier to follow."
@@ -24,6 +25,7 @@ cases:
       needs_placeholder: true
   - name: missing-results-no-invented-metric
     inputs:
+      answer_format: carl
       set_type: behavioral
       question: "Describe improving a work process."
       answer: "I made a checklist for handovers. I don't know whether it saved time."
@@ -62,6 +64,7 @@ cases:
       needs_placeholder: true
   - name: negative-outcome-kept-honest
     inputs:
+      answer_format: star
       set_type: behavioral
       question: "Tell me about a time a plan did not work out."
       answer: "Our volunteer event had too few helpers. I was responsible for the welcome desk. I asked the organizer to move one helper from setup. Nobody was available and visitors still waited a long time."
@@ -140,3 +143,27 @@ cases:
       library: "Retail assistant. Follows stock checking procedures."
     metadata:
       needs_placeholder: true
+  - name: carl-fit-undecided-no-forced-story
+    inputs:
+      set_type: fit_motivation
+      answer_format: carl
+      question: "What direction would you like your career to take?"
+      answer: "I am undecided. I enjoy helping customers but do not know what I want next."
+  - name: car-hypothetical-partial-plan-no-past-result
+    inputs:
+      set_type: hypothetical
+      answer_format: car
+      question: "How would you handle an unclear stock discrepancy?"
+      answer: "I would recount the shelf and ask the shift lead before changing the record."
+  - name: star-knowledge-correct-subject-without-story
+    inputs:
+      set_type: knowledge
+      answer_format: star
+      question: "How do lists and tuples differ in Python?"
+      answer: "Lists cannot change, but tuples can."
+  - name: carl-technical-qualitative-result-and-real-learning
+    inputs:
+      set_type: technical
+      answer_format: carl
+      question: "Explain a practical improvement you made and what you learned."
+      answer: "Context: The shelf notes were hard to follow. Action: I rewrote the labels with larger text. Result: Another volunteer said they were easier to read. Learning: I learned to ask someone else to check readability."

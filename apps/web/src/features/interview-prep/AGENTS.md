@@ -23,6 +23,7 @@ Written interview practice (the Practice section's Questions tab): the question 
 - `InterviewQuestionCard.tsx` — persistent drafts, Get feedback/Save, and the actions menu (replace, avoid, confirmed single-question deletion).
 - `DeleteQuestionDialog.tsx`, `DeleteQuestionButton.tsx`, `useDeleteQuestion.ts` — shared confirmed deletion, list action, and mutation/cache cleanup.
 - `useQuestionAvoidance.ts` — revision-bound saved avoidance state and retryable errors without touching drafts.
+- `answerFormats.ts` — format descriptions, independent draft normalization, and active-answer projection.
 - `useInterviewAnswer.ts` — answer/feedback/replacement mutations and retryable errors.
 - `InterviewFeedback.tsx` — coaching and examples with explicit highlighted placeholders.
 - `InterviewTaskStatus.tsx` — persisted task restoration and shared subscription updates.
@@ -39,6 +40,7 @@ Written interview practice (the Practice section's Questions tab): the question 
 - Rehearsal uses active questions with nonblank saved answers from the bank search, starting with its current type tab and allowing type changes during practice; it makes no API requests or durable progress changes. Hidden answers must be absent from the DOM. Arrow navigation stays inside rehearsal and ignores editable fields and modified shortcuts; return restores the type tab, search, and focus. Shuffle starts another pass only at the end of a shuffled pass.
 - Sets remain a backend storage detail: do not show batch numbers, batch management, or navigation limited to a generation batch.
 - Without a question id, pin the default question in the URL once so saving never moves the open question.
+- Each question keeps separate Plain text, CAR, CARL, and STAR drafts. Switching formats never converts text. Save, feedback, and anchor requests persist all drafts and the selected format together; only the active format changes feedback currentness.
 - Feedback requests send the typed answer and memory anchor and the server saves both first; queue or allowance failures still refresh the saved answer without replacing newer drafts.
 - Existing feedback is outdated for local unsaved edits as well as persisted revision changes.
 - Capitalization and whitespace edits keep feedback current: Get feedback stays disabled for them, while Save stays available and navigation protection still applies.

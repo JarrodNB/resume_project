@@ -1046,6 +1046,11 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .question-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .question-card-title { max-width: 60ch; font-size: 22px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; text-wrap: pretty; overflow-wrap: anywhere; }
 .question-card-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; margin-top: 8px; }
+.question-answer-format { display: grid; gap: 8px; min-width: 0; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.question-format-select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1.5px solid var(--input); border-radius: 4px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; cursor: pointer; }
+.question-format-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.question-format-select:disabled { cursor: not-allowed; opacity: .5; }
+.question-memory-anchor { display: grid; gap: 8px; min-width: 0; margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--border); }
 .question-answer-status { display: flex; justify-content: space-between; gap: 12px; color: var(--muted-foreground); font-size: 13px; font-variant-numeric: tabular-nums; }
 .question-feedback { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 18px; border-radius: 6px; background: var(--muted); overflow-wrap: anywhere; font-size: 15px; line-height: 1.6; }
 .question-feedback h3 { font-size: 16px; font-weight: 800; }

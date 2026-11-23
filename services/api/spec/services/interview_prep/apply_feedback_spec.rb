@@ -46,6 +46,24 @@ RSpec.describe "Applying interview answer feedback" do
     end
   end
 
+  it "rejects late and duplicate feedback from another active format" do
+    task.update!(input: task.input.merge("answer_format" => "plain_text"))
+    question.update!(answer_format: "car", answer_drafts: { "car" => { "action" => "New draft" } }, answer_revision: 3)
+    original = question.feedback
+    2.times { apply }
+    expect(task.reload).to be_failed
+    expect(question.reload.feedback).to eq(original)
+  end
+
+  it "rejects an earlier active version after switching away and back to the submitted format" do
+    task.update!(input: task.input.merge("answer_format" => "plain_text"))
+    question.update!(answer_revision: 4)
+    original = question.feedback
+    apply
+    expect(task.reload).to be_failed
+    expect(question.reload.feedback).to eq(original)
+  end
+
   context "with knowledge corrections" do
     let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "knowledge") }
     let(:question) do

@@ -49,6 +49,22 @@ RSpec.describe "Interview practice mutations" do
     expect(user.interview_question_sets).to be_empty
   end
 
+  it "round-trips independent drafts through the owned save mutation" do
+    mutation = <<~GQL
+      mutation($set: ID!, $question: ID!, $drafts: JSON!) {
+        saveInterviewAnswer(input: {questionSetId: $set, questionId: $question, answerText: "", memoryAnchor: "", answerFormat: "car", answerDrafts: $drafts}) {
+          question { answerFormat answerDrafts answerText } errors
+        }
+      }
+    GQL
+    drafts = { "car" => { "action" => "I listened" }, "plain_text" => { "text" => "Original" } }
+    result = execute_graphql(mutation, user: user, variables: { set: question_set.id, question: question.id, drafts: drafts })
+    expect(result.dig("data", "saveInterviewAnswer", "question")).to eq(
+      "answerFormat" => "car", "answerDrafts" => drafts, "answerText" => "Action: I listened")
+    result = execute_graphql(mutation, user: create(:user), variables: { set: question_set.id, question: question.id, drafts: drafts })
+    expect(result["errors"]).to be_present
+  end
+
   it "saves and clears answers through the authorized question's set" do
     [ "My example", "" ].each do |answer|
       result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id, answer: answer })

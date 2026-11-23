@@ -7,6 +7,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
+import { normalizeAnswerDrafts } from './answerFormats'
 import { InterviewSetPage } from './InterviewSetPage'
 import { DELETE_INTERVIEW_QUESTION, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
 
@@ -18,7 +19,7 @@ function taskFixture(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
 function setMock(status: 'QUEUED' | 'COMPLETED' | 'FAILED', answered: number[] = []) {
   return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 'set-1' } }, result: { data: { interviewQuestionSet: {
     __typename: 'InterviewQuestionSet', origin: 'generated', id: 'set-1', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-11T00:00:00Z', latestTask: taskFixture(status),
-    questions: status === 'COMPLETED' ? [5, 4, 3, 2, 1].map((position) => ({ __typename: 'InterviewQuestion', id: `question-${position}`, avoided: false, position, questionText: `Saved question text ${position}`, memoryAnchor: '', answerText: answered.includes(position) ? `Answer ${position}` : '', answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null, feedback: {}, feedbackOutdated: false, latestTask: null })) : [],
+    questions: status === 'COMPLETED' ? [5, 4, 3, 2, 1].map((position) => ({ __typename: 'InterviewQuestion', id: `question-${position}`, avoided: false, position, questionText: `Saved question text ${position}`, memoryAnchor: '', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answered.includes(position) ? `Answer ${position}` : ''), answerText: answered.includes(position) ? `Answer ${position}` : '', answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null, feedback: {}, feedbackOutdated: false, latestTask: null })) : [],
   } } } }
 }
 function render(url: string, mocks: unknown[]) {

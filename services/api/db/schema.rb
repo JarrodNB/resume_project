@@ -458,6 +458,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.text "screened_fields", default: [], null: false, array: true
     t.datetime "retired_at"
     t.string "memory_anchor", limit: 600, default: "", null: false
+    t.string "answer_format", default: "plain_text", null: false
+    t.jsonb "answer_drafts", default: {}, null: false
+    t.integer "answer_format_revision", default: 0, null: false
     t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"

@@ -7,22 +7,26 @@ module InterviewPrep
     TASK_TYPES = %w[regenerate_interview_question review_interview_answer generate_interview_memory_anchor].freeze
 
     # Receives an authorized question, optional answer, and replacement confirmation.
-    def initialize(user:, question:, task_type:, answer_text: nil, memory_anchor: nil, confirmed: false)
+    def initialize(user:, question:, task_type:, answer_text: nil, memory_anchor: nil, confirmed: false, answer_format: nil, answer_drafts: nil)
       @user, @question, @task_type = user, question, task_type
       @answer_text, @confirmed = answer_text, confirmed
       @memory_anchor = memory_anchor
+      @answer_format, @answer_drafts = answer_format, answer_drafts
     end
 
     # Feedback and anchor generation save the typed answer even if the later allowance or queue check fails.
     def call
       return failure([ "Unknown interview operation" ]) unless TASK_TYPES.include?(@task_type)
       if %w[review_interview_answer generate_interview_memory_anchor].include?(@task_type)
-        if @answer_text.blank?
+        if @answer_drafts.nil? && @answer_text.blank?
           return failure([ @task_type == "review_interview_answer" ? "Write an answer before asking for feedback." : "Write an answer before generating a memory anchor." ])
         end
-
-        saved = SaveAnswerService.call(question: @question, answer_text: @answer_text, memory_anchor: @memory_anchor)
+        saved = SaveAnswerService.call(question: @question, answer_text: @answer_text, memory_anchor: @memory_anchor,
+          answer_format: @answer_format, answer_drafts: @answer_drafts)
         return saved unless saved.success?
+        if @question.answer_text.blank?
+          return failure([ @task_type == "review_interview_answer" ? "Write an answer before asking for feedback." : "Write an answer before generating a memory anchor." ])
+        end
 
         @saved_revisions = [ @question.question_revision, @question.answer_revision ]
         @saved_anchor_sha256 = Digest::SHA256.hexdigest(@question.memory_anchor)
@@ -42,7 +46,7 @@ module InterviewPrep
       if @question.ai_tasks.where(task_type: TASK_TYPES, status: "queued").exists?
         return failure([ "An AI operation is already running for this question." ])
       end
-      if @task_type == "regenerate_interview_question" && @question.answer_text.present? && !@confirmed
+      if @task_type == "regenerate_interview_question" && AnswerFormats.answered?(@question) && !@confirmed
         return failure([ "Confirm replacement of this question and its answer." ])
       end
       if %w[review_interview_answer generate_interview_memory_anchor].include?(@task_type) &&
@@ -67,6 +71,7 @@ module InterviewPrep
         task.input["peer_revisions"] = @question.interview_question_set.questions.where.not(id: @question.id)
           .to_h { |peer| [ peer.id, peer.question_revision ] }
       else
+        task.input["answer_format"] = @question.answer_format
         task.input["normalized_answer_sha256"] = FeedbackOutdatedService.answer_fingerprint(@question.answer_text)
       end
       task.input["memory_anchor_sha256"] = Digest::SHA256.hexdigest(@question.memory_anchor) if @task_type == "generate_interview_memory_anchor"

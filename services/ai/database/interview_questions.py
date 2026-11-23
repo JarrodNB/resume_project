@@ -12,7 +12,7 @@ def read_interview_question_sources(connection, task):
         SELECT input, subject_id, subject_type FROM ai_tasks
         WHERE id = %(task)s AND user_id = %(owner)s AND task_type = %(kind)s AND status = 'queued'
     """, {"task": task.ai_task_id, "owner": task.user_id, "kind": task.task_type}).fetchone()
-    if not row or task.task_type not in {"generate_interview_questions", "regenerate_interview_question", "review_interview_answer"}:
+    if not row or task.task_type not in {"generate_interview_questions", "regenerate_interview_question", "review_interview_answer", "generate_interview_memory_anchor"}:
         return None
     command = row["input"]
     if command.get("source_version") != 1:
@@ -23,7 +23,7 @@ def read_interview_question_sources(connection, task):
     """, {"set": command.get("question_set_id"), "owner": task.user_id}).fetchone()
     if not question_set or question_set["set_type"] != command.get("set_type"):
         return None
-    if task.task_type == "review_interview_answer":
+    if task.task_type in {"review_interview_answer", "generate_interview_memory_anchor"}:
         if row["subject_type"] != "InterviewQuestion" or str(row["subject_id"]) != command.get("question_id"):
             return None
         target = connection.execute("""

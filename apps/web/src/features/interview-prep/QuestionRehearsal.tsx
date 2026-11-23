@@ -1,21 +1,28 @@
-/** Recall saved answers from the bank's current selection, without saving progress or running AI.
- * Answers enter the page only when revealed. Returning leaves bank filters intact.
+/** Recall saved answers by type within the bank's current search, without saving progress or running AI.
+ * Answers enter the page only when revealed. Returning leaves the bank search intact.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
+import { MultiSelect } from '@/components/MultiSelect'
 import { Button } from '@/components/ui/button'
-import type { InterviewQuestionBankQuery } from '@/graphql/generated/graphql'
+import type { InterviewQuestionBankQuery, InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
+
+import { QUESTION_TYPES, interviewSetTypeLabel } from './interviewSetTypeLabel'
 
 type BankQuestion = InterviewQuestionBankQuery['interviewQuestions'][number]
 
-export function QuestionRehearsal({ questions, onReturn }: { questions: BankQuestion[]; onReturn: () => void }) {
-  const [order, setOrder] = useState(questions)
+export function QuestionRehearsal({ questions, initialType, onReturn }: { questions: BankQuestion[]; initialType: InterviewQuestionSetTypeEnum; onReturn: () => void }) {
+  const [setTypes, setSetTypes] = useState([initialType])
+  const selected = questions.filter((question) => setTypes.includes(question.questionSet.setType))
+  const [order, setOrder] = useState(selected)
   const [shuffled, setShuffled] = useState(false)
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const question = order[index]
-  useEffect(() => { heading.current?.focus() }, [index, order])
+  useEffect(() => {
+    if (!document.activeElement?.closest('[data-slot="popover-content"]')) heading.current?.focus()
+  }, [index, order])
   function move(next: number) {
     if (next < 0 || next >= order.length) return
     setRevealed(false)
@@ -23,7 +30,7 @@ export function QuestionRehearsal({ questions, onReturn }: { questions: BankQues
   }
 
   function shuffle() {
-    const next = [...questions]
+    const next = [...selected]
     for (let position = next.length - 1; position > 0; position--) {
       const other = Math.floor(Math.random() * (position + 1))
       ;[next[position], next[other]] = [next[other], next[position]]
@@ -42,14 +49,24 @@ export function QuestionRehearsal({ questions, onReturn }: { questions: BankQues
     }
   }
 
-  if (!question) return <section className="question-card question-rehearsal" aria-label="Question rehearsal">
-    <h2 ref={heading} tabIndex={-1} className="question-card-title">No answers to practice</h2>
-    <p>No saved answers match these filters. Save an answer or change your filters to practice.</p>
-    <Button variant="outline" onClick={onReturn}>Return to question bank</Button>
-  </section>
-
   return <section className="question-card question-rehearsal" aria-label="Question rehearsal" onKeyDown={navigate}>
     <Button variant="outline" onClick={onReturn}>Return to question bank</Button>
+    <div className="question-bank-field">
+      <label id="rehearsal-question-types-label" htmlFor="rehearsal-question-types">Question types</label>
+      <MultiSelect id="rehearsal-question-types" labelId="rehearsal-question-types-label" emptyLabel="Choose question types"
+        options={QUESTION_TYPES.map((type) => ({ value: type, label: `${interviewSetTypeLabel(type)} (${questions.filter((question) => question.questionSet.setType === type).length})` }))}
+        selected={setTypes} onChange={(types) => {
+          setSetTypes(types)
+          setOrder(questions.filter((question) => types.includes(question.questionSet.setType)))
+          setIndex(0)
+          setRevealed(false)
+          setShuffled(false)
+        }} />
+    </div>
+    {!question ? <>
+      <h2 ref={heading} tabIndex={-1} className="question-card-title">No answers to practice</h2>
+      <p>No saved answers in the selected types match your bank search. Choose question types or return to save an answer.</p>
+    </> : <>
     <p className="text-sm text-muted-foreground">Recall your saved answer, then reveal it to check. Use Left and Right arrow keys to move.</p>
     <p className="question-rehearsal-position" role="status">Question {index + 1} of {order.length}</p>
     <h2 ref={heading} tabIndex={-1} className="question-card-title">{question.questionText}</h2>
@@ -63,5 +80,6 @@ export function QuestionRehearsal({ questions, onReturn }: { questions: BankQues
       <Button variant="outline" asChild><Link to={`/practice/questions/${question.questionSet.id}/${question.id}`}>Edit answer</Link></Button>
     </div>
     {shuffled && index < order.length - 1 && <p className="text-sm text-muted-foreground">Finish this pass to shuffle again.</p>}
+    </>}
   </section>
 }

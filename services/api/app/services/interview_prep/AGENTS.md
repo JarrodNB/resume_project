@@ -51,3 +51,5 @@ User-owned interview practice business logic. Follow parent Rails/service instru
   revisions without changing the saved answer.
 
 - `avoid_question_service.rb` saves the selected question revision as a shared account preference without changing answers. Python reads all owned avoided questions; result application rejects exact repeats against current preferences.
+
+- `generate_interview_memory_anchor` saves drafts before admission and uses owned reference/revision commands. `apply_memory_anchor_service.rb` rejects changed answers, cues, questions, superseded tasks and invalid results. Anchor-only application preserves answer revision, feedback, screening and vectors.

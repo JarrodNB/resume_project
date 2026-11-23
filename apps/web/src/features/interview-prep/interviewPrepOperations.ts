@@ -89,3 +89,11 @@ export const CREATE_CUSTOM_INTERVIEW_QUESTION = graphql(`
     }
   }
 `)
+
+export const GENERATE_INTERVIEW_MEMORY_ANCHOR = graphql(`
+  mutation GenerateInterviewMemoryAnchor($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!) {
+    generateInterviewMemoryAnchor(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor }) {
+      errors aiTask { id status taskType errorMessage }
+    }
+  }
+`)

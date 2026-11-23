@@ -163,3 +163,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   ordinary handlers and schemas use only canonical career-context names.
 
 - `summary_generation_handler.py` — resolves reference-only commands through the owned database reader, verifies source hashes before paid work, reuses exact saved approvals, screens unchecked fields and returns cited proposals; no domain writes. Old copied-source commands fail safely.
+
+- `interview_memory_anchor_handler.py` reads one owned saved answer with revision fences, reuses exact answer screening approvals, and generates an editable cue without reading the library or previous cue. Shared execution accounting, privacy and retries apply.

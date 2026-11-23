@@ -110,3 +110,5 @@ instructions from `prompts/`.
 - `chat_summary_agent.py` — bounded rolling memory of server-selected accepted dialogue; exact trusted prompt guard, no repeated screening, shared chat provider accounting.
 
 - `summary_generation_agent.py` — guarded missing-summary writer with bounded text and frozen-source citation validation.
+
+- `interview_memory_anchor_agent.py` compresses every answer sentence into an ordered cue. Exact copied-sentence coverage and a 600-character bound are validated; no library facts or missing lessons are added. Quality fixtures and the optional live runner live in `evals/run_interview_memory_anchor_evals.py`.

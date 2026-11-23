@@ -16,7 +16,7 @@
 class AiTask < ApplicationRecord
   # Removed preference types remain readable only for historical usage and queue retirement.
   TASK_TYPES = %w[elicit_job_preferences generate_summary chat_reply check_job_preferences rerank_job_listings improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
-                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification interview_references interview_session_feedback].freeze
+                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer generate_interview_memory_anchor interview_turn interview_speech interview_preparation interview_transcription interview_clarification interview_references interview_session_feedback].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
   SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification interview_references interview_session_feedback].freeze
 

@@ -197,7 +197,7 @@ module Screening
       return unless task_for_user? && @ai_task.input["source_version"] == 1
       return interview_question_history_scope if @ai_task.generate_interview_questions?
       return unless @ai_task.subject_type == "InterviewQuestion" &&
-        %w[review_interview_answer regenerate_interview_question].include?(@ai_task.task_type)
+        %w[review_interview_answer generate_interview_memory_anchor regenerate_interview_question].include?(@ai_task.task_type)
 
       input = @ai_task.input
       set = @user.interview_question_sets.find_by(id: input["question_set_id"])
@@ -206,7 +206,7 @@ module Screening
       target = set.questions.find_by(id: @ai_task.subject_id)
       return unless target && target.id == input["question_id"]
 
-      if @ai_task.review_interview_answer?
+      if @ai_task.review_interview_answer? || @ai_task.generate_interview_memory_anchor?
         return { records: set.questions.where(id: target.id),
           revisions: { target.id => input.slice("question_revision", "answer_revision") }, target_id: target.id }
       end
@@ -238,7 +238,7 @@ module Screening
       return true unless field == "answer_text"
 
       answer_revision = snapshot["answer_revision"]
-      record.id == scope[:target_id] && @ai_task.review_interview_answer? && answer_revision.is_a?(Integer) &&
+      record.id == scope[:target_id] && (@ai_task.review_interview_answer? || @ai_task.generate_interview_memory_anchor?) && answer_revision.is_a?(Integer) &&
         revision["answer_revision"] == answer_revision && record.answer_revision == answer_revision
     end
   end

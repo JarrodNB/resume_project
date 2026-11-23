@@ -30,7 +30,11 @@ export function useInterviewSet(id: string) {
 
 /** Generates a set and returns its persistent id; preserves allowance/validation errors. */
 export function useGenerateInterviewSet() {
-  const [mutate, { loading }] = useMutation(GENERATE_INTERVIEW_SET)
+  const [mutate, { loading }] = useMutation(GENERATE_INTERVIEW_SET, {
+    refetchQueries: ({ data }) => data?.generateInterviewQuestionSet?.aiTask
+      ? [INTERVIEW_SETS_QUERY, INTERVIEW_QUESTION_BANK_QUERY] : [],
+    awaitRefetchQueries: true,
+  })
   const [errors, setErrors] = useState<string[]>([])
   /** Queues generation and extracts the server-created set identity. */
   async function generate(setType: InterviewQuestionSetTypeEnum) {

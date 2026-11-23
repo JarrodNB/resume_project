@@ -19,4 +19,4 @@ export const INTERVIEW_ANSWER_TEXT = 2_000
 export const MAX_LINKS = 20
 
 /** Private recall cue; matches the Rails interview-question validation. */
-export const INTERVIEW_MEMORY_ANCHOR_TEXT = 200
+export const INTERVIEW_MEMORY_ANCHOR_TEXT = 600

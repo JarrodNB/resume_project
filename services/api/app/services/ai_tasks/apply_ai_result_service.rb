@@ -120,6 +120,10 @@ module AiTasks
         result = StudyGuides::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)
       end
+      if ai_task.generate_interview_memory_anchor?
+        result = InterviewPrep::ApplyMemoryAnchorService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : failed_attributes(result.errors)
+      end
       if ai_task.review_library_section?
         result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)

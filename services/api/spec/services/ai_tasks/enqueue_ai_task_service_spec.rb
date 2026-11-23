@@ -24,6 +24,16 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
     end
   end
 
+  it "retains paid task classification when the subscription ends" do
+    subscription = create(:billing_subscription, user: user)
+    task = described_class.call(user: user, task_type: "analyze_gaps").value
+    subscription.update!(status: "canceled")
+    task.update!(cost_microdollars: 200)
+
+    expect(task.reload.counts_toward_trial_budget).to be(false)
+    expect(AiUsage::SiteDailySpend.known_microdollars).to eq(0)
+  end
+
   it "fails without publishing for an unknown task type" do
     result = described_class.call(user: user, task_type: "write_cover_letter")
 

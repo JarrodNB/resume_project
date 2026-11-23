@@ -21,7 +21,7 @@ module Interviews
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: admission.value, interview: true)
         next allowance unless allowance.success?
         record.save! unless record.persisted?
-        task = interview.user.ai_tasks.create!(task_type: "interview_session_feedback", subject: interview,
+        task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: "interview_session_feedback", subject: interview,
           hourly_admission_task: admission.value, input: { feedback_id: record.id })
         record.update!(ai_task: task, attempt_count: record.attempt_count + 1, claimed_at: nil, deadline: 5.minutes.from_now)
         publish = task

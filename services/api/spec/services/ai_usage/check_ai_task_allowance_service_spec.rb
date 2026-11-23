@@ -177,7 +177,7 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
     end
 
     it "does not count paying subscribers' spend toward the site total" do
-      paid_task = create(:ai_task, :completed_resume_parse, cost_microdollars: 1_000)
+      paid_task = create(:ai_task, :completed_resume_parse, cost_microdollars: 1_000, counts_toward_trial_budget: false)
       create(:billing_subscription, user: paid_task.user)
       AiTask.where.not(id: paid_task.id).delete_all
 

@@ -51,7 +51,7 @@ module Interviews
           next allowance
         end
         unless @operation.ai_task
-          @operation.ai_task = interview.user.ai_tasks.create!(task_type: "interview_#{@operation.kind}", subject: interview,
+          @operation.ai_task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: "interview_#{@operation.kind}", subject: interview,
             input: { operation_id: @operation.id })
         end
         attempt_id = SecureRandom.uuid

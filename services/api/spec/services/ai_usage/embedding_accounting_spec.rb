@@ -35,6 +35,16 @@ RSpec.describe "Background embedding accounting" do
     expect(OpenAI::Client).to have_received(:new).with(api_key: anything, max_retries: 0)
   end
 
+  it "retains paid embedding classification when the subscription ends" do
+    subscription = create(:billing_subscription, user: user)
+    allow(endpoint).to receive(:create).and_return(receipt)
+    client.embed_texts([ "Synthetic skill" ])
+    subscription.update!(status: "canceled")
+
+    expect(user.ai_embedding_requests.sole.counts_toward_trial_budget).to be(false)
+    expect(AiUsage::SiteDailySpend.known_microdollars).to eq(0)
+  end
+
   it "retains partial batch charges and unknown markers across separate job retries" do
     calls = 0
     allow(endpoint).to receive(:create) do |params|

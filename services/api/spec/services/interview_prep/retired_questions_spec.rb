@@ -20,18 +20,19 @@ RSpec.describe "Retired interview questions" do
   def replace(target, text = replacement_text)
     task = create(:ai_task, user: user, task_type: "regenerate_interview_question", subject: target,
       input: { "question_set_id" => question_set.id, "question_id" => target.id,
-               "question_text" => target.question_text, "question_revision" => target.question_revision,
+               "source_version" => 1, "set_type" => question_set.set_type,
+               "peer_revisions" => question_set.questions.where.not(id: target.id).to_h { |peer| [ peer.id, peer.question_revision ] }, "question_revision" => target.question_revision,
                "answer_revision" => target.answer_revision })
     AiTasks::ApplyAiResultService.call(message: {
       "ai_task_id" => task.id, "status" => "completed", "usage" => [],
       "result" => { "interview_questions" => { "questions" => [
-        { "question_text" => text, "category" => "learning_adaptation", "evidence_quotes" => [ "Career details" ] }
+        { "question_text" => text, "category" => "motivation", "evidence_quotes" => [ "Career details" ] }
       ] } } })
     task.reload
   end
 
   it "keeps an answered question, its feedback, and its vector as a retired copy" do
-    question.update!(answer_text: "I led the migration.", answer_revision: 1,
+    question.update!(answer_text: "I led the migration.", memory_anchor: "Migration: listen then plan", answer_revision: 1,
       feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
     InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
       embedding_client: FakeEmbeddingClient.new)
@@ -40,14 +41,24 @@ RSpec.describe "Retired interview questions" do
     expect(replace(question)).to be_completed
     copy = question_set.retired_questions.sole
     expect(copy).to have_attributes(position: nil, question_text: "Old question number 0?",
-      answer_text: "I led the migration.", question_revision: 1, answer_revision: 1,
+      answer_text: "I led the migration.", memory_anchor: "Migration: listen then plan", question_revision: 1, answer_revision: 1,
       feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
     expect(copy.retired_at).to be_present
     expect(copy.embedding.id).to eq(embedding_id)
     expect(InterviewPrep::FeedbackOutdatedService.call(question: copy).value).to be(false)
-    expect(question.reload).to have_attributes(question_text: replacement_text, answer_text: "", position: 1)
+    expect(question.reload).to have_attributes(question_text: replacement_text, answer_text: "", memory_anchor: "", position: 1)
     expect(question.embedding).to be_nil
     expect(question_set.reload.questions.count).to eq(5)
+  end
+
+  it "retains all drafts when only an inactive draft is answered" do
+    question.update!(answer_format: "star", answer_drafts: { "car" => { "action" => "Keep this" } })
+    expect(replace(question)).to be_completed
+    copy = question_set.retired_questions.sole
+    expect(copy.answer_drafts).to eq({ "car" => { "action" => "Keep this" } })
+    expect(copy.answer_format).to eq("star")
+    expect(question.reload.answer_drafts).to eq({})
+    expect(question.answer_format).to eq("plain_text")
   end
 
   it "keeps no copy when the replaced question was unanswered" do
@@ -70,7 +81,7 @@ RSpec.describe "Retired interview questions" do
     replace(question)
     copy = question_set.retired_questions.sole
     operations = {
-      "saveInterviewAnswer" => 'answerText: "Edit"', "requestInterviewAnswerFeedback" => 'answerText: "Edit"',
+      "saveInterviewAnswer" => 'memoryAnchor: "", answerText: "Edit"', "requestInterviewAnswerFeedback" => 'memoryAnchor: "", answerText: "Edit"',
       "regenerateInterviewQuestion" => "confirmed: true", "avoidInterviewQuestion" => "expectedRevision: 1"
     }
     operations.each do |name, argument|

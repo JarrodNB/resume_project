@@ -4,7 +4,7 @@ Index:
     - interview_feedback_agent / check_labels: agent and output validation
     - InterviewFeedbackRun / generate_interview_feedback: bounded run and billed usage
     - source_excerpt: removes presentation quotes only when the contents match source text
-    - interview_feedback_instructions: selects trusted scope policy and general-only STAR guidance
+    - interview_feedback_instructions: selects trusted scope and active-format coaching
 """
 import re
 
@@ -15,9 +15,13 @@ from pydantic_ai_harness import InputGuardrail
 from conversation_logging import ConversationLogging
 from llm.run_generative_agent import run_generative_agent
 from prompts.interview_feedback_instructions import (
-    GENERAL_BEHAVIORAL_COACHING_INSTRUCTIONS,
+    BEHAVIORAL_COACHING_INSTRUCTIONS,
+    FIT_MOTIVATION_COACHING_INSTRUCTIONS,
+    HYPOTHETICAL_COACHING_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_PROMPT_VERSION,
+    SELECTED_FORMAT_INSTRUCTIONS,
+    STRUCTURED_FORMAT_LIMITS,
 )
 from prompts.interview_knowledge_feedback_instructions import (
     INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS,
@@ -40,12 +44,20 @@ interview_feedback_agent = Agent(
 
 @interview_feedback_agent.instructions
 def interview_feedback_instructions(context: RunContext[InterviewFeedbackContext]) -> str:
-    """Adds STAR guidance only to general coaching; keeps other scope policies separate."""
-    if context.deps is not None and context.deps.set_type == "knowledge":
-        return INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS
-    if context.deps is not None and context.deps.set_type == "general":
-        return INTERVIEW_FEEDBACK_INSTRUCTIONS + GENERAL_BEHAVIORAL_COACHING_INSTRUCTIONS
-    return INTERVIEW_FEEDBACK_INSTRUCTIONS
+    """Combine the trusted question policy with the active saved answer format."""
+    format_policy = SELECTED_FORMAT_INSTRUCTIONS[context.deps.answer_format]
+    if context.deps.answer_format != "plain_text":
+        format_policy += STRUCTURED_FORMAT_LIMITS
+    if context.deps.set_type == "knowledge":
+        return INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS + format_policy
+    supplement = {
+        "fit_motivation": FIT_MOTIVATION_COACHING_INSTRUCTIONS,
+        "behavioral": BEHAVIORAL_COACHING_INSTRUCTIONS,
+        "hypothetical": HYPOTHETICAL_COACHING_INSTRUCTIONS,
+        "technical": "",
+    }[context.deps.set_type]
+    return INTERVIEW_FEEDBACK_INSTRUCTIONS + supplement + format_policy
+
 
 
 @interview_feedback_agent.output_validator

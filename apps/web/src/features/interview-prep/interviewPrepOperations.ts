@@ -7,7 +7,7 @@ import { graphql } from '@/graphql/generated'
 export const INTERVIEW_QUESTION_BANK_QUERY = graphql(`
   query InterviewQuestionBank {
     interviewQuestions {
-      id position retiredAt questionText answerText feedback feedbackOutdated
+      id position retiredAt questionText answerText answerFormat answerDrafts memoryAnchor feedback feedbackOutdated
       latestTask { id status taskType }
       questionSet { id number setType createdAt }
     }
@@ -25,9 +25,9 @@ export const INTERVIEW_SETS_QUERY = graphql(`
 export const INTERVIEW_SET_QUERY = graphql(`
   query InterviewSet($id: ID!) {
     interviewQuestionSet(id: $id) {
-      id number setType createdAt
+      id number setType origin createdAt
       latestTask { id status errorMessage result }
-      questions { id avoided position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
+      questions { id avoided position questionText answerText answerFormat answerDrafts memoryAnchor answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
     }
   }
 `)
@@ -46,15 +46,15 @@ export const DELETE_INTERVIEW_SET = graphql(`
 `)
 
 export const SAVE_INTERVIEW_ANSWER = graphql(`
-  mutation SaveInterviewAnswer($questionSetId: ID!, $questionId: ID!, $answerText: String!) {
-    saveInterviewAnswer(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText }) {
-      errors question { id answerText answerRevision feedbackOutdated }
+  mutation SaveInterviewAnswer($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!, $answerFormat: String, $answerDrafts: JSON) {
+    saveInterviewAnswer(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor, answerFormat: $answerFormat, answerDrafts: $answerDrafts }) {
+      errors question { id answerText answerFormat answerDrafts memoryAnchor answerRevision feedbackOutdated }
     }
   }
 `)
 export const REQUEST_INTERVIEW_FEEDBACK = graphql(`
-  mutation RequestInterviewFeedback($questionSetId: ID!, $questionId: ID!, $answerText: String!) {
-    requestInterviewAnswerFeedback(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText }) {
+  mutation RequestInterviewFeedback($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!, $answerFormat: String, $answerDrafts: JSON) {
+    requestInterviewAnswerFeedback(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor, answerFormat: $answerFormat, answerDrafts: $answerDrafts }) {
       errors aiTask { id status taskType errorMessage }
     }
   }
@@ -79,5 +79,21 @@ export const AVOID_INTERVIEW_QUESTION = graphql(`
 export const DELETE_INTERVIEW_QUESTION = graphql(`
   mutation DeleteInterviewQuestion($questionSetId: ID!, $questionId: ID!) {
     deleteInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId }) { errors }
+  }
+`)
+
+export const CREATE_CUSTOM_INTERVIEW_QUESTION = graphql(`
+  mutation CreateCustomInterviewQuestion($setType: InterviewQuestionSetTypeEnum!, $questionText: String!, $answerText: String!) {
+    createCustomInterviewQuestion(input: { setType: $setType, questionText: $questionText, answerText: $answerText }) {
+      errors questionSet { id }
+    }
+  }
+`)
+
+export const GENERATE_INTERVIEW_MEMORY_ANCHOR = graphql(`
+  mutation GenerateInterviewMemoryAnchor($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!, $answerFormat: String, $answerDrafts: JSON) {
+    generateInterviewMemoryAnchor(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor, answerFormat: $answerFormat, answerDrafts: $answerDrafts }) {
+      errors aiTask { id status taskType errorMessage }
+    }
   }
 `)

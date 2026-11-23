@@ -19,7 +19,7 @@ def admin_connection():
 def saved_task(connection, replacement=False):
     owner = _insert_user(connection)
     set_id = _insert(connection, "interview_question_sets", user_id=owner, number=1)
-    command = {"source_version": 1, "question_set_id": str(set_id), "set_type": "general", "set_number": 1}
+    command = {"source_version": 1, "question_set_id": str(set_id), "set_type": "fit_motivation", "set_number": 1}
     subject = set_id
     kind = "generate_interview_questions"
     if replacement:
@@ -79,24 +79,15 @@ def test_reads_exact_five_active_owned_questions_without_answers(admin_connectio
     assert "answer_text" not in sources
 
 
-@pytest.mark.parametrize("changed", [False, True])
-def test_retained_commands_use_saved_records_and_reject_stale_sources(admin_connection, changed):
+@pytest.mark.parametrize("version", [None, 2])
+def test_unversioned_or_unknown_commands_never_load_prompt_sources(admin_connection, version):
+    """Written execution accepts only the current identity-command contract."""
     from database.interview_questions import read_interview_question_sources
-    task = saved_task(admin_connection, replacement=True)
-    command = {key: value for key, value in task.input.items() if key not in {"source_version", "peer_revisions"}}
-    command.update(question_text="Generated question 0?", other_questions=[f"Generated question {i}?" for i in range(1, 5)],
-                   avoided_questions=["Old preference copy?"])
+    task = saved_task(admin_connection)
+    command = {**task.input, "source_version": version}
     admin_connection.execute("UPDATE ai_tasks SET input = %s WHERE id = %s", (Jsonb(command), task.ai_task_id))
-    if changed:
-        admin_connection.execute("UPDATE interview_questions SET question_text = 'Changed peer?' WHERE id = %s",
-                                 (next(iter(task.input["peer_revisions"])),))
     admin_connection.execute("SET LOCAL ROLE ai_reader")
-    sources = read_interview_question_sources(admin_connection, task)
-    if changed:
-        assert sources is None
-    else:
-        assert sources["avoided_questions"] == []
-        assert len(sources["other_questions"]) == 4
+    assert read_interview_question_sources(admin_connection, task) is None
 
 
 def test_recent_history_is_bounded_active_and_same_type(admin_connection):
@@ -117,23 +108,19 @@ def test_recent_history_is_bounded_active_and_same_type(admin_connection):
     assert all(question.startswith("Practice") for question in recent)
 
 
-def feedback_task(connection, legacy=False):
+def feedback_task(connection):
     task = saved_task(connection, replacement=True)
     question = task.input["question_id"]
     connection.execute("UPDATE interview_questions SET answer_text = 'Saved answer', answer_revision = 2, screened_fields = ARRAY['answer_text'] WHERE id = %s", (question,))
     command = {key: value for key, value in task.input.items() if key not in {"peer_revisions", "set_number"}}
     command["answer_revision"] = 2
-    if legacy:
-        command.pop("source_version")
-        command.update(question_text="Generated question 0?", answer_text="Saved answer", screened_fields=[])
     connection.execute("UPDATE ai_tasks SET task_type = 'review_interview_answer', input = %s WHERE id = %s", (Jsonb(command), task.ai_task_id))
     return task.model_copy(update={"task_type": "review_interview_answer", "input": command})
 
 
-@pytest.mark.parametrize("legacy", [False, True])
-def test_feedback_reads_owned_answer_and_current_approvals_not_copies(admin_connection, legacy):
+def test_feedback_reads_owned_answer_and_current_approvals_not_copies(admin_connection):
     from database.interview_questions import read_interview_question_sources
-    task = feedback_task(admin_connection, legacy)
+    task = feedback_task(admin_connection)
     task.input.update(answer_text="Transport forgery", screened_fields=[])
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     sources = read_interview_question_sources(admin_connection, task)
@@ -143,10 +130,10 @@ def test_feedback_reads_owned_answer_and_current_approvals_not_copies(admin_conn
     assert "other_questions" not in sources
 
 
-@pytest.mark.parametrize("mismatch", ["owner", "subject", "set", "question_revision", "answer_revision", "retired", "terminal", "legacy_text"])
+@pytest.mark.parametrize("mismatch", ["owner", "subject", "set", "question_revision", "answer_revision", "retired", "terminal"])
 def test_feedback_rejects_changes_before_read_and_foreign_or_retired_rows(admin_connection, mismatch):
     from database.interview_questions import read_interview_question_sources
-    task = feedback_task(admin_connection, legacy=mismatch == "legacy_text")
+    task = feedback_task(admin_connection)
     if mismatch == "owner":
         task = task.model_copy(update={"user_id": uuid4()})
     elif mismatch == "subject":
@@ -160,7 +147,56 @@ def test_feedback_rejects_changes_before_read_and_foreign_or_retired_rows(admin_
         admin_connection.execute("UPDATE interview_questions SET position = NULL, retired_at = now() WHERE id = %s", (task.input["question_id"],))
     elif mismatch == "terminal":
         admin_connection.execute("UPDATE ai_tasks SET status = 'completed' WHERE id = %s", (task.ai_task_id,))
-    else:
-        admin_connection.execute("UPDATE interview_questions SET answer_text = 'Changed without revision' WHERE id = %s", (task.input["question_id"],))
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     assert read_interview_question_sources(admin_connection, task) is None
+
+
+def test_reader_retains_manual_origin_for_history_and_immutable_avoidance(admin_connection):
+    from database.interview_questions import read_interview_question_sources
+    task = saved_task(admin_connection)
+    set_id = _insert(admin_connection, 'interview_question_sets', user_id=task.user_id, number=2, origin='manual')
+    question_id = _insert(admin_connection, 'interview_questions', interview_question_set_id=set_id,
+        position=1, question_text='Manual calibration question?', screened_fields=['question_text'])
+    avoided_id = _insert(admin_connection, 'avoided_interview_questions', user_id=task.user_id,
+        question_text='Deleted manual question?', text_digest=str(uuid4()), origin='manual',
+        screened_fields=Jsonb(['question_text']))
+    admin_connection.execute('SET LOCAL ROLE ai_reader')
+    sources = read_interview_question_sources(admin_connection, task)
+    assert sources['question_sources'] == [{'question_id': str(question_id), 'question_text': 'Manual calibration question?',
+        'question_revision': 1, 'origin': 'manual', 'screened_fields': ['question_text']}]
+    assert sources['avoided_question_sources'] == [{'id': str(avoided_id), 'question_text': 'Deleted manual question?',
+        'origin': 'manual', 'screened_fields': ['question_text']}]
+
+
+def test_memory_anchor_reads_current_owned_answer_and_rejects_changed_revision(admin_connection):
+    from database.interview_questions import read_interview_question_sources
+    task = feedback_task(admin_connection)
+    admin_connection.execute("UPDATE ai_tasks SET task_type = 'generate_interview_memory_anchor' WHERE id = %s", (task.ai_task_id,))
+    task = task.model_copy(update={"task_type": "generate_interview_memory_anchor"})
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert read_interview_question_sources(admin_connection, task)["answer_text"] == "Saved answer"
+    admin_connection.execute("RESET ROLE")
+    admin_connection.execute("UPDATE interview_questions SET answer_revision = 3 WHERE id = %s", (task.input["question_id"],))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert read_interview_question_sources(admin_connection, task) is None
+
+
+def test_feedback_reads_selected_format_without_losing_saved_alternatives(admin_connection):
+    from database.interview_questions import read_interview_question_sources
+    owner = _insert_user(admin_connection)
+    set_id = _insert(admin_connection, "interview_question_sets", user_id=owner, number=1)
+    drafts = {"car": {"action": "I planned"}, "star": {"result": "Private alternative"}}
+    question = _insert(admin_connection, "interview_questions", interview_question_set_id=set_id,
+                       position=1, question_text="Describe a challenge?", answer_format="car",
+                       answer_drafts=Jsonb(drafts), answer_text="Action: I planned", answer_revision=1)
+    command = {"source_version": 1, "question_set_id": str(set_id), "question_id": str(question),
+               "set_type": "fit_motivation", "question_revision": 1, "answer_revision": 1}
+    task_id = _insert(admin_connection, "ai_tasks", user_id=owner, subject_id=question,
+                      subject_type="InterviewQuestion", task_type="review_interview_answer", status="queued", input=Jsonb(command))
+    task = AiTaskMessage(ai_task_id=task_id, user_id=owner, task_type="review_interview_answer", input=command)
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    source = read_interview_question_sources(admin_connection, task)
+    assert source["answer_format"] == "car"
+    assert source["answer_text"] == "Action: I planned"
+    assert source["answer_fields"] == drafts["car"]
+    assert "Private alternative" not in str(source)

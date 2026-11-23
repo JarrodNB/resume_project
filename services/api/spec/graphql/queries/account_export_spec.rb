@@ -22,4 +22,17 @@ RSpec.describe "accountExport query" do
     expect(serialized).not_to include("Someone else's job")
     expect(serialized).not_to include("screened_fields")
   end
+
+  it "exports active and retired written questions with their private cues" do
+    user = create(:user)
+    set = user.interview_question_sets.create!(number: 1)
+    set.questions.create!(position: 1, question_text: "Current?", answer_format: "carl", answer_drafts: { "car" => { "action" => "Private alternative" } }, memory_anchor: "Current cue")
+    set.retired_questions.create!(position: nil, retired_at: Time.current, question_text: "Replaced?", answer_text: "Kept answer", memory_anchor: "Retired cue")
+    exported = execute_graphql(query, user: user).dig("data", "accountExport", "interview_question_sets", 0, "questions")
+    expect(exported.size).to eq(2)
+    expect(exported.first).to include("memory_anchor" => "Current cue", "retired_at" => nil,
+      "answer_format" => "carl", "answer_drafts" => { "car" => { "action" => "Private alternative" } })
+    expect(exported.last).to include("memory_anchor" => "Retired cue", "answer_text" => "Kept answer")
+    expect(exported.last["retired_at"]).to be_present
+  end
 end

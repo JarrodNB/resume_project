@@ -4,23 +4,29 @@ evaluators:
 cases:
   - name: detailed-behavioral-answer
     inputs:
+      answer_format: car
+      set_type: behavioral
       question: "Describe a time you improved a process with colleagues."
       answer: "Our onboarding instructions were scattered. I asked two colleagues about recurring questions and combined their notes into a checklist. We used it with the next new starter, who said it was easier to follow."
       library: "Customer support specialist. Created an onboarding checklist with two colleagues."
   - name: vague-answer-needs-specific-actions
     inputs:
+      set_type: behavioral
       question: "Tell me about a time you handled a difficult situation."
       answer: "There was a problem at work. I worked hard and fixed it."
     metadata:
       needs_placeholder: true
   - name: no-library-development-answer
     inputs:
+      set_type: fit_motivation
       question: "What skill would you like to develop?"
       answer: "I want to get better at presenting. I get nervous."
     metadata:
       needs_placeholder: true
   - name: missing-results-no-invented-metric
     inputs:
+      answer_format: carl
+      set_type: behavioral
       question: "Describe improving a work process."
       answer: "I made a checklist for handovers. I don't know whether it saved time."
       library: "Retail assistant. Created a handover checklist."
@@ -28,6 +34,7 @@ cases:
       needs_placeholder: true
   - name: career-goals-not-in-library
     inputs:
+      set_type: fit_motivation
       question: "Where would you like your career to go?"
       answer: "I am still exploring what I want to do next."
       library: "Museum visitor assistant. Enjoys helping visitors understand exhibits."
@@ -35,12 +42,14 @@ cases:
       needs_placeholder: true
   - name: career-introduction-needs-reordering
     inputs:
+      set_type: fit_motivation
       question: "Tell me about yourself."
       answer: "After working in hospitality I went to college. A lecturer recommended me for an internship at Northbridge during my final semester. I started with small backlog tasks and progressed to harder work. I was hired full time and still work there. Our stack was Rails and React. I later worked on a mobile web app, AI services, and a cloud migration."
     metadata:
       needs_placeholder: true
   - name: no-matching-conflict-example
     inputs:
+      set_type: behavioral
       question: "Tell me about a time you disagreed with a colleague."
       answer: "I cannot think of a matching example. I have not had a paid job yet."
       library: "Student. Completed a group geography project."
@@ -48,16 +57,20 @@ cases:
       needs_placeholder: true
   - name: incomplete-story-actions-before-context
     inputs:
+      set_type: behavioral
       question: "Tell me about a time you took initiative."
       answer: "I emailed the tutor and made a shared list. Our group project deadline was Friday and nobody knew which sections were unfinished. I was responsible for the references."
     metadata:
       needs_placeholder: true
   - name: negative-outcome-kept-honest
     inputs:
+      answer_format: star
+      set_type: behavioral
       question: "Tell me about a time a plan did not work out."
       answer: "Our volunteer event had too few helpers. I was responsible for the welcome desk. I asked the organizer to move one helper from setup. Nobody was available and visitors still waited a long time."
   - name: complete-story-result-first
     inputs:
+      set_type: behavioral
       question: "Tell me about a time you worked with someone to solve a problem."
       answer: "The next shift found the handover easier to follow. I worked with another library volunteer to combine our notes into one page. Visitors' reserved books had been hard to locate between shifts. I was responsible for recording reservations, and my partner checked the shelf locations."
   - name: technical-software-reasoning
@@ -115,3 +128,42 @@ cases:
           response: I used it for two years.
     metadata:
       needs_placeholder: true
+
+  - name: hypothetical-proposed-priorities-not-past-results
+    inputs:
+      set_type: hypothetical
+      question: "What would you do if a deadline stayed fixed while the requested work grew?"
+      answer: "I would ask which parts matter most and explain what can fit before the deadline. I would agree the scope before starting."
+      library: "Office assistant. Helped organize event bookings."
+  - name: hypothetical-sparse-no-invented-intentions
+    inputs:
+      set_type: hypothetical
+      question: "What would you do if you noticed a possible mistake in a stock record?"
+      answer: "I am not sure what to do."
+      library: "Retail assistant. Follows stock checking procedures."
+    metadata:
+      needs_placeholder: true
+  - name: carl-fit-undecided-no-forced-story
+    inputs:
+      set_type: fit_motivation
+      answer_format: carl
+      question: "What direction would you like your career to take?"
+      answer: "I am undecided. I enjoy helping customers but do not know what I want next."
+  - name: car-hypothetical-partial-plan-no-past-result
+    inputs:
+      set_type: hypothetical
+      answer_format: car
+      question: "How would you handle an unclear stock discrepancy?"
+      answer: "I would recount the shelf and ask the shift lead before changing the record."
+  - name: star-knowledge-correct-subject-without-story
+    inputs:
+      set_type: knowledge
+      answer_format: star
+      question: "How do lists and tuples differ in Python?"
+      answer: "Lists cannot change, but tuples can."
+  - name: carl-technical-qualitative-result-and-real-learning
+    inputs:
+      set_type: technical
+      answer_format: carl
+      question: "Explain a practical improvement you made and what you learned."
+      answer: "Context: The shelf notes were hard to follow. Action: I rewrote the labels with larger text. Result: Another volunteer said they were easier to read. Learning: I learned to ask someone else to check readability."

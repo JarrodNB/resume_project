@@ -75,7 +75,7 @@ instructions from `prompts/`.
 - Safety screening has its own recovery policy.
 - Every agent has an eval dataset and runner in `evals/`.
 
-- `interview_questions_agent.py` — bounded general/technical/knowledge generation/replacement with category scope,
+- `interview_questions_agent.py` — bounded fit/motivation, behavioral, hypothetical, technical and knowledge generation/replacement with category scope,
   count, label-leakage, duplicate, and temporary evidence-ID validation; IDs resolve to exact saved excerpts after generation.
   Quality checks run in `evals/run_interview_questions_evals.py`.
 
@@ -110,3 +110,5 @@ instructions from `prompts/`.
 - `chat_summary_agent.py` — bounded rolling memory of server-selected accepted dialogue; exact trusted prompt guard, no repeated screening, shared chat provider accounting.
 
 - `summary_generation_agent.py` — guarded missing-summary writer with bounded text and frozen-source citation validation.
+
+- `interview_memory_anchor_agent.py` compresses every answer sentence into an ordered cue. Exact copied-sentence coverage and a 600-character bound are validated; no library facts or missing lessons are added. Quality fixtures and the optional live runner live in `evals/run_interview_memory_anchor_evals.py`.

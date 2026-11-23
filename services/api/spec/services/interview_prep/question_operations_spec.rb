@@ -11,7 +11,7 @@ RSpec.describe "Interview practice services" do
 
   before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
 
-  %w[technical knowledge].each do |set_type|
+  %w[fit_motivation behavioral hypothetical technical knowledge].each do |set_type|
     it "snapshots #{set_type} type for generation, replacement and feedback with sparse context" do
       result = InterviewPrep::StartQuestionSetService.call(user: user, set_type: set_type)
       expect(result).to be_success
@@ -120,7 +120,7 @@ RSpec.describe "Interview practice services" do
   it "saves the feedback answer and queues only references, revisions and a freshness digest" do
     result = start_operation("review_interview_answer", answer_text: "I led a project.")
     expect(result).to be_success
-    expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision normalized_answer_sha256])
+    expect(result.value.input.keys).to match_array(%w[source_version set_type question_id question_set_id question_revision answer_revision answer_format normalized_answer_sha256])
     expect(result.value.input).to include("question_revision" => 1, "answer_revision" => 1)
     expect(result.value.input.to_json).not_to include("I led a project.", question.question_text, "screened_fields")
     expect(question.reload.answer_text).to eq("I led a project.")
@@ -132,7 +132,7 @@ RSpec.describe "Interview practice services" do
     question.update!(answer_text: "I led a project.", answer_revision: 1, feedback: feedback,
       feedback_question_revision: 1, feedback_answer_revision: 1)
     create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", status: "completed",
-      input: { "question_revision" => 1, "answer_revision" => 1, "answer_text" => question.answer_text },
+      input: { "question_revision" => 1, "answer_revision" => 1, "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text) },
       result: { "interview_feedback" => feedback })
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "  I LED\n a PROJECT. ")
     expect(question.reload.answer_revision).to eq(2)
@@ -147,7 +147,7 @@ RSpec.describe "Interview practice services" do
       feedback_question_revision: 1, feedback_answer_revision: 1)
     expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(true)
     create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", status: "completed",
-      input: { "question_revision" => 1, "answer_revision" => 1, "answer_text" => "same text" },
+      input: { "question_revision" => 1, "answer_revision" => 1, "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint("same text") },
       result: { "interview_feedback" => { "strengths" => [ "Different feedback" ] } })
     expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(true)
   end

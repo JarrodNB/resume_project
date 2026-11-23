@@ -270,35 +270,26 @@ Per task type:
   same-type questions, newest set first and then slot order, plus current owned avoidance
   preferences. Recent questions are soft variety guidance, separate from hard exclusions
   and career evidence. History overlap adds no validation or retries. Answers and feedback
-  are not read. Retained commands also use database sources, ignoring copied history.
+  are not read. Commands require source_version 1 and explicit set_type.
   Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
-  `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and
-  `initiative_judgment` for general sets,
-  or `work_overview`, `tools_methods`, `decisions_tradeoffs`, `problem_solving`, and
-  `improvement_quality` for technical sets; or `concepts`, `mechanisms`, `application`,
-  `reasoning`, and `limitations` for knowledge sets, one of each. Knowledge excerpts ground
-  topic relevance, while model subject knowledge supplies subject questions.
-  General sets contain one introduction and four realistic behavioral story invitations.
-  Standard invitations about conflict or setbacks need no proof that an event occurred;
-  specific personalized incidents still require evidence. Sparse backgrounds may draw on
-  study, projects, volunteering or other real experience. Technical personal-experience
-  grounding remains strict. Rails also accepts complete legacy general category sets
-  (`introduction`, `strengths`, `development`, `goals`, `behavioral`) from in-flight older
-  workers, but rejects mixtures of old and new categories. No category is persisted on slots.
-  Deploy the compatible Rails consumer before the updated AI worker, since older Rails
-  rejects the new categories. For rollback, restore the older worker before removing Rails
-  compatibility. Existing saved questions and answers need no migration or rewrite.
+  `background`, `motivation`, `goals`, `working_preferences`, `contribution` for fit/motivation;
+  `collaboration`, `problem_solving`, `adaptation`, `initiative`, `judgment` for behavioral;
+  `prioritization`, `ambiguity`, `disagreement`, `quality_risk`, `accountability` for hypothetical;
+  `work_overview`, `tools_methods`, `decisions_tradeoffs`, `problem_solving`, `improvement_quality`
+  for technical; and `concepts`, `mechanisms`, `application`, `reasoning`, `limitations` for knowledge,
+  one of each. Knowledge excerpts ground topic relevance while model subject knowledge supplies
+  questions. Behavioral invitations need no proof that a standard conflict/setback happened;
+  specific personalized incidents still need evidence. Hypothetical situations never assert
+  past experience. Fit questions never invent an employer or vacancy. Technical grounding remains
+  strict across occupations, including sparse libraries. Categories are not persisted on slots.
+  General categories and copied-source compatibility are unsupported.
 - `regenerate_interview_question`: input `{source_version: 1, question_set_id, question_id,
   question_revision, answer_revision, peer_revisions, set_type}`; the subject is the
   selected `InterviewQuestion`. `peer_revisions` maps the other four active question IDs to
   their question revisions. Python reads current owned slots, preferences and library,
   returning the same question result shape with one draft, excluding all five saved
   questions. Changed target/peer revisions fail before generation and during application.
-  Retained commands validate current target/peer wording/revisions without using their
-  copied sources in prompts. Deploy readers/grants before reference-only producers.
-  General replacements use behavioral themes, not another introduction or role motivation,
-  even in old saved sets; the worker retries an introduction category. Older in-flight single
-  replacements with legacy categories remain accepted. Other saved slots are untouched.
+  Replacement uses the selected type's coverage categories. Other saved slots are untouched.
 - `review_interview_answer`: input `{source_version: 1, question_set_id, question_id,
   question_revision, answer_revision, set_type, normalized_answer_sha256}`; the subject is
   the selected `InterviewQuestion`. Python reads that owned active question's saved answer
@@ -314,6 +305,15 @@ Per task type:
   statements; personal examples use square-bracket placeholders for missing facts. Knowledge
   examples correct subject misconceptions using model knowledge without invented personal
   experience. Feedback has no score and never overwrites the answer.
+
+- `generate_interview_memory_anchor`: input `{source_version: 1, question_set_id,
+  question_id, question_revision, answer_revision, set_type, normalized_answer_sha256,
+  memory_anchor_sha256}`; subject is the owned active `InterviewQuestion`. Saves the
+  typed answer/cue before admission. Python reads only that saved answer through the
+  existing owned revision-fenced reader, screens or reuses exact approvals, and returns
+  `{memory_anchor}`. No library or previous cue enters the prompt. Rails saves only a
+  bounded nonblank cue when the commanded revisions and previous cue hash still match,
+  and this is the newest anchor task. Stale/invalid results fail without overwriting edits.
 
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3

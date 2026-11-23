@@ -8,10 +8,10 @@ RSpec.describe "Applying interview question generation" do
   let(:question_set) { user.interview_question_sets.create!(number: 1) }
   let(:task) do
     create(:ai_task, user: user, task_type: "generate_interview_questions", subject: question_set,
-           input: { "question_set_id" => question_set.id })
+           input: { "source_version" => 1, "set_type" => question_set.set_type, "question_set_id" => question_set.id })
   end
   let(:drafts) do
-    %w[introduction collaboration problem_solving learning_adaptation initiative_judgment].map.with_index do |category, index|
+    %w[background motivation goals working_preferences contribution].map.with_index do |category, index|
       { "question_text" => "Question about your career number #{index}?", "category" => category,
         "evidence_quotes" => [ "Career details" ] }
     end
@@ -24,7 +24,7 @@ RSpec.describe "Applying interview question generation" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
-  %w[technical knowledge].each do |set_type|
+  %w[fit_motivation behavioral hypothetical technical knowledge].each do |set_type|
     context "with a #{set_type} set" do
       let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: set_type) }
       before { task.update!(input: task.input.merge("set_type" => set_type)) }
@@ -38,13 +38,14 @@ RSpec.describe "Applying interview question generation" do
         expect(task.cost_microdollars).to eq(30)
       end
 
-      it "rejects general categories without creating questions" do
+      it "rejects unsupported categories without creating questions" do
+        drafts.first["category"] = "unsupported"
         apply
         expect(task.reload).to be_failed
         expect(question_set.questions).to be_empty
       end
 
-      it "rejects a missing legacy type snapshot on a non-general set" do
+      it "rejects a missing type snapshot" do
         task.update!(input: task.input.except("set_type"))
         apply
         expect(task.reload).to be_failed
@@ -68,21 +69,7 @@ RSpec.describe "Applying interview question generation" do
   end
 
   it "rejects an exact saved preference repeated by generation without persisting any slots" do
-    task.update!(input: task.input.merge("avoided_questions" => [ drafts.first["question_text"].upcase ]))
-    apply
-    expect(task.reload).to be_failed
-    expect(question_set.questions).to be_empty
-  end
-
-  it "accepts a complete legacy category set from an in-flight older worker" do
-    drafts.zip(%w[introduction strengths development goals behavioral]).each { |draft, category| draft["category"] = category }
-    apply
-    expect(task.reload).to be_completed
-    expect(question_set.questions.count).to eq(5)
-  end
-
-  it "rejects a mixture of legacy and current categories atomically" do
-    drafts[1]["category"] = "strengths"
+    user.avoided_interview_questions.create!(question_text: drafts.first["question_text"].upcase, text_digest: Digest::SHA256.hexdigest(drafts.first["question_text"]))
     apply
     expect(task.reload).to be_failed
     expect(question_set.questions).to be_empty
@@ -137,7 +124,7 @@ RSpec.describe "Applying interview question generation" do
     apply
     expect(question_set.questions).to be_empty
     other_task = create(:ai_task, task_type: task.task_type, subject: question_set,
-                        input: { "question_set_id" => question_set.id })
+                        input: { "source_version" => 1, "set_type" => question_set.set_type, "question_set_id" => question_set.id })
     apply(message.merge("ai_task_id" => other_task.id))
     expect(other_task.reload).to be_failed
     expect(question_set.questions).to be_empty

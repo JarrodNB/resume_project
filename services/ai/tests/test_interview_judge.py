@@ -57,7 +57,7 @@ def test_question_runner_consolidates_actual_provider_calls(monkeypatch, offline
     offline_model_resolution("openai:gpt-5", model)
     case = load_interview_questions_dataset().cases[0]
     output = InterviewQuestions(questions=[InterviewQuestionDraft(
-        question_text="What did you learn?", category="introduction", evidence_quotes=[case.inputs.library])])
+        question_text="What did you learn?", category="background", evidence_quotes=[case.inputs.library])])
     dataset = Dataset(name="questions", cases=[case])
     report_interview_evals(dataset, lambda _: output, "questions", "openai:gpt-5", "v1",
                           QUESTION_RUBRICS)
@@ -88,7 +88,7 @@ def test_judge_prompt_uses_readable_sections_without_serialized_case():
     assert not report.cases[0].evaluator_failures
 
 
-@pytest.mark.parametrize("scope", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("scope", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_one_request_contains_all_applicable_scores(scope):
     """Scope selects accuracy before the one provider call; named reasons survive reports."""
     case = next(c for c in load_interview_feedback_dataset().cases if c.inputs.set_type == scope)
@@ -136,7 +136,7 @@ def test_invalid_output_fails_once_without_partial_scores(bad):
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
             {"scores": scores} if bad != "shape" else {"wrong": "shape"})])
 
-    report = Dataset(name="judge", cases=[Case(inputs={"set_type": "general"})], evaluators=[InterviewJudge(
+    report = Dataset(name="judge", cases=[Case(inputs={"set_type": "fit_motivation"})], evaluators=[InterviewJudge(
         {"quality": "Useful"}, FunctionModel(answer), 30)]).evaluate_sync(lambda _: "answer")
     assert attempts == [True]
     assert not report.cases[0].scores
@@ -207,7 +207,7 @@ def test_judge_usage_and_knowledge_averages_survive_native_reports():
             return "openai"
 
     cases = [next(c for c in load_interview_feedback_dataset().cases
-                  if c.inputs.set_type == scope) for scope in ("general", "knowledge")]
+                  if c.inputs.set_type == scope) for scope in ("fit_motivation", "knowledge")]
     attempts = []
 
     def answer(messages, info):

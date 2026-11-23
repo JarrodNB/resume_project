@@ -11,7 +11,8 @@ module InterviewPrep
         @question.reload
         next failure([ "This question changed. Reload it before saving this preference." ]) unless @question.question_revision == @expected_revision
 
-        InterviewPreferences::SaveAvoidedQuestionService.call(user: @user, question_text: @question.question_text)
+        InterviewPreferences::SaveAvoidedQuestionService.call(user: @user, question_text: @question.question_text,
+          origin: @question.interview_question_set.origin, screened_fields: @question.screened_fields)
       end
     end
   end

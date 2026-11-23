@@ -11,6 +11,9 @@ module Types
           description: "When an answered question was replaced and kept as a read-only copy."
     field :question_set, Types::InterviewQuestionSetType, null: false, method: :interview_question_set
     field :question_text, String, null: false
+    field :memory_anchor, String, null: false
+    field :answer_format, String, null: false
+    field :answer_drafts, GraphQL::Types::JSON, null: false
     field :answer_text, String, null: false
     field :question_revision, Integer, null: false
     field :answer_revision, Integer, null: false
@@ -19,6 +22,10 @@ module Types
     field :feedback_answer_revision, Integer
     field :feedback_outdated, Boolean, null: false
     field :latest_task, Types::AiTaskType
+
+    def answer_drafts
+      ::InterviewPrep::AnswerFormats.drafts(object)
+    end
 
     def avoided
       ::InterviewPreferences::AvoidedQuestions.saved?(context[:current_user], object.question_text)

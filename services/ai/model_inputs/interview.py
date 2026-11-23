@@ -45,9 +45,9 @@ def build_interview_question_context(
     )
 
 
-def format_feedback_prompt(set_type, question, answer, library):
+def format_feedback_prompt(set_type, question, answer, library, answer_format="plain_text"):
     """Give the model readable screened facts while preserving each source's exact wording."""
     evidence_text = format_interview_career_evidence(library)
     boundary = interview_data_boundary(f"{question}\n{answer}\n{evidence_text}")
-    return (f"Set type: {set_type}\n\n{boundary}\nQuestion:\n{question}\n{boundary}"
+    return (f"Set type: {set_type}\nAnswer format: {answer_format}\n\n{boundary}\nQuestion:\n{question}\n{boundary}"
             f"\nAnswer:\n{answer}\n{boundary}\nCareer evidence:\n{evidence_text}\n{boundary}")

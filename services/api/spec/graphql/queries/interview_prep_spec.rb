@@ -42,7 +42,7 @@ RSpec.describe "Interview practice queries" do
     GQL
     rows = result.dig("data", "interviewQuestions")
     expect(rows.map { |row| row["id"] }).to eq([ first.id, second.id, retired.id, older_question.id ])
-    expect(rows[2]).to include("position" => nil, "questionSet" => { "id" => newer.id, "setType" => "GENERAL" })
+    expect(rows[2]).to include("position" => nil, "questionSet" => { "id" => newer.id, "setType" => "FIT_MOTIVATION" })
     expect(rows[2]["retiredAt"]).to be_present
     expect(rows[3]["questionSet"]["setType"]).to eq("TECHNICAL")
   end

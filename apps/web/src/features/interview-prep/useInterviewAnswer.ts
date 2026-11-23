@@ -1,26 +1,30 @@
 /**
- * Description: Explicit answer saving and queued feedback/replacement mutation state.
+ * Description: Explicit answer saving and queued feedback/anchor/replacement mutation state.
  * Index: useInterviewAnswer
  */
+import type { AnswerFormat, AnswerDrafts } from './answerFormats'
 import { useState } from 'react'
 import { useMutation } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { SAVE_INTERVIEW_ANSWER, REQUEST_INTERVIEW_FEEDBACK, REGENERATE_INTERVIEW_QUESTION } from './interviewPrepOperations'
+import { GENERATE_INTERVIEW_MEMORY_ANCHOR, SAVE_INTERVIEW_ANSWER, REQUEST_INTERVIEW_FEEDBACK, REGENERATE_INTERVIEW_QUESTION } from './interviewPrepOperations'
 
 /** Runs question operations and retains actionable server/network errors. */
 export function useInterviewAnswer(questionSetId: string, questionId: string) {
+  const [anchorMutation] = useMutation(GENERATE_INTERVIEW_MEMORY_ANCHOR)
   const [saveMutation] = useMutation(SAVE_INTERVIEW_ANSWER)
   const [feedbackMutation] = useMutation(REQUEST_INTERVIEW_FEEDBACK)
   const [replaceMutation] = useMutation(REGENERATE_INTERVIEW_QUESTION)
   const [busy, setBusy] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   /** Executes one operation; feedback can persist the answer even when queueing fails. */
-  async function run(operation: 'save' | 'feedback' | 'replace', answerText: string) {
+  async function run(operation: 'save' | 'feedback' | 'replace' | 'anchor', answerText: string, memoryAnchor: string, answerFormat: AnswerFormat, answerDrafts: AnswerDrafts) {
     setBusy(operation)
     setErrors([])
     try {
-      const variables = { questionSetId, questionId, answerText }
-      const payload = operation === 'save'
+      const variables = { questionSetId, questionId, answerText, memoryAnchor, answerFormat, answerDrafts }
+      const payload = operation === 'anchor'
+        ? (await anchorMutation({ variables })).data?.generateInterviewMemoryAnchor
+        : operation === 'save'
         ? (await saveMutation({ variables })).data?.saveInterviewAnswer
         : operation === 'feedback'
           ? (await feedbackMutation({ variables })).data?.requestInterviewAnswerFeedback

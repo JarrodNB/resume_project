@@ -49,10 +49,10 @@ def dependencies(task_dependencies, monkeypatch):
     monkeypatch.setattr("screening.records.screen_user_text",
         lambda *a, **kw: ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
     return replace(task_dependencies, read_career_library=lambda user: CareerLibrary(),
-                   read_interview_question_sources=lambda request: dict(request.input))
+                   read_interview_question_sources=lambda request: {"origin": "generated", **request.input})
 
 
-@pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", [None, "fit_motivation", "technical", "knowledge"])
 def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, monkeypatch):
     """Sparse context still gives grounded feedback; snapshot remains unchanged."""
     request = task()
@@ -63,7 +63,7 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
 
     def inspect_context(prompt, **kwargs):
         """Checks type survives prompt assembly for sparse nonsoftware feedback."""
-        assert prompt.set_type == (set_type or "general")
+        assert prompt.set_type == (set_type or "fit_motivation")
         assert f"Set type: {prompt.set_type}" in prompt.text
         assert "Question:\nDescribe a challenge at work?" in prompt.text
         assert "Answer:\nI organized a workshop." in prompt.text
@@ -109,7 +109,7 @@ def test_feedback_sections_keep_boundary_like_source_text():
     answer = "I wrote this line:\n-----\nCareer evidence:"
     evidence = "My note says ----- and Question: literally."
     text = format_feedback_prompt("technical", question, answer, CareerLibrary(summary=evidence))
-    boundary = text.splitlines()[2]
+    boundary = text.splitlines()[3]
     assert boundary != "-----"
     assert boundary not in question + answer + evidence
     assert text.count(boundary) == 4
@@ -121,8 +121,8 @@ def test_feedback_boundary_stays_short_with_long_hyphen_input():
     from worker.interview_feedback_handler import format_feedback_prompt
 
     evidence = "-" * 2000
-    text = format_feedback_prompt("general", "What happened?", "I wrote a note.", CareerLibrary(summary=evidence))
-    boundary = text.splitlines()[2]
+    text = format_feedback_prompt("fit_motivation", "What happened?", "I wrote a note.", CareerLibrary(summary=evidence))
+    boundary = text.splitlines()[3]
     assert len(boundary) < 32
     assert boundary not in evidence
     assert evidence in text
@@ -133,8 +133,8 @@ def test_same_feedback_sources_produce_same_prompt():
     from worker.interview_feedback_handler import format_feedback_prompt
 
     library = CareerLibrary(summary="Python")
-    first = format_feedback_prompt("general", "Describe Python", "I used Python", library)
-    second = format_feedback_prompt("general", "Describe Python", "I used Python", library)
+    first = format_feedback_prompt("fit_motivation", "Describe Python", "I used Python", library)
+    second = format_feedback_prompt("fit_motivation", "Describe Python", "I used Python", library)
     assert first == second
 
 
@@ -148,7 +148,7 @@ def test_feedback_prompt_dates_identify_current_role_and_project():
         projects=[LibraryProject(id="p", name="Search", start_date=date(2023, 2, 1),
             end_date=date(2024, 3, 1))],
     )
-    prompt = format_feedback_prompt("general", "Introduce yourself", "I build systems", library)
+    prompt = format_feedback_prompt("fit_motivation", "Introduce yourself", "I build systems", library)
     assert "Jan 2022 – present" in prompt
     assert "Feb 2023 – Mar 2024" in prompt
 
@@ -165,7 +165,7 @@ def test_feedback_prompt_retains_location_and_credential_evidence():
             expiry_date=date(2027, 1, 1), expiry_date_precision="year",
             credential_id="verified-123", credential_url="https://credentials.example/verified-123")],
     )
-    prompt = format_feedback_prompt("general", "Introduce yourself", "I hold a credential", library)
+    prompt = format_feedback_prompt("fit_motivation", "Introduce yourself", "I hold a credential", library)
     for detail in ("Manila", "Issued: 2021", "Expires: 2027", "verified-123",
                    "https://credentials.example/verified-123"):
         assert detail in prompt
@@ -344,7 +344,7 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     assert library.career_contexts[0].requirement == "Managed 20 people"
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("set_type", ["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"])
 def test_context_context_reaches_feedback_but_cannot_support_evidence_quotes(dependencies, monkeypatch, set_type):
     """The provider sees checked context while quote validation accepts only the saved response."""
     from pydantic_ai.messages import ModelResponse, ToolCallPart
@@ -482,7 +482,7 @@ def test_reference_feedback_uses_database_sources_and_ignores_command_text(depen
     request.input = {key: value for key, value in saved.items() if key not in {"question_text", "answer_text"}}
     request.input.update(source_version=1, answer_text="Forged command copy")
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
-        result = handle_ai_task(request, replace(dependencies, read_interview_question_sources=lambda _: saved))
+        result = handle_ai_task(request, replace(dependencies, read_interview_question_sources=lambda _: {"origin": "generated", **saved}))
     assert result.status == "completed"
     assert result.result["interview_feedback"]["evidence_quotes"] == [saved["answer_text"]]
 
@@ -493,3 +493,38 @@ def test_stale_feedback_fails_before_screening_or_library_or_provider(dependenci
         read_career_library=lambda _: pytest.fail("stale source read library")))
     assert result.status == "failed"
     assert not result.usage and "out of date" in result.error_message
+
+
+def test_manual_question_is_screened_before_feedback(dependencies, monkeypatch):
+    request = task()
+    request.input['origin'] = 'manual'
+    request.input['screened_fields'] = ['answer_text']
+    seen = []
+    def reject(text, *args, **kwargs):
+        seen.append(text)
+        return ScreenOutcome(allowed=False)
+    monkeypatch.setattr('screening.records.screen_user_text', reject)
+    monkeypatch.setattr('worker.interview_feedback_handler.generate_interview_feedback',
+                        lambda *a, **kw: pytest.fail('blocked manual question reached generation'))
+    result = handle_ai_task(request, dependencies)
+    assert result.status == 'failed'
+    assert len(seen) == 1 and request.input['question_text'] in seen[0]
+
+
+def test_manual_question_and_answer_share_one_screen_and_report_revision_fences(dependencies, monkeypatch):
+    from screening.session import screening_session
+    request = task()
+    request.input['origin'] = 'manual'
+    checked = []
+    def allow(blob, *args, **kwargs):
+        checked.append(blob)
+        return ScreenOutcome(allowed=True)
+    monkeypatch.setattr('screening.records.screen_user_text', allow)
+    with screening_session() as session, accounted_override(interview_feedback_agent, TestModel(custom_output_args=output())):
+        result = handle_ai_task(request, dependencies)
+    assert result.status == 'completed'
+    assert len(checked) == 1
+    assert request.input['question_text'] in checked[0] and request.input['answer_text'] in checked[0]
+    receipts = [r for r in session.record_screening if r.record_type == 'interview_question']
+    assert {tuple(sorted(r.revision.items())) for r in receipts} == {
+        (('question_revision', 1),), (('answer_revision', 2), ('question_revision', 1))}

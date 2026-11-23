@@ -1,6 +1,6 @@
 """Prepare matching question text and citation evidence from checked library sources.
 
-The worker supplies generated question history with verified provenance. This module
+The worker supplies question history with verified origins and exact screening coverage. This module
 keeps source layout and exact prompt binding together; rendering itself stays pure.
 """
 
@@ -19,7 +19,7 @@ def prepare_interview_question_context(
     """Build all context views inside the same exact-source coverage callback.
 
     This does not approve sources. Coverage is granted only when library sources and
-    generated history are already approved in the current screening session.
+    question history are already approved in the current screening session.
     """
     context: InterviewQuestionContext | None = None
     library_end = len(selected.fields)

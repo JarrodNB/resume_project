@@ -20,11 +20,11 @@ RSpec.describe "Interview practice mutations" do
     expect(payload["errors"]).to eq([])
     expect(payload["aiTask"]).to include("taskType" => "GENERATE_INTERVIEW_QUESTIONS", "status" => "QUEUED")
     expect(user.interview_question_sets.count).to eq(1)
-    expect(user.interview_question_sets.first.set_type).to eq("general")
-    expect(payload["aiTask"]["input"]["set_type"]).to eq("general")
+    expect(user.interview_question_sets.first.set_type).to eq("fit_motivation")
+    expect(payload["aiTask"]["input"]["set_type"]).to eq("fit_motivation")
   end
 
-  %w[TECHNICAL KNOWLEDGE].each do |set_type|
+  %w[FIT_MOTIVATION BEHAVIORAL HYPOTHETICAL TECHNICAL KNOWLEDGE].each do |set_type|
     it "generates a #{set_type.downcase} set exposed on subsequent queries" do
       result = execute_graphql(<<~GQL, user: user)
         mutation { generateInterviewQuestionSet(input: {setType: #{set_type}}) { aiTask { input } errors } }
@@ -40,7 +40,7 @@ RSpec.describe "Interview practice mutations" do
   end
 
   it "rejects invalid and explicit null types without creating sets" do
-    [ "QUIZ", "null" ].each do |set_type|
+    [ "GENERAL", "QUIZ", "null" ].each do |set_type|
       result = execute_graphql(<<~GQL, user: user)
         mutation { generateInterviewQuestionSet(input: {setType: #{set_type}}) { errors } }
       GQL
@@ -49,11 +49,27 @@ RSpec.describe "Interview practice mutations" do
     expect(user.interview_question_sets).to be_empty
   end
 
+  it "round-trips independent drafts through the owned save mutation" do
+    mutation = <<~GQL
+      mutation($set: ID!, $question: ID!, $drafts: JSON!) {
+        saveInterviewAnswer(input: {questionSetId: $set, questionId: $question, answerText: "", memoryAnchor: "", answerFormat: "car", answerDrafts: $drafts}) {
+          question { answerFormat answerDrafts answerText } errors
+        }
+      }
+    GQL
+    drafts = { "car" => { "action" => "I listened" }, "plain_text" => { "text" => "Original" } }
+    result = execute_graphql(mutation, user: user, variables: { set: question_set.id, question: question.id, drafts: drafts })
+    expect(result.dig("data", "saveInterviewAnswer", "question")).to eq(
+      "answerFormat" => "car", "answerDrafts" => drafts, "answerText" => "Action: I listened")
+    result = execute_graphql(mutation, user: create(:user), variables: { set: question_set.id, question: question.id, drafts: drafts })
+    expect(result["errors"]).to be_present
+  end
+
   it "saves and clears answers through the authorized question's set" do
     [ "My example", "" ].each do |answer|
       result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id, answer: answer })
         mutation($set: ID!, $question: ID!, $answer: String!) {
-          saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, answerText: $answer }) {
+          saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, memoryAnchor: "", answerText: $answer }) {
             question { id answerText answerRevision } errors
           }
         }
@@ -74,7 +90,7 @@ RSpec.describe "Interview practice mutations" do
     question.ai_tasks.last.update!(status: "failed")
     result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
       mutation($set: ID!, $question: ID!) {
-        requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, answerText: "My answer" }) {
+        requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, memoryAnchor: "", answerText: "My answer" }) {
           aiTask { id } errors
         }
       }
@@ -96,8 +112,8 @@ RSpec.describe "Interview practice mutations" do
     other_set = create(:user).interview_question_sets.create!(number: 1)
     other_question = other_set.questions.create!(position: 1, question_text: "Private?")
     operations = {
-      "saveInterviewAnswer" => 'answerText: "Attempt"',
-      "requestInterviewAnswerFeedback" => 'answerText: "Attempt"',
+      "saveInterviewAnswer" => 'memoryAnchor: "", answerText: "Attempt"',
+      "requestInterviewAnswerFeedback" => 'memoryAnchor: "", answerText: "Attempt"',
       "regenerateInterviewQuestion" => 'confirmed: true'
     }
     operations.each do |name, argument|
@@ -119,9 +135,33 @@ RSpec.describe "Interview practice mutations" do
     another_set = user.interview_question_sets.create!(number: 2)
     result = execute_graphql(<<~GQL, user: user, variables: { set: another_set.id, question: question.id })
       mutation($set: ID!, $question: ID!) {
-        saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, answerText: "Attempt" }) { errors }
+        saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, memoryAnchor: "", answerText: "Attempt" }) { errors }
       }
     GQL
     expect(result["errors"].first["message"]).to eq("Record not found")
+  end
+
+  it "saves and returns a bounded memory anchor without changing the answer revision" do
+    question.update!(answer_text: "Saved answer", answer_revision: 1)
+    result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
+      mutation($set: ID!, $question: ID!) {
+        saveInterviewAnswer(input: { questionSetId: $set, questionId: $question, answerText: "Saved answer", memoryAnchor: "Listen then plan" }) {
+          question { memoryAnchor answerRevision } errors
+        }
+      }
+    GQL
+    expect(result.dig("data", "saveInterviewAnswer", "errors")).to eq([])
+    expect(result.dig("data", "saveInterviewAnswer", "question")).to include("memoryAnchor" => "Listen then plan", "answerRevision" => 1)
+  end
+
+  it "persists the memory anchor and answer before feedback admission fails" do
+    user.update!(max_in_flight_ai_tasks: 0)
+    result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
+      mutation($set: ID!, $question: ID!) {
+        requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, answerText: "Saved answer", memoryAnchor: "Listen then plan" }) { errors }
+      }
+    GQL
+    expect(result.dig("data", "requestInterviewAnswerFeedback", "errors")).not_to be_empty
+    expect(question.reload).to have_attributes(answer_text: "Saved answer", memory_anchor: "Listen then plan")
   end
 end

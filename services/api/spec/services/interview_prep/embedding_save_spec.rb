@@ -11,7 +11,7 @@ RSpec.describe "Saving answers for vector generation" do
 
   before { clear_enqueued_jobs }
 
-  %w[general technical knowledge].each do |type|
+  %w[fit_motivation behavioral hypothetical technical knowledge].each do |type|
     it "schedules future saves including unchanged existing answers for #{type}" do
       set = user.interview_question_sets.create!(number: 1, set_type: type)
       saved = set.questions.create!(position: 1, question_text: "What did you learn?", answer_text: "Existing answer")

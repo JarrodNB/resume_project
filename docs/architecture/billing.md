@@ -74,7 +74,8 @@ signups cannot block paying customers.
   body, duplicate and out-of-order deliveries end in the same correct state. It fetches again
   after locking the row, so two jobs at once cannot write older state. Guards: an old canceled
   subscription never overwrites a newer one that is still paid; and if a second paid subscription
-  arrives for a row that already holds a paid one (two checkouts at once), the row keeps the first,
+  arrives for a row that already holds a paid one (two checkouts at once), the sync checks that
+  Stripe still says the recorded subscription is paid, then the row keeps the first,
   the newcomer is cancelled right away, and a warning log names both ids so an operator can refund it.
   A subscription with no billing row whose metadata names a user that no longer exists (account
   deleted, or whose billing row vanished mid-sync) is cancelled with a refund warning, but only when

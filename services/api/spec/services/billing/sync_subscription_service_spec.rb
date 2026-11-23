@@ -53,6 +53,7 @@ RSpec.describe Billing::SyncSubscriptionService do
 
   it "keeps the existing paid subscription, cancels the duplicate and warns with both ids" do
     row.update!(stripe_subscription_id: "sub_first", status: "active")
+    FakeStripeGateway.subscriptions["sub_first"] = stripe_subscription(id: "sub_first", status: "active")
     FakeStripeGateway.subscriptions["sub_second"] = stripe_subscription(id: "sub_second", status: "active")
     allow(Rails.logger).to receive(:warn)
 
@@ -85,11 +86,24 @@ RSpec.describe Billing::SyncSubscriptionService do
 
   it "lets a newer subscription replace an old canceled one" do
     row.update!(stripe_subscription_id: "sub_old", status: "canceled")
+    FakeStripeGateway.subscriptions["sub_old"] = stripe_subscription(id: "sub_old", status: "canceled")
     FakeStripeGateway.subscriptions["sub_new"] = stripe_subscription(id: "sub_new", status: "active")
 
     sync("sub_new")
 
     expect(row.reload).to have_attributes(stripe_subscription_id: "sub_new", status: "active")
+  end
+
+  it "keeps a new paid subscription when the recorded subscription was canceled before its webhook arrived" do
+    row.update!(stripe_subscription_id: "sub_old", status: "active")
+    FakeStripeGateway.subscriptions["sub_old"] = stripe_subscription(id: "sub_old", status: "canceled")
+    FakeStripeGateway.subscriptions["sub_new"] = stripe_subscription(id: "sub_new", status: "active")
+
+    2.times { sync("sub_new") }
+    sync("sub_old")
+
+    expect(row.reload).to have_attributes(stripe_subscription_id: "sub_new", status: "active")
+    expect(FakeStripeGateway.canceled).to be_empty
   end
 
   it "does nothing for an unknown customer" do

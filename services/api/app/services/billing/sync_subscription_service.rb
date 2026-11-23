@@ -7,7 +7,7 @@
 # billing row vanished mid-sync: that account was deleted, so it is cancelled and a warning says to
 # refund it. The state that gets written is fetched again after the row is locked, so two jobs
 # running at once cannot leave older state behind. Guards: an old canceled subscription never overwrites a newer one that is
-# still paid, and if a second paid subscription turns up (two checkouts at once) the row keeps the
+# still paid according to Stripe, and if a second paid subscription turns up (two checkouts at once) the row keeps the
 # first, the newcomer is cancelled right away, and a warning names both ids so someone can refund it.
 module Billing
   class SyncSubscriptionService < ApplicationService
@@ -42,7 +42,9 @@ module Billing
       # The Stripe call happens inside the lock on purpose: two syncs running at once can't then write
       # stale state over newer state. It locks only this user's billing row, and the job retries.
       fetched = @gateway.retrieve_subscription(@subscription_id)
-      other_paid_held = row.stripe_subscription_id.present? && row.stripe_subscription_id != fetched.id && row.paid?
+      # A delayed cancellation webhook can leave the recorded status stale; check Stripe before cancelling a replacement.
+      other_paid_held = row.stripe_subscription_id.present? && row.stripe_subscription_id != fetched.id &&
+        BillingSubscription.paid_status?(@gateway.retrieve_subscription(row.stripe_subscription_id).status)
       return fetched.id if other_paid_held && BillingSubscription.paid_status?(fetched.status)
       return if other_paid_held
 

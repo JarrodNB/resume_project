@@ -25,7 +25,21 @@ is screened or reuses its exact recorded approval. Written commands require vers
 
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
-an empty answer and increment the answer revision only when text changes. The answer limit is
+an empty answer. Four bounded `answer_drafts` belong to each question, selected by
+`answer_format` (plain_text, car, carl, star). Existing `answer_text` remains exact Plain text
+until a structured save. Structured saves atomically persist all drafts and selection;
+`answer_text` projects only nonblank active fields, labeled in format order. Legacy text-only
+saves update Plain text without deleting alternatives. Each rendered draft and its raw fields
+fit the existing answer limit; four supported drafts bound total storage. No conversion or autosave occurs.
+
+The answer revision changes only when the active format or its fields change; inactive
+edits preserve feedback currentness. Format changes stale feedback even when projected text
+matches. `answer_format_revision` remembers the last selection-change revision, so returning
+to an older format cannot revive feedback; formatting-only text edits retain existing normalized-digest freshness. Exact unchanged projected text retains screening coverage and vectors; embedding
+revision metadata advances without another provider call. Feedback commands carry the selected
+format as bounded control metadata, and results for a different current format are rejected.
+Retirement and account export preserve all drafts, including questions answered only in an
+inactive format. Preview, rehearsal, anchors and search use active `answer_text` only. The answer limit is
 2,000 characters, defined in Rails `config/initializers/text_limits.rb`, Python `text_limits.py`,
 and web `src/lib/textLimits.ts`. Answers never become career-library entries. Deleting a set
 cascades its questions and nullifies AI task subjects, retaining usage records and task inputs.
@@ -37,7 +51,7 @@ feedback, screening approvals and vectors, and queues no embedding work. An ordi
 unchanged save still schedules the existing embedding job. Cues never enter model
 inputs or Q&A embeddings. Answer edits retain cues and the editor reminds the user to
 check them. Both fields participate in unsaved-navigation and in-flight draft protection;
-only answer edits affect feedback freshness. Bank search includes cues.
+only active answer or format edits affect feedback freshness. Bank search includes cues.
 
 `generateInterviewMemoryAnchor` explicitly saves the current answer and cue, then queues
 `generate_interview_memory_anchor` through the shared general-AI allowance and task lifecycle.
@@ -79,10 +93,11 @@ feedback permits edits. Replacing an answered question requires `confirmed: true
 Result services check ownership, subject/set/question identity, latest task identity, and
 command revisions before writing. Replacement requires unchanged target, peer-question and answer
 revisions and checks distinctness against the current set, including the old question. On
-success it first keeps a nonblank answer as a retired copy (below), then increments both
+success it first keeps a question with any nonblank format draft as a retired copy (below), then increments both
 revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest
-feedback task, but accepts a newer answer revision: coaching is stored against the reviewed
-revisions, so GraphQL `feedbackOutdated` marks substantive edits outdated. Capitalization and
+feedback task. New format-aware commands also require the exact answer revision; stale results
+cannot replace coaching after active edits or a format-selection cycle. Legacy commands retain
+reviewed-revision attribution for delayed answers. GraphQL `feedbackOutdated` marks active changes outdated. Capitalization and
 whitespace changes remain current when a completed task's matching feedback and normalized
 answer digest verify that only formatting changed. Exact revisions still advance on saves.
 Generated feedback never writes
@@ -270,7 +285,7 @@ categories while choosing different concrete focuses within them.
   feedback and revision lifecycle for rows that no longer belong to a slot.
 
 - **Interview Q&A vectors remain separate from career-library evidence.** Future successful
-  nonblank answer saves (including unchanged saves and feedback saves) enqueue a question-specific
+  nonblank active-answer saves (including unchanged saves and feedback saves, excluding inactive-only draft edits) enqueue a question-specific
   `InterviewPrep::SyncQuestionEmbeddingJob` after commit. `interview_question_embeddings` stores
   original combined Q&A, a model/masked-text digest, source revisions, and a 1536-dimension vector.
   Contact is masked only for the provider. A unique question foreign key cascades deletion;

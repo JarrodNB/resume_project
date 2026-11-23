@@ -36,7 +36,9 @@ module InterviewPrep
                     question.interview_question_set_id == @task.input["question_set_id"]
       return unless @task.input["source_version"] == 1
       return unless question.question_revision == @task.input["question_revision"]
+      return unless @task.input.fetch("answer_format", "plain_text") == question.answer_format
       revision = @task.input["answer_revision"]
+      return if @task.input.key?("answer_format") && revision != question.answer_revision
       return unless revision.is_a?(Integer) && revision >= 0 && revision <= question.answer_revision
       return unless question.ai_tasks.where(task_type: "review_interview_answer")
                             .order(created_at: :desc, id: :desc).first&.id == @task.id

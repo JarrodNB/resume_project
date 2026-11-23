@@ -27,7 +27,7 @@ def read_interview_question_sources(connection, task):
         if row["subject_type"] != "InterviewQuestion" or str(row["subject_id"]) != command.get("question_id"):
             return None
         target = connection.execute("""
-            SELECT q.id, q.question_text, q.answer_text, q.question_revision, q.answer_revision, q.screened_fields
+            SELECT q.id, q.question_text, q.answer_text, q.answer_format, q.answer_drafts -> q.answer_format AS answer_fields, q.question_revision, q.answer_revision, q.screened_fields
             FROM interview_questions q JOIN interview_question_sets s ON s.id = q.interview_question_set_id
             WHERE q.id = %(question)s AND s.id = %(set)s AND s.user_id = %(owner)s AND q.retired_at IS NULL
         """, {"question": command.get("question_id"), "set": question_set["id"], "owner": task.user_id}).fetchone()
@@ -36,8 +36,10 @@ def read_interview_question_sources(connection, task):
         ):
             return None
         return {"question_set_id": str(question_set["id"]), "set_type": question_set["set_type"],
-                "origin": question_set["origin"], "question_id": str(target["id"]), **{key: target[key] for key in (
-                    "question_text", "answer_text", "question_revision", "answer_revision", "screened_fields")}}
+                "origin": question_set["origin"], "question_id": str(target["id"]),
+                "answer_fields": target["answer_fields"] or (
+                    {"text": target["answer_text"]} if target["answer_format"] == "plain_text" else {}), **{key: target[key] for key in (
+                    "question_text", "answer_text", "answer_format", "question_revision", "answer_revision", "screened_fields")}}
     questions = connection.execute("""
         SELECT q.id, q.question_text, q.question_revision, q.answer_revision, q.screened_fields
         FROM interview_questions q JOIN interview_question_sets s ON s.id = q.interview_question_set_id

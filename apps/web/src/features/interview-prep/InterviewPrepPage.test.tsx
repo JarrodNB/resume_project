@@ -6,6 +6,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
+import { normalizeAnswerDrafts } from './answerFormats'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPrepPage } from './InterviewPrepPage'
 import { DELETE_INTERVIEW_QUESTION, DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY, SAVE_INTERVIEW_ANSWER } from './interviewPrepOperations'
@@ -25,7 +26,7 @@ const SETS = {
 
 /** Builds one bank row; set membership decides its type label. */
 function bankQuestion(id: string, overrides: Record<string, unknown> = {}, setId: keyof typeof SETS = 'set-1') {
-  return { __typename: 'InterviewQuestion', id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
+  return { __typename: 'InterviewQuestion', id, answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, typeof overrides.answerText === 'string' ? overrides.answerText : ''), position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
 }
 const reviewed = { answerText: 'I shipped the scheduler.', feedback: { strengths: ['Specific'] } }
 function defaultBank() {
@@ -176,11 +177,12 @@ it('invites first questions when there are no questions', async () => {
 })
 
 it('keeps answers from replaced questions in their own read-only section', async () => {
-  render([], { bank: [...defaultBank(), bankQuestion('q-old', { position: null, retiredAt: '2026-10-20T00:00:00Z', questionText: 'An older question?', answerText: 'My kept answer', feedback: { improvements: ['Add a result'] } })] })
+  render([], { bank: [...defaultBank(), bankQuestion('q-old', { position: null, retiredAt: '2026-10-20T00:00:00Z', questionText: 'An older question?', answerText: 'My kept answer', answerDrafts: { plain_text: { text: 'My kept answer' }, car: { context: 'Retained context', action: '', result: '' } }, feedback: { improvements: ['Add a result'] } })] })
   fireEvent.click(await screen.findByRole('button', { name: /Answers from replaced questions/ }))
   expect(screen.queryByRole('button', { name: /An older question/ })).not.toBeInTheDocument()
   fireEvent.click(screen.getByText('An older question?'))
   expect(screen.getByText('My kept answer')).toBeInTheDocument()
+  expect(screen.getByText('Context: Retained context')).toBeInTheDocument()
   expect(screen.getByText('Add a result')).toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: /answer/i })).not.toBeInTheDocument()
 })
@@ -277,7 +279,7 @@ it('supports arrow, Home, and End navigation between type tabs', async () => {
 it('protects inline edits when switching type or leaving and saves without navigating', async () => {
   const answerText = 'I measured the query before changing its index.'
   const { router } = render([detailMock(), {
-    request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 'set-2', questionId: 'q-tech', answerText, memoryAnchor: '' } },
+    request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 'set-2', questionId: 'q-tech', answerText, memoryAnchor: '' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText) } },
     result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: {
       __typename: 'InterviewQuestion', id: 'q-tech', answerText, memoryAnchor: '', answerRevision: 2, feedbackOutdated: false,
     } } } },

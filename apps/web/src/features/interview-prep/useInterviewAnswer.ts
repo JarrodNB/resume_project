@@ -2,6 +2,7 @@
  * Description: Explicit answer saving and queued feedback/anchor/replacement mutation state.
  * Index: useInterviewAnswer
  */
+import type { AnswerFormat, AnswerDrafts } from './answerFormats'
 import { useState } from 'react'
 import { useMutation } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
@@ -16,11 +17,11 @@ export function useInterviewAnswer(questionSetId: string, questionId: string) {
   const [busy, setBusy] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   /** Executes one operation; feedback can persist the answer even when queueing fails. */
-  async function run(operation: 'save' | 'feedback' | 'replace' | 'anchor', answerText: string, memoryAnchor: string) {
+  async function run(operation: 'save' | 'feedback' | 'replace' | 'anchor', answerText: string, memoryAnchor: string, answerFormat: AnswerFormat, answerDrafts: AnswerDrafts) {
     setBusy(operation)
     setErrors([])
     try {
-      const variables = { questionSetId, questionId, answerText, memoryAnchor }
+      const variables = { questionSetId, questionId, answerText, memoryAnchor, answerFormat, answerDrafts }
       const payload = operation === 'anchor'
         ? (await anchorMutation({ variables })).data?.generateInterviewMemoryAnchor
         : operation === 'save'

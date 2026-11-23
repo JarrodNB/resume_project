@@ -10,7 +10,7 @@ import { QuestionBankList } from './QuestionBankList'
 afterEach(() => vi.restoreAllMocks())
 
 function question(id: string, overrides: Partial<InterviewQuestionBankQuery['interviewQuestions'][number]> = {}): InterviewQuestionBankQuery['interviewQuestions'][number] {
-  return { id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: `Saved answer ${id}`, feedback: {}, feedbackOutdated: false, latestTask: null,
+  return { answerFormat: 'plain_text', answerDrafts: {}, id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: `Saved answer ${id}`, feedback: {}, feedbackOutdated: false, latestTask: null,
     questionSet: { id: 'set', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-12T00:00:00Z' }, ...overrides }
 }
 function bank(questions = [question('one', { memoryAnchor: 'Launch checklist' }), question('two')]) {

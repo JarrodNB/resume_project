@@ -251,7 +251,7 @@ it('saves answer and cue together while preserving newer edits to both during sa
   saved.result.data.interviewQuestionSet.questions[0].memoryAnchor = 'Submitted cue'
   renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), {
     request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Submitted answer', memoryAnchor: 'Submitted cue' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer') } }, delay: 100,
-    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', memoryAnchor: 'Submitted cue', answerRevision: 2, feedbackOutdated: true } } } },
+    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), memoryAnchor: 'Submitted cue', answerRevision: 2, feedbackOutdated: true } } } },
   }, saved] })
   const answer = await openAnswer()
   const cue = screen.getByRole('textbox', { name: 'Memory anchor' })

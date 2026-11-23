@@ -281,7 +281,7 @@ it('protects inline edits when switching type or leaving and saves without navig
   const { router } = render([detailMock(), {
     request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 'set-2', questionId: 'q-tech', answerText, memoryAnchor: '' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText) } },
     result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: {
-      __typename: 'InterviewQuestion', id: 'q-tech', answerText, memoryAnchor: '', answerRevision: 2, feedbackOutdated: false,
+      __typename: 'InterviewQuestion', id: 'q-tech', answerText, answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText), memoryAnchor: '', answerRevision: 2, feedbackOutdated: false,
     } } } },
   }, detailMock(answerText), bankMock(), setsMock()])
   fireEvent.click(await screen.findByRole('button', { name: /^Question q-tech/ }))

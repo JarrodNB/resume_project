@@ -166,3 +166,16 @@ def test_reader_retains_manual_origin_for_history_and_immutable_avoidance(admin_
         'question_revision': 1, 'origin': 'manual', 'screened_fields': ['question_text']}]
     assert sources['avoided_question_sources'] == [{'id': str(avoided_id), 'question_text': 'Deleted manual question?',
         'origin': 'manual', 'screened_fields': ['question_text']}]
+
+
+def test_memory_anchor_reads_current_owned_answer_and_rejects_changed_revision(admin_connection):
+    from database.interview_questions import read_interview_question_sources
+    task = feedback_task(admin_connection)
+    admin_connection.execute("UPDATE ai_tasks SET task_type = 'generate_interview_memory_anchor' WHERE id = %s", (task.ai_task_id,))
+    task = task.model_copy(update={"task_type": "generate_interview_memory_anchor"})
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert read_interview_question_sources(admin_connection, task)["answer_text"] == "Saved answer"
+    admin_connection.execute("RESET ROLE")
+    admin_connection.execute("UPDATE interview_questions SET answer_revision = 3 WHERE id = %s", (task.input["question_id"],))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert read_interview_question_sources(admin_connection, task) is None

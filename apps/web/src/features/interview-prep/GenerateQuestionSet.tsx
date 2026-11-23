@@ -1,9 +1,9 @@
 /**
  * Description: Asks for five new practice questions of one type, built from the career library.
- * The new questions join the question bank; the page opens them as soon as generation is queued.
- * Generation stays off until the library has something to build questions from.
+ * The new questions join the question bank here when generation finishes.
+ * Generation stays locked while a persisted generation task is running, including after reload.
  */
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { useState } from 'react'
 import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -23,21 +23,15 @@ const TYPE_HELP: Record<InterviewQuestionSetTypeEnum, string> = {
 }
 
 /** Type switch and generate button, with links to fill an empty library first. */
-export function GenerateQuestionSet() {
+export function GenerateQuestionSet({ generating, checking }: { generating: boolean; checking: boolean }) {
   const { library, loading: libraryLoading, error: libraryError } = useCareerLibrary()
   const generation = useGenerateInterviewSet()
-  const navigate = useNavigate()
+  const busy = generation.loading || generating || checking
   const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum>('FIT_MOTIVATION')
   const hasCareerContext = Boolean(library && (
     library.me.summary?.trim() || library.experiences.length || library.projects.length ||
     library.educations.length || library.certifications.length || library.skills.length || library.careerContexts.length
   ))
-
-  /** Opens the new set as soon as generation is queued. */
-  async function generate() {
-    const id = await generation.generate(setType)
-    if (id) void navigate(`/practice/questions/${id}`)
-  }
 
   return <section className="question-generate" aria-labelledby="question-generate-heading">
     <div className="question-generate-text">
@@ -45,12 +39,12 @@ export function GenerateQuestionSet() {
       <p>Five questions built from your career library. Saved questions stay the same when your library changes.</p>
     </div>
     <div className="question-generate-controls">
-      <div className="view-switch question-type-switch" role="group" aria-label="Question type">
-        {SET_TYPES.map((type) => <button key={type} type="button" aria-pressed={setType === type} disabled={generation.loading} onClick={() => setSetType(type)}>{interviewSetTypeLabel(type)}</button>)}
+      <div className="view-switch question-type-switch" role="group" aria-label="Question type" aria-describedby="question-type-help">
+        {SET_TYPES.map((type) => <button key={type} type="button" aria-pressed={setType === type} disabled={busy} onClick={() => setSetType(type)}>{interviewSetTypeLabel(type)}</button>)}
       </div>
-      <Button size="lg" disabled={generation.loading || !hasCareerContext} onClick={() => void generate()}>{generation.loading ? 'Starting…' : 'Get 5 questions'}</Button>
+      <p id="question-type-help" className="question-generate-help" aria-live="polite">{TYPE_HELP[setType]}</p>
+      <Button size="lg" disabled={busy || !hasCareerContext} onClick={() => void generation.generate(setType)}>{generating ? 'Generating questions…' : generation.loading ? 'Starting…' : checking ? 'Checking generation…' : 'Get 5 questions'}</Button>
     </div>
-    <p className="question-generate-help" aria-live="polite">{TYPE_HELP[setType]}</p>
     {!hasCareerContext && !libraryError && <div className="question-generate-empty" aria-live="polite">
       {libraryLoading ? <p>Checking your career library…</p> : <>
         <p>Add career details before getting interview questions.</p>

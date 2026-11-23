@@ -23,10 +23,10 @@ RSpec.describe "Interview memory anchors" do
     expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(false)
   end
 
-  it "accepts 200 characters, rejects oversized cues atomically, and allows clearing" do
-    expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "My answer", memory_anchor: "a" * 200)).to be_success
-    expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "Changed answer", memory_anchor: "a" * 201)).not_to be_success
-    expect(question.reload).to have_attributes(answer_text: "My answer", answer_revision: 1, memory_anchor: "a" * 200)
+  it "accepts 600 characters, rejects oversized cues atomically, and allows clearing" do
+    expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "My answer", memory_anchor: "a" * 600)).to be_success
+    expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "Changed answer", memory_anchor: "a" * 601)).not_to be_success
+    expect(question.reload).to have_attributes(answer_text: "My answer", answer_revision: 1, memory_anchor: "a" * 600)
     expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "My answer", memory_anchor: "")).to be_success
     expect(question.reload.memory_anchor).to eq("")
   end

@@ -52,6 +52,7 @@ module Types
 
     field :save_interview_answer, mutation: Mutations::InterviewPrep::SaveInterviewAnswer
 
+    field :generate_interview_memory_anchor, mutation: Mutations::InterviewPrep::GenerateInterviewMemoryAnchor
     field :regenerate_interview_question, mutation: Mutations::InterviewPrep::RegenerateInterviewQuestion
 
     field :request_interview_answer_feedback, mutation: Mutations::InterviewPrep::RequestInterviewAnswerFeedback

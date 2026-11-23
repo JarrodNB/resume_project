@@ -8,7 +8,7 @@ import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { InterviewSetPage } from './InterviewSetPage'
-import { INTERVIEW_SET_QUERY, REQUEST_INTERVIEW_FEEDBACK, SAVE_INTERVIEW_ANSWER, REGENERATE_INTERVIEW_QUESTION, AVOID_INTERVIEW_QUESTION } from './interviewPrepOperations'
+import { GENERATE_INTERVIEW_MEMORY_ANCHOR, INTERVIEW_SET_QUERY, REQUEST_INTERVIEW_FEEDBACK, SAVE_INTERVIEW_ANSWER, REGENERATE_INTERVIEW_QUESTION, AVOID_INTERVIEW_QUESTION } from './interviewPrepOperations'
 
 /** Builds a saved question with grounded feedback. */
 function question(answerText = 'Saved answer', latestTask: unknown = null) {
@@ -235,7 +235,7 @@ it('keeps cue-only edits dirty without making feedback outdated', async () => {
   renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [reviewed] })
   await openAnswer()
   const cue = screen.getByRole('textbox', { name: 'Memory anchor' })
-  expect(cue).toHaveAttribute('maxLength', '200')
+  expect(cue).toHaveAttribute('maxLength', '600')
   fireEvent.change(cue, { target: { value: 'Launch: listen then plan' } })
   expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
@@ -294,4 +294,48 @@ it('reminds the user to check a retained cue after editing the answer', async ()
   fireEvent.change(await openAnswer(), { target: { value: 'Changed answer' } })
   expect(screen.getByRole('textbox', { name: 'Memory anchor' })).toHaveValue('My existing cue')
   expect(screen.getByText(/Check that your memory anchor still fits/)).toBeInTheDocument()
+})
+
+it('generates an editable anchor while keeping newer local anchor edits', async () => {
+  const pending = { __typename: 'AiTask', id: 'anchor-task', status: 'QUEUED', taskType: 'GENERATE_INTERVIEW_MEMORY_ANCHOR', errorMessage: null }
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), {
+    request: { query: GENERATE_INTERVIEW_MEMORY_ANCHOR, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Saved answer', memoryAnchor: '' } }, delay: 50,
+    result: { data: { generateInterviewMemoryAnchor: { __typename: 'GenerateInterviewMemoryAnchorPayload', errors: [], aiTask: pending } } },
+  }, detail('Saved answer', pending), { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'anchor-task' } }, delay: Infinity, result: { data: {} } }] })
+  await openAnswer()
+  fireEvent.click(screen.getByRole('button', { name: 'Generate anchor' }))
+  expect(await screen.findByRole('button', { name: 'Generating anchor…' })).toBeDisabled()
+  const anchor = screen.getByRole('textbox', { name: 'Memory anchor' })
+  fireEvent.change(anchor, { target: { value: 'My own newer cue' } })
+  await waitFor(() => expect(screen.getByText('Generating memory anchor. You can keep editing.')).toBeVisible())
+  expect(anchor).toHaveValue('My own newer cue')
+  expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
+})
+
+it('restores pending anchor generation and allows retry after failure', async () => {
+  const failed = { __typename: 'AiTask', id: 'anchor-task', status: 'FAILED', taskType: 'GENERATE_INTERVIEW_MEMORY_ANCHOR', errorMessage: 'Please try again' }
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail('Saved answer', failed)] })
+  await openAnswer()
+  expect(screen.getByText('Memory anchor generation failed')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Generate anchor' })).toBeEnabled()
+  expect(screen.getByRole('textbox', { name: 'Memory anchor' })).toBeEnabled()
+})
+
+
+it('loads a completed generated anchor and leaves it editable', async () => {
+  const queued = { __typename: 'AiTask', id: 'anchor-done', status: 'QUEUED', taskType: 'GENERATE_INTERVIEW_MEMORY_ANCHOR', errorMessage: null }
+  const completed = { ...queued, status: 'COMPLETED' }
+  const refreshed = detail('Saved answer', completed)
+  refreshed.result.data.interviewQuestionSet.questions[0].memoryAnchor = 'C: slow process → A★: simplified → R★: faster'
+  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail('Saved answer', queued), {
+    request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'anchor-done' } }, delay: 100,
+    result: { data: { aiTaskUpdated: { ...completed, result: null, input: {}, pendingQuestions: [], acceptedAt: null, createdAt: '2026-10-11T00:00:00Z', job: null } } },
+  }, refreshed] })
+  await openAnswer()
+  const anchor = screen.getByRole('textbox', { name: 'Memory anchor' })
+  await waitFor(() => expect(anchor).toHaveValue('C: slow process → A★: simplified → R★: faster'))
+  fireEvent.change(anchor, { target: { value: 'My preferred cue' } })
+  expect(anchor).toHaveValue('My preferred cue')
+  expect(screen.getByRole('button', { name: 'Regenerate anchor' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
 })

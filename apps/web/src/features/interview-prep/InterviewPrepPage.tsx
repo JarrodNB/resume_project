@@ -18,16 +18,16 @@ import { useInterviewSets, useQuestionBank } from './useInterviewPrep'
 /** Generation, the question bank, and replaced answers on one page. */
 export function InterviewPrepPage() {
   const bank = useQuestionBank()
-  const { sets, error: setsError, refetch: refetchSets } = useInterviewSets()
+  const { sets, loading: setsLoading, error: setsError, refetch: refetchSets } = useInterviewSets()
   const { refetch: refetchBank } = bank
   const refresh = useCallback(() => Promise.all([refetchSets(), refetchBank()]), [refetchSets, refetchBank])
   const pending = sets?.filter((set) => set.questions.length === 0) ?? []
 
   return <div className="question-bank-page">
     <PageHeading title="Practice questions" description="Write answers to interview questions drawn from your career library, get coaching, and keep improving them here." />
-    <GenerateQuestionSet />
-    <AddCustomQuestion />
+    <GenerateQuestionSet generating={pending.some((set) => set.latestTask?.status === 'QUEUED')} checking={setsLoading} />
     <PendingQuestionGeneration sets={pending} onChanged={refresh} />
+    <AddCustomQuestion />
     {bank.error && <ErrorAlert title="Couldn't load your questions" messages={[requestErrorMessage(bank.error, bank.error.message)]} />}
     {setsError && <ErrorAlert title="Couldn't check question generation" messages={[requestErrorMessage(setsError, setsError.message)]} />}
     {!bank.questions && bank.loading && <ContentSkeleton label="Loading your questions…" />}

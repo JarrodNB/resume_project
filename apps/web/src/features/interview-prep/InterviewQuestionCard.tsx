@@ -1,6 +1,6 @@
 /**
  * Description: One practice question: write and save an answer, get coaching, replace it, or permanently delete it.
- * Get feedback saves the typed answer and recall cue first. Replacing an answered question keeps the old answer
+ * Get feedback and Generate anchor save the typed answer and recall cue first. Replacing an answered question keeps the old answer
  * as a read-only copy on the practice page. "Don't show this again" only affects future questions.
  */
 import { useEffect, useState } from 'react'
@@ -41,6 +41,7 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
   const dirty = answer !== baseline || anchor !== anchorBaseline
   const feedbackDraftChanged = answer.trim().replace(/\s+/g, ' ').toLowerCase() !== baseline.trim().replace(/\s+/g, ' ').toLowerCase()
   const replacing = replacementRevision !== null && task?.taskType === 'REGENERATE_INTERVIEW_QUESTION' && task.status !== 'FAILED' && question.questionRevision === replacementRevision
+  const anchoring = task?.status === 'QUEUED' && task.taskType === 'GENERATE_INTERVIEW_MEMORY_ANCHOR'
   const reviewing = task?.status === 'QUEUED' && task.taskType === 'REVIEW_INTERVIEW_ANSWER'
   const feedbackForVersion = question.feedbackQuestionRevision === question.questionRevision && question.feedbackAnswerRevision === question.answerRevision
   useEffect(() => { onDirty(question.id, dirty) }, [question.id, dirty, onDirty])
@@ -69,7 +70,7 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
     if (question.latestTask?.status === 'QUEUED' && question.latestTask.taskType === 'REGENERATE_INTERVIEW_QUESTION') setReplacementRevision(question.questionRevision)
   }
   /** Preserves edits made during a request and refreshes answers saved before queue errors. */
-  async function perform(operation: 'save' | 'feedback' | 'replace') {
+  async function perform(operation: 'save' | 'feedback' | 'replace' | 'anchor') {
     const submitted = answer
     const submittedAnchor = anchor
     setSubmittedEdits(edits)
@@ -82,12 +83,12 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
     if (result.ok && operation === 'replace') setConfirmOpen(false)
     try { await refetch() } catch { /* The page query exposes refresh errors and keeps the draft available. */ }
   }
-  const canRequestFeedback = !busy && !replacing && !reviewing && !(feedbackForVersion && !feedbackDraftChanged) &&
+  const canRequestFeedback = !busy && !replacing && !reviewing && !anchoring && !(feedbackForVersion && !feedbackDraftChanged) &&
     answer.trim() !== '' && answer.length <= INTERVIEW_ANSWER_TEXT && anchor.length <= INTERVIEW_MEMORY_ANCHOR_TEXT
   const saveStatus = busy === 'save' ? 'Saving…' : busy === 'feedback' ? 'Saving and sending for feedback…'
-    : reviewing ? 'Getting feedback. You can keep editing.' : dirty ? 'Unsaved changes' : 'Saved'
+    : busy === 'anchor' ? 'Saving and generating anchor…' : anchoring ? 'Generating memory anchor. You can keep editing.' : reviewing ? 'Getting feedback. You can keep editing.' : dirty ? 'Unsaved changes' : 'Saved'
   return <article className="question-card" aria-labelledby={`question-${question.id}`}>
-    {task && <InterviewTaskStatus key={task.id} task={task} onFinished={refetch} operation={task.taskType === 'REVIEW_INTERVIEW_ANSWER' ? 'feedback' : 'replacement'} />}
+    {task && <InterviewTaskStatus key={task.id} task={task} onFinished={refetch} operation={task.taskType === 'GENERATE_INTERVIEW_MEMORY_ANCHOR' ? 'anchor' : task.taskType === 'REVIEW_INTERVIEW_ANSWER' ? 'feedback' : 'replacement'} />}
     <header className="question-card-header">
       <h2 id={`question-${question.id}`} className="question-card-title">{question.questionText}</h2>
       <DropdownMenu>
@@ -95,7 +96,7 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
           <Button variant="ghost" size="icon-sm" aria-label="Question actions"><Ellipsis /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {!manual && <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>}
+          {!manual && <DropdownMenuItem disabled={!!busy || replacing || reviewing || anchoring} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>}
           <DropdownMenuItem disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onSelect={() => void avoidance.save()}>
             {avoidance.saved ? 'Hidden from new questions' : "Don't show this again"}
           </DropdownMenuItem>
@@ -114,8 +115,12 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
           <p>{answer.length.toLocaleString()} / {INTERVIEW_ANSWER_TEXT.toLocaleString()}</p>
         </div>
         <label htmlFor={`anchor-${question.id}`} className="font-bold">Memory anchor</label>
-        <p id={`anchor-help-${question.id}`} className="text-sm text-muted-foreground">Optional: a short cue to help you recall your answer.</p>
-        <Textarea id={`anchor-${question.id}`} aria-describedby={`anchor-help-${question.id}`} value={anchor} maxLength={INTERVIEW_MEMORY_ANCHOR_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnchor(event.target.value); setCheckAnchor(false) }} />
+        <p id={`anchor-help-${question.id}`} className="text-sm text-muted-foreground">Optional: compress each answer sentence into a cue, in the same order. Write your own or generate one, then edit it.</p>
+        <Textarea id={`anchor-${question.id}`} aria-describedby={`anchor-help-${question.id}`} className="min-h-24" value={anchor} maxLength={INTERVIEW_MEMORY_ANCHOR_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnchor(event.target.value); setCheckAnchor(false) }} />
+        <Button variant="outline" className="justify-self-start" disabled={!!busy || replacing || reviewing || anchoring || !answer.trim() || answer.length > INTERVIEW_ANSWER_TEXT || anchor.length > INTERVIEW_MEMORY_ANCHOR_TEXT} onClick={() => void perform('anchor')}>
+          {(busy === 'anchor' || anchoring) && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+          {busy === 'anchor' || anchoring ? 'Generating anchor…' : anchor.trim() ? 'Regenerate anchor' : 'Generate anchor'}
+        </Button>
         <p className="text-sm text-muted-foreground">{anchor.length} / {INTERVIEW_MEMORY_ANCHOR_TEXT}</p>
         {checkAnchor && anchor.trim() && <p className="text-sm text-muted-foreground">You changed your answer. Check that your memory anchor still fits.</p>}
         <ErrorAlert title="Couldn't complete this action" messages={errors} />

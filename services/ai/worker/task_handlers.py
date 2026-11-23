@@ -8,6 +8,7 @@ Index:
 from collections.abc import Callable
 
 from worker.analyze_gaps_handler import handle_analyze_gaps_task
+from worker.interview_memory_anchor_handler import handle_interview_memory_anchor_task
 from worker.interview_feedback_handler import handle_interview_feedback_task
 from worker.interview_help import INTERVIEW_HELP_HANDLERS
 from worker.interview_questions_handler import handle_interview_questions_task
@@ -32,6 +33,7 @@ TASK_HANDLERS: dict[TaskType, TaskHandler] = {
     "improve_library_entry": handle_library_edit_task,
     "review_library_section": handle_library_review_task,
     **INTERVIEW_HELP_HANDLERS,
+    "generate_interview_memory_anchor": handle_interview_memory_anchor_task,
     "review_interview_answer": handle_interview_feedback_task,
     "generate_interview_questions": handle_interview_questions_task,
     "regenerate_interview_question": handle_interview_questions_task,

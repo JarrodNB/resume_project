@@ -23,7 +23,7 @@ TaskType = Literal[
     # Decode already-published legacy messages; dispatch retires them without a model call.
     "elicit_job_preferences", "check_job_preferences",
     "review_library_section", "interview_session_feedback", "interview_clarification", "interview_references", "parse_resume", "scrape_job", "parse_job_posting", "analyze_gaps", "tailor_resume",
-    "generate_study_guide", "generate_interview_questions", "regenerate_interview_question", "review_interview_answer",
+    "generate_study_guide", "generate_interview_questions", "regenerate_interview_question", "review_interview_answer", "generate_interview_memory_anchor",
 ]
 
 

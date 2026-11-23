@@ -43,32 +43,24 @@ it('practices saved answers in bank order and exposes an answer only after revea
   expect(screen.getByRole('button', { name: 'Practice' })).toHaveFocus()
 })
 
-it('explains empty selections and retains type, progress, and cue search when returning', () => {
-  bank([question('selected', { memoryAnchor: 'Unique cue', feedback: { strengths: ['Clear'] } }),
-    question('no-feedback', { memoryAnchor: 'Unique cue' }),
-    question('unanswered', { answerText: '  ', memoryAnchor: 'Unique cue' }),
-    question('retired', { retiredAt: '2026-10-13T00:00:00Z', memoryAnchor: 'Unique cue', feedback: { strengths: ['Clear'] } }),
-    question('other-type', { memoryAnchor: 'Unique cue', questionSet: { id: 'knowledge', number: 2, setType: 'KNOWLEDGE', createdAt: '2026-10-12T00:00:00Z' }, feedback: { strengths: ['Clear'] } }),
-    question('other-search', { feedback: { strengths: ['Clear'] } })])
-  fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: 'TECHNICAL' } })
+it('rehearses only saved active answers matching search and restores the search', () => {
+  bank([question('selected', { memoryAnchor: 'Unique cue' }),
+    question('unanswered', { answerText: '  ', memoryAnchor: 'No answer cue' }),
+    question('retired', { retiredAt: '2026-10-13T00:00:00Z', memoryAnchor: 'Unique cue' }),
+    question('other-search')])
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Unique cue' } })
-  fireEvent.click(screen.getByRole('button', { name: /Feedback ready/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Practice' }))
   expect(screen.getByRole('status')).toHaveTextContent('Question 1 of 1')
   expect(screen.getByRole('heading', { name: 'Question selected?' })).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Return to question bank' }))
-  expect(screen.getByLabelText('Filter by type')).toHaveValue('TECHNICAL')
   expect(screen.getByRole('searchbox')).toHaveValue('Unique cue')
-  expect(screen.getByRole('button', { name: /Feedback ready/ })).toHaveAttribute('aria-pressed', 'true')
-  fireEvent.click(screen.getByRole('button', { name: /To answer/ }))
+  expect(screen.getByRole('button', { name: 'Practice' })).toHaveFocus()
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'No answer cue' } })
   fireEvent.click(screen.getByRole('button', { name: 'Practice' }))
-  expect(screen.getByText('No saved answers match these filters. Save an answer or change your filters to practice.')).toBeVisible()
-  expect(screen.queryByRole('button', { name: 'Reveal answer' })).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No answers to practice' })).toHaveFocus()
+  expect(screen.queryByRole('button', { name: 'Reveal answer' })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Return to question bank' }))
-  expect(screen.getByRole('button', { name: /To answer/ })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('searchbox')).toHaveValue('No answer cue')
 })
 
 it('handles a bank with no questions', () => {
@@ -161,8 +153,29 @@ it('rehearses without API requests or changes to saved answer progress', async (
   await user.click(screen.getByRole('button', { name: 'Next' }))
   await user.click(screen.getByRole('button', { name: 'Reveal answer' }))
   await user.click(screen.getByRole('button', { name: 'Return to question bank' }))
-  expect(screen.getByRole('link', { name: /Question one/ })).toHaveTextContent('No feedback yet')
-  expect(screen.getByRole('link', { name: /Question two/ })).toHaveTextContent('Feedback ready')
+  expect(screen.getByRole('button', { name: /^Question one/ })).toHaveTextContent('No feedback yet')
+  expect(screen.getByRole('button', { name: /^Question two/ })).toHaveTextContent('Feedback ready')
   expect(questions).toEqual(saved)
   expect(requests).not.toHaveBeenCalled()
+})
+
+it('combines selected types and resets the pass without revealing answers', async () => {
+  const user = userEvent.setup()
+  bank([question('technical'), question('fit', { questionSet: { id: 'fit', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-12T00:00:00Z' } }), question('blank', { answerText: ' ' })])
+  await user.click(screen.getByRole('button', { name: 'Practice' }))
+  await user.click(screen.getByRole('button', { name: 'Reveal answer' }))
+  await user.click(screen.getByRole('button', { name: /Question types/ }))
+  expect(screen.getByRole('checkbox', { name: 'Technical (1)' })).toBeChecked()
+  await user.click(screen.getByRole('checkbox', { name: 'Fit & motivation (1)' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Question 1 of 2')
+  expect(screen.queryByText(/Saved answer/)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('checkbox', { name: 'Technical (1)' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Question 1 of 1')
+  expect(screen.getByRole('heading', { name: 'Question fit?' })).toBeVisible()
+  await user.click(screen.getByRole('checkbox', { name: 'Fit & motivation (1)' }))
+  expect(screen.getByRole('heading', { name: 'No answers to practice' })).toBeVisible()
+  await user.click(screen.getByRole('checkbox', { name: 'Technical (1)' }))
+  await user.keyboard('{Escape}')
+  await user.click(screen.getByRole('button', { name: 'Shuffle' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Question 1 of 1')
 })

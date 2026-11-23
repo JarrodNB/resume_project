@@ -8,7 +8,7 @@ module AiTasks
       "check_job_preferences" => "Retired preference check", "rerank_job_listings" => "Job reranking", "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
       "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",
-      "review_interview_answer" => "Answer feedback", "review_library_section" => "Library review",
+      "generate_interview_memory_anchor" => "Memory anchor", "review_interview_answer" => "Answer feedback", "review_library_section" => "Library review",
       "improve_library_entry" => "Library improvement", "interview_preparation" => "Interview preparation",
       "interview_turn" => "Interview response", "interview_speech" => "Interview audio",
       "interview_session_feedback" => "Interview feedback", "interview_transcription" => "Answer transcription", "interview_clarification" => "Question clarification", "interview_references" => "Career references"
@@ -58,7 +58,7 @@ module AiTasks
       when "analyze_gaps", "tailor_resume", "generate_study_guide"
         job = owned_subject("Job", @user.jobs)
         job ? "/jobs/#{job.id}#{JOB_TABS[@task_type]}" : "/jobs"
-      when "generate_interview_questions", "regenerate_interview_question", "review_interview_answer"
+      when "generate_interview_questions", "regenerate_interview_question", "review_interview_answer", "generate_interview_memory_anchor"
         set = if @task.subject_type == "InterviewQuestionSet"
           @user.interview_question_sets.find_by(id: @task.subject_id)
         elsif @task.subject_type == "InterviewQuestion"

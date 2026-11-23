@@ -18,7 +18,7 @@ class InterviewQuestion < ApplicationRecord
   validates :position, inclusion: { in: 1..5 }, uniqueness: { scope: :interview_question_set_id }, unless: :retired?
   validates :position, absence: true, if: :retired?
   validates :question_text, presence: true
-  validates :memory_anchor, length: { maximum: 200 }
+  validates :memory_anchor, length: { maximum: 600 }
   validates :answer_text, length: { maximum: TextLimits::INTERVIEW_ANSWER }
   validates :question_revision, numericality: { only_integer: true, greater_than: 0 }
   validates :answer_revision, numericality: { only_integer: true, greater_than_or_equal_to: 0 }

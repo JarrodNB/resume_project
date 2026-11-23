@@ -1,11 +1,10 @@
 /**
  * Description: Works out how far along a practice question is, from its saved answer and feedback.
- * The question bank list, its filters, and a set's question line all use these same steps,
+ * The question bank list and a set's question line all use these same steps,
  * so a question reads the same everywhere. Uses saved server state, not unsaved drafts.
  */
 
 export type QuestionProgress = 'unanswered' | 'answered' | 'reviewing' | 'reviewed' | 'outdated'
-export type QuestionFilter = 'all' | 'todo' | 'feedback' | 'ready'
 
 interface ProgressSource {
   answerText: string
@@ -36,12 +35,4 @@ export function questionProgress(question: ProgressSource): QuestionProgress {
   if (!question.answerText.trim()) return 'unanswered'
   if (!hasFeedback(question.feedback)) return 'answered'
   return question.feedbackOutdated ? 'outdated' : 'reviewed'
-}
-
-/** Groups progress into the bank's filters: still to write, waiting on feedback, or ready to rehearse. */
-export function matchesFilter(progress: QuestionProgress, filter: QuestionFilter) {
-  if (filter === 'all') return true
-  if (filter === 'todo') return progress === 'unanswered'
-  if (filter === 'ready') return progress === 'reviewed'
-  return progress === 'answered' || progress === 'reviewing' || progress === 'outdated'
 }

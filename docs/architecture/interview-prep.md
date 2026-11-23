@@ -30,7 +30,7 @@ an empty answer and increment the answer revision only when text changes. The an
 and web `src/lib/textLimits.ts`. Answers never become career-library entries. Deleting a set
 cascades its questions and nullifies AI task subjects, retaining usage records and task inputs.
 
-Questions also store an optional plain-text `memory_anchor` of up to 200 characters.
+Questions also store an optional plain-text `memory_anchor` of up to 600 characters.
 Save and feedback mutations require this cue alongside the answer; feedback saves both
 before allowance or publication checks. A cue-only change preserves answer revision,
 feedback, screening approvals and vectors, and queues no embedding work. An ordinary
@@ -38,6 +38,23 @@ unchanged save still schedules the existing embedding job. Cues never enter mode
 inputs or Q&A embeddings. Answer edits retain cues and the editor reminds the user to
 check them. Both fields participate in unsaved-navigation and in-flight draft protection;
 only answer edits affect feedback freshness. Bank search includes cues.
+
+`generateInterviewMemoryAnchor` explicitly saves the current answer and cue, then queues
+`generate_interview_memory_anchor` through the shared general-AI allowance and task lifecycle.
+The command carries owned set/question IDs, source version, type, question/answer revisions,
+and digests; it contains no answer or cue text. Python reuses the owned answer reader and
+exact screening approvals, with no career-library read. Only the answer enters the prompt.
+`interview-memory-anchor-v1` compresses each sentence, in order, into one arrow-separated cue;
+behavioral Context/Action/Result/Learning labels become C:/A★:/R★:/L: where supported.
+Structured output copies every source sentence to verify complete ordered coverage and
+bounds the final anchor to 600 characters. It never supplies new facts or a missing lesson.
+Rails applies the result only to the same owned active question, exact answer/question
+revisions, unchanged previous cue digest and newest anchor task. Invalid/stale results fail
+without changing content; duplicate delivery retains the first terminal outcome and usage.
+Users can edit during generation; local drafts survive refresh, and saved concurrent edits
+reject the generated result. Reload restores pending generation; failures remain retryable.
+Generation is optional: manually written cues remain unrestricted plain text. Accepted cue
+changes leave feedback, answer revisions, screening and embeddings alone.
 
 Answered replacement copies the cue to the read-only retired record and clears it on
 the active slot. Replacing an unanswered slot clears its cue without retaining a copy.
@@ -138,18 +155,18 @@ Unanswered replacements keep no copy. Deleting a set deletes its retired copies 
 ## Web
 
 `/practice/questions` (old `/interview-prep` links redirect) is the question bank. It generates a
-set of a chosen type, shows sets still generating or failed, and lists every active question with
+set of chosen types, shows pending or failed generation, and groups active questions in type tabs with
 progress derived from saved state: not answered, no feedback yet, getting feedback, feedback ready,
-or out of date. Progress and type filters and text search run in the browser. Answers from
-replaced questions sit in a collapsed read-only section; finished sets, with answered counts and
-confirmed deletion, sit in another.
+or out of date. Type tabs and question/answer/cue search run in the browser; rows expand an inline answer editor. Answers from
+replaced questions sit in a collapsed read-only section. Generation batches stay a backend detail.
 
 Practice rehearses active questions with nonblank saved answers from the bank's current
-progress/type filters and question/answer/memory-anchor search. It starts in the displayed order,
+question/answer/memory-anchor search. It starts with the bank type and allows multiple types
+through a checkbox selector with saved-answer counts. It starts in the displayed order,
 shows one question and optional saved cue, and renders its answer only after Reveal. Navigation
 hides the answer, stops at the ends, and focuses the new question; Left/Right arrows work within
 rehearsal outside editable fields and modified shortcuts. Shuffle creates a complete permutation;
-another shuffled pass can start only after reaching the end. Return restores bank filters and
+another shuffled pass can start only after reaching the end. Return restores the bank type, search and
 focus; Edit answer opens the existing editor. Rehearsal is local UI state with no model calls,
 saved sessions, scores, or progress mutations. Empty selections explain how to save answers or
 change filters.

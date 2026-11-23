@@ -306,6 +306,15 @@ Per task type:
   examples correct subject misconceptions using model knowledge without invented personal
   experience. Feedback has no score and never overwrites the answer.
 
+- `generate_interview_memory_anchor`: input `{source_version: 1, question_set_id,
+  question_id, question_revision, answer_revision, set_type, normalized_answer_sha256,
+  memory_anchor_sha256}`; subject is the owned active `InterviewQuestion`. Saves the
+  typed answer/cue before admission. Python reads only that saved answer through the
+  existing owned revision-fenced reader, screens or reuses exact approvals, and returns
+  `{memory_anchor}`. No library or previous cue enters the prompt. Rails saves only a
+  bounded nonblank cue when the commanded revisions and previous cue hash still match,
+  and this is the newest anchor task. Stale/invalid results fail without overwriting edits.
+
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
 receives.

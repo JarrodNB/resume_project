@@ -206,3 +206,26 @@ cases:
       library: "Student. Volunteered at a book exchange."
       excluded:
         - "Tell me about a time you helped another volunteer."
+  - name: hypothetical-software-workplace-behavior
+    inputs:
+      set_type: hypothetical
+      library: "Software engineer. Maintains Python services, responds to production incidents, reviews code, and uses Kubernetes."
+  - name: hypothetical-software-replacement-workplace-behavior
+    inputs:
+      set_type: hypothetical
+      count: 1
+      library: "Software engineer. Maintains Python services, responds to production incidents, reviews code, and uses Kubernetes."
+      excluded:
+        - "What would you do if two colleagues asked you to prioritize their urgent work?"
+        - "How would you clarify an unclear request from a colleague?"
+        - "How would you handle disagreement with a teammate?"
+        - "What would you do if you noticed a risk close to a deadline?"
+        - "How would you tell your team you had made a mistake?"
+  - name: technical-software-practical-experience-control
+    inputs:
+      set_type: technical
+      library: "Software engineer. Maintains Python services, investigates production incidents using logs, reviews code, and uses Kubernetes."
+  - name: behavioral-software-real-past-control
+    inputs:
+      set_type: behavioral
+      library: "Software engineer. Maintains Python services, responds to production incidents, reviews code, and uses Kubernetes."

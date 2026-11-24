@@ -145,7 +145,11 @@ skips other scopes; its aggregate measures knowledge cases only.
 Fit & motivation covers background, motivation, goals, working preferences, and contribution.
 It never invents a target employer or vacancy. Behavioral covers collaboration, problem solving,
 adaptation, initiative, and judgment. Hypothetical covers prioritization, ambiguity,
-disagreement, quality/risk, and accountability without asserting that an event happened.
+disagreement, quality/risk, and accountability through future workplace behavior and judgment,
+without asserting that an event happened. Career evidence provides a familiar setting, even
+for technical careers; hypothetical questions do not test technical troubleshooting, design,
+implementation, tool choices, or specialist subject facts. This policy applies to new sets
+and replacements; saved questions are not rewritten.
 These are five coverage guides per set, not prefixes to prepend to questions.
 
 Feedback chooses rules from the trusted saved type. Behavioral uses flexible STAR coaching

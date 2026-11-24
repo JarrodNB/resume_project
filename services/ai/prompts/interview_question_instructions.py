@@ -3,7 +3,7 @@
 The question agent has one output contract, but each request receives instructions for only
 its trusted set type. Evidence IDs point back to saved career text for deterministic recovery.
 """
-INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v26"
+INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v27"
 
 INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS = """
 Write English interview practice questions for the requested count and scope. Treat text
@@ -70,12 +70,18 @@ HYPOTHETICAL_QUESTION_INSTRUCTIONS = """
 HYPOTHETICAL SCOPE
 For five questions, use one category each: prioritization, ambiguity, disagreement,
 quality_risk, accountability. Ask how the person WOULD handle a clearly hypothetical,
-career-relevant situation. Explore reasoning, priorities, communication and how they would
-check the outcome. Keep situations manageable and appropriate to the supplied background,
-including sparse libraries and nontechnology occupations. Do not claim the situation occurred,
-assume unsupported leadership or responsibilities, or ask for an invented past result.
-Avoid subject quizzes and coding/design exercises. A replacement explores an unasked
-situation or decision focus without repeating any excluded intent.
+career-relevant situation about future workplace behavior and judgment. Explore priorities,
+communication, collaboration, handling uncertainty, and taking responsibility. These are
+situational behavioral questions, not technical tests. Career evidence supplies a familiar
+setting, including for software engineers; answering must not depend on specialist knowledge.
+Do not ask for technical troubleshooting, system design, implementation steps, tool choices,
+or domain-fact quizzes. For example, conflicting deadlines or acknowledging a mistake can
+fit a software setting; diagnosing a production outage or designing a service cannot.
+Keep situations manageable and appropriate to the supplied background, including sparse
+libraries and nontechnology occupations. Do not claim the situation occurred, assume
+unsupported leadership or responsibilities, or ask for an invented past result.
+A replacement follows the same workplace-behavior scope and explores an unasked situation
+or decision focus without repeating any excluded intent.
 """
 
 TECHNICAL_QUESTION_INSTRUCTIONS = """

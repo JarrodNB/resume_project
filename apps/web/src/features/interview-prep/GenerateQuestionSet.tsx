@@ -17,7 +17,7 @@ const SET_TYPES: InterviewQuestionSetTypeEnum[] = ['FIT_MOTIVATION', 'BEHAVIORAL
 const TYPE_HELP: Record<InterviewQuestionSetTypeEnum, string> = {
   FIT_MOTIVATION: 'Your background, motivation, goals, working preferences, and contribution.',
   BEHAVIORAL: 'Real examples of collaboration, problem solving, adaptation, initiative, and judgment.',
-  HYPOTHETICAL: 'How you would handle a situation: priorities, reasoning, communication, and checking the outcome.',
+  HYPOTHETICAL: 'How you would handle workplace situations: priorities, communication, teamwork, and judgment. These focus on behavior, not technical problem solving.',
   TECHNICAL: 'How you actually do your work: methods, tools, decisions, tradeoffs, and quality.',
   KNOWLEDGE: 'Whether you understand the subjects in your field. Feedback corrects wrong facts.',
 }

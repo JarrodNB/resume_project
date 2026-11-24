@@ -1002,7 +1002,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .question-generate-empty { display: grid; gap: 8px; font-size: 14px; }
 .question-generate-empty a { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 .question-pending { display: grid; gap: 12px; }
-.question-pending > li { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+.question-pending > li { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px; }
+.question-pending[hidden], .question-pending > li[hidden] { display: none; }
 .question-bank { display: grid; gap: 14px; min-width: 0; }
 .question-bank-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
 .question-bank-toolbar h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }

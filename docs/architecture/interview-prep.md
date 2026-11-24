@@ -173,7 +173,7 @@ Unanswered replacements keep no copy. Deleting a set deletes its retired copies 
 set of chosen types, shows pending or failed generation, and groups active questions in type tabs with
 progress derived from saved state: not answered, no feedback yet, getting feedback, feedback ready,
 or out of date. Type tabs and question/answer/cue search run in the browser; rows expand an inline answer editor. Answers from
-replaced questions sit in a collapsed read-only section. Generation batches stay a backend detail.
+replaced questions sit in a collapsed read-only section. Generation batches stay a backend detail: only live generation status, failures, and dismissal appear, without batch headings or cards. Empty sets without unfinished work stay hidden.
 
 Practice rehearses active questions with nonblank saved answers from the bank's current
 question/answer/memory-anchor search. It starts with the bank type and allows multiple types

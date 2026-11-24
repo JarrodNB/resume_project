@@ -164,10 +164,17 @@ it('restores the generation lock and status when opening a bank with queued work
 it('shows unfinished generation without batch navigation', async () => {
   render([], { bank: [], sets: [setRow('set-2', [], { __typename: 'AiTask', id: 'gen-1', status: 'FAILED', errorMessage: 'Add more career library details.' })] })
   expect(await screen.findByText('Add more career library details.')).toBeInTheDocument()
-  expect(screen.getByText(/Technical questions/)).toBeInTheDocument()
+  expect(screen.queryByText(/Technical questions ·/)).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Technical questions/ })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Dismiss question generation' })).toBeEnabled()
   expect(screen.queryByText('No questions yet')).not.toBeInTheDocument()
+})
+
+it.each([null, { __typename: 'AiTask', id: 'done', status: 'COMPLETED', errorMessage: null }])('hides empty sets without unfinished work: %j', async (latestTask) => {
+  render([], { bank: [], sets: [setRow('set-2', [], latestTask)] })
+  expect(await screen.findByText('No questions yet')).toBeVisible()
+  expect(screen.queryByRole('list', { name: 'Question generation' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Dismiss question generation' })).not.toBeInTheDocument()
 })
 
 it('invites first questions when there are no questions', async () => {
@@ -188,25 +195,26 @@ it('keeps answers from replaced questions in their own read-only section', async
 
 it('cancels dismissal safely and retains a request when dismissal fails', async () => {
   const result = vi.fn(() => ({ data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: ['Please try again.'] } } }))
-  render([{ request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } }, result }], { sets: [setRow('set-2', [])] })
+  render([{ request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } }, result }], { sets: [setRow('set-2', [], { __typename: 'AiTask', id: 'failed-request', status: 'FAILED', errorMessage: 'Please try generation again.' })] })
   fireEvent.click(await screen.findByRole('button', { name: 'Dismiss question generation' }))
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(result).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss question generation' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dismiss' }))
   expect(await screen.findByText('Please try again.')).toBeInTheDocument()
   await waitFor(() => expect(result).toHaveBeenCalledOnce())
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-  expect(screen.getByText(/Technical questions/)).toBeInTheDocument()
+  expect(screen.getByText('Please try generation again.')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Dismiss question generation' })).toBeEnabled()
 })
 
 it('refreshes generation status and preserves saved questions after dismissal', async () => {
   render([{
     request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } },
     result: { data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: [] } } },
-  }, setsMock([setRow('set-1')]), bankMock()], { sets: [setRow('set-2', []), setRow('set-1')] })
+  }, setsMock([setRow('set-1')]), bankMock()], { sets: [setRow('set-2', [], { __typename: 'AiTask', id: 'failed-request', status: 'FAILED', errorMessage: 'Please try generation again.' }), setRow('set-1')] })
   fireEvent.click(await screen.findByRole('button', { name: 'Dismiss question generation' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dismiss' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   await waitFor(() => expect(screen.queryByRole('list', { name: 'Question generation' })).not.toBeInTheDocument())
   expect(screen.getByRole('button', { name: /^Question q-tech\?/ })).toBeInTheDocument()

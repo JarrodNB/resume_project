@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { MockLink } from '@apollo/client/testing'
 import type { InterviewQuestionBankQuery } from '@/graphql/generated/graphql'
 import { renderPage } from '@/test/renderPage'
+import { INTERVIEW_SET_QUERY } from './interviewPrepOperations'
 import { QuestionBankList } from './QuestionBankList'
 
 afterEach(() => vi.restoreAllMocks())
@@ -15,7 +16,10 @@ function question(id: string, overrides: Partial<InterviewQuestionBankQuery['int
 }
 function bank(questions = [question('one', { memoryAnchor: 'Launch checklist' }), question('two')]) {
   return renderPage({ path: '/practice/questions', url: '/practice/questions', element: <QuestionBankList questions={questions} />,
-    extraRoutes: [{ path: '/practice/questions/:id/:questionId', element: <p>Answer editor</p> }] })
+    mocks: [{ request: { query: INTERVIEW_SET_QUERY, variables: { id: 'set' } }, result: { data: { interviewQuestionSet: {
+      __typename: 'InterviewQuestionSet', origin: 'generated', ...questions[0]?.questionSet, latestTask: null,
+      questions: questions.map((item) => ({ __typename: 'InterviewQuestion', ...item, avoided: false, questionRevision: 1, answerRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null })),
+    } } } }] })
 }
 
 it('practices saved answers in bank order and exposes an answer only after reveal', () => {
@@ -125,7 +129,7 @@ it('uses arrows outside editable fields, respects shortcuts, and supports native
   expect(screen.queryByText('Saved answer two')).not.toBeInTheDocument()
 })
 
-it('keeps one-question rehearsal usable through reveal, shuffle and the existing edit route', async () => {
+it('keeps one-question rehearsal usable through reveal, shuffle and inline editing', async () => {
   const { router } = bank([question('only')])
   fireEvent.click(screen.getByRole('button', { name: 'Practice' }))
   fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }))
@@ -135,9 +139,10 @@ it('keeps one-question rehearsal usable through reveal, shuffle and the existing
   expect(screen.getByRole('status')).toHaveTextContent('Question 1 of 1')
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
-  fireEvent.click(screen.getByRole('link', { name: 'Edit answer' }))
-  expect(await screen.findByText('Answer editor')).toBeVisible()
-  expect(router.state.location.pathname).toBe('/practice/questions/set/only')
+  fireEvent.click(screen.getByRole('button', { name: 'Edit answer' }))
+  expect(await screen.findByRole('textbox', { name: 'Your answer' })).toHaveValue('Saved answer only')
+  expect(screen.getByRole('button', { name: /^Question only/ })).toHaveAttribute('aria-expanded', 'true')
+  expect(router.state.location.pathname).toBe('/practice/questions')
 })
 
 

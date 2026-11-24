@@ -8,7 +8,7 @@ import { CREATE_CUSTOM_INTERVIEW_QUESTION } from './interviewPrepOperations'
 it('adds a typed question with an optional answer without a library query', async () => {
   const onCreated = vi.fn()
   const { router } = renderPage({ path: '/practice/questions', url: '/practice/questions', element: <AddCustomQuestion onCreated={onCreated} />,
-    extraRoutes: [{ path: '/practice/questions/:id', element: <p>Saved question</p> }], mocks: [{
+    mocks: [{
       request: { query: CREATE_CUSTOM_INTERVIEW_QUESTION, variables: { setType: 'KNOWLEDGE', questionText: 'What is caching?', answerText: 'Reuse results.' } },
       result: { data: { createCustomInterviewQuestion: { __typename: 'CreateCustomInterviewQuestionPayload', errors: [], questionSet: { __typename: 'InterviewQuestionSet', id: 'custom' } } } },
     }] })

@@ -66,7 +66,11 @@ export function QuestionBankList({ questions, createdSetId }: { questions: BankQ
 
   const group = visible.filter(({ question }) => question.questionSet.setType === setType)
 
-  if (rehearsal) return <QuestionRehearsal questions={rehearsal} initialType={setType} onReturn={() => {
+  if (rehearsal) return <QuestionRehearsal questions={rehearsal} initialType={setType} onEdit={(question) => {
+    setRehearsal(null)
+    setSetType(question.questionSet.setType)
+    setOpenQuestion(question)
+  }} onReturn={() => {
     restoreFocus.current = true
     setRehearsal(null)
   }} />

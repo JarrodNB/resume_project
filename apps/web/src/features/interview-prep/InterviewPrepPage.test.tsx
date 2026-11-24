@@ -49,7 +49,6 @@ function setsMock(sets: unknown[] = [setRow('set-2'), setRow('set-1')]) {
 }
 function render(mocks: unknown[] = [], options: { bank?: unknown[]; sets?: unknown[] } = {}) {
   return renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />,
-    extraRoutes: [{ path: '/practice/questions/:id/:questionId?', element: <p>Question page</p> }],
     mocks: [libraryMock(), bankMock(options.bank), setsMock(options.sets), ...mocks] as never })
 }
 

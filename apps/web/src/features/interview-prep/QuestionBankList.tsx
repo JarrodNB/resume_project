@@ -22,7 +22,7 @@ import { QuestionProgressMark } from './QuestionProgressMark'
 type BankQuestion = InterviewQuestionBankQuery['interviewQuestions'][number]
 
 /** Shows type tabs and searches within the selected type; rehearsal uses that selection. */
-export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
+export function QuestionBankList({ questions, createdSetId }: { questions: BankQuestion[]; createdSetId?: string | null }) {
   const [openQuestion, setOpenQuestion] = useState<BankQuestion | null>(null)
   const [dirty, setDirty] = useState(false)
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
@@ -46,6 +46,20 @@ export function QuestionBankList({ questions }: { questions: BankQuestion[] }) {
   }, [rehearsal])
   const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum>(questions[0]?.questionSet.setType ?? 'FIT_MOTIVATION')
   const [search, setSearch] = useState('')
+  const [openedCreatedSet, setOpenedCreatedSet] = useState<string | null>(null)
+  const createdQuestion = questions.find((item) => item.questionSet.id === createdSetId)
+  if (createdSetId && openedCreatedSet !== createdSetId && createdQuestion) {
+    const question = createdQuestion
+    setOpenedCreatedSet(createdSetId)
+    const openCreated = () => {
+      setSetType(question.questionSet.setType)
+      setSearch('')
+      setRehearsal(null)
+      setOpenQuestion(question)
+    }
+    if (dirty) setPendingAction(() => openCreated)
+    else openCreated()
+  }
   const rows = questions.map((question) => ({ question, progress: questionProgress(question) }))
   const term = search.trim().toLowerCase()
   const visible = rows.filter(({ question }) => !term || question.questionText.toLowerCase().includes(term) || question.answerText.toLowerCase().includes(term) || question.memoryAnchor.toLowerCase().includes(term))

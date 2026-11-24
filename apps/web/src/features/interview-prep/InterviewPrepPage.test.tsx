@@ -9,7 +9,7 @@ import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOpe
 import { normalizeAnswerDrafts } from './answerFormats'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPrepPage } from './InterviewPrepPage'
-import { DELETE_INTERVIEW_QUESTION, DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY, SAVE_INTERVIEW_ANSWER } from './interviewPrepOperations'
+import { CREATE_CUSTOM_INTERVIEW_QUESTION, DELETE_INTERVIEW_QUESTION, DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY, SAVE_INTERVIEW_ANSWER } from './interviewPrepOperations'
 
 /** A saved synthetic summary enables generation just as a real career library does. */
 function libraryMock() {
@@ -312,4 +312,57 @@ it('confirms discarding inline edits on collapse and blocks page navigation', as
   fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
   expect(screen.queryByRole('textbox', { name: 'Your answer' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^Question q-tech/ })).toHaveAttribute('aria-expanded', 'false')
+})
+
+it.each(['clean', 'keep', 'discard'])('adds a manual question inline with %s existing edits', async (editing) => {
+  const question = bankQuestion('q-custom', { questionText: 'What is caching?', answerText: 'Reuse results.', questionSet: { ...SETS['set-1'], id: 'custom' } }, 'set-1')
+  const { router } = render([...(editing === 'clean' ? [] : [detailMock()]), {
+    request: { query: CREATE_CUSTOM_INTERVIEW_QUESTION, variables: { setType: 'FIT_MOTIVATION', questionText: 'What is caching?', answerText: 'Reuse results.' } },
+    result: { data: { createCustomInterviewQuestion: { __typename: 'CreateCustomInterviewQuestionPayload', errors: [], questionSet: { __typename: 'InterviewQuestionSet', id: 'custom' } } } },
+  }, bankMock([...defaultBank(), question]), {
+    request: { query: INTERVIEW_SET_QUERY, variables: { id: 'custom' } }, result: { data: { interviewQuestionSet: {
+      ...SETS['set-1'], id: 'custom', latestTask: null, questions: [{ ...question, avoided: false, questionRevision: 1, answerRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null }],
+    } } },
+  }])
+  await screen.findByRole('searchbox')
+  if (editing === 'clean') fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'not matching' } })
+  else {
+    fireEvent.click(screen.getByRole('button', { name: /^Question q-tech/ }))
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your answer' }), { target: { value: 'Unsaved answer' } })
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Add your own question' }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Question' }), { target: { value: 'What is caching?' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Initial answer (optional)' }), { target: { value: 'Reuse results.' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add question' }))
+  if (editing !== 'clean') {
+    expect(await screen.findByRole('dialog')).toHaveTextContent('unsaved changes')
+    fireEvent.click(screen.getByRole('button', { name: editing === 'keep' ? 'Keep editing' : 'Discard changes' }))
+  }
+  if (editing === 'keep') {
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('Unsaved answer')
+    expect(screen.getByRole('tab', { name: /Technical/ })).toHaveAttribute('aria-selected', 'true')
+    expect(router.state.location.pathname).toBe('/practice/questions')
+    return
+  }
+  expect(await screen.findByRole('textbox', { name: 'Your answer' })).toHaveValue('Reuse results.')
+  expect(screen.getByRole('tab', { name: /Fit & motivation/ })).toHaveAttribute('aria-selected', 'true')
+  expect(screen.getByRole('textbox', { name: 'Question' })).toHaveValue('')
+  expect(screen.getByRole('textbox', { name: 'Initial answer (optional)' })).toHaveValue('')
+  expect(router.state.location.pathname).toBe('/practice/questions')
+})
+
+it('clears a saved creation even when refreshing the bank fails', async () => {
+  const result = vi.fn(() => ({ data: { createCustomInterviewQuestion: { __typename: 'CreateCustomInterviewQuestionPayload', errors: [], questionSet: { __typename: 'InterviewQuestionSet', id: 'custom' } } } }))
+  const { router } = render([{
+    request: { query: CREATE_CUSTOM_INTERVIEW_QUESTION, variables: { setType: 'FIT_MOTIVATION', questionText: 'My question?', answerText: '' } }, result,
+  }, { request: { query: INTERVIEW_QUESTION_BANK_QUERY }, error: new Error('Connection lost') }])
+  await screen.findByRole('searchbox')
+  fireEvent.click(screen.getByRole('button', { name: 'Add your own question' }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Question' }), { target: { value: 'My question?' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add question' }))
+  expect(await screen.findByText("Couldn't load your questions")).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Question' })).toHaveValue('')
+  expect(screen.getByRole('button', { name: 'Add question' })).toBeDisabled()
+  expect(router.state.location.pathname).toBe('/practice/questions')
+  expect(result).toHaveBeenCalledOnce()
 })

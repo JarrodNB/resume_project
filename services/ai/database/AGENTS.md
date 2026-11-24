@@ -7,9 +7,6 @@ this folder only reads what an AI task needs.
 
 ## Contents
 
-- `job_listing_reranking.py` — verifies an owned queued command before reading selected
-  shared public catalogue IDs/payloads. Catalogue rows have no private owner; selection
-  and every career-library read remain owner-scoped.
 - `task_commands.py` — loads only the ID/owner/type-matched queued task input.
   Rails grants only task identity, status and input columns. The separate library exchange
   view exposes generated outputs/history only for the two library workflows.
@@ -56,9 +53,6 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 
 - `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped reads; gap analysis shares the same row reader.
 
-- `job_listing_similarity.py` — one read-only lateral query averages each listing vector’s
-  three nearest library similarities, scoped by task user and configured model. Its
-  production builder bounds connection/statement deadlines; it never reads the catalogue.
 
 - `summary_sources.py` — current owned profile/resume evidence with exact reference hashes; resume prose trust reads only the narrow `ai_accepted_resume_prose` view. No sources are stored in commands.
 - `tailoring_sources.py` reads current owned job/library/contact and job gap responses in one

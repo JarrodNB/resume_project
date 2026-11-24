@@ -366,8 +366,8 @@ def test_parse_resume_keeps_unmarked_and_unfamiliar_highlights(
     assert all(marker + "Built a billing service handling\n2M requests each day." in p for p in prompts)
 
 
-@pytest.mark.parametrize("task_type", ["elicit_job_preferences", "check_job_preferences"])
-def test_retired_preference_task_fails_without_running_a_model(task_dependencies, task_type):
+@pytest.mark.parametrize("task_type", ["elicit_job_preferences", "check_job_preferences", "rerank_job_listings"])
+def test_retired_task_fails_without_running_a_model(task_dependencies, task_type):
     """Old queue messages decode, then retire without elicitation or paid work."""
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type=task_type, input={})
     result = handle_ai_task(task, task_dependencies)

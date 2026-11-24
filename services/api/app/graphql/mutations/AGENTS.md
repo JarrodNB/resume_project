@@ -18,7 +18,7 @@ GraphQL mutations grouped by domain, including interview_prep/.
 - `gap_analysis` — subfolder; inherits these rules unless overridden locally.
 - `gap_responses` — subfolder; inherits these rules unless overridden locally.
 - `interview_prep` — subfolder; inherits these rules unless overridden locally.
-- `job_board` — shared listing import and optional `rerankJobBoardListings` queued ordering.
+- `job_board` — shared listing import.
 - `jobs` — subfolder; inherits these rules unless overridden locally.
 - `career_contexts` — subfolder; inherits these rules unless overridden locally.
 - `projects` — subfolder; inherits these rules unless overridden locally.

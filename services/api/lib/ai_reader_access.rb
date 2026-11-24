@@ -56,6 +56,8 @@ module AiReaderAccess
       AiStudyGuideReaderViews.create(connection)
       connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM #{role}")
       connection.execute("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM #{role}")
+      # Table-level revocation leaves the retired reranker's column grants intact.
+      connection.execute("REVOKE SELECT (id, payload) ON job_board_listings FROM #{role}")
       connection.execute(<<~SQL)
         CREATE OR REPLACE VIEW ai_accepted_resume_prose AS
         SELECT accepted.user_id, prose.value AS prose FROM ai_tasks accepted
@@ -72,7 +74,6 @@ module AiReaderAccess
       connection.execute("GRANT SELECT ON ai_study_guide_commands, ai_study_guide_questions TO #{role}")
       connection.execute("GRANT SELECT ON #{tables} TO #{role}")
       connection.execute("GRANT SELECT (#{user_columns}) ON users TO #{role}")
-      connection.execute("GRANT SELECT (id, payload) ON job_board_listings TO #{role}")
       task_columns = READABLE_TASK_COLUMNS.map { |column| connection.quote_column_name(column) }.join(", ")
       connection.execute("GRANT SELECT (#{task_columns}) ON ai_tasks TO #{role}")
       # A nonmaterialized projection keeps other task outputs/history private.

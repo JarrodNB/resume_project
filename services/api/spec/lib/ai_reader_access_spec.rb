@@ -72,9 +72,10 @@ RSpec.describe AiReaderAccess do
       .to raise_error(ActiveRecord::StatementInvalid)
   end
 
-  it "reads only shared catalogue identity and payload, never search pages" do
-    listing = create(:job_board_listing)
-    expect(select_as_ai_reader("SELECT id, payload FROM job_board_listings").sole["id"]).to eq(listing.id)
+  it "cannot read the shared catalogue or search pages" do
+    connection.execute("GRANT SELECT (id, payload) ON job_board_listings TO ai_reader")
+    described_class.grant(connection)
+    expect { select_as_ai_reader("SELECT id, payload FROM job_board_listings") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT provider_id FROM job_board_listings") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("UPDATE job_board_listings SET payload = '{}' RETURNING id") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM job_board_search_pages") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)

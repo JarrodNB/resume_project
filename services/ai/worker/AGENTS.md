@@ -149,11 +149,6 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 - `study_guide_handler.py` — loads current owned job text and successful prior question prompts by durable task identity; returns bounded guide material and a source fingerprint without injection classification, source copies, or career-library reads.
 
-- `rerank_job_listings_handler.py` — optional loaded-listing reranking. Embeds the bounded
-  Rails-owned excerpt batch once through Pydantic AI, reuses the owner/model-scoped
-  stored library vectors through an injected scorer, and returns ranked IDs. No generative
-  prompts or seniority inference. Embedding requests have deadline/request/token limits,
-  known charges and incomplete-usage accounting; missing indexed evidence fails clearly.
 - `interview_references_handler.py` claims one owned prompt before query embedding/search. Returns exact saved career references for the candidate UI, never interviewer context. Duplicate claims perform no paid work; failures use explicit bounded retry like clarification. Selection/projection lives in `interviews/references.py`.
 
 - `interview_session_feedback_handler.py` — once-only completed-session claims, approved saved dialogue reuse, bounded coaching and usage through the results queue.

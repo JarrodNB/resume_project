@@ -103,7 +103,7 @@ export function BillingPage() {
           )}
           {(plan === 'TRIAL' || plan === 'ENDED') && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Button onClick={upgrade} disabled={starting || (waiting && !gaveUp)}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
+              <Button onClick={upgrade} disabled={starting || waiting}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
               {priceLabel && <span className="text-sm text-muted-foreground">{priceLabel}</span>}
             </div>
           )}

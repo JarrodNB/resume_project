@@ -77,8 +77,8 @@ account in test mode:
    (test mode) so automatic tax works.
 3. Start the webhook forwarder: `docker compose --profile billing up stripe-cli`. It prints a
    `whsec_...` signing secret.
-4. Put that value in `STRIPE_WEBHOOK_SECRET` in `services/api/.env` and restart the api and jobs
-   worker (`docker compose restart api api-jobs-worker`).
+4. Put that value in `STRIPE_WEBHOOK_SECRET` in `services/api/.env` and recreate the api and jobs
+   worker (`docker compose up -d --no-deps --force-recreate api api-jobs-worker`).
 5. Sign in, open Account > Plan & billing, click Upgrade, and pay with card `4242 4242 4242 4242`
    (any future expiry, any CVC). The page returns to `/account/billing` and switches to Paid within a few seconds.
 

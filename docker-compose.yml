@@ -294,7 +294,7 @@ services:
     profiles: [billing]
     image: stripe/stripe-cli:v1.55.8
     # The CLI reads STRIPE_API_KEY; reuse the API's STRIPE_SECRET_KEY from services/api/.env.
-    entrypoint: ["/bin/sh", "-c", "STRIPE_API_KEY=$$STRIPE_SECRET_KEY exec stripe listen --forward-to api:3000/billing/stripe/webhook"]
+    entrypoint: ["/bin/sh", "-c", "STRIPE_API_KEY=$$STRIPE_SECRET_KEY exec stripe listen --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted --forward-to api:3000/billing/stripe/webhook"]
     env_file:
       - path: ./services/api/.env
         required: false

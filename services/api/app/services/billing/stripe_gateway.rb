@@ -20,15 +20,15 @@ module Billing
     ].freeze
 
     # Reads a Stripe subscription into plain values. In recent API versions the period end lives
-    # on the subscription items, so use it from the first item when the top-level field is absent.
+    # on the subscription items. A scheduled cancel_at overrides the next renewal date.
     def self.subscription_from(stripe_subscription)
       data = stripe_subscription.to_hash
-      period_end = data[:current_period_end] || Array(data.dig(:items, :data)).filter_map { |item| item[:current_period_end] }.max
+      period_end = data[:cancel_at] || data[:current_period_end] || Array(data.dig(:items, :data)).filter_map { |item| item[:current_period_end] }.max
       customer = data[:customer]
       Gateway::Subscription.new(
         id: data[:id], customer_id: customer.is_a?(Hash) ? customer[:id] : customer, status: data[:status],
         current_period_end: period_end && Time.zone.at(period_end),
-        cancel_at_period_end: data[:cancel_at_period_end] ? true : false,
+        cancel_at_period_end: data[:cancel_at_period_end] == true || data[:cancel_at].present?,
         user_id: (data[:metadata] || {})[:user_id], source: (data[:metadata] || {})[:source]
       )
     end

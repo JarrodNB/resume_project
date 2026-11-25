@@ -31,6 +31,17 @@ RSpec.describe Billing::StripeGateway do
     expect(described_class.new).to have_attributes(configured?: false, checkout_configured?: false)
   end
 
+  it "shows a scheduled cancellation date even when cancel_at_period_end is false" do
+    subscription = Stripe::Subscription.construct_from(
+      id: "sub_1", customer: "cus_1", status: "active", cancel_at_period_end: false,
+      cancel_at: 1_800_000_000, current_period_end: 1_700_000_000
+    )
+
+    expect(described_class.subscription_from(subscription)).to have_attributes(
+      cancel_at_period_end: true, current_period_end: Time.zone.at(1_800_000_000)
+    )
+  end
+
   describe "error translation" do
     let(:client) { instance_double(Stripe::StripeClient) }
 

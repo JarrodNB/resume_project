@@ -72,6 +72,7 @@ signups cannot block paying customers.
   Stripe signature on the raw body (`STRIPE_WEBHOOK_SECRET`) and answers 400 if it is bad. For
   `checkout.session.completed` and `customer.subscription.created/updated/deleted` it queues
   `Billing::SyncSubscriptionJob` with the subscription id and answers 200. Other events get 200 and are ignored.
+- Scheduled cancellations use Stripe’s `cancel_at` date when present, including when `cancel_at_period_end` is false, so the billing page shows when access ends instead of a renewal.
 - **Sync job.** `Billing::SyncSubscriptionService` always fetches the subscription's current
   state from Stripe and copies it to `billing_subscriptions`. Because it never trusts the event
   body, duplicate and out-of-order deliveries end in the same correct state. It fetches again

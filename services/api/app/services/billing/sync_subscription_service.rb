@@ -8,7 +8,8 @@
 # refund it. The state that gets written is fetched again after the row is locked, so two jobs
 # running at once cannot leave older state behind. Guards: an old canceled subscription never overwrites a newer one that is
 # still paid according to Stripe, and if a second paid subscription turns up (two checkouts at once) the row keeps the
-# first, the newcomer is cancelled right away, and a warning names both ids so someone can refund it.
+# first, the newcomer is refunded and cancelled right away, and a warning names both ids. Once the row is paid,
+# the customer's still-open Checkout sessions are expired, so a Checkout left open in another tab can't charge again.
 module Billing
   class SyncSubscriptionService < ApplicationService
     def initialize(subscription_id:, gateway: Gateway.current)
@@ -32,6 +33,7 @@ module Billing
         return success(nil)
       end
       cancel_duplicate(duplicate, kept: row.stripe_subscription_id) if duplicate
+      expire_open_checkouts(row) if row.paid?
       success(row)
     end
 
@@ -53,9 +55,20 @@ module Billing
       nil
     end
 
+    # Refunds before cancelling: if the refund fails, the job retries while the duplicate is still
+    # paid, so it is found again. A cancelled duplicate would no longer be found.
     def cancel_duplicate(duplicate_id, kept:)
-      Rails.logger.warn("Duplicate paid Stripe subscription #{duplicate_id} arrived while #{kept} is kept; cancelling #{duplicate_id}. Refund it if the customer was charged.")
+      Rails.logger.warn("Duplicate paid Stripe subscription #{duplicate_id} arrived while #{kept} is kept; refunding and cancelling #{duplicate_id}.")
+      @gateway.refund_subscription_payments(duplicate_id)
       @gateway.cancel_subscription_now(duplicate_id)
+    end
+
+    # A paid user must not be able to finish a Checkout opened earlier in another tab. The row is
+    # already saved, and the duplicate guard above still catches a race, so a failure is only logged.
+    def expire_open_checkouts(row)
+      @gateway.expire_open_checkout_sessions(row.stripe_customer_id)
+    rescue Gateway::Unavailable, Gateway::NotFound => error
+      Rails.logger.warn("Could not expire open Checkout sessions for #{row.stripe_customer_id}: #{error.class}")
     end
 
     # No row to update. If a subscription we started names a user that no longer exists, the account

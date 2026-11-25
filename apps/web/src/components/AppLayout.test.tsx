@@ -96,6 +96,7 @@ it('hides navigation in focus mode and offers a way out of the interview room', 
   expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: 'Practice pages' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Account menu' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Leave interview room' })).toHaveAttribute('href', '/practice/interviews')
 })
 
@@ -139,4 +140,11 @@ it('shows a not found page with a link home for unknown signed-in URLs', async (
   expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
   await userEvent.setup().click(screen.getByRole('link', { name: 'Go to Home' }))
   expect(router.state.location.pathname).toBe('/')
+})
+
+it('offers privacy and terms in the workspace footer', () => {
+  renderWorkspace('/')
+  const footer = screen.getByRole('contentinfo')
+  expect(within(footer).getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
+  expect(within(footer).getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms')
 })

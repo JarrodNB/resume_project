@@ -23,6 +23,9 @@ Source of the web app, organized by feature.
   application step Rails suggests, `jobPipeline`, needs the user, linked to the job tab that handles it) and
   "Practice" (`PracticePanel`: resume an unfinished spoken interview, the written question bank's next step,
   jobs ready for interview practice, review the last interview; read from the existing Practice queries),
+  then "Library" (`LibraryHealthPanel`: what the library holds, a grade bar and the next step, from saved section
+  reviews; hidden while the library is empty) and "This week" (`WeekPanel`: jobs saved, applications sent,
+  interviews practiced and resumes edited in the last seven days, counted from saved dates in `weekActivity.ts`),
   plus four starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page

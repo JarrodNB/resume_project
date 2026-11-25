@@ -1,11 +1,13 @@
-/** Home (/): what needs you today, across applications and interview practice.
+/** Home (/): what needs you today across applications, interview practice and the career library.
  *
  * Home stays short however many jobs are saved. A slim strip lists all AI work still running; it
  * keeps itself current and refreshes these steps when work finishes. A stage line shows how many jobs
  * sit in each stage (each station opens the Jobs list for that stage). Two lanes sit under it:
  * "Do next" lists the few jobs whose suggested application step is the user's move, furthest along
  * first, and "Practice" (see PracticePanel) offers the next interview-practice step. Jobs ready for
- * interview practice appear in Practice rather than Do next. Rails suggests each job's next step; colors follow the signal rules in nextSteps.ts.
+ * interview practice appear in Practice rather than Do next. A second row holds "Library" (see
+ * LibraryHealthPanel: how well-reviewed the career library is, shown once it has content) and "This week"
+ * (see WeekPanel: what the user got done in the last seven days). Rails suggests each job's next step; colors follow the signal rules in nextSteps.ts.
  * The full board and list live on the Jobs page. With no saved jobs yet, Home shows the four steps
  * that start a search, marking the career library step done once the library has content. With
  * jobs but an empty library, a red note says comparisons have nothing to compare yet.
@@ -27,8 +29,10 @@ import { jobsNeedingYou, type PipelineEntry } from './homeSummary'
 import { AiWorkStrip } from './AiWorkStrip'
 import { NextStep, SignalDot } from './NextStepSignal'
 import { PipelineJobName } from './PipelineJobName'
+import { LibraryHealthPanel } from './LibraryHealthPanel'
 import { PracticePanel } from './PracticePanel'
 import { StageLine } from './StageLine'
+import { WeekPanel } from './WeekPanel'
 
 /** How many "Do next" jobs Home lists before pointing at the Jobs page. */
 export const DO_NEXT_LIMIT = 6
@@ -45,7 +49,7 @@ export function HomePage() {
     <div className="home-page">
       <PageHeading
         title="Your job search"
-        description="Applications and interview practice: what needs you today, and where everything stands."
+        description="What needs you today: applications, practice and your library."
         actions={<>
           <Button asChild variant="outline" size="lg"><Link to="/jobs/find">Find jobs</Link></Button>
           <Button asChild size="lg"><Link to="/jobs/new">Add a job</Link></Button>
@@ -67,6 +71,8 @@ export function HomePage() {
           <div className="home-grid">
             <DoNext entries={entries} />
             <PracticePanel entries={entries} />
+            {libraryData && libraryStarted && <LibraryHealthPanel library={libraryData} />}
+            <WeekPanel entries={entries} />
           </div>
         </>
       )}

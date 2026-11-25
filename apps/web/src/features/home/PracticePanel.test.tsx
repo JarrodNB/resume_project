@@ -7,7 +7,7 @@ import { RECENT_INTERVIEWS } from '@/features/interviews/interviewOperations'
 import { PRACTICE_JOB_LIMIT, PracticePanel } from './PracticePanel'
 
 function job(id: string, title: string, nextStep = 'PRACTICE_INTERVIEW') {
-  return { __typename: 'JobPipelineEntry' as const, nextStep, job: { __typename: 'Job' as const, id, title, company: 'Synthetic Co', location: null, stage: 'INTERVIEWING' as const } }
+  return { __typename: 'JobPipelineEntry' as const, nextStep, job: { __typename: 'Job' as const, id, title, company: 'Synthetic Co', location: null, stage: 'INTERVIEWING' as const, createdAt: '2026-10-01T00:00:00Z', appliedAt: null } }
 }
 
 function question(id: string, answerText: string, extra: Record<string, unknown> = {}) {

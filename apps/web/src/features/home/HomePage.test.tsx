@@ -4,6 +4,8 @@ import { afterEach, expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
+import { LIBRARY_REVIEW_QUERY } from '@/features/career-library/libraryReviewOperations'
+import { RESUMES_QUERY } from '@/features/resumes/resumesOperations'
 import { INTERVIEW_QUESTION_BANK_QUERY } from '@/features/interview-prep/interviewPrepOperations'
 import { RECENT_INTERVIEWS } from '@/features/interviews/interviewOperations'
 import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from './homeOperations'
@@ -12,7 +14,7 @@ import { DO_NEXT_LIMIT, HomePage } from './HomePage'
 afterEach(() => localStorage.clear())
 
 function entry(id: string, title: string, stage: string, nextStep: string) {
-  return { __typename: 'JobPipelineEntry' as const, nextStep, job: { __typename: 'Job' as const, id, title, company: 'Synthetic Co', location: 'Remote', stage } }
+  return { __typename: 'JobPipelineEntry' as const, nextStep, job: { __typename: 'Job' as const, id, title, company: 'Synthetic Co', location: 'Remote', stage, createdAt: '2026-10-01T00:00:00Z', appliedAt: null } }
 }
 
 const pipeline = [
@@ -48,6 +50,10 @@ function practiceMocks(questions: unknown[] = [], sessions: unknown[] = []) {
   return [
     { request: { query: INTERVIEW_QUESTION_BANK_QUERY }, maxUsageCount: Infinity, result: { data: { interviewQuestions: questions } } },
     { request: { query: RECENT_INTERVIEWS }, maxUsageCount: Infinity, result: { data: { recentInterviewSessions: sessions } } },
+    { request: { query: RESUMES_QUERY }, maxUsageCount: Infinity, result: { data: { resumes: [] } } },
+    ...['summary', 'experience', 'projects', 'career_contexts'].map((section) => (
+      { request: { query: LIBRARY_REVIEW_QUERY, variables: { section } }, maxUsageCount: Infinity, result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [] } } } }
+    )),
   ]
 }
 
@@ -95,6 +101,17 @@ it('keeps Home short with many jobs: the stage line counts them all, Do next lis
   expect(within(doNext).getByRole('link', { name: 'See all 40 jobs' })).toHaveAttribute('href', '/jobs')
   expect(within(screen.getByRole('navigation', { name: 'Jobs by stage' })).getByRole('link', { name: 'Not applied, 40 jobs' })).toBeInTheDocument()
   expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
+})
+
+it('shows applications, practice, library health and the week as four lanes', async () => {
+  renderHome(pipeline)
+  for (const name of ['Do next', 'Practice', 'Library', 'This week']) expect(await screen.findByRole('region', { name })).toBeInTheDocument()
+})
+
+it('leaves out the Library lane while the library is empty and points at importing instead', async () => {
+  renderHome(pipeline, [], [])
+  await screen.findByRole('complementary', { name: 'Your career library is empty' })
+  expect(screen.queryByRole('region', { name: 'Library' })).not.toBeInTheDocument()
 })
 
 it('says the user is caught up when no application step needs them', async () => {

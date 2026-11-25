@@ -126,7 +126,7 @@ it.each([
   ['FAILED', 'COMPARISON_FAILED', 'Comparison failed'],
 ])('updates the comparison label when analysis is %s without reloading', async (status, nextStep, label) => {
   const job = { __typename: 'Job', id: 'job-1', title: 'AI Engineer', company: 'Acme', location: 'Remote', stage: 'UNAPPLIED', url: null, createdAt: '2026-10-01T00:00:00Z' }
-  const pipelineMock = (step: string) => ({ request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [{ __typename: 'JobPipelineEntry', job, nextStep: step }] } } })
+  const pipelineMock = (step: string) => ({ request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [{ __typename: 'JobPipelineEntry', job: { ...job, appliedAt: null }, nextStep: step }] } } })
   renderPage({ path: '/jobs', url: '/jobs', element: <JobsPage />, mocks: [
     jobsMock([job]),
     pipelineMock('COMPARISON_RUNNING'),
@@ -152,7 +152,7 @@ const boardJobs = [
 
 function renderJobs(rows = boardJobs, url = '/jobs', extraMocks: unknown[] = []) {
   const jobs = rows.map(({ id, title, stage }, index) => ({ __typename: 'Job', id, title, company: 'Synthetic Co', location: 'Remote', stage, url: null, createdAt: `2026-10-${String((index % 27) + 1).padStart(2, '0')}T00:00:00Z` }))
-  const jobPipeline = rows.map(({ id, title, stage, nextStep }) => ({ __typename: 'JobPipelineEntry', nextStep, job: { __typename: 'Job', id, title, company: 'Synthetic Co', location: 'Remote', stage } }))
+  const jobPipeline = rows.map(({ id, title, stage, nextStep }) => ({ __typename: 'JobPipelineEntry', nextStep, job: { __typename: 'Job', id, title, company: 'Synthetic Co', location: 'Remote', stage, createdAt: '2026-10-01T00:00:00Z', appliedAt: null } }))
   return renderPage({ path: '/jobs', url, element: <JobsPage />, mocks: [
     jobsMock(jobs),
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } },

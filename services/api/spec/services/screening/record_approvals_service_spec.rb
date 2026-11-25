@@ -23,6 +23,7 @@ RSpec.describe Screening::RecordApprovalsService do
   it "reads each type's allowed fields from its model" do
     expect(described_class::RECORD_TYPES.transform_values { |entry| entry[:fields] }).to eq(
       "interview_question" => %w[question_text answer_text],
+      "avoided_interview_question" => %w[question_text],
       "job" => %w[title company location description requirements responsibilities nice_to_haves],
       "gap_response" => %w[requirement body], "user" => %w[summary],
       "experience" => %w[company title location description], "experience_highlight" => %w[content],
@@ -163,11 +164,12 @@ RSpec.describe Screening::RecordApprovalsService do
     let(:question) do
       question_set.questions.create!(position: 1, question_text: "Describe a challenge?", answer_text: "I led a team.", answer_revision: 1)
     end
-    let(:snapshot) do
-      question.attributes.slice("question_text", "answer_text", "question_revision", "answer_revision")
-        .merge("question_id" => question.id, "question_set_id" => question_set.id)
+    let(:command) do
+      question.attributes.slice("question_revision", "answer_revision")
+        .merge("source_version" => 1, "set_type" => question_set.set_type,
+          "question_id" => question.id, "question_set_id" => question_set.id)
     end
-    let(:task) { create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: snapshot) }
+    let(:task) { create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", input: command) }
 
     def question_receipt(item = question, fields = %w[question_text answer_text])
       receipt("interview_question", item, fields,
@@ -183,7 +185,7 @@ RSpec.describe Screening::RecordApprovalsService do
       report = question_receipt
       task
       InterviewPrep::SaveAnswerService.call(question: question, answer_text: "Edited")
-      InterviewPrep::SaveAnswerService.call(question: question, answer_text: snapshot["answer_text"])
+      InterviewPrep::SaveAnswerService.call(question: question, answer_text: "I led a team.")
       expect(record([ report ], ai_task: task)).to be_success
       expect(question.reload.screened_fields).to eq([ "question_text" ])
 
@@ -193,20 +195,19 @@ RSpec.describe Screening::RecordApprovalsService do
       expect(question.reload.screened_fields).to eq([])
     end
 
-    it "matches the task snapshot as well as the current value" do
+    it "rejects a fingerprint from before a source edit" do
       task
+      report = question_receipt
       question.update!(answer_text: "Newer answer")
-      expect(record([ question_receipt ], ai_task: task)).to be_success
+      expect(record([ report ], ai_task: task)).to be_success
       expect(question.reload.screened_fields).to eq([ "question_text" ])
     end
 
     describe "regeneration" do
       let!(:peer) { question_set.questions.create!(position: 2, question_text: "Describe a win?", answer_text: "I shipped.", answer_revision: 1) }
       let(:regeneration) do
-        peer_snapshot = peer.attributes.slice("question_text", "answer_text", "question_revision", "answer_revision")
-          .merge("question_id" => peer.id, "question_set_id" => question_set.id)
         create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question",
-          input: snapshot.merge("other_questions" => [ peer.question_text ], "other_question_snapshots" => [ peer_snapshot ]))
+          input: command.merge("peer_revisions" => { peer.id => peer.question_revision }))
       end
 
       it "approves question text on the target and peers but never answers" do
@@ -215,9 +216,8 @@ RSpec.describe Screening::RecordApprovalsService do
         expect(peer.reload.screened_fields).to eq([ "question_text" ])
       end
 
-      it "rejects a peer whose snapshot text disagrees with other_questions" do
-        regeneration.input["other_questions"] = [ "Different text?" ]
-        regeneration.save!
+      it "rejects an unselected peer" do
+        regeneration.update!(input: regeneration.input.merge("peer_revisions" => {}))
         expect(record([ question_receipt(peer) ], ai_task: regeneration)).to be_success
         expect(peer.reload.screened_fields).to eq([])
       end

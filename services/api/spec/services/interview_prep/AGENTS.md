@@ -25,4 +25,4 @@ Test interview practice service behavior without external AI or queue calls.
 
 
 - `screening_spec.rb` — persisted checks, source ownership/alignment, revision/fingerprint
-  staleness, edits/replacements, duplicates, legacy snapshots and metadata serialization.
+  staleness, edits/replacements, duplicates, reference-only commands and metadata serialization.

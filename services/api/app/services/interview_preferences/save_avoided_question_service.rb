@@ -1,8 +1,8 @@
 # Save exact server-owned question text once; reject capacity limits without dropping choices.
 module InterviewPreferences
   class SaveAvoidedQuestionService < ApplicationService
-    def initialize(user:, question_text:)
-      @user, @text = user, question_text
+    def initialize(user:, question_text:, origin: "generated", screened_fields: [])
+      @user, @text, @origin, @screened_fields = user, question_text, origin, screened_fields
     end
 
     # Caller must derive text from an authorized persisted question or interviewer message.
@@ -15,7 +15,8 @@ module InterviewPreferences
         if @user.avoided_interview_questions.count >= AvoidedQuestions::MAX_QUESTIONS
           next failure([ "You have reached the limit of 50 avoided interview questions." ])
         end
-        @user.avoided_interview_questions.create!(question_text: @text, text_digest: AvoidedQuestions.digest(@text))
+        @user.avoided_interview_questions.create!(question_text: @text, text_digest: AvoidedQuestions.digest(@text),
+          origin: @origin, screened_fields: @screened_fields & [ "question_text" ])
         success(true)
       end
     end

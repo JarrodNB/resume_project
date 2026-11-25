@@ -53,7 +53,7 @@ export function InterviewSetPage() {
         actions={questions.length === 0 && <DismissQuestionGenerationButton id={id} onDeleted={() => void navigate('/practice/questions')} />} />
       {questionSet.latestTask && <InterviewTaskStatus key={questionSet.latestTask.id} task={questionSet.latestTask} onFinished={refetch} />}
       {warnings.length > 0 && <div className="grid gap-1 text-sm text-muted-foreground"><p>Some library notes were omitted:</p><ul className="list-disc pl-5">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
-      {active && <InterviewQuestionCard key={active.id} question={active} setId={id} refetch={refetch} onDirty={onDirty} onDeleted={() => setDeleted(true)} />}
+      {active && <InterviewQuestionCard key={active.id} question={active} setId={id} manual={questionSet.origin === 'manual'} refetch={refetch} onDirty={onDirty} onDeleted={() => setDeleted(true)} />}
     </>}
   </div>
 }

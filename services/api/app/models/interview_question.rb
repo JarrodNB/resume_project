@@ -1,5 +1,5 @@
 # Description: One interview question with a user-written answer and revision-bound feedback.
-# Active questions fill a set's five slots. A retired question is a read-only copy kept when
+# Active questions fill generated slots or one custom-question slot. A retired question is a read-only copy kept when
 # an answered slot was replaced, so the user's answer stays in their question bank.
 # Index:
 #   - interview_question_set: the owning user's practice set
@@ -18,6 +18,7 @@ class InterviewQuestion < ApplicationRecord
   validates :position, inclusion: { in: 1..5 }, uniqueness: { scope: :interview_question_set_id }, unless: :retired?
   validates :position, absence: true, if: :retired?
   validates :question_text, presence: true
+  validates :memory_anchor, length: { maximum: 600 }
   validates :answer_text, length: { maximum: TextLimits::INTERVIEW_ANSWER }
   validates :question_revision, numericality: { only_integer: true, greater_than: 0 }
   validates :answer_revision, numericality: { only_integer: true, greater_than_or_equal_to: 0 }

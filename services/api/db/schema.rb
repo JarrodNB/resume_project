@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_050400) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -190,9 +190,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_050400) do
     t.string "text_digest", limit: 64, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "origin", default: "generated", null: false
+    t.jsonb "screened_fields", default: [], null: false
     t.index ["user_id", "text_digest"], name: "index_avoided_interview_questions_on_user_id_and_text_digest", unique: true
     t.index ["user_id"], name: "index_avoided_interview_questions_on_user_id"
     t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
+    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying, 'manual'::character varying]::text[])", name: "avoided_interview_questions_origin_check"
   end
 
   create_table "billing_subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -445,11 +448,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_050400) do
     t.integer "number", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "set_type", default: "general", null: false
+    t.string "set_type", default: "fit_motivation", null: false
+    t.string "origin", default: "generated", null: false
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying, 'manual'::character varying]::text[])", name: "interview_question_sets_origin_check"
+    t.check_constraint "set_type::text = ANY (ARRAY['fit_motivation'::character varying, 'behavioral'::character varying, 'hypothetical'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -466,6 +471,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_050400) do
     t.datetime "updated_at", null: false
     t.text "screened_fields", default: [], null: false, array: true
     t.datetime "retired_at"
+    t.string "memory_anchor", limit: 600, default: "", null: false
+    t.string "answer_format", default: "plain_text", null: false
+    t.integer "answer_format_revision", default: 0, null: false
+    t.jsonb "answer_drafts", default: {}, null: false
     t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"

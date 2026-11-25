@@ -10,7 +10,7 @@ import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 interface TaskSnapshot { id: string; status: string; errorMessage?: string | null }
 
 /** Follows task updates, refreshes on completion, and displays failure alerts. */
-export function InterviewTaskStatus({ task, onFinished, operation = 'generation' }: { task: TaskSnapshot; onFinished: () => unknown; operation?: 'generation' | 'feedback' | 'replacement' }) {
+export function InterviewTaskStatus({ task, onFinished, operation = 'generation' }: { task: TaskSnapshot; onFinished: () => unknown; operation?: 'generation' | 'feedback' | 'replacement' | 'anchor' }) {
   // Keep following through Apollo's normalized terminal-state update until refetch completes.
   const [subscriptionId] = useState(task.status === 'QUEUED' ? task.id : '')
   const { aiTask, error } = useAiTaskUpdates(subscriptionId)
@@ -26,7 +26,7 @@ export function InterviewTaskStatus({ task, onFinished, operation = 'generation'
     <div className="grid gap-2" aria-live="polite">
       {operation === 'generation' && current.status === 'QUEUED' && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" />Generating questions…</p>}
       {error && <ErrorAlert title="Live updates disconnected" messages={['Reload this page to check task status.']} />}
-      {current.status === 'FAILED' && <ErrorAlert notificationId={current.id} title={operation === 'generation' ? 'Question generation failed' : operation === 'feedback' ? 'Answer feedback failed' : 'Question replacement failed'} messages={[current.errorMessage ?? 'Could not complete this task. Try again.']} />}
+      {current.status === 'FAILED' && <ErrorAlert notificationId={current.id} title={operation === 'generation' ? 'Question generation failed' : operation === 'feedback' ? 'Answer feedback failed' : operation === 'anchor' ? 'Memory anchor generation failed' : 'Question replacement failed'} messages={[current.errorMessage ?? 'Could not complete this task. Try again.']} />}
     </div>
   )
 }

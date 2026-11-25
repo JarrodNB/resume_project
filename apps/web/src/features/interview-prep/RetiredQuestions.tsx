@@ -7,6 +7,7 @@ import { SectionCard } from '@/components/SectionCard'
 import { InterviewFeedback } from './InterviewFeedback'
 import { interviewSetDate } from './interviewSetDate'
 import { hasFeedback } from './questionProgress'
+import { answerFormats, normalizeAnswerDrafts, projectAnswer, type AnswerFormat } from './answerFormats'
 
 type BankQuestion = InterviewQuestionBankQuery['interviewQuestions'][number]
 
@@ -24,8 +25,11 @@ export function RetiredQuestions({ questions }: { questions: BankQuestion[] }) {
           </summary>
           <div className="retired-question-body">
             <div className="grid min-w-0 content-start gap-2">
-              <h3 className="text-sm font-bold">Your answer</h3>
-              <p className="whitespace-pre-wrap break-words">{question.answerText}</p>
+              {question.memoryAnchor && <><h3 className="text-sm font-bold">Memory anchor</h3><p className="whitespace-pre-wrap break-words">{question.memoryAnchor}</p></>}
+              {(Object.keys(answerFormats) as AnswerFormat[]).map((format) => {
+                const text = projectAnswer(format, normalizeAnswerDrafts(question.answerDrafts, question.answerText))
+                return text.trim() ? <div key={format}><h3 className="text-sm font-bold">{answerFormats[format].label}</h3><p className="whitespace-pre-wrap break-words">{text}</p></div> : null
+              })}
             </div>
             {hasFeedback(question.feedback) && <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated} />}
           </div>

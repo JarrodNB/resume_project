@@ -1,0 +1,23 @@
+- name: behavioral_sections
+  answer: 'Context: The release process took three hours. Action: I automated the checks. Result: Releases took 40 minutes. Learning: Remove repeat work first.'
+  expected:
+    cues:
+      - {sentence: 'Context: The release process took three hours.', cue: 'C: releases, 3 hours'}
+      - {sentence: 'Action: I automated the checks.', cue: 'A★: automated checks'}
+      - {sentence: 'Result: Releases took 40 minutes.', cue: 'R★: releases, 40 min'}
+      - {sentence: 'Learning: Remove repeat work first.', cue: 'L: remove repeat work first'}
+  terms: ['C:', 'A★:', 'R★:', 'L:', '40']
+- name: knowledge_no_story
+  answer: 'Lists can be changed after creation. Tuples cannot be changed after creation.'
+  expected:
+    cues:
+      - {sentence: 'Lists can be changed after creation.', cue: 'Lists: mutable'}
+      - {sentence: 'Tuples cannot be changed after creation.', cue: 'Tuples: immutable'}
+  terms: ['Lists', 'Tuples']
+- name: uncertain_result
+  answer: 'I suggested an earlier customer check-in. We have not yet measured whether it reduces churn.'
+  expected:
+    cues:
+      - {sentence: 'I suggested an earlier customer check-in.', cue: 'Suggested earlier check-in'}
+      - {sentence: 'We have not yet measured whether it reduces churn.', cue: 'Churn impact: not yet measured'}
+  terms: ['not yet measured']

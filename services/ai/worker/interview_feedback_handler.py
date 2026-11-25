@@ -3,6 +3,7 @@
 Python reads the source once from its domain row, reuses exact saved approvals and
 returns coaching only. Rails stores feedback against the reviewed revisions.
 """
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -12,7 +13,7 @@ from agents.interview_feedback_agent import generate_interview_feedback
 from llm.run_generative_agent import GenerativeOutputInvalid
 from model_inputs.interview import format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
-from schemas.interview_feedback import InterviewFeedbackContext
+from schemas.interview_feedback import InterviewAnswerFormat, InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
 from screening.library_inputs import LibraryScreeningError, rebuild_library, screen_library_inputs
 from screening.record_adapters import interview_answer_record
@@ -25,8 +26,10 @@ from worker.task_dependencies import TaskDependencies
 class InterviewFeedbackInput(BaseModel):
     """Owned source fields loaded together at the commanded revisions."""
 
+    origin: Literal["generated", "manual"]
     question_set_id: UUID
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
+    answer_format: InterviewAnswerFormat = "plain_text"
     question_id: UUID
     question_text: str = Field(min_length=1)
     answer_text: str = Field(min_length=1, max_length=text_limits.MAX_INTERVIEW_ANSWER)
@@ -56,15 +59,18 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         return fail("Write an answer before asking for feedback.")
     source = saved.model_dump(mode="json")
     source["screened_fields"] = saved.screened_fields
-    outcome = screen_records_sync([interview_answer_record(source, "answer_text", saved.answer_text)],
-                                  approved_sources=[saved.answer_text]).decision
+    fields = ["answer_text", "question_text"] if saved.origin == "manual" else ["answer_text"]
+    outcome = screen_records_sync(
+        [interview_answer_record(source, field, source[field]) for field in fields],
+        approved_sources=[source[field] for field in fields],
+    ).decision
     usage.extend(outcome.model_usages)
     if not outcome.allowed:
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
-    # The owned reader selects a saved generated question, never browser-supplied text.
-    trust_generated_source(saved.question_text)
+    if saved.origin == "generated":
+        trust_generated_source(saved.question_text)
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
@@ -78,11 +84,11 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     warnings = list(selected.warnings)
     text = bind_screened_prompt(
         [saved.answer_text, saved.question_text, *selected.sources],
-        lambda values: _feedback_prompt_text(values, selected.fields, saved.set_type),
+        lambda values: _feedback_prompt_text(values, selected.fields, saved.set_type, saved.answer_format),
     )
     if text_limits.prompt_is_too_long(text):
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
-    context = InterviewFeedbackContext(text, saved.answer_text + "\n" + interview_career_evidence(library)[1], saved.set_type)
+    context = InterviewFeedbackContext(text, saved.answer_text + "\n" + interview_career_evidence(library)[1], saved.set_type, saved.answer_format)
     try:
         feedback = generate_interview_feedback(context, model=settings.interview_feedback_model,
             thinking=settings.interview_feedback_thinking,
@@ -95,7 +101,7 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         usage=usage)
 
 
-def _feedback_prompt_text(values, fields, set_type):
+def _feedback_prompt_text(values, fields, set_type, answer_format):
     """Render question, answer and library solely from supplied screened sources."""
     library = rebuild_library(values[2:], fields)
-    return format_feedback_prompt(set_type, values[1], values[0], library)
+    return format_feedback_prompt(set_type, values[1], values[0], library, answer_format)

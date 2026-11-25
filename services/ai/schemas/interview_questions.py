@@ -1,6 +1,6 @@
 """
 Description: Public interview questions and model-facing drafts with temporary evidence IDs.
-General practice has one introduction and four behavioral themes; IDs establish evidence relevance.
+Five practice types keep personal stories, proposed approaches, and subject knowledge distinct.
 Index:
     - InterviewQuestionDraft / InterviewQuestions: stable returned question shape
     - InterviewQuestionModelDraft / InterviewQuestionModelOutput: temporary-ID agent output
@@ -14,9 +14,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-InterviewSetType = Literal["general", "technical", "knowledge"]
+InterviewSetType = Literal["fit_motivation", "behavioral", "hypothetical", "technical", "knowledge"]
 QUESTION_CATEGORIES = {
-    "general": ("introduction", "collaboration", "problem_solving", "learning_adaptation", "initiative_judgment"),
+    "fit_motivation": ("background", "motivation", "goals", "working_preferences", "contribution"),
+    "behavioral": ("collaboration", "problem_solving", "adaptation", "initiative", "judgment"),
+    "hypothetical": ("prioritization", "ambiguity", "disagreement", "quality_risk", "accountability"),
     "technical": ("work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"),
     "knowledge": ("concepts", "mechanisms", "application", "reasoning", "limitations"),
 }
@@ -26,7 +28,9 @@ class InterviewQuestionDraft(BaseModel):
     """A question returned to Rails with exact saved career evidence."""
 
     question_text: str = Field(min_length=10, max_length=1000)
-    category: Literal["introduction", "collaboration", "learning_adaptation", "initiative_judgment",
+    category: Literal["background", "motivation", "goals", "working_preferences", "contribution",
+                      "collaboration", "adaptation", "initiative", "judgment",
+                      "prioritization", "ambiguity", "disagreement", "quality_risk", "accountability",
                       "work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality",
                       "concepts", "mechanisms", "application", "reasoning", "limitations"]
     evidence_quotes: list[str] = Field(min_length=1)
@@ -36,7 +40,9 @@ class InterviewQuestionModelDraft(BaseModel):
     """Model-facing question draft; temporary evidence IDs avoid quote transcription."""
 
     question_text: str = Field(min_length=10, max_length=1000)
-    category: Literal["introduction", "collaboration", "learning_adaptation", "initiative_judgment",
+    category: Literal["background", "motivation", "goals", "working_preferences", "contribution",
+                      "collaboration", "adaptation", "initiative", "judgment",
+                      "prioritization", "ambiguity", "disagreement", "quality_risk", "accountability",
                       "work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality",
                       "concepts", "mechanisms", "application", "reasoning", "limitations"]
     evidence_ids: list[str] = Field(
@@ -65,7 +71,7 @@ class InterviewQuestionContext:
     library_text: str
     count: int
     excluded: tuple[str, ...] = ()
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     evidence_by_id: dict[str, str] = field(default_factory=dict)
 
 

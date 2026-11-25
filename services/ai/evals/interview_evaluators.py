@@ -12,7 +12,11 @@ from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 from model_inputs.interview import build_interview_question_context, format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.gap_analysis_context import CareerContext, CareerLibrary
-from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
+from schemas.interview_feedback import (
+    InterviewAnswerFormat,
+    InterviewFeedback,
+    InterviewFeedbackContext,
+)
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
     InterviewQuestionContext,
@@ -27,7 +31,7 @@ class QuestionEvalInput(BaseModel):
 
     library: str = ""
     career_contexts: list[CareerContext] = Field(default_factory=list)
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
     recent_questions: list[str] = Field(default_factory=list)
@@ -37,8 +41,9 @@ class FeedbackEvalInput(BaseModel):
     """Synthetic saved answer with optional career evidence."""
 
     question: str
-    set_type: InterviewSetType = "general"
+    set_type: InterviewSetType = "fit_motivation"
     answer: str
+    answer_format: InterviewAnswerFormat = "plain_text"
     library: str = ""
     career_contexts: list[CareerContext] = Field(default_factory=list)
 
@@ -60,8 +65,8 @@ def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:
     """Uses the worker's feedback prompt shape without test-only labels."""
     library = CareerLibrary(summary=case.library or None, career_contexts=case.career_contexts)
-    text = format_feedback_prompt(case.set_type, case.question, case.answer, library)
-    return InterviewFeedbackContext(text, case.answer + "\n" + interview_career_evidence(library)[1], case.set_type)
+    text = format_feedback_prompt(case.set_type, case.question, case.answer, library, case.answer_format)
+    return InterviewFeedbackContext(text, case.answer + "\n" + interview_career_evidence(library)[1], case.set_type, case.answer_format)
 
 
 @dataclass
@@ -77,9 +82,7 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
         checks = {
             "question_count": len(questions) == ctx.inputs.count,
             "category_variety": all(q.category in QUESTION_CATEGORIES[ctx.inputs.set_type] for q in questions)
-            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5)
-            and not (ctx.inputs.set_type == "general" and ctx.inputs.count == 1
-                     and any(q.category == "introduction" for q in questions)),
+            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5),
             "distinct_wording": len(set(keys)) == len(keys) and not excluded.intersection(keys),
             "question_evidence": all(q.evidence_quotes and all(
                 quote.strip() and quote in source for quote in q.evidence_quotes

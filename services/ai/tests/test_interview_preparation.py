@@ -102,6 +102,11 @@ class Models:
 
 def run(models, request=None, client=None):
     client = client or PreparationClient()
+    if request is not None:
+        context = request.payload.preparation_context
+        if "avoided_question_sources" not in context:
+            context["avoided_question_sources"] = [{"id": str(i), "origin": "generated", "question_text": text}
+                for i, text in enumerate(context.get("avoided_questions", []))]
     with httpx.Client(transport=httpx.MockTransport(lambda request: pytest.fail("No storage request during preparation"))) as storage:
         executor = RealInterviewExecutor(client, audio=None, models=models, storage_client=storage,
             allowed_origins={"http://storage"}, allow_http=True)
@@ -297,3 +302,30 @@ def test_recent_history_counts_towards_aggregate_prompt_limit():
     client = run(models, request)
     assert client.failed == [("context_limit", False)]
     assert not models.requests
+
+
+def test_manual_avoided_question_screening_is_operation_accounted():
+    models = Models()
+    request = preparation_claim()
+    context = request.payload.preparation_context
+    context['avoided_questions'] = ['Describe a calibration error?']
+    context['avoided_question_sources'] = [{'id': 'avoided', 'question_text': context['avoided_questions'][0],
+        'origin': 'manual', 'screened_fields': []}]
+    client = run(models, request)
+    assert not client.failed
+    assert models.requests[0][0] == 'jev-1.13.0'
+    assert client.accepted == [prepared_output()]
+
+
+@pytest.mark.parametrize('approved', [False, True])
+def test_blocked_manual_avoided_preference_stops_preparation_unless_already_checked(approved):
+    models = Models(blocked=True)
+    request = preparation_claim()
+    context = request.payload.preparation_context
+    context['avoided_questions'] = ['Describe a calibration error?']
+    context['avoided_question_sources'] = [{'id': 'avoided', 'question_text': context['avoided_questions'][0],
+        'origin': 'manual', 'screened_fields': ['question_text'] if approved else []}]
+    client = run(models, request)
+    assert bool(client.accepted) is approved
+    assert bool(client.failed) is (not approved)
+    assert [r[0] for r in models.requests] == (['gpt-6-luna'] if approved else ['jev-1.13.0'])

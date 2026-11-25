@@ -137,8 +137,9 @@ score attached, so runs can be compared across prompt and model changes.
 ## Local Rules
 
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
-  thirty-two question cases and twenty-four feedback cases for all five written types, full sets and replacements,
-  software and nonsoftware practical work, sparse education, complete/incomplete stories, no matching example,
+  thirty-six question cases and twenty-four feedback cases for all five written types, full sets and replacements,
+  software and nonsoftware practical work, software hypothetical workplace behavior (full sets and replacements),
+  neighboring technical and past-behavior scope controls, sparse education, complete/incomplete stories, no matching example,
   uncertain/negative outcomes, active Plain text/CAR/CARL/STAR formats, introductions, honest goals/development answers, proposed approaches, and missing intentions.
   Knowledge cases cover Python, nontechnology food safety, sparse historical source comparison,
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.

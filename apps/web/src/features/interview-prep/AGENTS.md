@@ -3,7 +3,7 @@
 ## Purpose
 
 Written interview practice (the Practice section's Questions tab): the question bank at
-`/practice/questions` and individual question practice at `/practice/questions/:id/:questionId?`.
+`/practice/questions`, with answer editors inline in the bank. Old detail URLs redirect to the bank.
 
 ## Contents
 
@@ -19,7 +19,6 @@ Written interview practice (the Practice section's Questions tab): the question 
 - `RetiredQuestions.tsx` — read-only answers kept from replaced questions.
 - `PendingQuestionGeneration.tsx` — pending/failed generation requests above the bank with live status and dismissal.
 - `InlineQuestionEditor.tsx` — loads the existing answer card in the bank and refreshes saved bank state.
-- `InterviewSetPage.tsx` — one question, generation restoration, and unsaved-answer navigation protection.
 - `InterviewQuestionCard.tsx` — persistent drafts, Get feedback/Save, and the actions menu (replace, avoid, confirmed single-question deletion).
 - `DeleteQuestionDialog.tsx`, `DeleteQuestionButton.tsx`, `useDeleteQuestion.ts` — shared confirmed deletion, list action, and mutation/cache cleanup.
 - `useQuestionAvoidance.ts` — revision-bound saved avoidance state and retryable errors without touching drafts.
@@ -29,17 +28,16 @@ Written interview practice (the Practice section's Questions tab): the question 
 - `InterviewTaskStatus.tsx` — persisted task restoration and shared subscription updates.
 - `DismissQuestionGenerationButton.tsx` — confirmed dismissal of empty generation requests with retryable errors.
 - `interviewSetDate.ts`, `interviewSetTypeLabel.ts` — shared date and type labels.
-- `InterviewPrepPage.test.tsx`, `InterviewSetPage.test.tsx`, `InterviewAnswers.test.tsx` — page and answer workflow coverage.
+- `InterviewPrepPage.test.tsx`, `InterviewAnswers.test.tsx` — page and answer workflow coverage.
 
 ## Local rules
 
 - Follow `apps/web/AGENTS.md`; GraphQL fetching stays in hooks.
 - Progress labels and marks come from `questionProgress.ts` so progress stays consistent.
 - Signals follow `DESIGN.md`: blue while feedback is being prepared; optional outdated feedback uses the normal answered ink stop, with no warning color. Failures retain error alerts.
-- Practice opens one question at a time inside its type tab; existing detail URLs remain supported. Leaving an unsaved answer or memory anchor requires confirmation, including navigation to another question.
+- Practice opens one question at a time inside its type tab; old detail URLs redirect to the bank. Leaving an unsaved answer or memory anchor requires confirmation, including navigation to another question.
 - Rehearsal uses active questions with nonblank saved answers from the bank search, starting with its current type tab and allowing type changes during practice; it makes no API requests or durable progress changes. Hidden answers must be absent from the DOM. Arrow navigation stays inside rehearsal and ignores editable fields and modified shortcuts; return restores the type tab, search, and focus. Shuffle starts another pass only at the end of a shuffled pass.
 - Sets remain a backend storage detail: do not show batch numbers, batch management, or navigation limited to a generation batch.
-- Without a question id, pin the default question in the URL once so saving never moves the open question.
 - Each question keeps separate Plain text, CAR, CARL, and STAR drafts. Switching formats never converts text. Save, feedback, and anchor requests persist all drafts and the selected format together; only the active format changes feedback currentness.
 - Feedback requests send the typed answer and memory anchor and the server saves both first; queue or allowance failures still refresh the saved answer without replacing newer drafts.
 - Existing feedback is outdated for local unsaved edits as well as persisted revision changes.

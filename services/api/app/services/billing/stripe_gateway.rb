@@ -106,7 +106,14 @@ module Billing
     def cancel_customer_subscriptions(customer_id)
       translating do
         client.v1.subscriptions.list({ customer: customer_id, status: "all" }).auto_paging_each do |subscription|
-          client.v1.subscriptions.cancel(subscription.id) unless Gateway::ENDED_STATUSES.include?(subscription.status)
+          next if Gateway::ENDED_STATUSES.include?(subscription.status)
+
+          begin
+            cancel_subscription_now(subscription.id)
+          rescue Gateway::NotFound
+            # A concurrent cancellation must not skip the customer's remaining subscriptions.
+            next
+          end
         end
       end
       nil

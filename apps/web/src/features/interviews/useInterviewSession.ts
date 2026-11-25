@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import SparkMD5 from 'spark-md5'
+import { PLAN_ENDED_ERROR_CODE, PlanEndedError } from '@/lib/planEnded'
 import type { InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION, SKIP_QUESTION } from './interviewOperations'
@@ -13,8 +14,9 @@ import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, t
 
 class RejectedSubmission extends Error {}
 
-function requirePayload<T extends { errors: string[] }>(payload: T | null | undefined): T {
+function requirePayload<T extends { errors: string[]; errorCode?: string | null }>(payload: T | null | undefined): T {
   if (!payload) throw new Error('No response was received. Check saved status before trying again.')
+  if (payload.errorCode === PLAN_ENDED_ERROR_CODE) throw new PlanEndedError()
   if (payload.errors.length) throw new Error(payload.errors.join(' '))
   return payload
 }
@@ -64,6 +66,7 @@ export function useInterviewSession(id: string, ownerId: string) {
   const retainedText = useRef<{ submissionKey: string; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingSubmission | null>(() => loadPendingSubmission(ownerId, id))
   const interview = query.data?.interviewSession ?? null
   const unresolved = pending && !interview?.operations.some((operation) => operation.submissionKey === pending.submissionKey) ? pending : null
@@ -76,9 +79,13 @@ export function useInterviewSession(id: string, ownerId: string) {
 
   function forgetPending() { clearPendingSubmission(ownerId, id); setPending(null); retainedText.current = null }
   async function run(action: () => Promise<void>) {
-    setBusy(true); setError(null)
+    setBusy(true); setError(null); setErrorCode(null)
     try { await action(); return true }
-    catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not complete this request. Check saved status.')); return false }
+    catch (cause) {
+      setErrorCode(cause instanceof PlanEndedError ? PLAN_ENDED_ERROR_CODE : null)
+      setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not complete this request. Check saved status.'))
+      return false
+    }
     finally { setBusy(false) }
   }
   function update(snapshot: InterviewSnapshotFragment | null | undefined) {
@@ -247,5 +254,5 @@ export function useInterviewSession(id: string, ownerId: string) {
       })
     } finally { skipping.current = false }
   }
-  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, skipPending, answer, answerText, transcribeRecording, cancelTranscription, checkSavedStatus, retryOperation, beginInterview, abandonInterview, skipQuestion }
+  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, errorCode, unresolved, skipPending, answer, answerText, transcribeRecording, cancelTranscription, checkSavedStatus, retryOperation, beginInterview, abandonInterview, skipQuestion }
 }

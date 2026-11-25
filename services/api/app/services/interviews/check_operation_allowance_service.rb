@@ -24,7 +24,7 @@ module Interviews
         if !@operation.preparation?
           task = @operation.ai_task
           if task.nil? && @create_task
-            task = interview.user.ai_tasks.create!(task_type: "interview_#{@operation.kind}", subject: interview,
+            task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: "interview_#{@operation.kind}", subject: interview,
               hourly_admission_task: root, input: { operation_id: @operation.id })
             @operation.update!(ai_task: task)
           end

@@ -70,6 +70,26 @@ RSpec.describe Billing::StripeGateway do
       expect(cancelled).to eq(%w[sub_active sub_incomplete])
     end
 
+    it "continues cancelling when a listed subscription has already disappeared" do
+      subs = %w[sub_gone sub_live].map { |id| Stripe::Subscription.construct_from(id: id, status: "active") }
+      listing = double(auto_paging_each: nil)
+      allow(listing).to receive(:auto_paging_each) { |&block| subs.each(&block) }
+      subscriptions = double("subscriptions", list: listing)
+      allow(client).to receive_message_chain(:v1, :subscriptions).and_return(subscriptions)
+      allow(subscriptions).to receive(:cancel).with("sub_gone")
+        .and_raise(Stripe::InvalidRequestError.new("No such subscription", "id", code: "resource_missing"))
+      expect(subscriptions).to receive(:cancel).with("sub_live")
+
+      expect(described_class.new.cancel_customer_subscriptions("cus_1")).to be_nil
+    end
+
+    it "preserves a missing customer error from listing subscriptions" do
+      allow(client).to receive_message_chain(:v1, :subscriptions, :list)
+        .and_raise(Stripe::InvalidRequestError.new("No such customer", "customer", code: "resource_missing"))
+
+      expect { described_class.new.cancel_customer_subscriptions("cus_1") }.to raise_error(Billing::Gateway::NotFound)
+    end
+
     it "lists the ids of a customer's subscriptions that have not ended" do
       subs = %w[active canceled past_due incomplete_expired].map { |status| Stripe::Subscription.construct_from(id: "sub_#{status}", status: status) }
       listing = double(auto_paging_each: nil)

@@ -38,7 +38,7 @@ export const SUBMIT_TURN = graphql(`
 `)
 export const RETRY_OPERATION = graphql(`
   mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {
-    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }
+    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 export const INTERVIEW_PLAYBACK = graphql(`
@@ -67,7 +67,7 @@ export const RECENT_INTERVIEWS = graphql(`
 
 export const START_RECORDED_TRANSCRIPTION = graphql(`
   mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {
-    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }
+    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 export const CANCEL_RECORDED_TRANSCRIPTION = graphql(`

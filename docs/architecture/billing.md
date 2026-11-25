@@ -49,7 +49,10 @@ purpose: no GraphQL field returns a cap or a spend amount, and the refusal messa
 tune abuse to just under the limit. Upgrading mid-day applies the paid cap against today's spend so far.
 
 The site-wide daily budget (`AI_SITE_DAILY_BUDGET_USD`) applies to **trial users only**. Paid
-users are skipped by the check and their spend does not count toward it, so a wave of fake
+users are skipped by the check. Tasks and embedding receipts keep whether they counted toward
+the trial budget when created; upgrading or ending a subscription does not reclassify earlier usage.
+Existing receipts are backfilled from the subscription status at migration time because historical
+plan changes were not recorded. This ensures a wave of fake
 signups cannot block paying customers.
 
 ## Stripe

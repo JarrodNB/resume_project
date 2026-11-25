@@ -34,7 +34,7 @@ module Interviews
           allowance = check_allowance(user: interview.user, existing_task: admission.value)
           next allowance unless allowance.success?
           record.save! unless record.persisted?
-          task = interview.user.ai_tasks.create!(task_type: task_type, subject: interview,
+          task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: task_type, subject: interview,
             hourly_admission_task: admission.value, input: task_input(interview, record))
           record.update!(ai_task: task, attempt_count: record.attempt_count + 1,
             retry_count: refresh || record.attempt_count.zero? ? 0 : record.retry_count + 1,

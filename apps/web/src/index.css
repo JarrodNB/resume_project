@@ -294,6 +294,18 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .security-password-section input { min-height: 44px; background: var(--card); caret-color: var(--primary); }
 .security-password-section a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
 .security-session-notice { border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+.billing-plan { padding-top: 28px; }
+.billing-plan-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); }
+.billing-plan-title { margin-top: 12px; font-size: 1.75rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+.billing-plan-detail { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
+.billing-plan-status { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--muted); font-size: 14px; }
+.billing-plan-action { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+.billing-plan-price { font-size: 14px; color: var(--muted-foreground); }
+.billing-manage { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px 16px; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
+.billing-manage-title { font-size: 14px; font-weight: 600; }
+.billing-manage-detail { margin-top: 2px; font-size: 14px; color: var(--muted-foreground); }
+.billing-manage > :nth-child(n+3) { grid-column: 1 / -1; }
+@media (max-width: 479px) { .billing-manage { grid-template-columns: 1fr; } .billing-plan-title { font-size: 1.5rem; } }
 .account-data-section { margin-top: 36px; border-top: 1px solid var(--border); }
 .account-delete-block { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
 

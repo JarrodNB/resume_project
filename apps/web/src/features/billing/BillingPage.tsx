@@ -23,12 +23,13 @@ type Billing = BillingQuery['me']['billing']
 const formatDate = (value: string | null | undefined) =>
   value ? new Date(value).toLocaleDateString('en-US', { dateStyle: 'medium' }) : 'soon'
 
-/** One plain sentence for the plan; the date that matters depends on the state. */
+/** One plain sentence for the plan; the date that matters depends on the state.
+ * `label` is the short status tag and `dot` the signal colour shown beside it. */
 function planSummary(billing: Billing) {
-  if (billing.plan === 'TRIAL') return { title: `Free trial — ends ${formatDate(billing.trialEndsAt)}`, detail: 'You can use every feature until then.' }
-  if (billing.plan === 'PAID' && billing.cancelAtPeriodEnd) return { title: `Ends ${formatDate(billing.currentPeriodEndsAt)}`, detail: 'Your subscription is cancelled. You keep access until then.' }
-  if (billing.plan === 'PAID') return { title: `Renews ${formatDate(billing.currentPeriodEndsAt)}`, detail: 'Your subscription is active.' }
-  return { title: 'Your free trial has ended', detail: 'Your saved jobs, library and resumes are still here. AI features are paused.' }
+  if (billing.plan === 'TRIAL') return { label: 'Trial', dot: 'is-wait', title: `Free trial — ends ${formatDate(billing.trialEndsAt)}`, detail: 'You can use every feature until then.' }
+  if (billing.plan === 'PAID' && billing.cancelAtPeriodEnd) return { label: 'Cancelling', dot: 'is-wait', title: `Ends ${formatDate(billing.currentPeriodEndsAt)}`, detail: 'Your subscription is cancelled. You keep access until then.' }
+  if (billing.plan === 'PAID') return { label: 'Active', dot: 'is-done', title: `Renews ${formatDate(billing.currentPeriodEndsAt)}`, detail: 'Your subscription is active.' }
+  return { label: 'Ended', dot: 'is-action', title: 'Your free trial has ended', detail: 'Your saved jobs, library and resumes are still here. AI features are paused.' }
 }
 
 /** After Checkout, refetch the plan every few seconds (bounded) until the webhook makes it Paid. */
@@ -88,30 +89,33 @@ export function BillingPage() {
       {error && <ErrorAlert title="Couldn't load your plan" messages={[requestErrorMessage(error, error.message)]} />}
       {loading && !data && <p className="text-muted-foreground">Loading your plan…</p>}
       {summary && (
-        <section aria-labelledby="current-plan-title" className="security-password-section">
-          <h2 id="current-plan-title" className="mb-2 text-xl font-semibold tracking-tight">Current plan</h2>
-          <p className="flex items-center gap-2 text-lg font-medium">
-            {plan === 'ENDED' && <span className="signal-dot is-action" aria-hidden="true" />}
-            {summary.title}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">{summary.detail}</p>
+        <section aria-labelledby="current-plan-title" className="billing-plan">
+          <h2 id="current-plan-title" className="billing-plan-label">
+            <span className={`signal-dot ${summary.dot}`} aria-hidden="true" />
+            Current plan · {summary.label}
+          </h2>
+          <p className="billing-plan-title">{summary.title}</p>
+          <p className="billing-plan-detail">{summary.detail}</p>
           {waiting && (
-            <p role="status" className="mt-4 flex items-start gap-2 text-sm">
+            <p role="status" className="billing-plan-status">
               <span className={`signal-dot mt-1 ${gaveUp ? 'is-action' : 'is-wait'}`} aria-hidden="true" />
               {gaveUp ? 'Your payment is taking longer than usual to show up. Refresh this page in a minute.' : 'Payment received — updating your plan…'}
             </p>
           )}
           {(plan === 'TRIAL' || plan === 'ENDED') && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Button onClick={upgrade} disabled={starting || waiting}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
-              {priceLabel && <span className="text-sm text-muted-foreground">{priceLabel}</span>}
+            <div className="billing-plan-action">
+              <Button size="lg" onClick={upgrade} disabled={starting || waiting}>{starting ? 'Opening checkout…' : 'Upgrade'}</Button>
+              {priceLabel && <span className="billing-plan-price">{priceLabel}</span>}
             </div>
           )}
           <ErrorAlert title="Couldn't open checkout" messages={checkoutErrors} />
           {data?.me.billing.canManageBilling && (
-            <div className="mt-6 border-t pt-6">
+            <div className="billing-manage">
+              <div>
+                <p className="billing-manage-title">Card and invoices</p>
+                <p className="billing-manage-detail">Update your card, see invoices or cancel.</p>
+              </div>
               <Button variant="outline" onClick={manageBilling} disabled={openingPortal}>{openingPortal ? 'Opening billing…' : 'Manage billing'}</Button>
-              <p className="mt-2 text-sm text-muted-foreground">Update your card, see invoices or cancel.</p>
               <ErrorAlert title="Couldn't open billing" messages={portalErrors} />
             </div>
           )}

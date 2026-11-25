@@ -5,7 +5,7 @@
 # `config.x.billing_gateway` at an in-memory fake, so specs never call Stripe.
 # Every adapter answers: configured? (secret key set), checkout_configured? (also the price id), create_customer, create_checkout_session,
 # create_portal_session, retrieve_subscription, live_subscription_ids, cancel_subscription_now,
-# cancel_customer_subscriptions, expire_open_checkout_sessions, refund_subscription_payments, retrieve_price, construct_event.
+# cancel_customer_subscriptions, retrieve_price, construct_event.
 # Index:
 #   - Subscription: a subscription's current state (status, period end, cancel flag, user id and source marker from metadata)
 #   - Price: the plan price (amount in the currency's smallest unit, ISO currency, billing interval)

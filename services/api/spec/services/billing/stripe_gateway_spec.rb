@@ -110,43 +110,6 @@ RSpec.describe Billing::StripeGateway do
       expect(described_class.new.live_subscription_ids("cus_1")).to eq(%w[sub_active sub_past_due])
     end
 
-    # A listing double whose auto_paging_each yields the given items.
-    def listing_of(items)
-      listing = double(auto_paging_each: nil)
-      allow(listing).to receive(:auto_paging_each) { |&block| items.each(&block) }
-      listing
-    end
-
-    it "expires a customer's open Checkout sessions, skipping one that closed meanwhile" do
-      sessions = double("sessions", list: listing_of(%w[cs_done cs_open].map { |id| Stripe::Checkout::Session.construct_from(id: id) }))
-      allow(client).to receive_message_chain(:v1, :checkout, :sessions).and_return(sessions)
-      allow(sessions).to receive(:expire).with("cs_done").and_raise(Stripe::InvalidRequestError.new("Session is not open", "session"))
-      expect(sessions).to receive(:expire).with("cs_open")
-
-      expect(described_class.new.expire_open_checkout_sessions("cus_1")).to be_nil
-      expect(sessions).to have_received(:list).with({ customer: "cus_1", status: "open" })
-    end
-
-    it "refunds each paid payment of a subscription with an idempotency key, skipping one already refunded" do
-      invoices = listing_of([ Stripe::Invoice.construct_from(id: "in_1") ])
-      allow(client).to receive_message_chain(:v1, :invoices, :list).with({ subscription: "sub_dup", status: "paid" }).and_return(invoices)
-      payments = %w[pi_refunded pi_new].map { |pi| Stripe::InvoicePayment.construct_from(id: "inpay_#{pi}", payment: { type: "payment_intent", payment_intent: pi }) }
-      allow(client).to receive_message_chain(:v1, :invoice_payments, :list).with({ invoice: "in_1", status: "paid" }).and_return(listing_of(payments))
-      refunds = double("refunds")
-      allow(client).to receive_message_chain(:v1, :refunds).and_return(refunds)
-      allow(refunds).to receive(:create).with({ payment_intent: "pi_refunded" }, anything)
-        .and_raise(Stripe::InvalidRequestError.new("Charge has already been refunded", nil, code: "charge_already_refunded"))
-      expect(refunds).to receive(:create).with({ payment_intent: "pi_new" }, { idempotency_key: "careerdrafter-refund-pi_new" })
-
-      expect(described_class.new.refund_subscription_payments("sub_dup")).to be_nil
-    end
-
-    it "raises Unavailable when a refund fails for another reason" do
-      allow(client).to receive_message_chain(:v1, :invoices, :list).and_raise(Stripe::APIConnectionError.new("down"))
-
-      expect { described_class.new.refund_subscription_payments("sub_dup") }.to raise_error(Billing::Gateway::Unavailable)
-    end
-
     it "translates errors from cancelling a subscription too" do
       allow(client).to receive_message_chain(:v1, :subscriptions, :cancel).and_raise(Stripe::APIConnectionError.new("down"))
 

@@ -9,8 +9,7 @@
 #   - .checkout_error, .portal_error, .cancel_error: set to a Billing::Gateway error to make that call raise it
 #   - .subscriptions: id => Billing::Gateway::Subscription you want retrieve_subscription to return
 #   - .later_states: id => states that replace .subscriptions[id] one per retrieve (after that call returns)
-#   - .customers_created, .checkout_sessions, .canceled, .refunded, .expired_checkouts: what the code under test asked for
-#   - .refund_error, .expire_error: set to a Billing::Gateway error to make that call raise it
+#   - .customers_created, .checkout_sessions, .canceled: what the code under test asked for
 #   - .customer_call_depths: open database transaction count at each create_customer call (to prove no lock is held)
 #   - .on_create_customer: a block run inside create_customer, to simulate another request winning a race
 #   - VALID_SIGNATURE: the only signature construct_event accepts
@@ -19,9 +18,8 @@ class FakeStripeGateway
   VALID_SIGNATURE = "fake-valid-signature"
 
   class << self
-    attr_accessor :configured, :checkout_configured, :checkout_error, :price, :price_error, :portal_error, :cancel_error, :refund_error, :expire_error, :on_create_customer
-    attr_reader :subscriptions, :later_states, :customers_created, :customer_call_depths, :checkout_sessions, :portal_sessions, :canceled,
-      :refunded, :expired_checkouts
+    attr_accessor :configured, :checkout_configured, :checkout_error, :price, :price_error, :portal_error, :cancel_error, :on_create_customer
+    attr_reader :subscriptions, :later_states, :customers_created, :customer_call_depths, :checkout_sessions, :portal_sessions, :canceled
 
     def reset!
       @configured = true
@@ -29,8 +27,6 @@ class FakeStripeGateway
       @checkout_error = nil
       @portal_error = nil
       @cancel_error = nil
-      @refund_error = nil
-      @expire_error = nil
       @price = Billing::Gateway::Price.new(unit_amount: 1200, currency: "usd", interval: "month")
       @price_error = nil
       @subscriptions = {}
@@ -41,8 +37,6 @@ class FakeStripeGateway
       @checkout_sessions = []
       @portal_sessions = []
       @canceled = []
-      @refunded = []
-      @expired_checkouts = []
     end
 
     # A webhook body shaped like Stripe's for the event types the app handles.
@@ -86,18 +80,6 @@ class FakeStripeGateway
   def cancel_subscription_now(subscription_id)
     raise self.class.cancel_error if self.class.cancel_error
     self.class.canceled << subscription_id
-    nil
-  end
-
-  def refund_subscription_payments(subscription_id)
-    raise self.class.refund_error if self.class.refund_error
-    self.class.refunded << subscription_id
-    nil
-  end
-
-  def expire_open_checkout_sessions(customer_id)
-    raise self.class.expire_error if self.class.expire_error
-    self.class.expired_checkouts << customer_id
     nil
   end
 

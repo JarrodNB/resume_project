@@ -173,7 +173,7 @@ Unanswered replacements keep no copy. Deleting a set deletes its retired copies 
 set of chosen types, shows pending or failed generation, and groups active questions in type tabs with
 progress derived from saved state: not answered, no feedback yet, getting feedback, feedback ready,
 or out of date. Type tabs and question/answer/cue search run in the browser; rows expand an inline answer editor. Answers from
-replaced questions sit in a collapsed read-only section. Generation batches stay a backend detail.
+replaced questions sit in a collapsed read-only section. Generation batches stay a backend detail: only live generation status, failures, and dismissal appear, without batch headings or cards. Empty sets without unfinished work stay hidden.
 
 Practice rehearses active questions with nonblank saved answers from the bank's current
 question/answer/memory-anchor search. It starts with the bank type and allows multiple types
@@ -182,15 +182,14 @@ shows one question and optional saved cue, and renders its answer only after Rev
 hides the answer, stops at the ends, and focuses the new question; Left/Right arrows work within
 rehearsal outside editable fields and modified shortcuts. Shuffle creates a complete permutation;
 another shuffled pass can start only after reaching the end. Return restores the bank type, search and
-focus; Edit answer opens the existing editor. Rehearsal is local UI state with no model calls,
+focus; Edit answer returns to the bank and opens that question inline in its type tab. Rehearsal is local UI state with no model calls,
 saved sessions, scores, or progress mutations. Empty selections explain how to save answers or
 change filters.
 
-`/practice/questions/:id/:questionId?` works one question at a time. Without a question id it
-pins the first unanswered question (or the first) in the URL, so saving never moves the open
-question. The set's five questions form a linked stop line. All cards stay mounted and only the
-open one shows, so drafts and task subscriptions survive moving between questions; only leaving
-the set warns about unsaved answers. Persisted `latestTask` fields restore subscriptions on reload.
+Old `/practice/questions/:id/:questionId?` and `/interview-prep/:id?` URLs redirect to the
+bank; there is no individual question page. The bank opens one editor at a time and asks
+before discarding unsaved answers or memory anchors when changing selection or leaving.
+Persisted `latestTask` fields restore subscriptions in the inline editor on reload.
 Get feedback sends the typed answer (the server saves it first), so there is no separate save step;
 it stays disabled once feedback matches the current text, including formatting-only edits. Cards
 show outdated feedback for substantive unsaved changes too and keep replacement locked until the

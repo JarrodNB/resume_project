@@ -2,7 +2,6 @@
  * Answers enter the page only when revealed. Returning leaves the bank search intact.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router'
 import { MultiSelect } from '@/components/MultiSelect'
 import { Button } from '@/components/ui/button'
 import type { InterviewQuestionBankQuery, InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
@@ -11,7 +10,7 @@ import { QUESTION_TYPES, interviewSetTypeLabel } from './interviewSetTypeLabel'
 
 type BankQuestion = InterviewQuestionBankQuery['interviewQuestions'][number]
 
-export function QuestionRehearsal({ questions, initialType, onReturn }: { questions: BankQuestion[]; initialType: InterviewQuestionSetTypeEnum; onReturn: () => void }) {
+export function QuestionRehearsal({ questions, initialType, onReturn, onEdit }: { questions: BankQuestion[]; initialType: InterviewQuestionSetTypeEnum; onReturn: () => void; onEdit: (question: BankQuestion) => void }) {
   const [setTypes, setSetTypes] = useState([initialType])
   const selected = questions.filter((question) => setTypes.includes(question.questionSet.setType))
   const [order, setOrder] = useState(selected)
@@ -77,7 +76,7 @@ export function QuestionRehearsal({ questions, initialType, onReturn }: { questi
       <Button variant="outline" disabled={index === 0} onClick={() => move(index - 1)}>Previous</Button>
       <Button variant="outline" disabled={index === order.length - 1} onClick={() => move(index + 1)}>Next</Button>
       <Button variant="outline" disabled={shuffled && index < order.length - 1} onClick={shuffle}>Shuffle</Button>
-      <Button variant="outline" asChild><Link to={`/practice/questions/${question.questionSet.id}/${question.id}`}>Edit answer</Link></Button>
+      <Button variant="outline" onClick={() => onEdit(question)}>Edit answer</Button>
     </div>
     {shuffled && index < order.length - 1 && <p className="text-sm text-muted-foreground">Finish this pass to shuffle again.</p>}
     </>}

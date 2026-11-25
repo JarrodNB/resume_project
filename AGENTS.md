@@ -23,7 +23,7 @@ Careerdrafter is in production (careerdrafter.app, live since 2026-11-20).
   make it allowed, and a force push to undo it is refused. If you are on `develop` or `master`
   when asked to commit, first create a branch (`git switch -c claude/<topic>` or `codex/<topic>`),
   commit there, push that branch and open a PR into `develop`. "Push" means push the feature
-  branch. `.claude/hooks/protect-branches.sh` blocks these commands for Claude Code.
+  branch.
 - **No feature switches.** Do not add environment variables that turn a feature on or off.
   Features are always on. Environment variables are for real configuration: keys, secrets,
   addresses and limits.

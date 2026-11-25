@@ -18,6 +18,12 @@ Careerdrafter is in production (careerdrafter.app, live since 2026-11-20).
 - Both branches are protected: a PR is required, with no force pushes or deletions. Never commit
   or PR to `master` directly, even for a production fix. Fix it on a branch from `develop` and
   release it, or the branches drift apart and PRs start to conflict.
+- **Never commit on, or push to, `develop` or `master`, even when asked to "commit" or "push".**
+  Admin accounts can bypass the PR requirement, so GitHub may accept a direct push; that does not
+  make it allowed, and a force push to undo it is refused. If you are on `develop` or `master`
+  when asked to commit, first create a branch (`git switch -c claude/<topic>` or `codex/<topic>`),
+  commit there, push that branch and open a PR into `develop`. "Push" means push the feature
+  branch. `.claude/hooks/protect-branches.sh` blocks these commands for Claude Code.
 - **No feature switches.** Do not add environment variables that turn a feature on or off.
   Features are always on. Environment variables are for real configuration: keys, secrets,
   addresses and limits.

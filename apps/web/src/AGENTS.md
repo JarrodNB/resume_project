@@ -15,6 +15,7 @@ Source of the web app, organized by feature.
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
 - `features/account/` — data export download and password-confirmed account deletion on `/account/security`, plus `/account-deleted`
+- `features/billing/` — `/account/billing` Plan & billing page (plan and dates only); `MutationErrorAlert` (an `ErrorAlert` plus the `PlanBillingLink` when a mutation returns `errorCode: PLAN_ENDED`) is what AI-start screens use; `components/` has no billing knowledge
 - `features/legal/` — public `/privacy` and `/terms`; retention numbers in `legalDetails.ts` must match Rails
 - `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?` (`/chat` reopens the most recent chat); generation and streaming use separate execution state; assistant replies render as Markdown (`ChatMarkdown`)
 - `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in
@@ -35,7 +36,7 @@ Source of the web app, organized by feature.
   (`/jobs/:id/resume/write`): generate and review a complete draft, then edit the saved resume,
   with an actual-size PDF preview
 - `features/interview-prep/` — written practice at `/practice/questions`: a unified question bank, generation, live status,
-  individual question practice, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and dismissal of unfinished requests
+  inline question practice, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and dismissal of unfinished requests
 - `features/interviews/` — real spoken interviews at `/practice/interviews`, two-step setup there (step 1 `InterviewRoleStep`: a practice role, or a non-rejected saved job that continues to that job's Interview tab `/jobs/:id/interview`; step 2 round setup for the practice role; "Practice again" skips to step 2), focus mode while an interview is active (`useFocusMode`), browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
   resume import, jobs, gap analysis, resume tailoring, and interview prep

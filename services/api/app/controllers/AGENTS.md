@@ -14,6 +14,8 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
   only password fields, no auto-login or account edit
 - `auth/accounts_controller.rb` — `DELETE /auth/account`: password-confirmed permanent deletion
   (`Accounts::DeleteAccountService`), then sign-out. The data export is the `accountExport` GraphQL query
+- `billing/stripe_webhooks_controller.rb` — public `POST /billing/stripe/webhook`; inherits `ActionController::API`,
+  trusts only the Stripe signature on the raw body, and queues `Billing::SyncSubscriptionJob` by subscription id.
 
 ## Local Rules
 

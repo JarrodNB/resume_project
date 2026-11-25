@@ -8,51 +8,55 @@ Shared controls for provider calls, user text, telemetry, and spending. Attempt-
 
 LLM calls cost money, so each user has limits, checked by `AiUsage::CheckAiTaskAllowanceService`
 before a task is queued (under a lock on the user row, so concurrent requests can't both pass).
-General AI limits exclude spoken interview preparation, turns and speech:
+The check runs these in order and fails with the first one that applies:
 
-- **Monthly budget** (fallback $3.00, `AI_MONTHLY_BUDGET_USD`): known general AI task costs plus
-  background embedding request costs created this calendar month (UTC). The worker estimates each request's cost from its
-  token usage and a per-model price table (`services/ai/llm/model_prices.py`) and reports it
-  with attempt reports, including unsuccessful attempts. Missing provider usage or prices
-  makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
-- **Tasks per hour** (fallback 40, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
-- **Tasks in flight** (fallback 3, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
-  minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
+1. **Plan.** `Billing::ResolvePlanService` reads Rails data only (the user's `trial_ends_at` and
+   `billing_subscriptions` row) and returns `trial`, `paid` or `ended`. A trial lasts 7 days from email
+   verification. Paid means a subscription status of `active` or `past_due`. When the plan has
+   `ended`, AI work is refused with `PLAN_ENDED_MESSAGE` ("Your free trial has ended. Subscribe to keep
+   using AI features.") and the result code `plan_ended`. Mutation payloads expose it as
+   `errorCode: PLAN_ENDED`, and the web app shows a subscribe prompt from that code, not from the text.
+   Operations that were already queued record the failure code `plan_ended` the same way; every other refusal records `ai_usage_limit_reached`.
+2. **Daily spend cap.** One hidden cap per user per UTC day, shared by general AI and spoken
+   interviews: trial `TRIAL_DAILY_AI_SPEND_CAP_USD` (fallback $0.25), paid `PAID_DAILY_AI_SPEND_CAP_USD`
+   (fallback $2.00). `AiUsage::DailySpend` adds the user's known task costs (general AI and every
+   spoken interview stage) and background embedding receipts created today. The worker estimates each
+   request's cost from its token usage and a per-model price table (`services/ai/llm/model_prices.py`)
+   and reports it with attempt reports, including unsuccessful attempts. Missing provider usage or prices
+   makes accounting incomplete; unknown costs do not block tasks below the cap. When the cap is
+   reached the message is exactly "You've reached today's usage limit. Try again tomorrow."
+   Upgrading mid-day applies the paid cap against spend so far.
+3. **Site-wide daily budget** (trial users only; see below).
+4. **Tasks per hour** (fallback 40, `AI_TASKS_PER_HOUR`): general tasks created in the last rolling hour.
+5. **Tasks in flight** (fallback 3, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
+   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
-For the first 7 days after verifying email, an account has lower budgets and hourly starts so a
-batch of fake accounts costs less (`AiUsage::NewAccountLimits`, `NEW_ACCOUNT_*`, fallback $1.00
-general, $1.00 interview, 25 tasks/hour, 3 interview sessions/hour). These never raise a default.
+`users.daily_ai_spend_cap_microdollars` is an operator override set from the Rails console. It wins
+over the plan's cap size. It never grants AI access: an ended plan is always refused, override or not.
+Plans, the trial and Stripe are covered in [billing](billing.md).
 
-Nullable columns on `users` override each general AI default. The existing API `.env.example`
-explicitly configures $2/month, 40 tasks/hour and two in-flight tasks; those example values
-are overrides of the fallback defaults above. The existing `me { aiUsage }` query exposes
-combined known monthly spend across general AI and every spoken interview stage, with the
-sum of both monthly allowances as its budget. Admission checks explicitly select their own
-general or interview allowance; combined reporting does not merge those limits.
-The API also exposes `incompleteAttempts` and `accountingComplete`, so consumers can distinguish
-known subtotals from complete recorded usage. No spend display or usage subscription is added.
-See [cost accounting and verified receipt reconciliation](ai-cost-accounting.md).
-
-Spoken interviews have an independent per-user allowance: $3/month
-(`INTERVIEW_MONTHLY_BUDGET_USD`), 10 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
-three concurrent operations (`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`). General tasks and general
-per-user overrides do not consume or change those allowances. Written interview question
-practice remains general AI. Every spoken stage still has its own durable cost and unknown
+**Caps and spend are never shown to users.** No GraphQL field exposes them, and no refusal message
+contains an amount. Hourly and in-flight limits use the environment defaults only. Spoken
+interviews have their own start and in-flight limits (`INTERVIEW_SESSIONS_PER_HOUR`, fallback 10, and
+`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`, fallback 3) but share the daily spend cap above. Written interview
+question practice remains general AI. Every spoken stage still has its own durable cost and unknown
 usage records; only its session's hourly admission is shared. Legacy fixture operations also
-use the interview bucket, retaining their existing individual hourly admissions. See
-[spoken session accounting](interview-sessions.md#http-execution-accounting). The retained
+use the interview limits, retaining their existing individual hourly admissions. See
+[spoken session accounting](interview-sessions.md#http-execution-accounting) and
+[cost accounting and verified receipt reconciliation](ai-cost-accounting.md). The retained
 paid verification database has an additional global allowance/unknown-receipt stop independent
-of both per-user buckets; separating allowances does not clear that stop.
+of the per-user limits.
 
 The real browser-QA overlay opts into `INTERVIEW_LOCAL_TESTING_UNMETERED=true`. Only
-development honors this mode: spoken-interview monthly/hourly and verification spend/unknown
+development honors this mode: spoken-interview plan, daily-cap and hourly and verification spend/unknown
 gates are skipped, while cost records, concurrency, execution limits and all general AI
 admission stay intact. It does not forgive, erase or assign zero to unknown costs.
 
-One limit sits above every user: the **site-wide daily budget** (fallback $5.00,
-`AI_SITE_DAILY_BUDGET_USD`; 0 stops all new AI work). `AiUsage::SiteDailySpend` adds known general AI, spoken interview and
-embedding costs from rows created this UTC day, across all users. Once the total reaches the
-budget, the allowance check refuses general AI and spoken interview work, including the next
+One limit sits above the trial users: the **site-wide daily budget** (fallback $5.00,
+`AI_SITE_DAILY_BUDGET_USD`; 0 stops all new trial AI work). `AiUsage::SiteDailySpend` adds known general AI, spoken interview and
+embedding costs from rows created this UTC day, across all users except those with a paid subscription:
+paid users' spend does not count toward the total and paid users are never refused by it. Once the total reaches the
+budget, the allowance check refuses general AI and spoken interview work for trial users, including the next
 step of an interview already running, until midnight UTC. Embedding jobs count toward the total
 because they are billed, but they are not refused: they have no admission step and nobody waits
 on them. The check runs under the user row lock, so the total is cached for 30 seconds and read
@@ -170,7 +174,7 @@ requests get a JSON 429 with `Retry-After`.
   characters. Those failures tell the user the text is too long. They are not reported as
   unsafe, and rows are not silently truncated. A request body over 8 MB is a
   JSON 413. Provider screening usage is reported under its actual model and counts
-  toward the monthly budget, including completed responses before later failures and validation
+  toward the daily spend cap, including completed responses before later failures and validation
   retries. Missing usage stays explicitly unknown. JEV token rates are TypeSafe's published
   $0.042 per 1M input tokens (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
 
@@ -192,8 +196,8 @@ requests get a JSON 429 with `Retry-After`.
   is the only writer and returns the total change for the caller to apply.
   Under the task lock, final reports add known totals once, including retries and late or
   out-of-order reports. Finished tasks keep their outcome. Legacy messages without an
-  attempt identity assign totals only when their outcome can still apply. Monthly totals still use
-  tasks created in the UTC calendar month; unknown costs flag incomplete accounting and do
+  attempt identity assign totals only when their outcome can still apply. Daily totals use
+  the UTC day; unknown costs flag incomplete accounting and do
   not independently block work. The existing hourly and in-flight caps remain in place.
   Deploy the Rails migration/consumer before the new worker message format. This accounting
   covers queued AI tasks and their query embeddings. Independent Rails career-library/interview

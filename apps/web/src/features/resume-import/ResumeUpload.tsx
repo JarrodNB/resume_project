@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { ResumeDropzone } from './ResumeDropzone'
 import { useParseResume } from './useParseResume'
@@ -9,7 +10,7 @@ import { useParseResume } from './useParseResume'
 /** Uploads the chosen resume and moves to its task page, where parsing progress shows live. */
 export function ResumeUpload() {
   const navigate = useNavigate()
-  const { parseResume, uploading, errors } = useParseResume()
+  const { parseResume, uploading, errors, errorCode } = useParseResume()
   const [loadingSample, setLoadingSample] = useState(false)
   const [sampleError, setSampleError] = useState<string | null>(null)
 
@@ -35,7 +36,7 @@ export function ResumeUpload() {
 
   return (
     <div className="grid w-full gap-4">
-      <ErrorAlert messages={errors} title="Upload failed" />
+      <MutationErrorAlert errors={errors} errorCode={errorCode} title="Upload failed" />
       {sampleError && <ErrorAlert messages={[sampleError]} title="Sample unavailable" />}
       <ResumeDropzone onFileSelected={handleFileSelected} busy={uploading || loadingSample} />
       {import.meta.env.DEV && <Button className="h-auto min-h-9 max-w-full justify-self-start whitespace-normal text-left" disabled={uploading || loadingSample} onClick={() => void handleLoadSample()} variant="outline">

@@ -252,10 +252,11 @@ User chose: estimated USD cost, monthly budget, DB-based AI task limits + Rack::
 global ENV defaults with per-user override columns. Details: docs/architecture.md "Usage Limits".
   - Worker reports `usage` [{model, tokens, cost_microdollars}] on results
     (worker/model_prices.py; add a price for every new model or a test fails).
-  - Rails stores it on ai_tasks; AiUsage::CheckAiTaskAllowanceService (monthly budget $2,
-    10 tasks/hour, 2 in flight) runs in EnqueueAiTaskService under a user row lock, and early
-    in StartResumeParsingService so rejected uploads aren't stored.
-  - me { aiUsage { spentThisMonthUsd monthlyBudgetUsd resetsAt } } (no UI yet).
+  - Rails stores it on ai_tasks; AiUsage::CheckAiTaskAllowanceService runs in EnqueueAiTaskService
+    under a user row lock, and early in StartResumeParsingService so rejected uploads aren't stored.
+    Since subscriptions it checks the plan (trial / paid / ended) and a hidden daily spend cap
+    instead of a monthly budget; see docs/architecture/billing.md.
+  - The old me { aiUsage } query is gone: spend and caps are never shown to users.
   - Rack::Attack: sign-in 5/20s per IP + 10/10min per email, sign-up 5/hour per IP,
     GraphQL 120/min per user + 300/min per IP; JSON 429. Web shows a friendly 429 message.
   - Gap: usage of crashed/timed-out runs isn't reported (bounded by the hourly/in-flight caps).

@@ -128,7 +128,8 @@ RSpec.describe "Interview question clarification" do
     interview.operations.create!(kind: "preparation").tap do |operation|
       operation.update!(ai_task: interview.user.ai_tasks.create!(task_type: "interview_preparation", status: "completed", subject: interview, input: { operation_id: operation.id }))
     end
-    interview.user.update!(monthly_ai_budget_microdollars: 0)
+    stub_const("DEFAULT_AI_TASKS_PER_HOUR", 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1)
     clarification = request_clarification
     root = interview.operations.preparation.first.ai_task
@@ -143,9 +144,9 @@ RSpec.describe "Interview question clarification" do
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 0)
     expect(Interviews::CurrentPromptWork::Clarification.new.request(interview: interview, message_id: prompt.id)).not_to be_success
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 10)
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 0)
     expect(Interviews::CurrentPromptWork::Clarification.new.request(interview: interview, message_id: prompt.id)).not_to be_success
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 1_000_000)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 1_000_000)
     stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 0)
     expect(Interviews::CurrentPromptWork::Clarification.new.request(interview: interview, message_id: prompt.id)).not_to be_success
     expect(interview.clarifications.reload).to be_empty

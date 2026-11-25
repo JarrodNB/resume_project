@@ -37,7 +37,7 @@ RSpec.describe "Saved practice answer formats" do
   end
 
   it "saves every draft and selection before feedback allowance failure" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     result = InterviewPrep::StartQuestionTaskService.call(user: user, question: question,
       task_type: "review_interview_answer", answer_text: "ignored", answer_format: "star",
       answer_drafts: { "star" => { "action" => "I planned" }, "car" => { "result" => "Alternative" } })

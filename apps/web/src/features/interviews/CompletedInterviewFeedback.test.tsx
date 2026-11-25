@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MockedProvider } from '@apollo/client/testing/react'
+import { MemoryRouter } from 'react-router'
 import { CompletedInterviewFeedback } from './CompletedInterviewFeedback'
 import { REQUEST_INTERVIEW_SESSION_FEEDBACK } from './interviewOperations'
 import type { SavedSessionFeedback } from './useInterviewSessionFeedback'
@@ -19,7 +20,7 @@ describe('CompletedInterviewFeedback', () => {
 
   it('queues only after an explicit click and displays pending status', async () => {
     const saved = { __typename: 'InterviewSessionFeedback' as const, id: 'feedback', status: 'queued', content: {}, attemptCount: 1, aiTaskId: 'task', deadline: '2099-10-28T00:00:00Z' }
-    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errors: [], feedback: saved } } }))
+    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errorCode: null, errors: [], feedback: saved } } }))
     render(<MockedProvider mocks={[{ request: { query: REQUEST_INTERVIEW_SESSION_FEEDBACK, variables: { input: { interviewId: 'session', retryFailed: false } } }, result }]}>
       <CompletedInterviewFeedback interviewId="session" saved={null} questions={[]} hasAnswers />
     </MockedProvider>)
@@ -68,7 +69,7 @@ describe('CompletedInterviewFeedback', () => {
 
   it('keeps the failed queue attempt visible and offers one explicit retry', async () => {
     const saved = { __typename: 'InterviewSessionFeedback' as const, id: 'feedback', status: 'failed', content: {}, attemptCount: 1, aiTaskId: 'task', deadline: '2099-10-28T00:00:00Z' }
-    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errors: ['Could not queue feedback. Please retry.'], feedback: saved } } }))
+    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errorCode: null, errors: ['Could not queue feedback. Please retry.'], feedback: saved } } }))
     render(<MockedProvider mocks={[{ request: { query: REQUEST_INTERVIEW_SESSION_FEEDBACK, variables: { input: { interviewId: 'session', retryFailed: false } } }, result }]}>
       <CompletedInterviewFeedback interviewId="session" saved={null} questions={[]} hasAnswers />
     </MockedProvider>)
@@ -79,9 +80,19 @@ describe('CompletedInterviewFeedback', () => {
     expect(screen.queryByRole('button', { name: 'Generate feedback' })).not.toBeInTheDocument()
   })
 
+  it('links to Plan & billing when the trial has ended', async () => {
+    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errorCode: 'PLAN_ENDED', errors: ['Your free trial has ended. Subscribe to keep using AI features.'], feedback: null } } }))
+    render(<MemoryRouter><MockedProvider mocks={[{ request: { query: REQUEST_INTERVIEW_SESSION_FEEDBACK, variables: { input: { interviewId: 'session', retryFailed: false } } }, result }]}>
+      <CompletedInterviewFeedback interviewId="session" saved={null} questions={[]} hasAnswers />
+    </MockedProvider></MemoryRouter>)
+    await userEvent.click(screen.getByRole('button', { name: 'Interview feedback' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Generate feedback' }))
+    expect(await screen.findByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+  })
+
   it('starts a new pending attempt only after an explicit retry', async () => {
     const saved: SavedSessionFeedback = { id: 'feedback', status: 'failed', content: {}, attemptCount: 1, aiTaskId: 'old', deadline: '2026-01-01T00:00:00Z' }
-    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errors: [], feedback: { __typename: 'InterviewSessionFeedback', ...saved, status: 'queued', attemptCount: 2, aiTaskId: 'new', deadline: '2099-10-28T00:00:00Z' } } } }))
+    const result = vi.fn(() => ({ data: { requestInterviewSessionFeedback: { __typename: 'RequestInterviewSessionFeedbackPayload', errorCode: null, errors: [], feedback: { __typename: 'InterviewSessionFeedback', ...saved, status: 'queued', attemptCount: 2, aiTaskId: 'new', deadline: '2099-10-28T00:00:00Z' } } } }))
     render(<MockedProvider mocks={[{ request: { query: REQUEST_INTERVIEW_SESSION_FEEDBACK, variables: { input: { interviewId: 'session', retryFailed: true } } }, result }]}>
       <CompletedInterviewFeedback interviewId="session" saved={saved} questions={[]} hasAnswers />
     </MockedProvider>)

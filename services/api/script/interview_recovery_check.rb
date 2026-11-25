@@ -70,7 +70,7 @@ phase = ENV.fetch("CHECK_PHASE")
 user = User.find_by(email: email)
 if phase == "setup"
   raise "Run identity already exists" if user
-  user = User.create!(email: email, password: SecureRandom.base64(30), confirmed_at: 30.days.ago)
+  user = User.create!(email: email, password: SecureRandom.base64(30), confirmed_at: 30.days.ago, trial_ends_at: 7.days.from_now)
   checked(Interviews::CreateFixtureService.call(user: user))
   puts "PASS setup"
   exit
@@ -165,7 +165,7 @@ when "contracts"
   # A disposable synthetic bill fills only this fake owner's interview allowance.
   # It has no provider receipts and never changes the real verification ledger/config.
   synthetic_bill = user.ai_tasks.create!(task_type: "interview_speech", status: "completed",
-    cost_microdollars: DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS, input: { synthetic_budget_fixture: true })
+    cost_microdollars: TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS, input: { synthetic_budget_fixture: true })
   begin
     denied = Interviews::ClaimOperationService.call(operation: target.operations.first)
     assert_check(!denied.success? && target.operations.first.reload.failure_code == "ai_usage_limit_reached", "Budget denial remained silently pending")

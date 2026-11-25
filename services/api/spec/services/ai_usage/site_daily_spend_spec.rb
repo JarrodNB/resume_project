@@ -29,6 +29,24 @@ RSpec.describe AiUsage::SiteDailySpend do
     expect(described_class).to be_limit_reached
   end
 
+  it "keeps paid costs excluded after cancellation and trial costs included after upgrade" do
+    subscriber = create(:billing_subscription)
+    user = subscriber.user
+    create(:ai_task, user: user, cost_microdollars: 200,
+      counts_toward_trial_budget: described_class.counts_user?(user))
+    AiEmbeddingRequest.create!(user: user, model: "text-embedding-3-small", purpose: "career_library",
+      cost_microdollars: 20, counts_toward_trial_budget: described_class.counts_user?(user))
+    subscriber.update!(status: "canceled")
+
+    expect(described_class.known_microdollars).to eq(0)
+
+    create(:ai_task, user: user, cost_microdollars: 10,
+      counts_toward_trial_budget: described_class.counts_user?(user))
+    subscriber.update!(status: "active")
+
+    expect(described_class.known_microdollars).to eq(10)
+  end
+
   context "with a real cache" do
     before { allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) }
 

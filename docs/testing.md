@@ -41,7 +41,8 @@ check that private data stays within its account. Use separate browser profiles
 for simultaneous sessions, since tabs in one profile share the session cookie.
 Use synthetic career and job information when adding data.
 
-`db:seed` only creates missing accounts in `RAILS_ENV=development`; it does nothing
+`db:seed` only creates missing accounts in `RAILS_ENV=development` (with a ten-year trial and the paid
+daily cap, so QA never hits the trial end); it does nothing
 in test or production. Rerunning it preserves existing passwords, confirmation
 state, and saved work. If a password test changes a QA password, restore the initial
 password through Account security afterward. If the password is unknown, request
@@ -65,6 +66,23 @@ suite. AI tests disable real model requests and remote tracing; only `db`-marked
 use Postgres and roll back their writes. Run the full AI suite without the marker filter
 to include those tests; database tests may skip if Postgres is unavailable. API specs
 need the Compose database. See each service's `AGENTS.md` for fixtures and local rules.
+
+## Billing in Stripe test mode
+
+Specs use an in-memory fake and never call Stripe. To try Upgrade end to end locally, use a Stripe
+account in test mode:
+
+1. In the Stripe dashboard (test mode) create a recurring monthly price and copy its `price_...` id.
+2. In `services/api/.env` set `STRIPE_SECRET_KEY` (`sk_test_...`) and `STRIPE_PRICE_ID`. Turn on Stripe Tax
+   (test mode) so automatic tax works.
+3. Start the webhook forwarder: `docker compose --profile billing up stripe-cli`. It prints a
+   `whsec_...` signing secret.
+4. Put that value in `STRIPE_WEBHOOK_SECRET` in `services/api/.env` and recreate the api and jobs
+   worker (`docker compose up -d --no-deps --force-recreate api api-jobs-worker`).
+5. Sign in, open Account > Plan & billing, click Upgrade, and pay with card `4242 4242 4242 4242`
+   (any future expiry, any CVC). The page returns to `/account/billing` and switches to Paid within a few seconds.
+
+Without the keys, Upgrade shows "Billing isn't available right now."
 
 ## Resume PDF layout checks
 

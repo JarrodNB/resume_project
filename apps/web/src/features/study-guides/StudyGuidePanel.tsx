@@ -1,6 +1,7 @@
 /** Offers one saved job-question collection with explained answers and explicit five-question generation. */
 import { useId, useRef, useState } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import type { StudyGuide } from './parseStudyGuide'
 import { useStudyGuide } from './useStudyGuide'
@@ -21,7 +22,7 @@ function StudyGuideContent({ jobId, description, onAddDescription }: { jobId: st
   const state = useStudyGuide(jobId, description)
   const hasDescription = Boolean(description?.trim())
   return <div className="grid gap-5">
-    <ErrorAlert messages={state.errors} title="Couldn't start study questions" />
+    <MutationErrorAlert errors={state.errors} errorCode={state.errorCode} title="Couldn't start study questions" />
     {state.loadError && <ErrorAlert messages={[state.loadError.message]} title="Couldn't load saved questions" />}
     {state.subscriptionError && <ErrorAlert messages={[state.subscriptionError.message]} title="Couldn't follow generation. Reload to reconnect." />}
     {state.loading && !state.questions.length && <p role="status" className="text-sm text-muted-foreground">Loading study questions…</p>}

@@ -263,7 +263,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 599px) {
   .workspace :is(input:not([type=checkbox], [type=radio], [type=range]), textarea, select) { font-size: 16px; }
 }
-.workspace { min-height: 100svh; }
+.workspace { display: flex; flex-direction: column; min-height: 100svh; }
 /* The signage band: brand, the four sections, then notifications and account. It reads like
    station signage: white type on black, with a thick white underline under the current section. */
 .signage-band { position: sticky; top: 0; z-index: 30; background: var(--band); color: var(--band-foreground); }
@@ -988,8 +988,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 
 /* Practice questions: one bank, focused answer editing, and saved-answer rehearsal. */
-.question-bank-page, .question-set-page { display: grid; gap: 28px; min-width: 0; }
-.question-set-page { max-width: 1180px; }
+.question-bank-page { display: grid; gap: 28px; min-width: 0; }
 .question-generate { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 14px 28px; padding: 20px 22px; border: 1.5px solid var(--rule-strong); border-radius: 6px; }
 .question-generate-text h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
 .question-generate-text p, .question-generate-help { margin-top: 4px; max-width: 60ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
@@ -1003,7 +1002,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .question-generate-empty { display: grid; gap: 8px; font-size: 14px; }
 .question-generate-empty a { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 .question-pending { display: grid; gap: 12px; }
-.question-pending > li { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+.question-pending > li { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px; }
+.question-pending[hidden], .question-pending > li[hidden] { display: none; }
 .question-bank { display: grid; gap: 14px; min-width: 0; }
 .question-bank-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
 .question-bank-toolbar h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
@@ -1034,8 +1034,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .retired-question[open] summary::before { transform: rotate(45deg); }
 .retired-question summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .retired-question-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 4px 4px 18px 26px; }
-.question-back-link { display: inline-flex; align-items: center; gap: 6px; justify-self: start; font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
-.question-back-link svg { width: 16px; height: 16px; }
 .question-card { display: grid; gap: 14px; min-width: 0; padding: 24px; border: 1.5px solid var(--rule-strong); border-radius: 6px; }
 .question-rehearsal { max-width: 900px; gap: 20px; }
 .question-rehearsal > [data-slot=button] { justify-self: start; }

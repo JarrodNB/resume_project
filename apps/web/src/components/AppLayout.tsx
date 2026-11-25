@@ -1,4 +1,4 @@
-/** The workspace frame: a black signage band across the top, then the page.
+/** The workspace frame: a black signage band across the top, then the page and quiet legal links.
  * The band holds the brand, the few sections (see `workspaceSections.ts`), notifications and the
  * account menu. A section with several pages shows them as tabs under the band, and detail routes
  * keep their parent tab selected. On small screens the sections drop to a second band row that
@@ -90,6 +90,17 @@ export function AppLayout() {
           <FocusModeContext value={setFocused}><Outlet /></FocusModeContext>
         </main>
       </div>
+      {!focused && (
+        <footer className="mt-auto border-t px-4 py-4 text-sm text-muted-foreground sm:px-6 lg:px-12">
+          <div className="mx-auto flex max-w-[1344px] flex-wrap items-center justify-between gap-x-8 gap-y-2">
+            <span>{PRODUCT_NAME}</span>
+            <nav aria-label="Legal" className="flex gap-6">
+              <Link to="/privacy" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">Privacy</Link>
+              <Link to="/terms" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">Terms</Link>
+            </nav>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

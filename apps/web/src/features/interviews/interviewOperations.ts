@@ -19,7 +19,7 @@ export const INTERVIEW_UPDATED = graphql(`
   subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }
 `)
 export const START_INTERVIEW = graphql(`
-  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId}) { interview { ...InterviewSnapshot } errors } }
+  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId}) { interview { ...InterviewSnapshot } errors errorCode } }
 `)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {
@@ -38,7 +38,7 @@ export const SUBMIT_TURN = graphql(`
 `)
 export const RETRY_OPERATION = graphql(`
   mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {
-    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }
+    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 export const INTERVIEW_PLAYBACK = graphql(`
@@ -67,7 +67,7 @@ export const RECENT_INTERVIEWS = graphql(`
 
 export const START_RECORDED_TRANSCRIPTION = graphql(`
   mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {
-    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }
+    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 export const CANCEL_RECORDED_TRANSCRIPTION = graphql(`
@@ -80,6 +80,7 @@ export const REQUEST_INTERVIEW_CLARIFICATION = graphql(`
     requestInterviewClarification(input: $input) {
       clarification { id status explanation attemptCount aiTaskId deadline }
       errors
+      errorCode
     }
   }
 `)
@@ -91,7 +92,7 @@ export const SKIP_QUESTION = graphql(`
 
 export const AVOID_INTERVIEW_PROMPT = graphql(`
   mutation AvoidInterviewPrompt($interviewId: ID!, $messageId: ID!) {
-    avoidInterviewPrompt(input: {interviewId: $interviewId, messageId: $messageId}) { saved errors }
+    avoidInterviewPrompt(input: {interviewId: $interviewId, messageId: $messageId}) { saved errors errorCode }
   }
 `)
 
@@ -100,6 +101,7 @@ export const REQUEST_INTERVIEW_REFERENCES = graphql(`
     requestInterviewReferences(input: $input) {
       careerReferences { id status canRetry attemptCount aiTaskId deadline references { sourceType sourceId title body } }
       errors
+      errorCode
     }
   }
 `)
@@ -109,6 +111,7 @@ export const REQUEST_INTERVIEW_SESSION_FEEDBACK = graphql(`
     requestInterviewSessionFeedback(input: $input) {
       feedback { id status content attemptCount aiTaskId deadline }
       errors
+      errorCode
     }
   }
 `)

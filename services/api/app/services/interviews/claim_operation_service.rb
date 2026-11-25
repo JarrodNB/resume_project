@@ -47,11 +47,11 @@ module Interviews
         next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
         allowance = CheckOperationAllowanceService.call(operation: @operation, create_task: true)
         unless allowance.success?
-          reject_allowance(expiry: expiry)
+          reject_allowance(expiry: expiry, allowance: allowance)
           next allowance
         end
         unless @operation.ai_task
-          @operation.ai_task = interview.user.ai_tasks.create!(task_type: "interview_#{@operation.kind}", subject: interview,
+          @operation.ai_task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: "interview_#{@operation.kind}", subject: interview,
             input: { operation_id: @operation.id })
         end
         attempt_id = SecureRandom.uuid

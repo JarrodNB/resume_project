@@ -19,7 +19,7 @@ function renderClarification(record: Saved | null = null, mocks: MockLink.Mocked
 }
 function requestMock(retryFailed = false, attemptCount = 1) {
   return { request: { query: REQUEST_INTERVIEW_CLARIFICATION, variables: { input: { interviewId: 'interview', messageId: 'follow-up', retryFailed } } },
-    result: { data: { requestInterviewClarification: { __typename: 'RequestInterviewClarificationPayload', clarification: { ...saved, attemptCount, aiTaskId: attemptCount === 2 ? 'task-2' : 'task' }, errors: [] } } } }
+    result: { data: { requestInterviewClarification: { __typename: 'RequestInterviewClarificationPayload', errorCode: null, clarification: { ...saved, attemptCount, aiTaskId: attemptCount === 2 ? 'task-2' : 'task' }, errors: [] } } } }
 }
 function taskMock(status = 'COMPLETED', id = 'task') {
   return { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id } }, result: { data: { aiTaskUpdated: {
@@ -32,7 +32,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 it('keeps clarification feedback outside the controls with a stable trigger and Escape dismissal', async () => {
   const failure = 'Question clarification is not configured'
   const mock = requestMock()
-  renderClarification(null, [{ ...mock, result: { data: { requestInterviewClarification: { __typename: 'RequestInterviewClarificationPayload', clarification: null, errors: [failure] } } } }])
+  renderClarification(null, [{ ...mock, result: { data: { requestInterviewClarification: { __typename: 'RequestInterviewClarificationPayload', errorCode: null, clarification: null, errors: [failure] } } } }])
   fireEvent.click(screen.getByRole('button', { name: 'Clarify question' }))
   expect(await screen.findByText(failure)).toBeVisible()
   const panel = screen.getByRole('dialog', { name: 'Question clarification' })

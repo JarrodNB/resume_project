@@ -1,5 +1,6 @@
 /** Exercise streamed answer capture through its browser adapter with fake audio and sockets. */
 import { describe, expect, it, vi } from 'vitest'
+import { PLAN_ENDED_MESSAGE, PlanEndedError } from '@/lib/planEnded'
 import { Pcm24Encoder, startStreamingTranscription } from './streamingTranscription'
 
 describe('streaming transcription', () => {
@@ -42,6 +43,13 @@ describe('streaming transcription', () => {
     expect(setup.callbacks.fallback).toHaveBeenCalledWith(expect.stringContaining('lost its connection'))
     setup.message({ type: 'final', text: 'Late', captureId: 'capture' })
     expect(setup.callbacks.text).not.toHaveBeenCalled()
+  })
+
+  it('says the trial has ended when authorization is refused for that reason', async () => {
+    const setup = fixture()
+    setup.authorize.mockRejectedValue(new PlanEndedError())
+    startStreamingTranscription({} as MediaStream, setup.callbacks, setup.authorize, setup.dependencies)
+    await vi.waitFor(() => expect(setup.callbacks.fallback).toHaveBeenCalledWith(PLAN_ENDED_MESSAGE))
   })
 
   it('closes a malformed stream before fallback can request recorder finalization', async () => {

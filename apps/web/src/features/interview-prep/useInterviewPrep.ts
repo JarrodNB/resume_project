@@ -36,14 +36,17 @@ export function useGenerateInterviewSet() {
     awaitRefetchQueries: true,
   })
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   /** Queues generation and extracts the server-created set identity. */
   async function generate(setType: InterviewQuestionSetTypeEnum) {
     setErrors([])
+    setErrorCode(null)
     try {
       const { data } = await mutate({ variables: { setType } })
       const payload = data?.generateInterviewQuestionSet
       if (!payload || payload.errors.length) {
         setErrors(payload?.errors ?? ['Could not start interview questions.'])
+        setErrorCode(payload?.errorCode ?? null)
         return null
       }
       const input: unknown = payload.aiTask?.input
@@ -54,7 +57,7 @@ export function useGenerateInterviewSet() {
     }
     return null
   }
-  return { generate, loading, errors }
+  return { generate, loading, errors, errorCode }
 }
 
 /** Deletes an explicitly confirmed set and reports errors without hiding it. */

@@ -10,6 +10,9 @@ Rails.application.configure do
   # explicitly select the real adapter against this environment's isolated DB.
   config.active_job.queue_adapter = :test
 
+  # Specs never call Stripe: billing uses the in-memory fake from spec/support/fake_stripe_gateway.rb.
+  config.x.billing_gateway = "FakeStripeGateway"
+
   # While tests run files are not watched, reloading is not necessary.
   config.enable_reloading = false
 

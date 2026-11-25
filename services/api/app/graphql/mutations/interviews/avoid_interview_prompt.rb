@@ -8,7 +8,7 @@ module Mutations
 
       def resolve(interview_id:, message_id:)
         result = ::Interviews::AvoidPromptService.call(interview: interview(interview_id), message_id: message_id)
-        { saved: result.success?, errors: result.errors }
+        { saved: result.success? }.merge(error_fields_from(result))
       end
     end
   end

@@ -46,7 +46,7 @@ module AiTasks
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
         next allowance unless allowance.success?
 
-        ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject,
+        ai_task = @user.ai_tasks.new(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(@user), task_type: @task_type, input: @input, subject: @subject,
                                      awaiting_queue_publish: true)
         if @prepare_task
           preparation = @prepare_task.call(ai_task)

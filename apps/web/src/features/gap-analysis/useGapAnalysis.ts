@@ -20,7 +20,7 @@ function isActive(task: GapAnalysisTask | null) {
 
 /** Starts at most one request and shares its current outcome with the card and resume action. */
 export function useGapAnalysis(jobId: string, latestTask: GapAnalysisTask | null) {
-  const { startGapAnalysis, starting, errors } = useStartGapAnalysis(jobId)
+  const { startGapAnalysis, starting, errors, errorCode } = useStartGapAnalysis(jobId)
   const [startedTask, setStartedTask] = useState<{ id: string; previousTaskId: string | null } | null>(null)
   const requesting = useRef(false)
   // The local task bridges the mutation-to-cache interval. Once the job names a new
@@ -46,5 +46,5 @@ export function useGapAnalysis(jobId: string, latestTask: GapAnalysisTask | null
     }
   }
 
-  return { task, starting, errors, subscriptionError, busy, completed: task?.status === 'COMPLETED', start }
+  return { task, starting, errors, errorCode, subscriptionError, busy, completed: task?.status === 'COMPLETED', start }
 }

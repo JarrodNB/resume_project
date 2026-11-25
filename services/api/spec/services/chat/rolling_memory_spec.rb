@@ -3,7 +3,8 @@ require "rails_helper"
 require "digest"
 
 RSpec.describe "Chat rolling memory" do
-  let(:user) { create(:user, ai_tasks_per_hour_limit: 200) }
+  let(:user) { create(:user) }
+  before { stub_const("DEFAULT_AI_TASKS_PER_HOUR", 200) }
   let(:chat) { user.chat_conversations.create! }
   before { allow(AiExecutions::NudgeService).to receive(:call).and_return(ServiceResult.new(success: true, value: :accepted, errors: [])) }
 

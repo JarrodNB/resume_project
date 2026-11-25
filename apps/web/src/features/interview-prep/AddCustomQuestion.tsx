@@ -1,6 +1,5 @@
 /** Save a question brought by the candidate; no library or AI work is required. */
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -12,16 +11,20 @@ import { useCreateCustomQuestion } from './useInterviewPrep'
 
 const TYPES: InterviewQuestionSetTypeEnum[] = ['FIT_MOTIVATION', 'BEHAVIORAL', 'HYPOTHETICAL', 'TECHNICAL', 'KNOWLEDGE']
 
-export function AddCustomQuestion() {
+export function AddCustomQuestion({ onCreated }: { onCreated: (setId: string) => void }) {
   const [type, setType] = useState<InterviewQuestionSetTypeEnum>('FIT_MOTIVATION')
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const creation = useCreateCustomQuestion()
-  const navigate = useNavigate()
   return <SectionCard tone="summary" title="Add your own question" sectionId="custom-interview-question">
     <form className="grid gap-4" onSubmit={(event) => {
       event.preventDefault()
-      void creation.create(type, question, answer).then((id) => { if (id) void navigate(`/practice/questions/${id}`) })
+      void creation.create(type, question, answer).then((id) => {
+        if (!id) return
+        setQuestion('')
+        setAnswer('')
+        onCreated(id)
+      })
     }}>
       <p>Bring a question you want to practice. You can add an answer now or write it later.</p>
       <fieldset disabled={creation.loading} className="grid gap-4">

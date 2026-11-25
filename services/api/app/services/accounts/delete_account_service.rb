@@ -1,17 +1,25 @@
 # Permanently deletes a signed-in user's account and everything it owns after they confirm
-# their current password. Model callbacks do the cleanup: interview audio is handed to
+# their current password. If they have a Stripe customer, every live subscription of that customer is
+# cancelled first (right away, no refund) -- not just the one we have recorded, because a checkout can finish
+# before our records catch up. If Stripe can't do that the account is kept so they are never billed for nothing.
+# Model callbacks do the cleanup: interview audio is handed to
 # Interviews::CleanupJob for storage deletion, and uploaded resume files are purged in the
 # background. The caller signs the browser out; other browsers lose access because their
 # sessions no longer resolve to a user.
 module Accounts
   class DeleteAccountService < ApplicationService
-    def initialize(user:, current_password:)
-      @user, @current_password = user, current_password
+    CANCEL_FAILED = "We couldn't cancel your subscription, so your account wasn't deleted. Try again in a moment."
+
+    def initialize(user:, current_password:, gateway: Billing::Gateway.current)
+      @user, @current_password, @gateway = user, current_password, gateway
     end
 
     # Safe to repeat: a second request finds no account and the caller treats it as signed out.
     # @return [ServiceResult] failure with a message when the password is wrong or deletion fails
     def call
+      return failure([ "Current password is incorrect" ]) unless @user.valid_password?(@current_password)
+      return failure([ CANCEL_FAILED ]) unless cancel_live_subscription
+
       @user.with_lock do
         return failure([ "Current password is incorrect" ]) unless @user.valid_password?(@current_password)
 
@@ -21,6 +29,24 @@ module Accounts
     rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey => error
       Rails.logger.warn("Could not delete account #{@user.id}: #{error.class}")
       failure([ "We couldn't delete your account. Try again in a moment." ])
+    end
+
+    private
+
+    # True when there is nothing live to cancel or Stripe cancelled it. This runs before the user row
+    # is locked so the lock is not held during the network call. A customer Stripe no longer has counts as cancelled.
+    def cancel_live_subscription
+      customer_id = @user.billing_subscription&.stripe_customer_id
+      return true if customer_id.blank?
+      return false unless @gateway.configured?
+
+      @gateway.cancel_customer_subscriptions(customer_id)
+      true
+    rescue Billing::Gateway::NotFound
+      true
+    rescue Billing::Gateway::Unavailable => error
+      Rails.logger.error("Stripe cancel failed for user #{@user.id}: #{error.class}")
+      false
     end
   end
 end

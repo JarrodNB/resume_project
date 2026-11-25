@@ -1,15 +1,27 @@
-# Checks monthly spend, hourly starts and in-flight work within one independent allowance.
-# A site-wide daily spend limit sits above them all, so it stops general AI and interviews alike.
-# Spoken interview work never consumes general AI allowances, or the other way around.
+# Decides whether a user may start (or continue) AI work: the plan must allow AI, today's known
+# spend must be under their hidden daily cap, then hourly starts and in-flight work are checked.
+# Spend is one combined daily total across general AI and spoken interviews. A site-wide daily limit
+# applies to trial users only. Hourly and in-flight limits stay separate for general AI and interviews.
+# No message ever contains a cap or spend amount; users must not be able to tune against them.
 # Optional references have their own bounded in-flight pool so they never block answering.
 # Development-only unmetered interview testing skips spend/start gates; concurrency still bounds work.
+# A refusal for an ended plan carries `code: :plan_ended`, which mutations expose as `errorCode: PLAN_ENDED`; clients never match the message text.
 # Index:
+#   - refusal_code: the failure code to store when a refusal ends an operation
 #   - call: succeeds when the user may start a task; fails with a user-facing reason otherwise
 module AiUsage
   class CheckAiTaskAllowanceService < ApplicationService
     # Queued tasks older than this are treated as stuck, so they don't block the user forever.
     IN_FLIGHT_WINDOW = 15.minutes
+    PLAN_ENDED_MESSAGE = "Your free trial has ended. Subscribe to keep using AI features."
+    DAILY_LIMIT_MESSAGE = "You've reached today's usage limit. Try again tomorrow."
     SITE_LIMIT_MESSAGE = "AI features have reached today's limit for all of Careerdrafter. They'll be back after midnight UTC."
+
+    # Failure code to store on an operation whose allowance check was refused: a distinct code for an
+    # ended plan (the web app shows a subscribe prompt), the general limit code for everything else.
+    def self.refusal_code(result)
+      result.code == :plan_ended ? "plan_ended" : "ai_usage_limit_reached"
+    end
 
     # An already-owned logical HTTP task rechecks spend/concurrency without counting
     # itself as another hourly task or blocking its own retry as in-flight work.
@@ -22,9 +34,10 @@ module AiUsage
     # Checks each limit in turn and fails with the first one that's reached.
     def call
       unless @interview && Interviews::LocalTesting.unmetered?
-        monthly_usage = SummarizeMonthlyAiUsageService.call(user: @user, scope: @interview ? :interview : :general).value
-        return failure([ monthly_limit_message(monthly_usage) ]) if monthly_usage.exhausted?
-        return failure([ SITE_LIMIT_MESSAGE ]) if SiteDailySpend.limit_reached?
+        plan = Billing::ResolvePlanService.call(user: @user).value
+        return failure([ PLAN_ENDED_MESSAGE ], code: :plan_ended) unless plan.ai_access?
+        return failure([ DAILY_LIMIT_MESSAGE ]) if DailySpend.known_microdollars(@user) >= plan.daily_spend_cap_microdollars
+        return failure([ SITE_LIMIT_MESSAGE ]) if plan.trial? && SiteDailySpend.limit_reached?
         return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
       end
       return failure([ "You already have #{@interview ? (@reference_work ? 'career references' : 'interview operations') : 'AI tasks'} running. Wait for them to finish, then try again." ]) if in_flight_limit_reached?
@@ -37,14 +50,14 @@ module AiUsage
     # Prepared interview children share their root's hourly admission only; all other
     # tasks keep their existing count, including failures and finished work.
     def hourly_limit_reached?
-      limit = @interview ? NewAccountLimits.interview_sessions_per_hour(@user) : (@user.ai_tasks_per_hour_limit || NewAccountLimits.ai_tasks_per_hour(@user))
+      limit = @interview ? DEFAULT_INTERVIEW_SESSIONS_PER_HOUR : DEFAULT_AI_TASKS_PER_HOUR
       @tasks.hourly_admissions.where(created_at: 1.hour.ago..).count >= limit
     end
 
     # Returns true when the user has as many recently queued tasks as allowed. Tasks waiting on
     # the user's answer (needs_user_input) aren't running, so they don't count.
     def in_flight_limit_reached?
-      limit = @interview ? DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS : (@user.max_in_flight_ai_tasks || DEFAULT_MAX_IN_FLIGHT_AI_TASKS)
+      limit = @interview ? DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS : DEFAULT_MAX_IN_FLIGHT_AI_TASKS
       # Spend and hourly admission still use all spoken-interview tasks. Only resource
       # admission splits optional retrieval from operations required to continue an interview.
       pool = if @interview
@@ -63,11 +76,6 @@ module AiUsage
       tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..)
       tasks = tasks.where.not(id: @existing_task.id) if @existing_task
       tasks.count >= limit
-    end
-
-    # Builds the message shown when the monthly budget is used up.
-    def monthly_limit_message(monthly_usage)
-      "You've reached this month's #{@interview ? 'interview' : 'AI'} usage limit. It resets on #{monthly_usage.resets_at.strftime('%B %-d')}."
     end
   end
 end

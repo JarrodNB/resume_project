@@ -9,7 +9,7 @@ module Mutations
     def resolve(feature:, operation_id:)
       result = AiExecutions::AuthorizeStreamService.call(user: current_user,
         session_id: context[:browser_session_id], feature: feature, operation_id: operation_id)
-      result.success? ? result.value.merge(errors: []) : { errors: result.errors }
+      (result.success? ? result.value : {}).merge(error_fields_from(result))
     end
   end
 end

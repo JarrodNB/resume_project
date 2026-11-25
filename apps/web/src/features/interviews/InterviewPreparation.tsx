@@ -3,6 +3,7 @@
  * describe the steps but do not track them. Private career sources and executor history
  * stay on the server.
  */
+import { PlanEndedErrorLink, PlanEndedHint } from '@/features/billing/PlanBillingLink'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { difficultyOptions, focusOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
 import { AiWaitingLine } from '@/components/AiWaitingLine'
@@ -15,6 +16,7 @@ interface Props {
   interview: InterviewSnapshotFragment
   busy: boolean
   error: string | null
+  errorCode?: string | null
   disconnected: boolean
   retry: (id: string) => Promise<void>
   refresh: () => Promise<void>
@@ -38,7 +40,7 @@ function preparationCaptions(running: boolean, savedJob: boolean) {
   ]
 }
 
-export function InterviewPreparation({ interview, busy, error, disconnected, retry, refresh, begin }: Props) {
+export function InterviewPreparation({ interview, busy, error, errorCode, disconnected, retry, refresh, begin }: Props) {
   const operation = interview.operations.find((item) => item.kind === 'preparation')
   const role = roleData(interview.preparedRole)
   const job = interview.jobContext
@@ -67,10 +69,11 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
       <p className="max-w-prose text-sm">{job ? `We are setting up your interview for ${job.title} using your saved career details.` : `We are setting up a fictional role for your interview from your saved career details.`} Progress is saved; you can reload safely.</p>
       {(operation?.status === 'failed' || operation?.status === 'expired') ? <div className="grid gap-3">
         <p role="alert">Preparation unavailable: {operation.failureCode?.replaceAll('_', ' ') || 'preparation failed'}.</p>
+        <PlanEndedHint failureCode={operation.failureCode} />
         {operation.canRetry ? <Button className="justify-self-start" variant="outline" disabled={busy} onClick={() => void retry(operation.id)}>Retry preparation</Button> : <p className="text-sm">This preparation cannot be retried. Check your career details before preparing a new interview.</p>}
       </div> : <AiWaitingLine key={operation?.status === 'running' ? 'running' : 'waiting'} captions={preparationCaptions(operation?.status === 'running', Boolean(job))} statusLabel="Getting your interview ready…" captionSeconds={4} />}
     </>}
     {disconnected && <div className="grid gap-2"><p role="alert">Live updates are unavailable.</p><Button className="justify-self-start" variant="outline" disabled={busy} onClick={() => void refresh()}>Check saved status</Button></div>}
-    {error && <p role="alert" className="text-destructive">{error}</p>}
+    {error && <p role="alert" className="text-destructive">{error} <PlanEndedErrorLink errorCode={errorCode} /></p>}
   </div>
 }

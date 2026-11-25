@@ -12,13 +12,16 @@ import { PARSE_RESUME_MUTATION } from './resumeImportOperations'
 export function useParseResume() {
   const [mutate, { loading }] = useMutation(PARSE_RESUME_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
 
   async function parseResume(file: File): Promise<string | null> {
     setErrors([])
+    setErrorCode(null)
     try {
       const { data } = await mutate({ variables: { file } })
       const payload = data?.parseResume
       if (payload?.aiTask && payload.errors.length === 0) return payload.aiTask.id
+      setErrorCode(payload?.errorCode ?? null)
       setErrors(payload?.errors.length ? payload.errors : ['The upload failed. Please try again.'])
     } catch (error) {
       setErrors([requestErrorMessage(error, 'Could not upload the file. Check your connection and try again.')])
@@ -26,5 +29,5 @@ export function useParseResume() {
     return null
   }
 
-  return { parseResume, uploading: loading, errors }
+  return { parseResume, uploading: loading, errors, errorCode }
 }

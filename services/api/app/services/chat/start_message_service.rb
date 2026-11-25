@@ -18,7 +18,7 @@ module Chat
         next failure("Wait for the current reply to finish") if @conversation.operations.where(status: %w[pending running]).exists?
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: user)
         next allowance unless allowance.success?
-        task = user.ai_tasks.create!(task_type: "chat_reply", subject: @conversation, input: {})
+        task = user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(user), task_type: "chat_reply", subject: @conversation, input: {})
         operation = @conversation.operations.create!(ai_task: task, message: @message, idempotency_key: @key,
           expected_position: @conversation.messages.maximum(:position) || 0, retry_expires_at: 1.hour.from_now)
         task.update!(input: { operation_id: operation.id })

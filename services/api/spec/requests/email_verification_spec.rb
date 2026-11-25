@@ -23,6 +23,23 @@ RSpec.describe "Email verification", type: :request do
     expect(response.parsed_body["user"]).to be_nil
   end
 
+  it "starts the 7-day trial at verification, not at sign-up, and only once" do
+    post "/auth/sign_up", params: { user: credentials }, as: :json
+    user = User.find_by!(email: credentials[:email])
+    expect(user.trial_ends_at).to be_nil
+
+    token = user.confirmation_token
+    travel_to(Time.utc(2026, 11, 21, 12)) do
+      post "/auth/confirmation/verify", params: { confirmation_token: token }, as: :json
+      expect(user.reload.trial_ends_at).to eq(Time.utc(2026, 11, 28, 12))
+    end
+
+    travel_to(Time.utc(2026, 12, 5)) do
+      post "/auth/confirmation/verify", params: { confirmation_token: token }, as: :json
+      expect(user.reload.trial_ends_at).to eq(Time.utc(2026, 11, 28, 12))
+    end
+  end
+
   it "uses generic signup and resend responses without changing an existing account" do
     user = create(:user, email: credentials[:email])
     before = user.attributes

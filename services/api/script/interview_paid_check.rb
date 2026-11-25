@@ -41,7 +41,7 @@ end
 $stdout.sync = true
 ledger("before")
 raise "STOP: pre-existing unknown provider cost" if InterviewVerificationReservation.where(actual_microdollars: nil).exists?
-user = User.create!(email: "spoken-paid-#{SecureRandom.hex(6)}@example.invalid", password: SecureRandom.base64(30), confirmed_at: 30.days.ago,
+user = User.create!(email: "spoken-paid-#{SecureRandom.hex(6)}@example.invalid", password: SecureRandom.base64(30), confirmed_at: 30.days.ago, trial_ends_at: 7.days.from_now,
   summary: "I coordinate scheduling improvements and build tools for team projects.")
 interview = checked(Interviews::StartSessionService.call(user: user, execution_mode: "real"))
 puts "VERIFICATION_SESSION_ID=#{interview.id}"

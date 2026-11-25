@@ -21,7 +21,7 @@ function renderReferences(record: Saved | null = null, mocks: MockLink.MockedRes
 }
 function requestMock(retryFailed = false, attemptCount = 1) {
   return { request: { query: REQUEST_INTERVIEW_REFERENCES, variables: { input: { interviewId: 'interview', messageId: 'opening', retryFailed } } },
-    result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', careerReferences: { ...saved, attemptCount, aiTaskId: attemptCount === 2 ? 'task-2' : 'task' }, errors: [] } } } }
+    result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errorCode: null, careerReferences: { ...saved, attemptCount, aiTaskId: attemptCount === 2 ? 'task-2' : 'task' }, errors: [] } } } }
 }
 function taskMock(status = 'COMPLETED', id = 'task', references = [entry]) {
   return { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id } }, result: { data: { aiTaskUpdated: {

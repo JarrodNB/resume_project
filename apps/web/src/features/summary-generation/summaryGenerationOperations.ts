@@ -14,6 +14,8 @@ export const START_SUMMARY_GENERATION_MUTATION = graphql(`
     startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {
       aiTask { id status result errorMessage acceptedAt }
       errors
+      errorCode
+
     }
   }
 `)

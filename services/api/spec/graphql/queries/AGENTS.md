@@ -6,6 +6,7 @@ Authorized GraphQL query specs.
 
 ## Contents
 
+- `billing_spec.rb`
 - `interview_prep_spec.rb`
 - `job_pipeline_spec.rb`
 - `scoping_spec.rb`

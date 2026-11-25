@@ -40,6 +40,43 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
       expect(URI.decode_www_form(URI(request.path).query).to_h).to eq("title" => "engineer", "country_id" => "233", "extra_fields" => "description", "remote" => "true", "cursor" => "previous+/=")
     end
   end
+  describe "optional provider proxy" do
+    def with_proxy_setting(value)
+      original = ENV["CLEANJOBDATA_PROXY_URL"]
+      ENV["CLEANJOBDATA_PROXY_URL"] = value
+      yield
+    ensure
+      ENV["CLEANJOBDATA_PROXY_URL"] = original
+    end
+
+    it "connects directly when no provider proxy is configured, whatever the general proxy variables say" do
+      original = ENV["HTTPS_PROXY"]
+      ENV["HTTPS_PROXY"] = "http://general-proxy.example.test:8080"
+      with_proxy_setting(nil) { expect(search).to be_success }
+      expect(Net::HTTP).to have_received(:new).with("api.cleanjobdata.com", 443, nil)
+    ensure
+      ENV["HTTPS_PROXY"] = original
+    end
+
+    it "treats a blank setting as no proxy" do
+      with_proxy_setting("  ") { expect(search).to be_success }
+      expect(Net::HTTP).to have_received(:new).with("api.cleanjobdata.com", 443, nil)
+    end
+
+    it "sends only this request through the configured proxy, keeping the fixed host and HTTPS" do
+      with_proxy_setting("http://proxy-user:p%40ss@proxy.example.test:3128") { expect(search).to be_success }
+      expect(Net::HTTP).to have_received(:new).with("api.cleanjobdata.com", 443, "proxy.example.test", 3128, "proxy-user", "p@ss")
+      expect(http).to have_received(:use_ssl=).with(true)
+    end
+
+    it "ignores a setting that is not an http(s) proxy URL" do
+      [ "proxy.example.test:3128", "ftp://proxy.example.test", "http://bad host" ].each do |value|
+        with_proxy_setting(value) { expect(search).to be_success }
+      end
+      expect(Net::HTTP).to have_received(:new).with("api.cleanjobdata.com", 443, nil).exactly(3).times
+    end
+  end
+
   it "sends a canonical multi-level filter and omits it when no levels are selected" do
     expect(search(experience_levels: [ "SE", "EN", "SE" ])).to be_success
     expect(http).to have_received(:request).with(have_attributes(path: include("experience_level=EN%2CSE")))

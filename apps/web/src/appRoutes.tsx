@@ -17,6 +17,7 @@ import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/PasswordUpdatePage'
 import { AccountDeletedPage } from '@/features/account/AccountDeletedPage'
+import { BillingPage } from '@/features/billing/BillingPage'
 import { PrivacyPolicyPage } from '@/features/legal/PrivacyPolicyPage'
 import { TermsPage } from '@/features/legal/TermsPage'
 import { ChatPage } from '@/features/chat/ChatPage'
@@ -34,7 +35,6 @@ import { ResumeImportTaskPage } from '@/features/resume-import/ResumeImportTaskP
 import { ResumePage } from '@/features/resumes/ResumePage'
 import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { InterviewPrepPage } from '@/features/interview-prep/InterviewPrepPage'
-import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
 import { InterviewPage } from '@/features/interviews/InterviewPage'
 import { JobInterviewTab } from '@/features/interviews/JobInterviewTab'
 import { JobResumeTab, WriteJobResumePage } from '@/features/resume-tailoring/JobResumeTab'
@@ -61,6 +61,7 @@ export const appRoutes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/account/security', element: <PasswordUpdatePage change /> },
+          { path: '/account/billing', element: <BillingPage /> },
           { index: true, element: <HomePage /> },
           { path: '/chat/:id?', element: <ChatPage /> },
           { path: '/library', element: <CareerLibraryPage /> },
@@ -87,13 +88,13 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/:id/tailor', element: <RedirectToPath to="/jobs/:id/resume" /> },
           { path: '/practice', element: <Navigate to="/practice/questions" replace /> },
           { path: '/practice/questions', element: <InterviewPrepPage /> },
-          { path: '/practice/questions/:id/:questionId?', element: <InterviewSetPage /> },
+          { path: '/practice/questions/:id/:questionId?', element: <Navigate to="/practice/questions" replace /> },
           { path: '/practice/interviews/:id?', element: <InterviewPage /> },
           { path: '/resumes', element: <ResumesPage /> },
           { path: '/resumes/:id', element: <ResumePage /> },
           { path: '/job-board', element: <RedirectToPath to="/jobs/find" /> },
           { path: '/import/:aiTaskId?', element: <RedirectToPath to="/library/import/:aiTaskId?" /> },
-          { path: '/interview-prep/:id?', element: <RedirectToPath to="/practice/questions/:id?" /> },
+          { path: '/interview-prep/:id?', element: <Navigate to="/practice/questions" replace /> },
           { path: '/interviews/:id?', element: <RedirectToPath to="/practice/interviews/:id?" /> },
           { path: '*', element: <NotFoundPage /> },
         ],

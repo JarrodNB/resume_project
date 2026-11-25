@@ -437,6 +437,15 @@ it('allows retry when starting after accepted history fails', async () => {
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
 })
 
+it('links to Plan & billing when starting the resume is refused because the trial ended', async () => {
+  renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),
+    startMock({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Trial over.'], errorCode: 'PLAN_ENDED' } } }),
+  ], { confirmStart: true })
+
+  expect(await screen.findByText('Trial over.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+})
+
 it('deletes an edited resume and returns to the Resume tab without another discard warning or generation', async () => {
   const user = userEvent.setup()
   const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))

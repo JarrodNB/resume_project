@@ -61,7 +61,51 @@ RSpec.describe Billing::SyncSubscriptionService do
 
     expect(row.reload).to have_attributes(stripe_subscription_id: "sub_first", status: "active")
     expect(FakeStripeGateway.canceled).to eq([ "sub_second" ])
+    expect(FakeStripeGateway.refunded).to eq([ "sub_second" ])
     expect(Rails.logger).to have_received(:warn).with(a_string_including("sub_first", "sub_second"))
+  end
+
+  it "leaves the duplicate running when its refund fails, so the retried job refunds and cancels it" do
+    row.update!(stripe_subscription_id: "sub_first", status: "active")
+    FakeStripeGateway.subscriptions["sub_first"] = stripe_subscription(id: "sub_first", status: "active")
+    FakeStripeGateway.subscriptions["sub_second"] = stripe_subscription(id: "sub_second", status: "active")
+    FakeStripeGateway.refund_error = Billing::Gateway::Unavailable.new("down")
+
+    expect { sync("sub_second") }.to raise_error(Billing::Gateway::Unavailable)
+    expect(FakeStripeGateway.canceled).to be_empty
+
+    FakeStripeGateway.refund_error = nil
+    sync("sub_second")
+
+    expect(FakeStripeGateway.refunded).to eq([ "sub_second" ])
+    expect(FakeStripeGateway.canceled).to eq([ "sub_second" ])
+  end
+
+  it "expires the customer's open Checkout sessions once the plan is paid" do
+    FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription
+
+    sync
+
+    expect(FakeStripeGateway.expired_checkouts).to eq([ "cus_1" ])
+  end
+
+  it "leaves open Checkout sessions alone while the subscription is not paid" do
+    FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription(status: "incomplete")
+
+    sync
+
+    expect(FakeStripeGateway.expired_checkouts).to be_empty
+  end
+
+  it "still saves the paid plan when expiring open Checkout sessions fails" do
+    FakeStripeGateway.subscriptions["sub_1"] = stripe_subscription
+    FakeStripeGateway.expire_error = Billing::Gateway::Unavailable.new("down")
+    allow(Rails.logger).to receive(:warn)
+
+    expect(sync).to be_success
+
+    expect(row.reload.status).to eq("active")
+    expect(Rails.logger).to have_received(:warn).with(a_string_including("cus_1"))
   end
 
   it "does not cancel anything when the same subscription is synced again" do

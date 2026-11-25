@@ -16,6 +16,7 @@ export function useStudyGuide(jobId: string, description: string | null) {
   const query = useQuery(STUDY_QUESTION_COLLECTION_QUERY, { variables: { jobId, cursor: null }, fetchPolicy: 'cache-and-network' })
   const [mutate, { loading: starting }] = useMutation(GENERATE_STUDY_GUIDE_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [laterBatches, setLaterBatches] = useState<Batch[]>([])
   const [tailCursor, setTailCursor] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -147,7 +148,7 @@ export function useStudyGuide(jobId: string, description: string | null) {
 
   async function start() {
     if (requesting.current || busy) return
-    requesting.current = true; setErrors([])
+    requesting.current = true; setErrors([]); setErrorCode(null)
     try {
       const response = await mutate({ variables: { jobId }, update(cache, { data }) {
         const payload = data?.generateStudyGuide
@@ -156,6 +157,7 @@ export function useStudyGuide(jobId: string, description: string | null) {
           ? { job: { ...existing.job, latestStudyGuideTask: payload.aiTask } } : existing)
       } })
       const payload = response.data?.generateStudyGuide
+      if (mounted.current && (!payload?.aiTask || payload.errors.length)) setErrorCode(payload?.errorCode ?? null)
       if (mounted.current && (!payload?.aiTask || payload.errors.length)) setErrors(payload?.errors.length ? payload.errors : ["Couldn't start study questions. Try again."])
     } catch (error) {
       if (mounted.current) setErrors([requestErrorMessage(error, "Couldn't reach the server. Try again.")])
@@ -163,5 +165,5 @@ export function useStudyGuide(jobId: string, description: string | null) {
   }
 
   return { questions, totalQuestions, task, busy, retryReady, starting, start, loadMore, loadingMore,
-    pageError: pageError ?? first?.errors.join(' '), loading: query.loading, loadError: query.error, errors, subscriptionError }
+    pageError: pageError ?? first?.errors.join(' '), loading: query.loading, loadError: query.error, errors, errorCode, subscriptionError }
 }

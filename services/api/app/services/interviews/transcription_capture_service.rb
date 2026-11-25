@@ -35,7 +35,7 @@ module Interviews
           root = interview.operations.preparation.first&.ai_task
           allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: root, interview: true)
           next allowance unless allowance.success?
-          task = interview.user.ai_tasks.create!(task_type: "interview_transcription", subject: interview,
+          task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: "interview_transcription", subject: interview,
             hourly_admission_task: root, input: { capture_id: capture.id })
           unless VerificationBudget.reserve(observation_id: capture.observation_id, stage: "transcription", provider: "openai", model: MODEL)
             AiTasks::UpdateTaskService.call(task: task, attributes: { status: "failed", completed_at: Time.current, error_message: "capture_admission_failed" })

@@ -24,6 +24,16 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
     end
   end
 
+  it "retains paid task classification when the subscription ends" do
+    subscription = create(:billing_subscription, user: user)
+    task = described_class.call(user: user, task_type: "analyze_gaps").value
+    subscription.update!(status: "canceled")
+    task.update!(cost_microdollars: 200)
+
+    expect(task.reload.counts_toward_trial_budget).to be(false)
+    expect(AiUsage::SiteDailySpend.known_microdollars).to eq(0)
+  end
+
   it "fails without publishing for an unknown task type" do
     result = described_class.call(user: user, task_type: "write_cover_letter")
 
@@ -32,7 +42,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
   end
 
   it "creates nothing and publishes nothing when the user has reached an AI usage limit" do
-    user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 1)
     create(:ai_task, user: user)
 
     result = described_class.call(user: user, task_type: "analyze_gaps")
@@ -57,7 +67,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
 
   it "returns resolved work before limits without saving or publishing another task" do
     existing = create(:ai_task, user: user)
-    user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 1)
     resolver = -> { ServiceResult.new(success: true, value: existing, errors: []) }
 
     result = described_class.call(user: user, task_type: "analyze_gaps", resolve_existing: resolver)

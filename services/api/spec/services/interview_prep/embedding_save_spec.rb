@@ -23,7 +23,7 @@ RSpec.describe "Saving answers for vector generation" do
   end
 
   it "keeps the saved answer eligible when allowance prevents feedback" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     result = nil
     expect do
       result = InterviewPrep::StartQuestionTaskService.call(user: user, question: question,

@@ -15,6 +15,8 @@ export const START_LIBRARY_EDIT_MUTATION = graphql(`
     startLibraryEdit(input: {kind: $kind, recordId: $recordId, feedback: $feedback, previousTaskId: $previousTaskId, skip: $skip}) {
       aiTask { id status result input pendingQuestions errorMessage acceptedAt }
       errors
+      errorCode
+
     }
   }
 `)
@@ -39,6 +41,8 @@ export const ANSWER_LIBRARY_REVIEW_MUTATION = graphql(`
     answerLibraryReview(input: {reviewTaskId: $reviewTaskId, kind: $kind, recordId: $recordId, answers: $answers}) {
       aiTask { id status result input pendingQuestions errorMessage acceptedAt }
       errors
+      errorCode
+
     }
   }
 `)

@@ -61,7 +61,7 @@ Job deletion detaches retained sessions under the existing owner/job locks witho
 progression revision, dialogue or pending answer identity. Rejected deletion rolls back detachment.
 
 A user may have several unfinished interviews at once; preparing one never requires resolving
-another. Cost and load stay bounded by the separate monthly spend, hourly start and in-flight
+another. Cost and load stay bounded by the shared daily spend cap, hourly start and in-flight
 operation limits. A failed or uncertain start reply never replays the start mutation, and the
 setup keeps the user's round choices so they can try again. The setup also offers another saved
 job and manual reload after a failed job read; an unavailable source never falls back to
@@ -462,24 +462,23 @@ operation purpose before creating or reusing a child task. Missing or forged pre
 admission fails closed. Existing fixture operations use the interview allowance but retain
 their individual hourly admissions. General AI tasks use a separate allowance.
 
-Spoken interviews have their own per-user limits: **$3/month**, **10 session starts/hour**, and
-**three concurrent operations**, configured by `INTERVIEW_MONTHLY_BUDGET_USD`,
-`INTERVIEW_SESSIONS_PER_HOUR`, and `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and
-its per-user override columns do not consume or change these limits. Conversely, spoken
-interview preparation/turn/speech costs, hourly starts and in-flight tasks do not consume
-general AI allowances. The `me { aiUsage }` summary combines general AI and every spoken
-interview stage's known cost, with both monthly allowances summed for its budget. Written
-interview question practice remains in the general allowance. No bills or unknown markers are removed.
+Spoken interviews have their own per-user start and in-flight limits: **10 session starts/hour** and
+**three concurrent operations**, configured by `INTERVIEW_SESSIONS_PER_HOUR` and
+`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. Spoken interview hourly starts and in-flight tasks do not consume
+general AI allowances, and the reverse. Spend is the exception: general AI and every spoken
+interview stage's known cost count toward one hidden daily spend cap per user, set by plan
+(see [AI safety and usage](ai-safety-and-usage.md#usage-limits)). Users never see that cap or their spend.
+Written interview question practice remains general AI. No bills or unknown markers are removed.
 
-Only hourly admission groups interview stages: interview monthly spend sums every spoken
+Only hourly admission groups interview stages: daily spend sums every spoken
 stage task, and interview concurrency counts every recently queued spoken task. A claim
 excludes only its own task from concurrency, never the preparation root or another operation.
-Claims, explicit retries and every provider start recheck the interview allowance. New child
+Claims, explicit retries and every provider start recheck the plan, daily cap and interview limits. New child
 creation and admission rejection commit together, leaving no execution/provider attempt on
 denial. The global retained paid-verification allowance and new-unknown stop remain unchanged.
-The current monthly accounting policy remains task-creation-month attribution, including
-late retry charges. New child tasks use their creation month; sharing an older hourly root
-does not move new task bills into that root's month. This change does not rewrite historical
+Daily spend attribution is by task creation day (UTC), including
+late retry charges. New child tasks use their creation day; sharing an older hourly root
+does not move new task bills into that root's day. This change does not rewrite historical
 or unrelated task accounting.
 
 The owner lock admits at most one unexpired preparing/ready/active **prepared** session per
@@ -948,7 +947,7 @@ visit ID retain saved-result reuse for older clients. `interview_references` tas
 but retain their own spend accounting. Reference in-flight work has its own per-user pool,
 using the same configured operation cap, so queued guidance cannot exhaust slots needed
 for answer execution. The critical-operation pool excludes reference tasks; reference
-request and claim admission count only reference tasks. Monthly spend and hourly
+request and claim admission count only reference tasks. Daily spend and hourly
 admission remain shared with the interview.
 Reference capacity counts only the latest prompt-linked attempts whose three-minute
 deadline is still live. An earlier prompt's expired attempt does not occupy a slot,

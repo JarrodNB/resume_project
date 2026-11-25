@@ -4,6 +4,7 @@
 import { ArrowUpRight, Check } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { PlanEndedErrorLink } from '@/features/billing/PlanBillingLink'
 import { SectionCard } from '@/components/SectionCard'
 import { useInterviewSessionFeedback, type SavedSessionFeedback } from './useInterviewSessionFeedback'
 
@@ -16,7 +17,7 @@ export function CompletedInterviewFeedback({ interviewId, saved, hasAnswers, que
     {!hasAnswers ? <p className="text-sm text-muted-foreground">No answers were submitted. Complete another interview to get feedback.</p> : <>
       {!feedback.content && !feedback.pending && !feedback.failed && <Button className="justify-self-start" onClick={() => void feedback.generate()}>Generate feedback</Button>}
       {feedback.pending && <p role="status" className="text-sm">Generating interview feedback. You can leave and reopen this interview.</p>}
-      {feedback.error && <p role="alert" className="text-sm">{feedback.error}</p>}
+      {feedback.error && <p role="alert" className="text-sm">{feedback.error} <PlanEndedErrorLink errorCode={feedback.errorCode} /></p>}
       {feedback.subscriptionError && <p role="status" className="text-sm">{feedback.subscriptionError}</p>}
       {feedback.failed && !feedback.pending && feedback.canRetry && <Button className="justify-self-start" variant="outline" onClick={() => void feedback.generate(true)}>Retry feedback</Button>}
       {feedback.failed && !feedback.canRetry && <p className="text-sm">This interview has reached its feedback retry limit.</p>}

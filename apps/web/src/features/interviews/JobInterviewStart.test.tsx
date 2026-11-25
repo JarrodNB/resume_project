@@ -18,7 +18,7 @@ function startMock(setup = defaultSetup, result = vi.fn()): MockLink.MockedRespo
   return { request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, jobId: job.id } }, result }
 }
 function started() {
-  return { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], interview: {
+  return { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], errorCode: null, interview: {
     __typename: 'InterviewSession', id: 'new-session', status: 'preparing', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'browser',
     preparedRole: {}, revision: 0, answerCap: 3, currentQuestionPosition: 0, expiresAt: '2026-11-01T00:00:00Z',
     jobContext: { ...job, __typename: 'InterviewJobContext' }, setup: { ...defaultSetup, __typename: 'InterviewSetup' }, questions: [], messages: [], operations: [],
@@ -51,7 +51,7 @@ it('starts the chosen round for the selected job without checking for other inte
 })
 
 it('shows the error and allows another try when the selected job is deleted after setup has loaded', async () => {
-  const reject = vi.fn(() => ({ data: { startInterview: { __typename: 'StartInterviewPayload', interview: null, errors: ['Record not found'] } } }))
+  const reject = vi.fn(() => ({ data: { startInterview: { __typename: 'StartInterviewPayload', interview: null, errors: ['Record not found'], errorCode: null } } }))
   renderPage({ path: '/jobs/:id', url: '/jobs/selected-job/interview', element: <JobWorkspaceLayout />,
     children: [{ path: 'interview', element: <JobInterviewTab /> }],
     mocks: [
@@ -65,4 +65,13 @@ it('shows the error and allows another try when the selected job is deleted afte
   expect(await screen.findByRole('alert')).toHaveTextContent('Record not found')
   expect(reject).toHaveBeenCalledTimes(1)
   expect(screen.getByRole('button', { name: 'Start interview' })).toBeEnabled()
+})
+
+it('links to Plan & billing when starting is refused because the trial ended', async () => {
+  const refuse = vi.fn(() => ({ data: { startInterview: { __typename: 'StartInterviewPayload', interview: null, errors: ['Trial over.'], errorCode: 'PLAN_ENDED' } } }))
+  mount([startMock(defaultSetup, refuse)])
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Trial over.')
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
 })

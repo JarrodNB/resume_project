@@ -17,6 +17,7 @@ import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/PasswordUpdatePage'
 import { AccountDeletedPage } from '@/features/account/AccountDeletedPage'
+import { BillingPage } from '@/features/billing/BillingPage'
 import { PrivacyPolicyPage } from '@/features/legal/PrivacyPolicyPage'
 import { TermsPage } from '@/features/legal/TermsPage'
 import { ChatPage } from '@/features/chat/ChatPage'
@@ -60,6 +61,7 @@ export const appRoutes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/account/security', element: <PasswordUpdatePage change /> },
+          { path: '/account/billing', element: <BillingPage /> },
           { index: true, element: <HomePage /> },
           { path: '/chat/:id?', element: <ChatPage /> },
           { path: '/library', element: <CareerLibraryPage /> },

@@ -30,9 +30,19 @@ RSpec.describe "Background embedding accounting" do
     end
     expect(user.ai_embedding_requests.sole).to have_attributes(input_tokens: 1_000, cost_microdollars: 20,
       incomplete: false, finalized: true)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user).value.spent_microdollars).to eq(20)
+    expect(AiUsage::DailySpend.known_microdollars(user)).to eq(20)
     expect(user.ai_tasks.count).to eq(0)
     expect(OpenAI::Client).to have_received(:new).with(api_key: anything, max_retries: 0)
+  end
+
+  it "retains paid embedding classification when the subscription ends" do
+    subscription = create(:billing_subscription, user: user)
+    allow(endpoint).to receive(:create).and_return(receipt)
+    client.embed_texts([ "Synthetic skill" ])
+    subscription.update!(status: "canceled")
+
+    expect(user.ai_embedding_requests.sole.counts_toward_trial_budget).to be(false)
+    expect(AiUsage::SiteDailySpend.known_microdollars).to eq(0)
   end
 
   it "retains partial batch charges and unknown markers across separate job retries" do
@@ -65,12 +75,12 @@ RSpec.describe "Background embedding accounting" do
     expect(user.ai_embedding_requests.sum(:cost_microdollars)).to eq(0)
   end
 
-  it "charges the account for saved interview Q&A without changing interview task limits" do
+  it "charges the account's daily spend for saved interview Q&A without using task slots" do
     allow(endpoint).to receive(:create).and_return(receipt)
     account_client = Embeddings::OpenAiEmbeddingClient.new(user: user, purpose: "interview_question", dimensions: 2)
     account_client.embed_texts([ "Question and answer" ])
     expect(user.ai_embedding_requests.sole.purpose).to eq("interview_question")
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(0)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :general).value.spent_microdollars).to eq(20)
+    expect(AiUsage::DailySpend.known_microdollars(user)).to eq(20)
+    expect(user.ai_tasks).to be_empty
   end
 end

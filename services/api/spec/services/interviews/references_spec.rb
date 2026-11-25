@@ -231,7 +231,8 @@ RSpec.describe "Interview question references" do
     interview.operations.create!(kind: "preparation").tap do |operation|
       operation.update!(ai_task: interview.user.ai_tasks.create!(task_type: "interview_preparation", status: "completed", subject: interview, input: { operation_id: operation.id }))
     end
-    interview.user.update!(monthly_ai_budget_microdollars: 0)
+    stub_const("DEFAULT_AI_TASKS_PER_HOUR", 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1)
     references = request_references
     root = interview.operations.preparation.first.ai_task
@@ -246,9 +247,9 @@ RSpec.describe "Interview question references" do
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 0)
     expect(Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id)).not_to be_success
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 10)
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 0)
     expect(Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id)).not_to be_success
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 1_000_000)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 1_000_000)
     stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 0)
     expect(Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: prompt.id)).not_to be_success
     expect(interview.career_references.reload).to be_empty
@@ -422,14 +423,14 @@ RSpec.describe "Interview question references" do
     expect(AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, interview: true).errors.join).to include("interview operations running")
   end
 
-  it "still charges reference spend to the shared interview budget" do
+  it "still charges reference spend to the shared daily cap" do
     reference = request_references
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 20)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 20)
     create(:ai_task, user: interview.user, task_type: "interview_references", status: "completed", cost_microdollars: 20)
     expect(Interviews::CurrentPromptWork::References.new.claim(ai_task: reference.ai_task).value).to eq(allowed: false)
     expect(reference.ai_task.reload).to be_failed
-    expect(reference.ai_task.error_message).to include("month's interview usage limit")
-    expect(AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, interview: true).errors.join).to include("month's interview usage limit")
+    expect(reference.ai_task.error_message).to include("today's usage limit")
+    expect(AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, interview: true).errors.join).to include("today's usage limit")
   end
 
   [ false, true ].each do |redelivered|

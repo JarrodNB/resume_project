@@ -1,6 +1,6 @@
 /**
  * Description: Answer tests: draft preservation, feedback that saves first, navigation warnings,
- * replacement safety, and avoidance through the question's actions menu.
+ * replacement safety, billing refusals, and avoidance through the question's actions menu.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -407,4 +407,15 @@ it('identifies an oversized inactive draft before saving any formats', async () 
   fireEvent.change(screen.getByRole('combobox', { name: 'Answer format' }), { target: { value: 'plain_text' } })
   expect(screen.getByRole('alert')).toHaveTextContent('Shorten CAR')
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+})
+
+it('links to billing when memory anchor generation refuses an expired plan', async () => {
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), {
+    request: { query: GENERATE_INTERVIEW_MEMORY_ANCHOR, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Saved answer', memoryAnchor: '', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Saved answer') } },
+    result: { data: { generateInterviewMemoryAnchor: { __typename: 'GenerateInterviewMemoryAnchorPayload', errors: ['Subscribe to continue.'], errorCode: 'PLAN_ENDED', aiTask: null } } },
+  }, detail()] })
+  await openAnswer()
+  fireEvent.click(screen.getByRole('button', { name: 'Generate anchor' }))
+  expect(await screen.findByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('Saved answer')
 })

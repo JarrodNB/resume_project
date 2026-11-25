@@ -22,7 +22,7 @@ def await_operation(operation)
 end
 
 user = User.create!(email: "interview-smoke-#{SecureRandom.hex(6)}@example.invalid",
-  password: SecureRandom.base64(30), confirmed_at: 30.days.ago)
+  password: SecureRandom.base64(30), confirmed_at: 30.days.ago, trial_ends_at: 7.days.from_now)
 begin
   interview = checked(Interviews::CreateFixtureService.call(user: user))
   await_operation(interview.operations.speech.first)

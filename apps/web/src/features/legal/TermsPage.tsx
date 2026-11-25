@@ -19,8 +19,13 @@ export function TermsPage() {
       <h2>AI output</h2>
       <p>{PRODUCT_NAME} uses AI to suggest resume wording, compare your experience with jobs and run practice interviews. AI can be wrong. It is designed to use only facts from your career library, but you are responsible for checking that anything you send to an employer is true. Practice feedback is not a prediction of any hiring decision.</p>
 
+      <h2>Subscription and billing</h2>
+      <p>{PRODUCT_NAME} starts with a 7-day free trial. The trial begins when you verify your email, and you don’t need a card. After the trial, a subscription costs $12 per month. It renews automatically each month until you cancel. Payments are handled by Stripe. Taxes may apply.</p>
+      <p>You can cancel any time from your billing settings. You keep access until the end of the period you already paid for. There are no refunds for partial months.</p>
+      <p>If your trial ends and you haven’t subscribed, the AI features stop, but your saved work stays available. We may change our prices. If we do, we’ll tell you in advance, and the new price applies at your next renewal after that notice.</p>
+
       <h2>Fair use</h2>
-      <p>Don’t misuse the service: no attempts to break security, get around usage limits, scrape it, overload it, or use it to send bulk or misleading applications. We set limits on AI usage to keep costs fair and may change them.</p>
+      <p>Don’t misuse the service: no attempts to break security, get around usage limits, scrape it, overload it, or use it to send bulk or misleading applications. We set fair-use limits on AI usage to protect the service and keep costs fair, and we may change them.</p>
 
       <h2>Job listings and links</h2>
       <p>Job listings come from third parties. We don’t guarantee they are accurate or still open, and we aren’t responsible for other sites you visit from them.</p>

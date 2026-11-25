@@ -35,8 +35,9 @@ only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
 ## Secrets
 
 Production secrets are in `/opt/app/.env` on the server, and each one has a copy in Parameter Store
-under `/jobapp/prod/` (the server can read it, not write it). When you change a secret, change
-both. A container reads `.env` only when it starts, so recreate the services that use the
+under `/jobapp/prod/` (the server can read it, not write it). The Stripe secrets
+(`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) need a copy there too when you add
+them. When you change a secret, change both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
 
 `settings.env` holds the settings that are not secret (registry, buckets, domain, AI models). It is not in git. Its copy is

@@ -70,7 +70,7 @@ function aiTaskUpdateMock(id: string, fields: Record<string, unknown>) {
   }
 }
 
-function startMock(payload: { aiTask: { id: string; status: string } | null; errors: string[] }) {
+function startMock(payload: { aiTask: { id: string; status: string } | null; errors: string[]; errorCode?: string | null }) {
   return {
     request: { query: ANALYZE_JOB_GAPS_MUTATION, variables: { jobId: 'job-1' } },
     result: {
@@ -85,6 +85,7 @@ function startMock(payload: { aiTask: { id: string; status: string } | null; err
             ...payload.aiTask,
           },
           errors: payload.errors,
+          errorCode: payload.errorCode ?? null,
         },
       },
     },
@@ -136,6 +137,24 @@ it('shows why the comparison could not start', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Compare with my career library' }))
 
   expect(await screen.findByText('Add something to your career library first.')).toBeInTheDocument()
+})
+
+it('links to Plan & billing when the comparison is refused because the trial ended', async () => {
+  renderCard(null, [startMock({ aiTask: null, errors: ['Your trial is over.'], errorCode: 'PLAN_ENDED' })])
+
+  await userEvent.click(screen.getByRole('button', { name: 'Compare with my career library' }))
+
+  expect(await screen.findByText('Your trial is over.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+})
+
+it('adds no billing link to other refusals', async () => {
+  renderCard(null, [startMock({ aiTask: null, errors: ['Add something to your career library first.'] })])
+
+  await userEvent.click(screen.getByRole('button', { name: 'Compare with my career library' }))
+
+  await screen.findByText('Add something to your career library first.')
+  expect(screen.queryByRole('link', { name: 'Plan & billing' })).not.toBeInTheDocument()
 })
 
 it('follows a comparison that is still running', async () => {

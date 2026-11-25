@@ -16,6 +16,7 @@ export function PrivacyPolicyPage() {
         <li><strong>Career information you add:</strong> resume files you upload, your career library (experience, projects, education, certifications, skills), profile and contact details, and answers you give about job requirements.</li>
         <li><strong>Job search records:</strong> jobs you save or paste in, notes, stages, tailored resumes, chat conversations and written interview practice.</li>
         <li><strong>Spoken interview practice:</strong> recordings of your answers, their transcripts, the interviewer’s audio, and feedback.</li>
+        <li><strong>Billing records:</strong> your Stripe customer and subscription identifiers, your subscription status and your billing dates. We never see your full card number.</li>
         <li><strong>Technical data:</strong> a session cookie that keeps you signed in, IP addresses used for rate limiting and abuse prevention, and error and performance logs.</li>
       </ul>
       <p>We don’t sell your data, show ads, or use your data to train AI models.</p>
@@ -29,6 +30,7 @@ export function PrivacyPolicyPage() {
         <li><strong>TypeSafe</strong> screens text you write before it reaches a model.</li>
         <li><strong>Pydantic Logfire</strong> stores traces of AI calls so we can debug and measure cost. Traces include prompt and response text. Your known name, email and phone are masked before traces leave our servers.</li>
         <li><strong>Amazon Web Services</strong> hosts the app, database, files and queues in the United States.</li>
+        <li><strong>Stripe</strong> is our payment processor. It collects and handles your card details when you subscribe, and we never see your full card number. We keep only Stripe customer and subscription identifiers, your subscription status and billing dates. Stripe’s own <a href="https://stripe.com/privacy" target="_blank" rel="noreferrer">privacy policy</a> applies to the payment data it collects.</li>
         <li><strong>Cloudflare Turnstile</strong> checks that sign-ups come from a person.</li>
         <li><strong>CleanJobData</strong> provides job listings. It receives the keywords and filters you search with, but not your name or email.</li>
         <li><strong>Our email provider</strong> sends verification and password-reset emails.</li>

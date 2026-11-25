@@ -9,7 +9,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 - `api_schema.rb` — root schema; turns `RecordNotFound` into a "Record not found" error;
   subscriptions use `ActionCableSubscriptions`
 - `types/` — object types, enums, inputs, and the root `query_type.rb` / `mutation_type.rb` /
-  `subscription_type.rb`; `me { aiUsage }` (`ai_usage_type.rb`) is this month's AI spend vs budget
+  `subscription_type.rb`. AI spend and spend caps are never exposed through GraphQL (`me.billing` shows only plan and dates)
 - `mutations/` — one file per mutation, grouped by domain (`mutations/jobs/create_job.rb`);
   `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`;
   `mutations/jobs/scrape_job.rb` (`scrapeJob(url)`) queues scraping, and
@@ -43,7 +43,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 
 - Private root query fields read through `current_user` associations. Job Board search reads the shared provider catalogue.
 - Mutations: find private records via `current_user` (shared Job Board listing IDs are the exception), call one service, return
-  `payload_from(result, :record_key)`. Payloads always include `errors: [String!]!`.
+  `payload_from(result, :record_key)`. Payloads always include `errors: [String!]!` and a nullable `errorCode` (`Types::MutationErrorCodeEnum`, from `ServiceResult#code`); clients react to the code, never to message text. A service that wraps another service's refusal must pass its code on.
 - Inputs are `<Noun>AttributesInput` with all-optional fields, shared by create and update.
 - Enum types mirror model constants with `extend EnumFromValues; values_from Model::CONSTANT`.
 - No Relay `node` / global-ID lookups: they bypass user scoping.

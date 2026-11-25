@@ -27,6 +27,10 @@ module Api
     # a separate connects_to declaration would silently break that guarantee.
     config.active_job.queue_adapter = :solid_queue
 
+    # Which payment adapter Billing::Gateway.current uses (see app/services/billing/gateway.rb).
+    # The test environment swaps in an in-memory fake.
+    config.x.billing_gateway = "Billing::StripeGateway"
+
     # Uploads enter through authenticated GraphQL; interview media uses scoped S3 grants.
     # Default Active Storage controllers otherwise expose unauthenticated upload signing.
     config.active_storage.draw_routes = false

@@ -225,22 +225,23 @@ RSpec.describe "Completed interview feedback" do
     expect(InterviewSessionFeedback.exists?(record.id)).to be(false)
   end
 
-  it "reuses preparation admission and enforces interview spend independently from general AI" do
+  it "reuses preparation admission and enforces the shared daily spend cap while general AI start limits stay separate" do
     operation = interview.operations.create!(kind: "preparation")
     root = interview.user.ai_tasks.create!(task_type: "interview_preparation", status: "completed", subject: interview, input: { operation_id: operation.id })
     operation.update!(ai_task: root)
-    interview.user.update!(monthly_ai_budget_microdollars: 0)
+    stub_const("DEFAULT_AI_TASKS_PER_HOUR", 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1)
     service = Interviews::SessionFeedback.new
     record = service.request(interview: interview).value
     expect(record.ai_task.hourly_admission_task_id).to eq(root.id)
     expect(interview.user.ai_tasks.spoken_interview.hourly_admissions.count).to eq(1)
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 20)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 20)
     create(:ai_task, user: interview.user, task_type: "interview_session_feedback", status: "completed", cost_microdollars: 20)
     allow(ApiSchema.subscriptions).to receive(:trigger)
     expect(service.claim(ai_task: record.ai_task).value).to eq(allowed: false)
     expect(record.ai_task.reload).to be_failed
-    expect(record.ai_task.error_message).to include("month's interview usage limit")
+    expect(record.ai_task.error_message).to include("today's usage limit")
     expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: record.ai_task_id }, record.ai_task)
     expect(service.request(interview: interview, retry_failed: true)).not_to be_success
     expect(record.reload.attempt_count).to eq(1)

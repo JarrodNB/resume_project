@@ -15,6 +15,7 @@ Source of the web app, organized by feature.
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
 - `features/account/` — data export download and password-confirmed account deletion on `/account/security`, plus `/account-deleted`
+- `features/billing/` — `/account/billing` Plan & billing page (plan and dates only); `MutationErrorAlert` (an `ErrorAlert` plus the `PlanBillingLink` when a mutation returns `errorCode: PLAN_ENDED`) is what AI-start screens use; `components/` has no billing knowledge
 - `features/legal/` — public `/privacy` and `/terms`; retention numbers in `legalDetails.ts` must match Rails
 - `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?` (`/chat` reopens the most recent chat); generation and streaming use separate execution state; assistant replies render as Markdown (`ChatMarkdown`)
 - `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in

@@ -15,6 +15,7 @@ export const PARSE_RESUME_MUTATION = graphql(`
         status
       }
       errors
+      errorCode
     }
   }
 `)

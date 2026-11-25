@@ -12,13 +12,16 @@ import { SCRAPE_JOB_MUTATION } from './jobsOperations'
 export function useScrapeJob() {
   const [mutate, { loading }] = useMutation(SCRAPE_JOB_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
 
   async function scrapeJob(url: string): Promise<string | null> {
     setErrors([])
+    setErrorCode(null)
     try {
       const { data } = await mutate({ variables: { url } })
       const payload = data?.scrapeJob
       if (payload?.aiTask && payload.errors.length === 0) return payload.aiTask.id
+      setErrorCode(payload?.errorCode ?? null)
       setErrors(payload?.errors.length ? payload.errors : ["Couldn't add this job. Please try again."])
     } catch (error) {
       setErrors([requestErrorMessage(error, "Couldn't reach the server. Check your connection and try again.")])
@@ -26,5 +29,5 @@ export function useScrapeJob() {
     return null
   }
 
-  return { scrapeJob, submitting: loading, errors }
+  return { scrapeJob, submitting: loading, errors, errorCode }
 }

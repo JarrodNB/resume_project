@@ -98,7 +98,8 @@ RSpec.describe "Career library review answers" do
       "result" => { "text" => highlight.content, "color" => "yellow", "reason" => "The answer is reflected in existing wording." } }
     AiTasks::ApplyAiResultService.call(message: message)
     expect(highlight.reload.content).to eq("Helped migrate services")
-    expect { CareerLibrary::FinishEditService.call(user: user, ai_task_id: task.id) }.to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).with(user.id)
+    # Identical text is accepted without re-embedding the record.
+    expect { CareerLibrary::FinishEditService.call(user: user, ai_task_id: task.id) }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
     grade = CareerLibrary::ReviewStateService.call(user: user, section: "experience").value[:assessments].find { |item| item["record_id"] == highlight.id }
     expect(grade["question"]).to be_nil
     expect(grade["questions"]).to eq([])

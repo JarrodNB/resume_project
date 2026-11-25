@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Mic, Pause, AudioLines, Check, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
+import { PlanEndedErrorLink, PlanEndedHint } from '@/features/billing/PlanBillingLink'
 import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
 import { InterviewClarification } from './InterviewClarification'
 import { InterviewCareerReferences } from './InterviewCareerReferences'
@@ -146,7 +147,7 @@ function OwnedInterview({ id }: { id: string }) {
   const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/practice/interviews">Recent interviews</Link>
   if (abandoned || interview.status === 'abandoned') return <>{recordingWarning}<Navigate to={interview.jobContext?.id ? `/jobs/${interview.jobContext.id}/interview` : '/practice/interviews'} replace state={{ interviewEnded: 'abandoned' }} /></>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
-  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
+  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} errorCode={state.errorCode} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
   const browserSpeech = interview.speechPlaybackMode === 'browser'
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
@@ -239,10 +240,10 @@ function OwnedInterview({ id }: { id: string }) {
       <Button variant="ghost" size="icon" className="size-11" aria-label={muted ? 'Unmute interviewer' : 'Mute interviewer'} title={muted ? 'Unmute interviewer' : 'Mute interviewer'} aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</Button>
       </div>
       {interview.status === 'active' && state.skipPending && !state.busy && <p role="status" className="text-sm text-muted-foreground">The skip response was not confirmed. Retry skip to check the same question safely before answering.</p>}
-      {!browserSpeech && (speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
+      {!browserSpeech && (speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p><PlanEndedHint failureCode={speech.failureCode} />{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
-    {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
+    {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p><PlanEndedHint failureCode={currentTurn.failureCode} />{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
       <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
         capturing={answer.capturing}
@@ -266,7 +267,7 @@ function OwnedInterview({ id }: { id: string }) {
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}
-    {state.error && <p role="alert" className="text-destructive">{state.error}</p>}
+    {state.error && <p role="alert" className="text-destructive">{state.error} <PlanEndedErrorLink errorCode={state.errorCode} /></p>}
     </section>
     {/* Career examples sit beside the answer so they never push it below the fold. */}
     <div className="interview-side">

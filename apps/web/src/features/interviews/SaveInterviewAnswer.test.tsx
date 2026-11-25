@@ -79,7 +79,8 @@ describe('SaveInterviewAnswer', () => {
     fireEvent.submit(form)
     fireEvent.submit(form)
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    // A synchronous click, so the 100 ms save is still pending when Cancel is pressed even on a busy machine.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('dialog')).toBeVisible()
     expect(await screen.findByRole('status')).toHaveTextContent('Saved to Career context.')
     expect(saved.result).toHaveBeenCalledOnce()

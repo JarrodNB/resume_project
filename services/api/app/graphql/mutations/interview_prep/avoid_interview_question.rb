@@ -10,7 +10,7 @@ module Mutations
       def resolve(question_set_id:, question_id:, expected_revision:)
         question = current_user.interview_question_sets.find(question_set_id).questions.find(question_id)
         result = ::InterviewPrep::AvoidQuestionService.call(user: current_user, question: question, expected_revision: expected_revision)
-        { saved: result.success?, errors: result.errors }
+        { saved: result.success? }.merge(error_fields_from(result))
       end
     end
   end

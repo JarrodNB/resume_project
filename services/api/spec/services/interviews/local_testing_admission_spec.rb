@@ -51,10 +51,10 @@ RSpec.describe "Unmetered local interview testing" do
 
   it "ignores interview spending and session-start limits but retains concurrency and general AI limits" do
     local_testing
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 0)
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 0)
     stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
-    user.update!(monthly_ai_budget_microdollars: 0)
+    user.update!(daily_ai_spend_cap_microdollars: 0)
 
     expect(AiUsage::CheckAiTaskAllowanceService.call(user: user, interview: true)).to be_success
     expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).not_to be_success
@@ -63,12 +63,12 @@ RSpec.describe "Unmetered local interview testing" do
   end
 
   [ [ false, "true" ], [ false, nil ] ].each do |development, enabled|
-    it "preserves the monthly allowance gate with development=#{development} and explicit mode=#{enabled.inspect}" do
+    it "preserves the daily spend cap gate with development=#{development} and explicit mode=#{enabled.inspect}" do
       local_testing(development: development, enabled: enabled)
       operation = claimed_operation
       InterviewVerificationReservation.create!(observation_id: SecureRandom.uuid, reserved_microdollars: 6_000_000)
       expect(start(operation)).to be_success
-      stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
+      stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 0)
       expect(AiUsage::CheckAiTaskAllowanceService.call(user: user, interview: true)).not_to be_success
     end
   end

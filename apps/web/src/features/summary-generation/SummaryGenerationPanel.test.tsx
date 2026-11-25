@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MockedProvider } from '@apollo/client/testing/react'
+import { MemoryRouter } from 'react-router'
 import { vi, expect, it, beforeEach } from 'vitest'
 import { SummaryGenerationPanel } from './SummaryGenerationPanel'
 import { SUMMARY_GENERATION_QUERY, ACCEPT_SUMMARY_GENERATION_MUTATION, START_SUMMARY_GENERATION_MUTATION, DISCARD_SUMMARY_GENERATION_MUTATION } from './summaryGenerationOperations'
@@ -81,4 +82,15 @@ it('can generate again when an empty target restores previously accepted work', 
   await userEvent.click(await screen.findByRole('button', { name: 'Generate summary' }))
   expect(await screen.findByText('Generating your summary…')).toBeInTheDocument()
   expect(started).toHaveBeenCalledOnce()
+})
+
+it('links to Plan & billing when generating is refused because the trial ended', async () => {
+  const mocks = [
+    { request: { query: SUMMARY_GENERATION_QUERY, variables: { targetKind: 'profile', targetId: 'user-1' } }, result: { data: { summaryGeneration: { __typename: 'SummaryGeneration', stale: false, aiTask: null } } } },
+    { request: { query: START_SUMMARY_GENERATION_MUTATION, variables: { targetKind: 'profile', targetId: 'user-1' } }, result: { data: { startSummaryGeneration: { __typename: 'StartSummaryGenerationPayload', errors: ['Trial over.'], errorCode: 'PLAN_ENDED', aiTask: null } } } },
+  ]
+  render(<MemoryRouter><MockedProvider mocks={mocks}><SummaryGenerationPanel targetKind="profile" targetId="user-1" /></MockedProvider></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Generate summary' }))
+  expect(await screen.findByText('Trial over.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
 })

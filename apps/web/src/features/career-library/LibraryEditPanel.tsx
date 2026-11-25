@@ -5,7 +5,7 @@
  */
 import { useId, useState, type ReactNode } from 'react'
 import { Check, CheckCheck, LoaderCircle } from 'lucide-react'
-import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -56,7 +56,7 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, sourceText, d
   }
 
   return <section aria-label="Rewrite this career detail" className="library-edit-panel grid gap-5 text-sm">
-    <ErrorAlert title="Could not complete this edit" messages={edit.errors} />
+    <MutationErrorAlert title="Could not complete this edit" errors={edit.errors} errorCode={edit.errorCode} />
     {!edit.loading && showAnswerForm && reviewQuestion && <ReviewAnswerForm key={reviewQuestion.reviewTaskId} questions={reviewQuestions} stale={reviewQuestion.stale} disabled={edit.busy || disabled} onSubmit={(answers) => edit.answerReview(reviewQuestion.reviewTaskId, answers)} />}
     {showAnswerForm && reviewActions}
     {edit.loading ? <p className="text-muted-foreground" role="status">Loading saved edit…</p> : showAnswerForm && !task ? null : accepted ?

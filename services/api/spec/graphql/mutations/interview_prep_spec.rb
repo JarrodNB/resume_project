@@ -155,7 +155,7 @@ RSpec.describe "Interview practice mutations" do
   end
 
   it "persists the memory anchor and answer before feedback admission fails" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     result = execute_graphql(<<~GQL, user: user, variables: { set: question_set.id, question: question.id })
       mutation($set: ID!, $question: ID!) {
         requestInterviewAnswerFeedback(input: { questionSetId: $set, questionId: $question, answerText: "Saved answer", memoryAnchor: "Listen then plan" }) { errors }

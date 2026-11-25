@@ -9,7 +9,7 @@ module Mutations
       # Calls CareerLibrary::ReorderLibraryEntriesService with the user's skills.
       def resolve(ordered_ids:)
         result = ::CareerLibrary::ReorderLibraryEntriesService.call(records: current_user.skills, ordered_ids: ordered_ids)
-        { errors: result.errors }
+        error_fields_from(result)
       end
     end
   end

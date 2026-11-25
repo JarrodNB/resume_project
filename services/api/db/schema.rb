@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.boolean "finalized", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "counts_toward_trial_budget", default: true, null: false
     t.index ["created_at"], name: "index_ai_embedding_requests_on_created_at"
     t.index ["user_id", "created_at"], name: "index_ai_embedding_requests_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_embedding_requests_on_user_id"
@@ -128,6 +129,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.integer "usage_generation", default: -1, null: false
     t.uuid "hourly_admission_task_id"
     t.boolean "awaiting_queue_publish", default: false, null: false
+    t.boolean "counts_toward_trial_budget", default: true, null: false
     t.index ["created_at"], name: "index_ai_tasks_awaiting_queue_publish", where: "awaiting_queue_publish"
     t.index ["created_at"], name: "index_ai_tasks_on_created_at"
     t.index ["hourly_admission_task_id"], name: "index_ai_tasks_on_hourly_admission_task_id"
@@ -196,6 +198,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.index ["user_id"], name: "index_avoided_interview_questions_on_user_id"
     t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
     t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying::text, 'manual'::character varying::text])", name: "avoided_interview_questions_origin_check"
+  end
+
+  create_table "billing_subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "stripe_customer_id", null: false
+    t.string "stripe_subscription_id"
+    t.string "status"
+    t.datetime "current_period_end"
+    t.boolean "cancel_at_period_end", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["stripe_customer_id"], name: "index_billing_subscriptions_on_stripe_customer_id", unique: true
+    t.index ["stripe_subscription_id"], name: "index_billing_subscriptions_on_stripe_subscription_id", unique: true
+    t.index ["user_id"], name: "index_billing_subscriptions_on_user_id", unique: true
   end
 
   create_table "career_contexts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -459,8 +475,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.datetime "retired_at"
     t.string "memory_anchor", limit: 600, default: "", null: false
     t.string "answer_format", default: "plain_text", null: false
-    t.jsonb "answer_drafts", default: {}, null: false
     t.integer "answer_format_revision", default: 0, null: false
+    t.jsonb "answer_drafts", default: {}, null: false
     t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
@@ -984,9 +1000,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "monthly_ai_budget_microdollars"
-    t.integer "ai_tasks_per_hour_limit"
-    t.integer "max_in_flight_ai_tasks"
     t.string "contact_email"
     t.string "phone"
     t.string "location"
@@ -1000,6 +1013,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.boolean "include_summary", default: true, null: false
     t.jsonb "job_title_suggestions", default: [], null: false
     t.text "resume_section_order", default: [], null: false, array: true
+    t.datetime "trial_ends_at"
+    t.bigint "daily_ai_spend_cap_microdollars"
+    t.datetime "trial_ending_email_sent_at"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
@@ -1017,6 +1033,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   add_foreign_key "ai_usage_entries", "ai_tasks", on_delete: :cascade
   add_foreign_key "ai_usage_entries", "ai_usage_attempts", on_delete: :cascade
   add_foreign_key "avoided_interview_questions", "users"
+  add_foreign_key "billing_subscriptions", "users"
   add_foreign_key "career_contexts", "users"
   add_foreign_key "certifications", "users"
   add_foreign_key "chat_conversations", "users"

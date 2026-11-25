@@ -6,7 +6,7 @@ module Interviews
     LEASE = 30.seconds
     DEADLINE = 120.seconds
     BACKOFF = [ 2, 5, 10 ].freeze
-    FAILURE_CODES = %w[ai_usage_limit_reached dependency_unavailable storage_unavailable invalid_recording transcript_too_long empty_audio audio_too_large audio_too_long context_limit screening_blocked screening_unavailable execution_failed execution_timeout lease_expired speech_failed].freeze
+    FAILURE_CODES = %w[ai_usage_limit_reached plan_ended dependency_unavailable storage_unavailable invalid_recording transcript_too_long empty_audio audio_too_large audio_too_long context_limit screening_blocked screening_unavailable execution_failed execution_timeout lease_expired speech_failed].freeze
 
     private
 
@@ -49,12 +49,14 @@ module Interviews
       true
     end
 
-    def reject_allowance(expiry:)
+    def reject_allowance(expiry:, allowance: nil)
       # No new dispatch began. Preserve valid media for an explicit retry, while
       # releasing the task slot and preventing automatic execution retries.
-      @operation.update!(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil,
+      # A refused ended plan gets its own code so the web app can offer a subscribe prompt.
+      code = allowance ? AiUsage::CheckAiTaskAllowanceService.refusal_code(allowance) : "ai_usage_limit_reached"
+      @operation.update!(status: "failed", failure_code: code, retry_at: nil,
         retry_expires_at: @operation.retry_expires_at || expiry)
-      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "failed", completed_at: Time.current, error_message: "ai_usage_limit_reached" }) if @operation.ai_task
+      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "failed", completed_at: Time.current, error_message: code }) if @operation.ai_task
     end
 
     def fail_execution(code, retryable:)

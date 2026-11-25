@@ -6,7 +6,7 @@ module AiUsage
     PRICES = JSON.parse(Rails.root.join("config/ai_embedding_prices.json").read).freeze
 
     def self.start(user:, model:, purpose:)
-      durable { AiEmbeddingRequest.create!(user_id: user.id, model: model, purpose: purpose).id }
+      durable { AiEmbeddingRequest.create!(user_id: user.id, counts_toward_trial_budget: SiteDailySpend.counts_user?(user), model: model, purpose: purpose).id }
     end
 
     def self.finish(id:, model:, tokens:)

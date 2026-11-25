@@ -1,7 +1,7 @@
 /**
- * Description: The two drag-and-drop pieces of Home's board: a job tile that can be picked up
+ * Description: The two drag-and-drop pieces of the Jobs board: a job tile that can be picked up
  * anywhere, and a stage column that jobs can be dropped onto. They only handle the dragging;
- * HomePage decides what a drop does (it saves the job's new stage).
+ * JobsBoard decides what a drop does (it saves the job's new stage).
  * Index:
  *   - JOB_DRAG_TYPE, stageDropId, stageFromDropId: ids that link tiles to columns
  *   - DraggableJobTile: list item you can grab anywhere

@@ -1,11 +1,11 @@
-/** Home's "AI work in progress" strip: every piece of AI work still running, each linked to the
+/** Home's "AI work in progress" panel: every piece of AI work still running, each linked to the
  * page that shows it, beside the legend of signal colors.
  *
  * It does not poll. Each listed task follows itself over the aiTaskUpdated subscription, which
  * sends the task's current state at once and then every change; when one stops being queued
  * (finished, failed, or waiting on the user) the list is fetched again. Work started in another
  * tab shows up when this tab comes back into view. When a piece of work drops off the list,
- * `onWorkFinished` lets Home reload the job board, whose next steps may have moved.
+ * `onWorkFinished` lets Home reload its next steps, which may have moved.
  */
 import { Link } from 'react-router'
 import { useRunningAiTasks } from './useRunningAiTasks'

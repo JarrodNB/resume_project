@@ -1,14 +1,17 @@
 /**
  * Description: The jobs page lists saved jobs, shows an empty state, adds one by hand, and updates comparison progress live.
  */
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
-import { CREATE_JOB_MUTATION, JOBS_QUERY } from './jobsOperations'
+import { ARCHIVE_JOB_MUTATION, CREATE_JOB_MUTATION, JOBS_QUERY } from './jobsOperations'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from '@/features/home/homeOperations'
+import { BOARD_COLUMN_LIMIT } from './JobsBoard'
 import { JobsPage } from './JobsPage'
+
+afterEach(() => localStorage.clear())
 
 function jobsMock(jobs: Record<string, unknown>[]) {
   return { request: { query: JOBS_QUERY }, result: { data: { jobs } } }
@@ -37,7 +40,7 @@ it.each(['Acme', null])('lists saved jobs with their stage and company %s', asyn
 
   expect(await screen.findByText('AI Engineer')).toBeInTheDocument()
   expect(screen.getByText(`${company ?? 'Unknown company'} · Remote`)).toBeInTheDocument()
-  expect(screen.getByText('Not applied')).toBeInTheDocument()
+  expect(screen.getByText('Not applied', { selector: '.job-stop-label' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: `Open AI Engineer at ${company ?? 'Unknown company'}` })).toHaveAttribute('href', '/jobs/job-1')
   expect(screen.getByRole('link', { name: 'Open AI Engineer application page' })).toHaveAttribute('href', 'https://acme.example/apply')
 })
@@ -138,4 +141,106 @@ it.each([
   expect(await screen.findByText('Comparing with library')).toBeInTheDocument()
   expect(await screen.findByText(label)).toBeInTheDocument()
   expect(screen.queryByText('Comparing with library')).not.toBeInTheDocument()
+})
+
+const boardJobs = [
+  { id: 'job-1', title: 'Platform Engineer', stage: 'UNAPPLIED', nextStep: 'WRITE_RESUME' },
+  { id: 'job-2', title: 'Site Reliability Engineer', stage: 'APPLIED', nextStep: 'AWAITING_RESPONSE' },
+  { id: 'job-3', title: 'Backend Developer', stage: 'INTERVIEWING', nextStep: 'PRACTICE_INTERVIEW' },
+  { id: 'job-4', title: 'QA Lead', stage: 'REJECTED', nextStep: 'NONE' },
+]
+
+function renderJobs(rows = boardJobs, url = '/jobs', extraMocks: unknown[] = []) {
+  const jobs = rows.map(({ id, title, stage }, index) => ({ __typename: 'Job', id, title, company: 'Synthetic Co', location: 'Remote', stage, url: null, createdAt: `2026-10-${String((index % 27) + 1).padStart(2, '0')}T00:00:00Z` }))
+  const jobPipeline = rows.map(({ id, title, stage, nextStep }) => ({ __typename: 'JobPipelineEntry', nextStep, job: { __typename: 'Job', id, title, company: 'Synthetic Co', location: 'Remote', stage } }))
+  return renderPage({ path: '/jobs', url, element: <JobsPage />, mocks: [
+    jobsMock(jobs),
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } },
+    { request: { query: RUNNING_AI_TASKS_QUERY }, result: { data: { runningAiTasks: [] } } },
+    ...extraMocks,
+  ] as never })
+}
+
+it('shows the list by default and a board of stage columns when asked, remembering the choice', async () => {
+  const user = userEvent.setup()
+  const { unmount } = renderJobs()
+  expect(await screen.findByText('4 jobs')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByRole('region', { name: /Not applied/ })).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Board' }))
+  const notApplied = await screen.findByRole('region', { name: /Not applied/ })
+  expect(await within(notApplied).findByRole('link', { name: 'Write resume: Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1/resume')
+  expect(within(screen.getByRole('region', { name: /Offer/ })).getByText('No jobs')).toBeInTheDocument()
+  expect(within(screen.getByRole('region', { name: /Interviewing/ })).getByRole('link', { name: 'Practice interview: Backend Developer' })).toHaveAttribute('href', '/jobs/job-3/interview')
+  unmount()
+
+  renderJobs()
+  expect(await screen.findByRole('button', { name: 'Board' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+it('narrows the list to one stage, as Home\'s stage line links to', async () => {
+  const user = userEvent.setup()
+  renderJobs(boardJobs, '/jobs?stage=APPLIED')
+  expect(await screen.findByText('1 job · Applied')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /^Open Site Reliability Engineer/ })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /^Open Platform Engineer/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Applied' })).toHaveAttribute('aria-pressed', 'true')
+
+  await user.click(screen.getByRole('button', { name: 'Offer' }))
+  expect(await screen.findByText('No jobs in this stage.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'All' }))
+  expect(await screen.findByText('4 jobs')).toBeInTheDocument()
+})
+
+it('shows the list, not the board, while a stage filter is on, and clears the filter for the board', async () => {
+  localStorage.setItem('careerdrafter.jobsView', 'board')
+  const user = userEvent.setup()
+  renderJobs(boardJobs, '/jobs?stage=APPLIED')
+  expect(await screen.findByText('1 job · Applied')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
+  await user.click(screen.getByRole('button', { name: 'Board' }))
+  expect(await screen.findByRole('region', { name: /Not applied/ })).toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Show stage' })).not.toBeInTheDocument()
+})
+
+it('keeps a long board scannable: each column shows a few jobs and a Show more button for the rest', async () => {
+  localStorage.setItem('careerdrafter.jobsView', 'board')
+  const user = userEvent.setup()
+  const total = BOARD_COLUMN_LIMIT + 5
+  renderJobs(Array.from({ length: total }, (_, index) => ({ id: `job-${index}`, title: `Role ${index}`, stage: 'UNAPPLIED', nextStep: 'WRITE_RESUME' })))
+  const column = await screen.findByRole('region', { name: new RegExp(`Not applied, ${total} jobs`) })
+  expect(within(column).getAllByRole('group', { name: /, draggable$/ })).toHaveLength(BOARD_COLUMN_LIMIT)
+  await user.click(within(column).getByRole('button', { name: 'Show 5 more Not applied jobs' }))
+  expect(within(column).getAllByRole('group', { name: /, draggable$/ })).toHaveLength(total)
+  expect(within(column).queryByRole('button', { name: /Show/ })).not.toBeInTheDocument()
+})
+
+it('lets every board tile be dragged to another stage, but not list rows', async () => {
+  localStorage.setItem('careerdrafter.jobsView', 'board')
+  const user = userEvent.setup()
+  renderJobs()
+  const notApplied = await screen.findByRole('region', { name: /Not applied/ })
+  expect(await within(notApplied).findByRole('group', { name: 'Platform Engineer at Synthetic Co, draggable' })).toBeInTheDocument()
+  expect(screen.getAllByRole('group', { name: /, draggable$/ })).toHaveLength(boardJobs.length)
+  await user.click(screen.getByRole('button', { name: 'List' }))
+  expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
+})
+
+it('archives a job from the board after confirmation and updates the count', async () => {
+  localStorage.setItem('careerdrafter.jobsView', 'board')
+  const user = userEvent.setup()
+  renderJobs(boardJobs, '/jobs', [{
+    request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
+    result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: [] } } },
+  }])
+  await user.click(await screen.findByRole('button', { name: 'Archive Platform Engineer' }))
+  expect(screen.getByRole('dialog')).toHaveTextContent('Your answers, resumes, and interview history are kept.')
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('link', { name: 'Platform Engineer' })).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(screen.queryByRole('link', { name: 'Platform Engineer' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Backend Developer' })).toBeVisible()
 })

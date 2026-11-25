@@ -264,9 +264,11 @@ The workspace is a column: signage band, then the section's tab row (only when t
 
 Side gutters step down with the screen: 48px on wide screens, 28px under 1200px, 24px under 900px, 16px under 600px. The band and tab row use the same gutters, so their left edges line up with the page.
 
-Every page starts with a page heading: title on the left, actions on the right, then a 2px ink rule underneath. On Home the rule moves down to the top of the AI work strip instead.
+Every page starts with a page heading: title on the left, actions on the right, then a 2px ink rule underneath. On Home the rule moves down to the top of the stage line instead.
 
-Home's board is five equal columns (at least 210px each) with 16px between them. Each column starts with its station on the shared line, and the job tiles stack under it 12px apart. On narrow laptops the board scrolls sideways rather than squeezing. Under 640px it becomes one column: each station turns into a row (bullet on the left, name beside it), the connecting track is hidden, and the jobs stack under it like a vertical list of stops.
+Home is an overview that stays the same size however many jobs are saved: the stage line, then a "Do next" list (at most six jobs that need the user, furthest along first, with a link to the rest) beside the AI work panel (340px wide; stacked below under 900px). The board lives on the Jobs page, which also has a List/Board switch and a stage filter.
+
+The Jobs board is five equal columns (at least 210px each) with 16px between them. Each column shows its first eight tiles and a "Show more" button for the rest. Each column starts with its station on the shared line, and the job tiles stack under it 12px apart. On narrow laptops the board scrolls sideways rather than squeezing. Under 640px it becomes one column: each station turns into a row (bullet on the left, name beside it), the connecting track is hidden, and the jobs stack under it like a vertical list of stops.
 
 Under 900px the band's nav moves to its own second row that scrolls sideways, and the band stops being sticky. Under 900px all workspace buttons get a 44px minimum height for touch. Under 600px form fields use 16px text so phones don't zoom in.
 
@@ -332,10 +334,9 @@ Solid and square-shouldered, like a sign you can press.
 - AI work opens right under the selected detail in a 1.5px ink-bordered box, with the proposed revision on the left and the feedback form on the right. The selected row sits on `muted`. Under 900px it opens as a full-screen dialog instead.
 
 ### Station Line (Home signature)
-- Five stations across the top of the board, each a 42px ringed bullet holding its job count, with the stage name under it. An 8px ink track runs through every bullet.
+- Five stations across the top of Home (and over the Jobs board), each a 42px ringed bullet holding its job count, with the stage name under it. An 8px ink track runs through every bullet. On Home each station is a link to the Jobs list for that stage.
 - **Offer** gets a green ring. It's the end of the main line.
 - **Rejected** is a branch, not the stop after Offer: the track into it is a 4px dashed gray line, its ring is gray, and it is labelled "Branch line".
-- The **List** view keeps the same stations as smaller 28px bullets over a 2px ink rule, with jobs as rows underneath.
 
 ### Job Tile and Stop Line
 - A white tile with a 1.5px ink border and 6px corners. Job title (16px bold), company in gray, then the job's own five-stop line, then a hairline and its next step.

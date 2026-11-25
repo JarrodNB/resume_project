@@ -656,6 +656,61 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .signal-dot.is-ai::after { animation: none; opacity: 0.35; transform: none; }
 }
 
+/* Home, redesigned: a fixed-size stage line (the overview), then "Do next" beside the AI work strip.
+   Nothing here grows with the number of saved jobs; the full board and list live on Jobs. */
+.stage-line { margin-top: 28px; padding: 22px 0 18px; border-top: 2px solid var(--rule-strong); border-bottom: 1px solid var(--border); }
+.stage-line ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stage-line li { position: relative; }
+.stage-line li::before, .stage-line li::after { content: ""; position: absolute; top: 17px; height: 8px; background: var(--rule-strong); }
+.stage-line li::before { left: 0; right: 50%; }
+.stage-line li::after { left: 50%; right: 0; }
+.stage-line li:first-child::before, .stage-line li:last-child::after { display: none; }
+.stage-line li.is-offer::after, .stage-line li.is-rejected::before { top: 19px; height: 0; background: none; border-top: 4px dashed var(--stop-closed); }
+.stage-line a { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; padding: 0 4px 4px; color: var(--foreground); text-align: center; }
+.stage-line a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
+.stage-line .station-bullet { transition: background-color 160ms; }
+.stage-line li.is-offer .station-bullet { border-color: var(--signal-done); }
+.stage-line li.is-rejected .station-bullet { border-color: var(--stop-closed); color: var(--muted-foreground); }
+.stage-line-name { font-size: 14px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); align-items: start; gap: 40px; margin-top: 32px; }
+.do-next { display: grid; gap: 4px; min-width: 0; }
+.do-next-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 10px; border-bottom: 2px solid var(--rule-strong); }
+.do-next-head h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.do-next-head span { color: var(--muted-foreground); font-size: 14px; font-variant-numeric: tabular-nums; }
+.do-next .pipeline-row { grid-template-columns: minmax(0, 1fr) auto; padding: 16px 4px; }
+.do-next-step { display: grid; justify-items: end; gap: 2px; }
+.do-next-stage { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+.do-next-clear { padding: 28px 0; max-width: 55ch; color: var(--muted-foreground); font-size: 15px; line-height: 1.55; }
+.do-next-clear strong { display: block; color: var(--foreground); font-size: 17px; }
+.do-next-all { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 32px; margin-top: 12px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
+.do-next-all svg { width: 15px; }
+.do-next-all:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
+.home-grid .signal-strip { display: grid; align-content: start; gap: 12px; margin-top: 0; padding: 0 0 10px; border-top: 0; border-bottom: 0; }
+.home-grid .signal-strip h2 { padding-bottom: 10px; border-bottom: 2px solid var(--rule-strong); }
+.home-grid .signal-strip ul:not(.signal-legend) { display: grid; gap: 10px; }
+.home-grid .signal-legend { margin-left: 0; padding-top: 12px; border-top: 1px solid var(--border); }
+/* Jobs page toolbar: count, stage filter, list/board switch. */
+.jobs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.jobs-toolbar h2 { margin-right: auto; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stage-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.stage-filter button { min-height: 34px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 4px; background: var(--background); color: var(--foreground); font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 160ms, color 160ms, border-color 160ms; }
+.stage-filter button[aria-pressed=true] { border-color: var(--rule-strong); background: var(--rule-strong); color: var(--background); }
+.stage-filter button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .stage-line a:hover .station-bullet { background: var(--muted); }
+  .stage-line a:hover .stage-line-name, .do-next-all:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .stage-filter button[aria-pressed=false]:hover { background: var(--muted); }
+}
+@media (max-width: 899px) {
+  .home-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 599px) {
+  .stage-line a { padding: 0; }
+  .stage-line-name { font-size: 11px; overflow-wrap: normal; }
+  .do-next .pipeline-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .do-next-step { justify-items: start; }
+}
+
 /* One saved job: header, job tabs, and the selected tab's work. */
 .job-workspace { max-width: 1040px; display: grid; min-width: 0; }
 .job-workspace-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 24px; padding-bottom: 24px; }

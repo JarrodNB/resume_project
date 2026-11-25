@@ -3,7 +3,8 @@
  * Trial and ended users get an Upgrade button that sends them to Stripe Checkout; after paying, the
  * page refetches the plan for a short while until the Stripe webhook has made it Paid (Upgrade is
  * disabled meanwhile, so a second subscription can't be started).
- * Users with a Stripe customer also get Manage billing, which opens the Stripe Customer Portal. */
+ * Users with a Stripe customer also get Manage billing, which opens the Stripe Customer Portal. When the
+ * last charge failed (Stripe is retrying), the plan says so and Manage billing becomes the main action. */
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useSearchParams } from 'react-router'
@@ -27,6 +28,7 @@ const formatDate = (value: string | null | undefined) =>
  * `label` is the short status tag and `dot` the signal colour shown beside it. */
 function planSummary(billing: Billing) {
   if (billing.plan === 'TRIAL') return { label: 'Trial', dot: 'is-wait', title: `Free trial — ends ${formatDate(billing.trialEndsAt)}`, detail: 'You can use every feature until then.' }
+  if (billing.plan === 'PAID' && billing.paymentFailed) return { label: 'Payment failed', dot: 'is-action', title: "Your last payment didn't go through", detail: "We'll try your card again automatically. Update your card to keep your subscription." }
   if (billing.plan === 'PAID' && billing.cancelAtPeriodEnd) return { label: 'Cancelling', dot: 'is-wait', title: `Ends ${formatDate(billing.currentPeriodEndsAt)}`, detail: 'Your subscription is cancelled. You keep access until then.' }
   if (billing.plan === 'PAID') return { label: 'Active', dot: 'is-done', title: `Renews ${formatDate(billing.currentPeriodEndsAt)}`, detail: 'Your subscription is active.' }
   return { label: 'Ended', dot: 'is-action', title: 'Your free trial has ended', detail: 'Your saved jobs, library and resumes are still here. AI features are paused.' }
@@ -112,10 +114,10 @@ export function BillingPage() {
           {data?.me.billing.canManageBilling && (
             <div className="billing-manage">
               <div>
-                <p className="billing-manage-title">Card and invoices</p>
-                <p className="billing-manage-detail">Update your card, see invoices or cancel.</p>
+                <p className="billing-manage-title">{data.me.billing.paymentFailed ? 'Update your card' : 'Card and invoices'}</p>
+                <p className="billing-manage-detail">{data.me.billing.paymentFailed ? 'Add a working card so the next retry goes through.' : 'Update your card, see invoices or cancel.'}</p>
               </div>
-              <Button variant="outline" onClick={manageBilling} disabled={openingPortal}>{openingPortal ? 'Opening billing…' : 'Manage billing'}</Button>
+              <Button variant={data.me.billing.paymentFailed ? 'default' : 'outline'} onClick={manageBilling} disabled={openingPortal}>{openingPortal ? 'Opening billing…' : 'Manage billing'}</Button>
               <ErrorAlert title="Couldn't open billing" messages={portalErrors} />
             </div>
           )}

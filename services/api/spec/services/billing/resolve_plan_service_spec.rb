@@ -55,6 +55,14 @@ RSpec.describe Billing::ResolvePlanService do
     end
   end
 
+  { "past_due" => true, "active" => false }.each do |status, failed|
+    it "says the payment #{failed ? "failed" : "is fine"} for a #{status} subscription" do
+      create(:billing_subscription, user: user, status: status)
+
+      expect(plan_for(user.reload).payment_failed).to eq(failed)
+    end
+  end
+
   %w[unpaid canceled incomplete incomplete_expired].each do |status|
     it "does not treat a #{status} subscription as paid" do
       user.update!(trial_ends_at: 1.day.ago)

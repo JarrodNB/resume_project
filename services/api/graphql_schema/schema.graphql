@@ -520,6 +520,11 @@ type Billing {
   Next renewal, or the end date when cancelling. Paid plans only.
   """
   currentPeriodEndsAt: ISO8601DateTime
+
+  """
+  True when the plan is still paid but the last charge failed and Stripe is retrying it.
+  """
+  paymentFailed: Boolean!
   plan: BillingPlanEnum!
 
   """

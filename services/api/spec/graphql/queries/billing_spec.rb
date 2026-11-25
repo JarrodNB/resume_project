@@ -30,6 +30,13 @@ RSpec.describe "me.billing query" do
     expect(billing_for(user)).to include("plan" => "PAID", "cancelAtPeriodEnd" => true)
   end
 
+  it "flags a paid plan whose last charge failed" do
+    user = create(:user)
+    create(:billing_subscription, user: user, status: "past_due")
+
+    expect(execute_graphql("{ me { billing { plan paymentFailed } } }", user: user).dig("data", "me", "billing")).to eq("plan" => "PAID", "paymentFailed" => true)
+  end
+
   it "shows an ended plan" do
     expect(billing_for(create(:user, :trial_ended))).to include("plan" => "ENDED", "currentPeriodEndsAt" => nil)
   end
@@ -43,6 +50,6 @@ RSpec.describe "me.billing query" do
   it "does not expose caps, spend, cap overrides or Stripe ids" do
     type = ApiSchema.types["Billing"]
 
-    expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd", "canManageBilling", "priceLabel")
+    expect(type.fields.keys).to contain_exactly("plan", "trialEndsAt", "currentPeriodEndsAt", "cancelAtPeriodEnd", "canManageBilling", "paymentFailed", "priceLabel")
   end
 end

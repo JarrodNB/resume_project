@@ -7,8 +7,8 @@ import { BillingPage } from './BillingPage'
 import { BILLING_QUERY, START_BILLING_CHECKOUT_MUTATION, START_BILLING_PORTAL_MUTATION } from './billingOperations'
 
 type Plan = 'TRIAL' | 'PAID' | 'ENDED'
-type BillingData = { plan: Plan; trialEndsAt: string | null; currentPeriodEndsAt: string | null; cancelAtPeriodEnd: boolean; canManageBilling?: boolean; priceLabel?: string | null }
-const billingResult = (billing: BillingData) => ({ data: { me: { __typename: 'User', id: '1', billing: { __typename: 'Billing', canManageBilling: false, priceLabel: '$12/month', ...billing } } } })
+type BillingData = { plan: Plan; trialEndsAt: string | null; currentPeriodEndsAt: string | null; cancelAtPeriodEnd: boolean; canManageBilling?: boolean; paymentFailed?: boolean; priceLabel?: string | null }
+const billingResult = (billing: BillingData) => ({ data: { me: { __typename: 'User', id: '1', billing: { __typename: 'Billing', canManageBilling: false, paymentFailed: false, priceLabel: '$12/month', ...billing } } } })
 const trial: BillingData = { plan: 'TRIAL', trialEndsAt: '2026-12-05T12:00:00Z', currentPeriodEndsAt: null, cancelAtPeriodEnd: false }
 const paid: BillingData = { plan: 'PAID', trialEndsAt: null, currentPeriodEndsAt: '2026-12-20T12:00:00Z', cancelAtPeriodEnd: false }
 const originalLocation = window.location
@@ -47,6 +47,15 @@ it('shows the end date on a paid plan that is cancelling', async () => {
   renderBilling({ plan: 'PAID', trialEndsAt: null, currentPeriodEndsAt: '2026-12-20T12:00:00Z', cancelAtPeriodEnd: true })
   expect(await screen.findByText(/Ends Dec 20, 2026/)).toBeInTheDocument()
   expect(screen.queryByText(/Renews/)).not.toBeInTheDocument()
+})
+
+it('says the last payment failed and makes updating the card the main action', async () => {
+  renderBilling({ ...paid, canManageBilling: true, paymentFailed: true })
+  expect(await screen.findByText(/Payment failed/)).toBeInTheDocument()
+  expect(screen.getByText("Your last payment didn't go through")).toBeInTheDocument()
+  expect(screen.getByText('Update your card')).toBeInTheDocument()
+  expect(screen.queryByText(/Renews/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
 })
 
 it('says the trial has ended', async () => {

@@ -1,6 +1,6 @@
 # Retirement preserves completed results, billing, and unrelated queued work.
 require "rails_helper"
-require Rails.root.join("db/migrate/20261124010000_retire_job_listing_reranking")
+require Rails.root.join("db/migrate/20261124010100_retire_job_listing_reranking")
 
 RSpec.describe RetireJobListingReranking do
   it "retires pending reranking while preserving history and other tasks" do

@@ -11,14 +11,14 @@ import { productStorageKey } from '@/lib/productName'
 const signedIn = { user: { id: '1', email: 'ada@example.com', name: 'Ada' }, csrfToken: 'new-csrf' }
 const signedOut = { user: null, csrfToken: 'csrf' }
 const json = (body: unknown) => new Response(JSON.stringify(body))
-function SessionHome() {
+function SessionPage({ label }: { label: string }) {
   const { signOut } = useAuth()
-  return <><p>Home page</p><button onClick={() => { void signOut().catch(() => {}) }}>Sign out</button></>
+  return <><p>{label}</p><button onClick={() => { void signOut().catch(() => {}) }}>Sign out</button></>
 }
 function renderApp(initialUrl: string) {
   const router = createMemoryRouter([
     { element: <RequireSignedOut />, children: [{ path: '/sign-in', element: <SignInPage /> }] },
-    { element: <RequireAuth />, children: [{ path: '/', element: <SessionHome /> }, { path: '/library', element: <p>Library page</p> }] },
+    { element: <RequireAuth />, children: [{ path: '/', element: <SessionPage label="Home page" /> }, { path: '/library', element: <SessionPage label="Library page" /> }] },
   ], { initialEntries: [initialUrl] })
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>)
 }
@@ -36,6 +36,15 @@ it('returns to the requested page after cookie sign-in and clears legacy credent
   await submitCredentials('password123')
   expect(await screen.findByText('Library page')).toBeInTheDocument()
   expect(localStorage.getItem(productStorageKey('authToken'))).toBeNull()
+})
+it('starts the next sign-in at home after signing out, not on the last page', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json(signedIn)).mockResolvedValueOnce(new Response(null, { status: 204 }))
+    .mockResolvedValueOnce(json(signedOut)).mockResolvedValueOnce(json(signedIn)))
+  renderApp('/library')
+  await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+  await submitCredentials('password123')
+  expect(await screen.findByText('Home page')).toBeInTheDocument()
+  expect(screen.queryByText('Library page')).not.toBeInTheDocument()
 })
 it('restores a signed-in browser after refresh', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json(signedIn)))

@@ -7,6 +7,7 @@
 #   - API_VERSION: the one place the Stripe API version is pinned (the version the gem was built for)
 #   - create_customer, create_checkout_session, create_portal_session
 #   - retrieve_subscription, live_subscription_ids, cancel_subscription_now, cancel_customer_subscriptions
+#   - expire_open_checkout_sessions, refund_subscription_payments: used once a user is paid, against duplicate charges
 #   - retrieve_price: the configured plan price, read from Stripe
 #   - translating: the one place Stripe errors become Gateway::Unavailable / Gateway::NotFound
 #   - construct_event: verifies the webhook signature and returns a Gateway::Event (or nil for ignored types)
@@ -98,6 +99,40 @@ module Billing
 
     def cancel_subscription_now(subscription_id)
       translating { client.v1.subscriptions.cancel(subscription_id) }
+      nil
+    end
+
+    # Expires the customer's Checkout sessions that are still open, so a page left open in another tab
+    # can't start a second subscription. A session that completes or expires meanwhile is skipped.
+    def expire_open_checkout_sessions(customer_id)
+      translating do
+        client.v1.checkout.sessions.list({ customer: customer_id, status: "open" }).auto_paging_each do |session|
+          client.v1.checkout.sessions.expire(session.id)
+        rescue Stripe::InvalidRequestError
+          # Stripe refuses to expire a session that is no longer open; nothing left to do for it.
+          next
+        end
+      end
+      nil
+    end
+
+    # Refunds every paid invoice payment of the subscription in full. The idempotency key per payment
+    # makes a retried job reuse the first refund, and an already refunded payment is skipped.
+    def refund_subscription_payments(subscription_id)
+      translating do
+        client.v1.invoices.list({ subscription: subscription_id, status: "paid" }).auto_paging_each do |invoice|
+          client.v1.invoice_payments.list({ invoice: invoice.id, status: "paid" }).auto_paging_each do |payment|
+            payment_intent = payment.payment&.payment_intent
+            next if payment_intent.blank?
+
+            begin
+              client.v1.refunds.create({ payment_intent: payment_intent }, { idempotency_key: "careerdrafter-refund-#{payment_intent}" })
+            rescue Stripe::InvalidRequestError => error
+              raise unless error.code == "charge_already_refunded"
+            end
+          end
+        end
+      end
       nil
     end
 

@@ -295,7 +295,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .security-password-section a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
 .security-session-notice { border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
 .billing-plan { padding-top: 28px; }
-.billing-plan-label { display: flex; align-items: center; gap: 8px; padding-top: 16px; border-top: 4px solid var(--rule-strong); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); }
+.billing-plan-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); }
 .billing-plan-title { margin-top: 12px; font-size: 1.75rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
 .billing-plan-detail { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
 .billing-plan-status { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--muted); font-size: 14px; }

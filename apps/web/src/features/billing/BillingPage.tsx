@@ -112,7 +112,7 @@ export function BillingPage() {
           {data?.me.billing.canManageBilling && (
             <div className="billing-manage">
               <div>
-                <p className="billing-manage-title">Manage billing</p>
+                <p className="billing-manage-title">Card and invoices</p>
                 <p className="billing-manage-detail">Update your card, see invoices or cancel.</p>
               </div>
               <Button variant="outline" onClick={manageBilling} disabled={openingPortal}>{openingPortal ? 'Opening billing…' : 'Manage billing'}</Button>

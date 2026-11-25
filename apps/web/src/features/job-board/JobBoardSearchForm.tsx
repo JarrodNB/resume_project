@@ -2,10 +2,10 @@
  * above a remembered, collapsible Filters panel holding every filter: date, remote, sort,
  * experience level and employment type (dropdown multi-selects), location, and more filters.
  * The panel stays mounted so choices survive closing it, and location names must resolve
- * before a search is sent. Children (reranking) follow the panel. Router entries remount the
+ * before a search is sent. Router entries remount the
  * form with a submitted initial search; later edits stay local until the user submits.
  */
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Globe2, Search, SlidersHorizontal } from 'lucide-react'
 import type { JobBoardExperienceLevel, JobBoardFiltersInput } from '@/graphql/generated/graphql'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,7 @@ import { ageOptions, employmentTypeOptions, experienceLevelOptions, remoteOption
 
 const employmentTypeChoices = employmentTypeOptions.map(([value, label]) => ({ value, label }))
 
-export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, children, initialSearch }: { initialSearch?: BoardSearch | null; children?: ReactNode; onSearch: (search: BoardSearch) => void; keyword: string; onKeywordChange: (value: string) => void }) {
+export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, initialSearch }: { initialSearch?: BoardSearch | null; onSearch: (search: BoardSearch) => void; keyword: string; onKeywordChange: (value: string) => void }) {
   const [remote, setRemote] = useState(initialSearch?.filters?.remoteType ?? (initialSearch?.remoteOnly ? 'remote' : ''))
   const [maxAge, setMaxAge] = useState(initialSearch?.filters?.maxAge ?? '')
   const [sortBy, setSortBy] = useState(initialSearch?.filters?.sortBy ?? 'published')
@@ -83,6 +83,5 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
     </div>
     {unresolvedLocation && !filters.open && <p role="alert" className="board-filter-help">Choose a location from the list in Filters, or clear it, to search.</p>}
     {!salaryValid && <p role="alert" className="board-filter-help">Enter a whole-number minimum salary between 1 and 1,000,000,000, or clear the minimum in More filters.</p>}
-    {children}
   </form>
 }

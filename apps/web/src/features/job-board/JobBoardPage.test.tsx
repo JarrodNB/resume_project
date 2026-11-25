@@ -56,9 +56,9 @@ it('starts with a keyword invitation without requesting listings', async () => {
   expect(fetched).not.toHaveBeenCalled()
 })
 
-it('starts with career-library reranking available only after loading results', () => {
+it('does not offer career-library reranking', () => {
   renderBoard()
-  expect(screen.getByRole('button', { name: 'Rerank using my career library' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: /rerank/i })).not.toBeInTheDocument()
 })
 
 it('searches a submitted keyword and displays a retrieved listing', async () => {
@@ -67,6 +67,7 @@ it('searches a submitted keyword and displays a retrieved listing', async () => 
   renderBoard([{ request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables() }, result }])
   await search(user)
   expect(await screen.findByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
+  expect(screen.queryByRole('combobox', { name: 'Result order' })).not.toBeInTheDocument()
   expect(screen.getByText('Acme')).toBeInTheDocument()
   expect(screen.getByText('United States')).toBeInTheDocument()
   expect(screen.getByText(/Retrieved/)).toBeInTheDocument()

@@ -65,7 +65,6 @@ module Types
     field :start_billing_checkout, mutation: Mutations::Billing::StartCheckout
     field :start_billing_portal, mutation: Mutations::Billing::StartPortal
 
-    field :rerank_job_board_listings, mutation: Mutations::JobBoard::RerankJobBoardListings
     field :import_job_board_listing, mutation: Mutations::JobBoard::ImportListing
 
     field :generate_study_guide, mutation: Mutations::StudyGuides::GenerateStudyGuide

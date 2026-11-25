@@ -43,7 +43,7 @@ experience-level selections
 remain distinct. Selected experience levels are validated provider codes (`EN`, `MI`,
 `SE`, `EX`) and canonicalized as a deduplicated set before provider calls, cache keys,
 and advisory locks. The provider receives a comma-separated `experience_level` filter;
-no level is inferred from a career library and reranking does not set it.
+no level is inferred from a career library.
 Any arrangement omits the provider remote filter. Any remote option uses `remote=true`,
 which can include hybrid roles. Fully remote, Hybrid, and country/region-restricted
 options additionally send `remote_type`; this describes the provider classification,
@@ -102,22 +102,14 @@ from a saved Job restores retained loaded pages, selected page, scroll, save fee
 retry state and display preferences. Explicitly submitting a search starts at page 1 even
 when that URL has a retained visit. Nothing is persisted to browser storage; account/client
 replacement discards access to the prior session's visits and resets private preferences.
-Pending search, save and career-ranking completions update their original
-visit while away. Returning restores the selected result order, reuses completed outcomes
-or reconnects to queued work without re-enqueueing. A newly submitted search starts in search
-order and requires an explicit action for career-library ranking.
+Pending search and save completions update their original visit while away.
+Returning restores loaded results and save feedback.
 
-`jobBoardVisit` owns submitted search execution, ranking records, save locks and feedback,
-and result-page selection for each visit. Its actions keep request generations, pending
-flags and ranking maps private; callers cannot patch visit state. The React
-`useJobBoardVisit` hook selects and subscribes to retained visits, while
-`useJobBoardReranking` connects the current queued task to live updates. Disconnected
-career-ranking subscriptions offer an explicit reconnect to their existing queued task without creating another paid task. The page owns URL navigation, drafts and
-scroll effects. It submits a form snapshot, then reads submitted context and displayed
-listings together. Each submission or
-accepted provider page creates a new snapshot identity, including refreshes with
-unchanged listing IDs; ranking uses that identity directly. Form drafts and the
-Hide already saved preference do not change ranking candidates or identity.
+`jobBoardVisit` owns submitted search execution, save locks and feedback,
+and result-page selection for each visit. Its actions keep request generations and
+pending flags private; callers cannot patch visit state. The React
+`useJobBoardVisit` hook selects and subscribes to retained visits. The page owns URL
+navigation, drafts and scroll effects. Results retain provider order.
 Displayed IDs are deduplicated in first-seen order. A failed page retry preserves
 successful pages. A successful earlier-page refresh preserves descendants when its
 continuation is unchanged; a changed cursor drops the obsolete descendants.
@@ -125,8 +117,8 @@ Request generations prevent old successes or failures replacing a newer search.
 Listing titles open an accessible preview dialog: a right-side panel on desktop and a full-screen panel on phones. Closing it or pressing Escape returns focus to the title while the list and its scroll position stay in place. The preview uses the already loaded listing; it starts no detail request or public route. Descriptions are plain text, never raw HTML. Short
 "Label:" lines and "- " bullets are shown as labels and lists; the text itself is not parsed as markup.
 Hide already saved immediately filters loaded results by the owner-scoped `savedJob`
-reference, after optional career-library ordering. It does not change provider requests,
-shared pages, or reranking candidates. Counts distinguish shown, loaded, and hidden rows;
+reference, in provider order. It does not change provider requests
+or shared pages. Counts distinguish shown, loaded, and hidden rows;
 an all-hidden page keeps Load more available and explains how to reveal saved results.
 
 `importJobBoardListing(input: { listingId: })` delegates to `ImportListingService` and returns
@@ -139,38 +131,9 @@ Job search preferences have been removed, including stored profiles, fit checks 
 their API operations. Historical task types remain readable for usage accounting;
 queued or late preference results cannot restart the feature.
 
-## Optional hybrid reranking
-
-The explicit “Rerank using my career library” action requests an asynchronous rerank
-of currently loaded candidates. It does not change the search provider's keyword, remote, or selected
-experience-level filters and does not infer a user's seniority. The Result order selector restores
-search order or reuses a completed career ranking without starting new work. New searches and loaded pages have their own candidate snapshot; an old
-ranking cannot reorder a newer set, and no new ranking starts automatically. Ranking is
-limited to 100 loaded candidates.
-
-`rerankJobBoardListings(input: {keyword:, listingIds:})` reads only those shared catalogue
-IDs and queues `rerank_job_listings` with only the IDs and keyword.
-The user cannot submit arbitrary descriptions. Python reads current catalogue text at execution;
-locally formatted excerpts use a 140,000-byte combined text
-budget, at most 6,000 UTF-8 bytes per listing; complete input must fit 200,000 UTF-8 bytes.
-Normal AI admission and cost accounting apply. Identical recent queued work is reused.
-A missing current-model career-library index returns a clear error instead of queueing.
-
-The worker loads `{keyword, listing_ids: [...]}` from the owned queued task, reads the
-selected shared catalogue payloads, and embeds locally formatted listing text in a batch,
-and compares it with the task owner's existing career-library embeddings. Equal-weight
-reciprocal rank fusion (k=60) combines mean top-three cosine similarity order with BM25
-on the submitted keyword. Private library reads remain user/model-scoped. The AI role
-can read only catalogue `id` and `payload` columns, never search pages. Retained legacy
-tasks select their original IDs but ignore copied text; missing listings fail before embedding. There is no generative LLM call or
-qualification percentage. Empty/unavailable evidence or provider failure preserves the
-browser's provider-order fallback with a retryable error.
-
-The worker returns `{ranked_listing_ids: [...]}`. Rails accepts only an exact permutation
-of the queued IDs, applies ordinary task completion/duplicate-result rules, and updates
-subscribers. Task input and results remain private to the task owner; reranking never
-saves private Jobs or changes the shared search-page order. This is an optional discovery
-experiment, not a validated prediction of qualification or hiring outcomes.
+Job-search reranking has been removed. Historical task identifiers remain readable for
+usage accounting; pending work and late results cannot restart reranking. Shared
+career-library retrieval and keyword/semantic ranking remain in use by other features.
 
 ## Private imports
 

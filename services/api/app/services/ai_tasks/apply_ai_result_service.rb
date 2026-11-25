@@ -43,7 +43,7 @@ module AiTasks
         if retired_task?(ai_task) && %w[completed needs_user_input].include?(status)
           # Retained queue/history types must never apply output from a retired feature.
           attributes.merge!(status: "failed", result: nil, message_history: [], pending_questions: [],
-            error_message: "Job preferences are no longer available.", completed_at: Time.current)
+            error_message: ai_task.rerank_job_listings? ? "Job reranking is no longer available." : "Job preferences are no longer available.", completed_at: Time.current)
         elsif ai_task.improve_library_entry? && %w[completed needs_user_input].include?(status)
           result = CareerLibrary::ApplyEditService.call(ai_task: ai_task, message: @message)
           attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })
@@ -60,7 +60,7 @@ module AiTasks
 
     # Decode old tasks and retain accounting without applying output from the removed feature.
     def retired_task?(task)
-      %w[elicit_job_preferences check_job_preferences].include?(task.task_type)
+      %w[elicit_job_preferences check_job_preferences rerank_job_listings].include?(task.task_type)
     end
 
     # Saves the unified `record_screening` receipts. Library receipts from summary generation
@@ -110,10 +110,6 @@ module AiTasks
     def domain_record_attributes(ai_task)
       if ai_task.generate_summary?
         result = SummaryGeneration::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : failed_attributes(result.errors)
-      end
-      if ai_task.rerank_job_listings?
-        result = JobBoard::ValidateRerankingResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)
       end
       if ai_task.generate_study_guide?

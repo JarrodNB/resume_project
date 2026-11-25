@@ -154,10 +154,6 @@ unknown expiration within partially stated periods.
 - `test_interview_evaluators.py` — synthetic dataset loading and deterministic checks against
   valid output, duplicates, incorrect counts/categories, invented quotes and missing placeholders.
 
-- `test_job_listing_reranking.py` — bounded snapshot validation, hybrid ordering, dispatch,
-  single-batch embedding accounting, request/token caps, timeout cancellation and empty
-  indexed-library failures. `test_library_embedding_search.py` also verifies reranking SQL
-  under ai_reader with owner/model isolation, nearest-three averaging and empty libraries.
 
 - `test_interview_session_feedback.py` — completed-session claim/dispatch, readable source reuse, exact question IDs, aggregate bounds, privacy and explicit provider-failure recovery.
 

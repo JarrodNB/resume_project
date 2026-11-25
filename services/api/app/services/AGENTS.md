@@ -52,10 +52,6 @@ All business logic, as service objects grouped by domain folder.
   sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids
   duplicating its optional field schema, and UUIDs remain separate from provider IDs.
-- `job_board/start_reranking_service.rb` — optional owner-scoped AI task for 1–100 shared listing IDs;
-  stores selected listing IDs and the fresh submitted keyword once; Python reads current catalogue text. Existing matching queued work
-  is reused; normal AI allowance checks apply. `validate_reranking_result_service.rb` accepts only
-  exact permutations of the frozen candidate IDs.
 - `job_board/search_filters.rb` — validates and canonicalizes provider date, city/state, employment, remote type, salary, company, and sort preferences for HTTP/cache identity.
 - `job_board/suggest_locations_service.rb` — authenticated fixed-endpoint US city/state lookup, with bounded query/results and a five-second deadline. Provider credentials and raw responses stay server-side.
 - `job_board/saved_job_lookup.rb` — read-only owner-scoped source/URL matching shared by search and import.

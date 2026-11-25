@@ -64,9 +64,10 @@ to that host. Domains: `api.openai.com`, `api.typesafe.ai`, `api.cleanjobdata.co
 environment (see `RAILS_PROVIDER_SETTINGS`). Stripe's webhook secret is not an outbound
 credential, so the proxy cannot supply it.
 
-## Known limit: Find jobs
+## Find jobs and the session proxy
 
-`SearchCleanJobDataService` deliberately ignores proxy settings (`Net::HTTP.new(host, port, nil)`).
-Here all outbound traffic must use the proxy, so the Find jobs search fails with a DNS error
-even with a valid key. Chat, practice questions and other flows that go through the Python
-service are not affected.
+`SearchCleanJobDataService` ignores general proxy variables on purpose, so on its own it cannot
+reach CleanJobData from here, where all traffic must use the proxy. Once the
+`CLEANJOBDATA_PROXY_URL` setting is in the app (PR #464), `claude_cloud.py` points it at the
+session proxy and Find jobs works. Without that setting the search fails with a DNS error even
+with a valid key.

@@ -51,6 +51,16 @@ def load_rails_provider_settings():
             os.environ.setdefault(name.strip(), value)
 
 
+def route_job_search_through_session_proxy():
+    """Job search ignores general proxy variables on purpose; give it the session proxy explicitly.
+
+    Needs the CLEANJOBDATA_PROXY_URL setting in Rails. Older code simply ignores it.
+    """
+    session_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if session_proxy:
+        os.environ.setdefault("CLEANJOBDATA_PROXY_URL", session_proxy)
+
+
 def main():
     commands = {"install": native.install, "start": native.start, "stop": native.stop,
                 "check": native.check, "doctor": native.doctor}
@@ -59,6 +69,7 @@ def main():
     native.RUBY = CLAUDE_CLOUD_RUBY
     trust_proxy_certificates()
     load_rails_provider_settings()
+    route_job_search_through_session_proxy()
     commands[sys.argv[1]]()
 
 

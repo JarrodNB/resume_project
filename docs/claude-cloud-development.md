@@ -53,3 +53,20 @@ wheels and the spaCy model:
 - `objects.githubusercontent.com`
 
 OpenAI and other provider hosts are separate and are only needed to run paid AI work.
+
+## Provider keys
+
+Save each key as a network secret on the environment and put a placeholder such as
+`proxy-injected` in the matching `.env` variable; the proxy swaps in the real key on requests
+to that host. Domains: `api.openai.com`, `api.typesafe.ai`, `api.cleanjobdata.com`,
+`api.stripe.com`. `native.py` only gives the Python services their `.env` file, so
+`claude_cloud.py` also copies the Rails provider keys from `services/api/.env` into Rails'
+environment (see `RAILS_PROVIDER_SETTINGS`). Stripe's webhook secret is not an outbound
+credential, so the proxy cannot supply it.
+
+## Known limit: Find jobs
+
+`SearchCleanJobDataService` deliberately ignores proxy settings (`Net::HTTP.new(host, port, nil)`).
+Here all outbound traffic must use the proxy, so the Find jobs search fails with a DNS error
+even with a valid key. Chat, practice questions and other flows that go through the Python
+service are not affected.

@@ -3,7 +3,8 @@
 This is the Claude cloud counterpart to the Codex cloud setup in `native.py`. It reuses
 all of `native.py` (database, emulators, Rails, AI workers, web), and only changes what
 Claude cloud needs: PostgreSQL 17, pgvector and Ruby come from a conda-forge environment
-at `.native/conda` (the usual download hosts are blocked there), and it expects Ruby 3.4.13
+at `.native/conda` (the usual download hosts are blocked there). It also passes the provider
+keys in `services/api/.env` to Rails, which `native.py` does not, and it expects Ruby 3.4.13
 instead of the 3.4.11 that `.ruby-version` names. It must run as a normal user, not root;
 `install-claude-cloud.sh` and `start-claude-cloud.sh` take care of that.
 
@@ -31,6 +32,25 @@ def trust_proxy_certificates():
         os.environ[name] = str(bundle)
 
 
+# Rails has no dotenv gem and `native.py` only gives the Python services their `.env` file,
+# so these provider settings in `services/api/.env` would never reach Rails. Compose does
+# this with `env_file`; here they are copied into the environment before services start.
+RAILS_PROVIDER_SETTINGS = ("OPENAI_API_KEY", "CLEANJOBDATA_API_KEY", "STRIPE_SECRET_KEY",
+                           "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET")
+
+
+def load_rails_provider_settings():
+    """Copy non-empty provider settings from services/api/.env unless already set."""
+    dotenv = native.ROOT / "services/api/.env"
+    if not dotenv.is_file():
+        return
+    for line in dotenv.read_text().splitlines():
+        name, separator, value = line.partition("=")
+        value = value.strip().strip("'\"")
+        if separator and name.strip() in RAILS_PROVIDER_SETTINGS and value:
+            os.environ.setdefault(name.strip(), value)
+
+
 def main():
     commands = {"install": native.install, "start": native.start, "stop": native.stop,
                 "check": native.check, "doctor": native.doctor}
@@ -38,6 +58,7 @@ def main():
         sys.exit(__doc__)
     native.RUBY = CLAUDE_CLOUD_RUBY
     trust_proxy_certificates()
+    load_rails_provider_settings()
     commands[sys.argv[1]]()
 
 

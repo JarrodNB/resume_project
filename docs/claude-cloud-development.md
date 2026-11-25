@@ -37,6 +37,11 @@ runuser -u claude -- env HOME=$PWD/.native/home PATH="$PATH" python3 script/clau
 runuser -u claude -- env HOME=$PWD/.native/home PATH="$PATH" python3 script/claude_cloud.py stop
 ```
 
+The environment's setup script runs `git fetch origin develop` before installing, then
+fast-forwards the checkout to `origin/develop` when the checkout has no commits of its own.
+A new session therefore starts at the latest `develop`. Still fetch at the start of each task
+(see the root `AGENTS.md`), because `develop` can move during a session.
+
 Logs are in `.native/logs/`. Everything else (Moto instead of ElasticMQ and S3, in-memory
 uploads, ports, credentials, previews) works as described in `native-development.md`.
 

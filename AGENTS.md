@@ -6,6 +6,18 @@ Add nested instructions only where a module needs rules beyond its parent.
 
 Before planning or implementing, fetch origin and compare HEAD with origin/develop. Report stale code before making architectural recommendations.
 
+**In cloud sessions (Claude or Codex), always work from the latest `develop`.** A cloud checkout
+can be older than `develop`: it may have been cloned before the latest merge, or its session
+branch may be left over from a PR that has since merged. At the start of every task:
+
+1. Run `git fetch origin`.
+2. If your branch has no commits of its own, bring it up to date with
+   `git merge --ff-only origin/develop`. Start any new branch from `origin/develop`
+   (`git switch -c claude/<topic> origin/develop`).
+3. If your branch's PR has already merged, restart the branch from `origin/develop` before new work.
+
+Fetch again before opening a PR, and merge `origin/develop` into your branch if it has moved.
+
 ## Branches and releases
 
 Careerdrafter is in production (careerdrafter.app, live since 2026-11-20).

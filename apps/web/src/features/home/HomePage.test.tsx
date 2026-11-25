@@ -1,18 +1,20 @@
-/** Checks Home's stage board and list, next-step signals, AI work in progress, and the first-run steps. */
+/** Checks Home's stage line, "Do next" list, AI work in progress, and the first-run steps. */
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
+import { LIBRARY_REVIEW_QUERY } from '@/features/career-library/libraryReviewOperations'
+import { RESUMES_QUERY } from '@/features/resumes/resumesOperations'
+import { INTERVIEW_QUESTION_BANK_QUERY } from '@/features/interview-prep/interviewPrepOperations'
+import { RECENT_INTERVIEWS } from '@/features/interviews/interviewOperations'
 import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from './homeOperations'
-import { HomePage } from './HomePage'
-import { ARCHIVE_JOB_MUTATION } from '@/features/jobs/jobsOperations'
+import { DO_NEXT_LIMIT, HomePage } from './HomePage'
 
 afterEach(() => localStorage.clear())
 
 function entry(id: string, title: string, stage: string, nextStep: string) {
-  return { __typename: 'JobPipelineEntry' as const, nextStep, job: { __typename: 'Job' as const, id, title, company: 'Synthetic Co', location: 'Remote', stage } }
+  return { __typename: 'JobPipelineEntry' as const, nextStep, job: { __typename: 'Job' as const, id, title, company: 'Synthetic Co', location: 'Remote', stage, createdAt: '2026-10-01T00:00:00Z', appliedAt: null } }
 }
 
 const pipeline = [
@@ -43,25 +45,81 @@ function libraryMock(skills: unknown[]) {
   return { request: { query: CAREER_LIBRARY_QUERY }, result: { data: { me, experiences: [], projects: [], educations: [], certifications: [], skills, careerContexts: [] } } }
 }
 
-function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = [], skills: unknown[] = [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 1 }]) {
+/** Practice data every Home render asks for; empty unless a test supplies some. */
+function practiceMocks(questions: unknown[] = [], sessions: unknown[] = []) {
+  return [
+    { request: { query: INTERVIEW_QUESTION_BANK_QUERY }, maxUsageCount: Infinity, result: { data: { interviewQuestions: questions } } },
+    { request: { query: RECENT_INTERVIEWS }, maxUsageCount: Infinity, result: { data: { recentInterviewSessions: sessions } } },
+    { request: { query: RESUMES_QUERY }, maxUsageCount: Infinity, result: { data: { resumes: [] } } },
+    ...['summary', 'experience', 'projects', 'career_contexts'].map((section) => (
+      { request: { query: LIBRARY_REVIEW_QUERY, variables: { section } }, maxUsageCount: Infinity, result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [] } } } }
+    )),
+  ]
+}
+
+function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = [], skills: unknown[] = [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 1 }], practice = practiceMocks()) {
   return renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } },
     runningMock(runningAiTasks),
     libraryMock(skills),
+    ...practice,
   ] })
 }
 
-it('groups jobs by stage on a board, each linking its next step to the right job tab', async () => {
+it('lists the application steps that need you, furthest along first, each linking to the right job tab', async () => {
+  const jobs = [...pipeline, entry('job-7', 'Release Manager', 'APPLIED', 'READY_TO_APPLY')]
+  renderHome(jobs)
+  const doNext = await screen.findByRole('region', { name: 'Do next' })
+  expect(within(doNext).getByText('2 jobs need you')).toBeInTheDocument()
+  const rows = within(doNext).getAllByRole('listitem')
+  expect(rows.map((row) => within(row).getByRole('heading', { level: 3 }).textContent)).toEqual(['Release Manager', 'Platform Engineer'])
+  expect(within(doNext).getByRole('link', { name: 'Ready to apply: Release Manager' })).toHaveAttribute('href', '/jobs/job-7/posting')
+  // Interview practice has its own lane, so it is not repeated here.
+  expect(within(doNext).queryByText('Backend Developer')).not.toBeInTheDocument()
+  expect(within(doNext).getByRole('link', { name: 'Write resume: Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1/resume')
+  expect(within(doNext).getByRole('link', { name: 'Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1')
+  // Waiting, AI-working and closed jobs are not asking anything of the user.
+  expect(within(doNext).queryByText('Data Analyst')).not.toBeInTheDocument()
+  expect(within(doNext).queryByText('Site Reliability Engineer')).not.toBeInTheDocument()
+})
+
+it('shows a stage line whose stations count jobs and open the Jobs list for that stage', async () => {
   renderHome(pipeline)
-  const notApplied = await screen.findByRole('region', { name: /Not applied/ })
-  expect(within(notApplied).getByRole('link', { name: 'Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1')
-  expect(within(notApplied).getByRole('link', { name: 'Write resume: Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1/resume')
-  const interviewing = screen.getByRole('region', { name: /Interviewing/ })
-  expect(within(interviewing).getByRole('link', { name: 'Practice interview: Backend Developer' })).toHaveAttribute('href', '/jobs/job-4/interview')
-  const applied = screen.getByRole('region', { name: /^Applied/ })
-  expect(within(applied).getByText('Waiting to hear back')).toBeInTheDocument()
-  expect(within(screen.getByRole('region', { name: /Offer/ })).getByText('No jobs')).toBeInTheDocument()
-  expect(screen.getByText('5 saved jobs')).toBeInTheDocument()
+  const line = await screen.findByRole('navigation', { name: 'Jobs by stage' })
+  expect(within(line).getByRole('link', { name: 'Not applied, 2 jobs' })).toHaveAttribute('href', '/jobs?stage=UNAPPLIED')
+  expect(within(line).getByRole('link', { name: 'Applied, 1 job' })).toHaveAttribute('href', '/jobs?stage=APPLIED')
+  expect(within(line).getByRole('link', { name: 'Offer, 0 jobs' })).toHaveAttribute('href', '/jobs?stage=OFFER')
+  expect(within(line).getByRole('link', { name: 'Rejected, 1 job' })).toHaveAttribute('href', '/jobs?stage=REJECTED')
+})
+
+it('keeps Home short with many jobs: the stage line counts them all, Do next lists a few', async () => {
+  const many = Array.from({ length: 40 }, (_, index) => entry(`job-${index}`, `Role ${index}`, 'UNAPPLIED', 'WRITE_RESUME'))
+  renderHome(many)
+  const doNext = await screen.findByRole('region', { name: 'Do next' })
+  expect(within(doNext).getAllByRole('listitem')).toHaveLength(DO_NEXT_LIMIT)
+  expect(within(doNext).getByText('40 jobs need you')).toBeInTheDocument()
+  expect(within(doNext).getByRole('link', { name: 'See all 40 jobs' })).toHaveAttribute('href', '/jobs')
+  expect(within(screen.getByRole('navigation', { name: 'Jobs by stage' })).getByRole('link', { name: 'Not applied, 40 jobs' })).toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
+})
+
+it('shows applications, practice, library health and the week as four lanes', async () => {
+  renderHome(pipeline)
+  for (const name of ['Do next', 'Practice', 'Library', 'This week']) expect(await screen.findByRole('region', { name })).toBeInTheDocument()
+})
+
+it('leaves out the Library lane while the library is empty and points at importing instead', async () => {
+  renderHome(pipeline, [], [])
+  await screen.findByRole('complementary', { name: 'Your career library is empty' })
+  expect(screen.queryByRole('region', { name: 'Library' })).not.toBeInTheDocument()
+})
+
+it('says the user is caught up when no application step needs them', async () => {
+  renderHome([entry('job-3', 'Site Reliability Engineer', 'APPLIED', 'AWAITING_RESPONSE')])
+  const doNext = await screen.findByRole('region', { name: 'Do next' })
+  expect(within(doNext).getByText('You’re caught up.')).toBeInTheDocument()
+  expect(within(doNext).queryByRole('list')).not.toBeInTheDocument()
+  expect(within(doNext).getByRole('link', { name: 'Open all jobs' })).toHaveAttribute('href', '/jobs')
 })
 
 it('lists every kind of running AI work in the strip, each linked to its page', async () => {
@@ -75,10 +133,11 @@ it('lists every kind of running AI work in the strip, each linked to its page', 
   expect(within(running).queryByText('Platform Engineer')).not.toBeInTheDocument()
 })
 
-it('reloads the strip and the board when a running task reports it finished, without polling', async () => {
+it('reloads the strip and the next steps when a running task reports it finished, without polling', async () => {
   renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'RESUME_RUNNING')] } } },
     runningMock([runningTask('task-1', 'Resume draft: Data Analyst', '/jobs/job-2/resume')]),
+    ...practiceMocks(),
     taskUpdate('task-1', 'COMPLETED'),
     runningMock([]),
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'REVIEW_RESUME_DRAFT')] } } },
@@ -88,26 +147,13 @@ it('reloads the strip and the board when a running task reports it finished, wit
   await waitFor(() => expect(screen.getByRole('link', { name: 'Review resume draft: Data Analyst' })).toBeInTheDocument())
 })
 
-it('switches to a list that skips empty stages, and remembers the choice', async () => {
-  const user = userEvent.setup()
-  const { unmount } = renderHome(pipeline)
-  await screen.findByRole('region', { name: /Not applied/ })
-  await user.click(screen.getByRole('button', { name: 'List' }))
-  expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.queryByRole('region', { name: /Offer/ })).not.toBeInTheDocument()
-  expect(within(screen.getByRole('region', { name: /Rejected/ })).getByRole('link', { name: 'QA Lead' })).toBeInTheDocument()
-  unmount()
-  renderHome(pipeline)
-  expect(await screen.findByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
-})
-
 it('shows the four starting steps before any job is saved', async () => {
   renderHome([], [], [])
   const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
   expect(within(firstRun).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library')
   expect(within(firstRun).getByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
   expect(within(firstRun).getByRole('heading', { name: 'Prepare for the interview' })).toBeInTheDocument()
-  expect(screen.queryByRole('group', { name: 'Show jobs as' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: 'Jobs by stage' })).not.toBeInTheDocument()
 })
 
 it('marks the library step done and points at saving a job once the library has content', async () => {
@@ -132,69 +178,13 @@ it('tells a user with saved jobs and an empty library to fill the library first'
 })
 
 it('explains a load failure and offers to try again', async () => {
-  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }, runningMock([])] })
+  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }, runningMock([]), ...practiceMocks()] })
   expect(await screen.findByText("Couldn't load your jobs")).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
 })
 
-it('marks an offer in green words and says when no AI work is running', async () => {
+it('says when no AI work is running and explains the signal colors', async () => {
   renderHome([entry('job-6', 'Analytics Engineer', 'OFFER', 'NONE')])
-  const offer = await screen.findByRole('region', { name: /^Offer/ })
-  expect(within(offer).getByText('Offer received')).toBeInTheDocument()
-  expect(await within(screen.getByRole('region', { name: 'AI work in progress' })).findByText('Nothing running right now')).toBeInTheDocument()
+  expect(await within(await screen.findByRole('region', { name: 'AI work in progress' })).findByText('Nothing running right now')).toBeInTheDocument()
   expect(within(screen.getByRole('list', { name: 'Signal colors' })).getByText('Needs you')).toBeInTheDocument()
-})
-
-it('lets every board tile be dragged to another stage, but not list rows', async () => {
-  const user = userEvent.setup()
-  renderHome(pipeline)
-  const notApplied = await screen.findByRole('region', { name: /Not applied/ })
-  expect(within(notApplied).getByRole('group', { name: 'Platform Engineer at Synthetic Co, draggable' })).toBeInTheDocument()
-  expect(within(notApplied).getByRole('link', { name: 'Platform Engineer' })).toBeInTheDocument()
-  expect(screen.getAllByRole('group', { name: /, draggable$/ })).toHaveLength(pipeline.length)
-  await user.click(screen.getByRole('button', { name: 'List' }))
-  expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
-})
-
-for (const view of ['Board', 'List']) {
-  it(`archives a job from Home's ${view.toLowerCase()} after confirmation and updates the saved count`, async () => {
-    const user = userEvent.setup()
-    renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
-      { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: pipeline } } },
-      runningMock([]), libraryMock([]),
-      {
-        request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
-        result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: [] } } },
-      },
-    ] })
-    await screen.findByText('5 saved jobs')
-    await user.click(screen.getByRole('button', { name: view }))
-    await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
-    expect(screen.getByRole('dialog')).toHaveTextContent('Your answers, resumes, and interview history are kept.')
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('link', { name: 'Platform Engineer' })).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
-    expect(await screen.findByText('4 saved jobs')).toBeVisible()
-    expect(screen.queryByRole('link', { name: 'Platform Engineer' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Data Analyst' })).toBeVisible()
-  })
-}
-
-it('keeps a Home tile visible when archiving fails', async () => {
-  const user = userEvent.setup()
-  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
-    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: pipeline } } },
-    runningMock([]), libraryMock([]),
-    {
-      request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
-      result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: ['Archive unavailable'] } } },
-    },
-  ] })
-  await user.click(await screen.findByRole('button', { name: 'Archive Platform Engineer' }))
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
-  expect(await screen.findByText('Archive unavailable')).toBeVisible()
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
-  expect(screen.getByText('5 saved jobs')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Platform Engineer' })).toBeInTheDocument()
 })

@@ -410,7 +410,7 @@ it('identifies an oversized inactive draft before saving any formats', async () 
 })
 
 it('links to billing when memory anchor generation refuses an expired plan', async () => {
-  renderPage({ path: ROUTE, url: '/practice/questions/s1', element: <InterviewSetPage />, mocks: [detail(), {
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), {
     request: { query: GENERATE_INTERVIEW_MEMORY_ANCHOR, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Saved answer', memoryAnchor: '', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Saved answer') } },
     result: { data: { generateInterviewMemoryAnchor: { __typename: 'GenerateInterviewMemoryAnchorPayload', errors: ['Subscribe to continue.'], errorCode: 'PLAN_ENDED', aiTask: null } } },
   }, detail()] })

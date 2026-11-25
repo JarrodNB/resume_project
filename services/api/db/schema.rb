@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.boolean "finalized", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "counts_toward_trial_budget", default: true, null: false
     t.index ["created_at"], name: "index_ai_embedding_requests_on_created_at"
     t.index ["user_id", "created_at"], name: "index_ai_embedding_requests_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_embedding_requests_on_user_id"
@@ -128,6 +129,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.integer "usage_generation", default: -1, null: false
     t.uuid "hourly_admission_task_id"
     t.boolean "awaiting_queue_publish", default: false, null: false
+    t.boolean "counts_toward_trial_budget", default: true, null: false
     t.index ["created_at"], name: "index_ai_tasks_awaiting_queue_publish", where: "awaiting_queue_publish"
     t.index ["created_at"], name: "index_ai_tasks_on_created_at"
     t.index ["hourly_admission_task_id"], name: "index_ai_tasks_on_hourly_admission_task_id"
@@ -195,7 +197,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.index ["user_id", "text_digest"], name: "index_avoided_interview_questions_on_user_id_and_text_digest", unique: true
     t.index ["user_id"], name: "index_avoided_interview_questions_on_user_id"
     t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
-    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying, 'manual'::character varying]::text[])", name: "avoided_interview_questions_origin_check"
+    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying::text, 'manual'::character varying::text])", name: "avoided_interview_questions_origin_check"
   end
 
   create_table "billing_subscriptions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -453,8 +455,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying, 'manual'::character varying]::text[])", name: "interview_question_sets_origin_check"
-    t.check_constraint "set_type::text = ANY (ARRAY['fit_motivation'::character varying, 'behavioral'::character varying, 'hypothetical'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "origin::text = ANY (ARRAY['generated'::character varying::text, 'manual'::character varying::text])", name: "interview_question_sets_origin_check"
+    t.check_constraint "set_type::text = ANY (ARRAY['fit_motivation'::character varying::text, 'behavioral'::character varying::text, 'hypothetical'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

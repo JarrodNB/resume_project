@@ -10,7 +10,7 @@ import { AppLayout } from '@/components/AppLayout'
 
 const auth: AuthContextValue = {
   user: { id: 'user-1', email: 'test@example.com', name: 'Test' }, csrfToken: 'csrf', taskOutcomeCursor: '0',
-  signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), expireSession: vi.fn(),
+  signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), expireSession: vi.fn(), signedOut: false,
 }
 
 function outcome(overrides = {}) {

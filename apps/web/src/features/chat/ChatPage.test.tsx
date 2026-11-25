@@ -85,6 +85,15 @@ it('offers recovery when a bookmarked chat cannot be loaded', async () => {
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
 })
 
+it('says a chat that does not exist for this account is unavailable, without a retry', async () => {
+  renderPage({ path: '/chat/:id?', url: '/chat/someone-elses', element: <ChatPage />, mocks: [workspaceMock(), {
+    request: { query: CHAT_CONVERSATION_QUERY, variables: { id: 'someone-elses', cursor: null } }, result: { errors: [{ message: 'Record not found' }] },
+  }, ...operationMocks('someone-elses')] })
+  expect(await screen.findByText('This chat is unavailable')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Back to your chats' })).toHaveAttribute('href', '/chat')
+  expect(screen.queryByRole('button', { name: 'Retry loading conversation' })).not.toBeInTheDocument()
+})
+
 it('opens the most recent saved chat when no chat is selected', async () => {
   const { router } = renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock([conversation('chat-2'), conversation('chat-1', 'Preparing for interviews')]), historyMock('chat-2'), ...operationMocks('chat-2')] })
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()

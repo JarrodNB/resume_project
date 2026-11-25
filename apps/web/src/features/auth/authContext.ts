@@ -6,5 +6,7 @@ export interface AuthContextValue extends BrowserSession {
   signUp: (credentials: AuthCredentials, turnstileToken: string) => Promise<void>
   signOut: () => Promise<void>
   expireSession: (broadcast?: boolean) => void
+  /** True after someone signed out on purpose (here or in another tab), so the next sign-in starts at home. */
+  signedOut: boolean
 }
 export const AuthContext = createContext<AuthContextValue | null>(null)

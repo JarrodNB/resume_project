@@ -4,6 +4,8 @@ import { afterEach, expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
+import { INTERVIEW_QUESTION_BANK_QUERY } from '@/features/interview-prep/interviewPrepOperations'
+import { RECENT_INTERVIEWS } from '@/features/interviews/interviewOperations'
 import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from './homeOperations'
 import { DO_NEXT_LIMIT, HomePage } from './HomePage'
 
@@ -41,21 +43,33 @@ function libraryMock(skills: unknown[]) {
   return { request: { query: CAREER_LIBRARY_QUERY }, result: { data: { me, experiences: [], projects: [], educations: [], certifications: [], skills, careerContexts: [] } } }
 }
 
-function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = [], skills: unknown[] = [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 1 }]) {
+/** Practice data every Home render asks for; empty unless a test supplies some. */
+function practiceMocks(questions: unknown[] = [], sessions: unknown[] = []) {
+  return [
+    { request: { query: INTERVIEW_QUESTION_BANK_QUERY }, maxUsageCount: Infinity, result: { data: { interviewQuestions: questions } } },
+    { request: { query: RECENT_INTERVIEWS }, maxUsageCount: Infinity, result: { data: { recentInterviewSessions: sessions } } },
+  ]
+}
+
+function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = [], skills: unknown[] = [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 1 }], practice = practiceMocks()) {
   return renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } },
     runningMock(runningAiTasks),
     libraryMock(skills),
+    ...practice,
   ] })
 }
 
-it('puts the jobs that need you first, furthest along first, each linking its next step to the right job tab', async () => {
-  renderHome(pipeline)
+it('lists the application steps that need you, furthest along first, each linking to the right job tab', async () => {
+  const jobs = [...pipeline, entry('job-7', 'Release Manager', 'APPLIED', 'READY_TO_APPLY')]
+  renderHome(jobs)
   const doNext = await screen.findByRole('region', { name: 'Do next' })
   expect(within(doNext).getByText('2 jobs need you')).toBeInTheDocument()
   const rows = within(doNext).getAllByRole('listitem')
-  expect(rows.map((row) => within(row).getByRole('heading', { level: 3 }).textContent)).toEqual(['Backend Developer', 'Platform Engineer'])
-  expect(within(doNext).getByRole('link', { name: 'Practice interview: Backend Developer' })).toHaveAttribute('href', '/jobs/job-4/interview')
+  expect(rows.map((row) => within(row).getByRole('heading', { level: 3 }).textContent)).toEqual(['Release Manager', 'Platform Engineer'])
+  expect(within(doNext).getByRole('link', { name: 'Ready to apply: Release Manager' })).toHaveAttribute('href', '/jobs/job-7/posting')
+  // Interview practice has its own lane, so it is not repeated here.
+  expect(within(doNext).queryByText('Backend Developer')).not.toBeInTheDocument()
   expect(within(doNext).getByRole('link', { name: 'Write resume: Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1/resume')
   expect(within(doNext).getByRole('link', { name: 'Platform Engineer' })).toHaveAttribute('href', '/jobs/job-1')
   // Waiting, AI-working and closed jobs are not asking anything of the user.
@@ -83,7 +97,7 @@ it('keeps Home short with many jobs: the stage line counts them all, Do next lis
   expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
 })
 
-it('says the user is caught up when nothing needs them', async () => {
+it('says the user is caught up when no application step needs them', async () => {
   renderHome([entry('job-3', 'Site Reliability Engineer', 'APPLIED', 'AWAITING_RESPONSE')])
   const doNext = await screen.findByRole('region', { name: 'Do next' })
   expect(within(doNext).getByText('You’re caught up.')).toBeInTheDocument()
@@ -106,6 +120,7 @@ it('reloads the strip and the next steps when a running task reports it finished
   renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'RESUME_RUNNING')] } } },
     runningMock([runningTask('task-1', 'Resume draft: Data Analyst', '/jobs/job-2/resume')]),
+    ...practiceMocks(),
     taskUpdate('task-1', 'COMPLETED'),
     runningMock([]),
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'REVIEW_RESUME_DRAFT')] } } },
@@ -146,7 +161,7 @@ it('tells a user with saved jobs and an empty library to fill the library first'
 })
 
 it('explains a load failure and offers to try again', async () => {
-  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }, runningMock([])] })
+  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }, runningMock([]), ...practiceMocks()] })
   expect(await screen.findByText("Couldn't load your jobs")).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
 })

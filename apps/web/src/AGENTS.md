@@ -18,10 +18,12 @@ Source of the web app, organized by feature.
 - `features/billing/` — `/account/billing` Plan & billing page (plan and dates only); `MutationErrorAlert` (an `ErrorAlert` plus the `PlanBillingLink` when a mutation returns `errorCode: PLAN_ENDED`) is what AI-start screens use; `components/` has no billing knowledge
 - `features/legal/` — public `/privacy` and `/terms`; retention numbers in `legalDetails.ts` must match Rails
 - `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?` (`/chat` reopens the most recent chat); generation and streaming use separate execution state; assistant replies render as Markdown (`ChatMarkdown`)
-- `features/home/` — Home (`/`): a fixed-size overview that does not grow with the number of jobs: a stage line
-  (job count per stage, each linking to `/jobs?stage=`), "Do next" (at most six jobs whose next step
-  Rails suggests, `jobPipeline`, needs the user, linked to the job tab that handles it), AI work in
-  progress, and four starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
+- `features/home/` — Home (`/`): a fixed-size overview that does not grow with the number of jobs: an AI work strip, a stage line
+  (job count per stage, each linking to `/jobs?stage=`), and two lanes: "Do next" (at most six jobs whose next
+  application step Rails suggests, `jobPipeline`, needs the user, linked to the job tab that handles it) and
+  "Practice" (`PracticePanel`: resume an unfinished spoken interview, the written question bank's next step,
+  jobs ready for interview practice, review the last interview; read from the existing Practice queries),
+  plus four starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
 - `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, a collapsible, remembered Filters panel under the keyword box (closed by default, with an active-filter count) holding date, remote, sort, location, experience level and employment type (dropdown multi-selects) and more filters, with results underneath, plus a local hide-saved toggle; results shown as numbered pages of 20 over the loaded roles, plus one unloaded page number while a continuation cursor remains (selecting it or "Next page" at the end fetches one provider batch), title-triggered accessible desktop side/mobile full-screen previews with plain-text details and safe source links, and explicit import into private Jobs; up to five submitted searches (200 provider rows each) retain pages, scroll, save feedback within the Apollo session; larger visits reload after departure (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching

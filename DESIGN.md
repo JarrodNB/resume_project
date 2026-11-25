@@ -266,7 +266,7 @@ Side gutters step down with the screen: 48px on wide screens, 28px under 1200px,
 
 Every page starts with a page heading: title on the left, actions on the right, then a 2px ink rule underneath. On Home the rule moves down to the top of the stage line instead.
 
-Home is an overview that stays the same size however many jobs are saved: the stage line, then a "Do next" list (at most six jobs that need the user, furthest along first, with a link to the rest) beside the AI work panel (340px wide; stacked below under 900px). The board lives on the Jobs page, which also has a List/Board switch and a stage filter.
+Home is an overview that stays the same size however many jobs are saved: the stage line, then two equal lanes with a 48px gap (stacked under 900px): "Do next" (at most six application steps that need the user, furthest along first, with a link to the rest) and "Practice" (unfinished interview, written-question progress and next step, jobs ready for interview practice). The AI work strip sits above the stage line. The board lives on the Jobs page, which also has a List/Board switch and a stage filter.
 
 The Jobs board is five equal columns (at least 210px each) with 16px between them. Each column shows its first eight tiles and a "Show more" button for the rest. Each column starts with its station on the shared line, and the job tiles stack under it 12px apart. On narrow laptops the board scrolls sideways rather than squeezing. Under 640px it becomes one column: each station turns into a row (bullet on the left, name beside it), the connecting track is hidden, and the jobs stack under it like a vertical list of stops.
 

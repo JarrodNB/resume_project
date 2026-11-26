@@ -42,3 +42,17 @@ RSpec.describe User, "links" do
     expect(user.reload.links).to eq(link("https://example.com/me"))
   end
 end
+
+RSpec.describe WebAddress do
+  it "adds https:// to a bare domain and leaves everything else alone" do
+    expect(described_class.normalize(" linkedin.com/in/jane ")).to eq("https://linkedin.com/in/jane")
+    expect(described_class.normalize("example.com:8080/x")).to eq("https://example.com:8080/x")
+    expect(described_class.normalize("javascript:alert(1)")).to eq("javascript:alert(1)")
+    expect(described_class.normalize("jane@example.com")).to eq("jane@example.com")
+    expect(described_class.normalize(nil)).to be_nil
+  end
+
+  it "refuses text that is not valid UTF-8 instead of raising" do
+    expect(described_class.valid?("https://example.com/\xFF".dup.force_encoding("UTF-8"))).to be(false)
+  end
+end

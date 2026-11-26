@@ -21,15 +21,17 @@ from mcp.types import TextContent
 from mcp_tools.references import issue_reference, resolve_reference
 from model_inputs.interview_question_bank import (
     render_interview_question,
+    render_interview_question_entry,
     render_interview_questions,
 )
-from screening.library_inputs import LibraryScreeningError
+from screening.library_inputs import LibraryScreeningError, raise_unless_screening_allowed
 from screening.records import ScreenableRecord, screen_records
 
 LIST_INTERVIEW_QUESTIONS = "list_interview_questions"
 LIST_INTERVIEW_QUESTIONS_VERSION = "list_interview_questions-v1"
 MAX_INTERVIEW_QUESTIONS = 500
 MAX_INTERVIEW_QUESTION_LIST_CHARACTERS = 40_000
+LIST_NOTES_RESERVE = 1_000  # header and left-out notes
 QUESTION_REFERENCE_SCOPE = "interview-question-v1"
 LIST_INTERVIEW_QUESTIONS_DESCRIPTION = """List the current user's active saved interview practice
 questions, newest practice set first: set number and type, slot, question text, whether an answer
@@ -62,10 +64,10 @@ def practice_feedback_status(question):
     """
     if not question.get("has_feedback"):
         return "none"
-    feedback_answer_revision = question.get("feedback_answer_revision")
+    # A format change always bumps answer_revision (SaveAnswerService), so exact revisions
+    # also cover the app's answer_format_revision check.
     current = (question.get("feedback_question_revision") == question.get("question_revision", 1)
-               and feedback_answer_revision == question.get("answer_revision", 0)
-               and feedback_answer_revision >= question.get("answer_format_revision", 0))
+               and question.get("feedback_answer_revision") == question.get("answer_revision", 0))
     return "current" if current else "out_of_date"
 
 
@@ -110,15 +112,48 @@ def _question_record(question):
         revision={"question_revision": question["question_revision"]})
 
 
+def _newest_within_budget(questions):
+    """Keep the newest whole entries that fit the list cap, leaving room for the notes."""
+    budget = MAX_INTERVIEW_QUESTION_LIST_CHARACTERS - LIST_NOTES_RESERVE
+    kept, used = [], 0
+    for question in questions[:MAX_INTERVIEW_QUESTIONS]:
+        used += len(render_interview_question_entry(question)) + 2
+        if used > budget:
+            break
+        kept.append(question)
+    return kept
+
+
+async def _screen_keeping_allowed(questions, records, screen, outcome=None):
+    """Split a rejected batch in halves to find blocked questions in about log2(n) checks each.
+
+    Returns the allowed questions plus counts of blocked and unfinished ones. A sub-batch whose
+    check could not finish is left out whole rather than split again, since retrying a slow or
+    failed classifier one entry at a time would only add cost.
+    """
+    if outcome is None:
+        outcome = await screen_records(records, screen=screen)
+    if outcome.allowed:
+        return questions, 0, 0
+    if outcome.decision.too_long or outcome.decision.unchecked:
+        return [], 0, len(questions)
+    if len(questions) == 1:
+        return [], 1, 0
+    middle = len(questions) // 2
+    first = await _screen_keeping_allowed(questions[:middle], records[:middle], screen)
+    second = await _screen_keeping_allowed(questions[middle:], records[middle:], screen)
+    return first[0] + second[0], first[1] + second[1], first[2] + second[2]
+
+
 async def render_interview_questions_result(call_tool, tool_args, screen):
-    """Check the whole list's size, screen unchecked questions together, and leave out blocked ones."""
+    """Keep the newest questions that fit, screen unchecked ones together, and leave out blocked ones."""
     try:
         result = await call_tool(LIST_INTERVIEW_QUESTIONS, tool_args)
         questions = result["questions"]
-        if (len(questions) > MAX_INTERVIEW_QUESTIONS
-                or len(render_interview_questions(questions)) > MAX_INTERVIEW_QUESTION_LIST_CHARACTERS):
+        kept = _newest_within_budget(questions)
+        if questions and not kept:
             raise LibraryScreeningError("context_limit")
-        records = [_question_record(question) for question in questions]
+        records = [_question_record(question) for question in kept]
     except LibraryScreeningError:
         raise
     except Exception as error:
@@ -128,12 +163,9 @@ async def render_interview_questions_result(call_tool, tool_args, screen):
         raise LibraryScreeningError("context_limit")
     if outcome.decision.unchecked:
         raise LibraryScreeningError("screening_unavailable")
-    usable = questions
-    if not outcome.allowed:
-        # One blocked question fails the whole batch; check each alone to keep the rest.
-        usable = [question for question, record in zip(questions, records)
-                  if (await screen_records([record], screen=screen)).allowed]
-    return render_interview_questions(usable, left_out=len(questions) - len(usable))
+    usable, blocked, unchecked = await _screen_keeping_allowed(kept, records, screen, outcome)
+    return render_interview_questions(usable, blocked=blocked, unchecked=unchecked,
+        older_not_shown=len(questions) - len(kept), more_older=len(questions) > MAX_INTERVIEW_QUESTIONS)
 
 
 READ_INTERVIEW_QUESTION = "read_interview_question"
@@ -218,9 +250,5 @@ async def render_interview_question_result(call_tool, tool_args, screen):
         raise
     except Exception as error:
         raise LibraryScreeningError("execution_failed") from error
-    outcome = await screen_records(records, screen=screen)
-    if not outcome.allowed:
-        decision = outcome.decision
-        raise LibraryScreeningError("context_limit" if decision.too_long else
-            "screening_unavailable" if decision.unchecked else "screening_blocked")
+    raise_unless_screening_allowed(await screen_records(records, screen=screen))
     return text

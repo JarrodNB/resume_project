@@ -100,6 +100,15 @@ class LibraryScreeningError(RuntimeError):
         self.usage = tuple(usage)
 
 
+def raise_unless_screening_allowed(outcome):
+    """Turn a rejected record-screening outcome into the tool caller's failure code."""
+    if outcome.allowed:
+        return
+    decision = outcome.decision
+    raise LibraryScreeningError("context_limit" if decision.too_long else
+        "screening_unavailable" if decision.unchecked else "screening_blocked")
+
+
 def _bounded_entries(library, include_context_requirements):
     entries = list(_library_entries(library, include_context_requirements))
     item_count = len(entries) + sum(len(role.highlights) for role in library.experiences)

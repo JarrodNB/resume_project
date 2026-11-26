@@ -269,19 +269,23 @@ number and readable set type (for example "Fit and motivation"), slot, question 
 whether an answer is saved, the feedback status and a question reference. Answers,
 feedback text and raw IDs are not returned.
 
-Feedback is "current" only when saved feedback is non-empty, its question and answer
-revisions equal the question's current ones, and its answer revision is at least the
-answer-format revision. Otherwise saved feedback is "out of date"; no feedback is "none".
+Feedback is "current" only when saved feedback is non-empty and its question and answer
+revisions equal the question's current ones (a format change always bumps the answer
+revision, so this also covers the answer-format revision). Otherwise saved feedback is "out of date"; no feedback is "none".
 This is stricter than the app's `FeedbackOutdatedService`, which also accepts
 formatting-only answer edits by reading the review task; chat says "out of date" there.
 
-The list is complete or not shown: more than 500 questions or 40,000 rendered characters
-produces a limit sentence. An empty bank is stated plainly. Database failures return only
+The list keeps the newest whole questions that fit 40,000 rendered characters (about 150
+questions) and at most 500, and says how many older ones are not shown; only screening
+those kept. One question too large to show on its own produces a limit sentence. An empty
+bank is stated plainly. Database failures return only
 the short `interview_questions_unavailable` error, which the model sees as a plain sentence.
 Saved `question_text` approvals are reused; unchecked questions are screened together with
-the operation's accounted screen. If that batch is blocked, each pending question is checked
-alone, blocked ones are left out with a note and the rest are still listed. Unavailable
-screening shows none of the list. Receipts carry the question revision; Rails approves
+the operation's accounted screen. If that batch is blocked, it is split in halves to find
+the blocked questions (about two checks per halving level, not one per question); blocked
+ones are left out with a note and the rest are still listed. A sub-batch whose check could
+not finish is left out whole with a separate "could not finish" note. Unavailable screening
+for the first batch shows none of the list. Receipts carry the question revision; Rails approves
 them only for the owner's active questions whose current text and revisions still match.
 
 Question references use the shared signer in `mcp_tools/references.py`, like job

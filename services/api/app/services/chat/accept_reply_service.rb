@@ -1,10 +1,12 @@
 # Accept one exact screened submission and reply atomically; conflicting or stale results cannot rewrite history.
 #
-# The worker may also report career-library or active saved-job fields its tools screened.
+# The worker may also report career-library, active saved-job or active practice-question
+# fields its tools screened.
 # Those `record_screening` receipts are saved through Screening::RecordApprovalsService
 # with the reply after its exact claim fences. Optional generated career contexts are
 # created in that same transaction; conflicts reject the entire acceptance. Only this explicit chat context allows
-# taskless owned active-job approvals; unrelated taskless callers retain library-only scope.
+# taskless owned active-job and active interview-question approvals; unrelated taskless callers
+# retain library-only scope.
 require "digest"
 module Chat
   class AcceptReplyService < ApplicationService

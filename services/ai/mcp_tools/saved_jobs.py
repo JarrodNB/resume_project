@@ -15,7 +15,7 @@ from mcp.types import TextContent
 
 from mcp_tools.references import issue_reference, resolve_reference
 from model_inputs.saved_jobs import render_job_summary, render_saved_jobs
-from screening.library_inputs import LibraryScreeningError
+from screening.library_inputs import LibraryScreeningError, raise_unless_screening_allowed
 from screening.records import ScreenableRecord, screen_records
 
 LIST_SAVED_JOBS = "list_saved_jobs"
@@ -73,15 +73,6 @@ def register_saved_jobs_tools(server, read_jobs, *, secret):
                           structured_content={"version": LIST_SAVED_JOBS_VERSION, "jobs": rows})
 
 
-def _raise_if_screening_blocked(outcome):
-    """Turn a rejected screening outcome into the caller's failure code."""
-    if outcome.allowed:
-        return
-    decision = outcome.decision
-    raise LibraryScreeningError("context_limit" if decision.too_long else
-        "screening_unavailable" if decision.unchecked else "screening_blocked")
-
-
 def _job_label_record(job):
     """Describe one job's title and company for screening, reusing its saved checks."""
     return ScreenableRecord(record_type="job", record_id=job["id"],
@@ -112,7 +103,7 @@ async def render_saved_jobs_result(call_tool, tool_args, screen):
     except Exception as error:
         raise LibraryScreeningError("execution_failed") from error
     if records:
-        _raise_if_screening_blocked(await screen_records(records, screen=screen))
+        raise_unless_screening_allowed(await screen_records(records, screen=screen))
     return text
 
 
@@ -174,5 +165,5 @@ async def render_job_summary_result(call_tool, tool_args, screen):
         raise
     except Exception as error:
         raise LibraryScreeningError("execution_failed") from error
-    _raise_if_screening_blocked(await screen_records([record], screen=screen))
+    raise_unless_screening_allowed(await screen_records([record], screen=screen))
     return text

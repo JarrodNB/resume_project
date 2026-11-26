@@ -1,4 +1,6 @@
-/** Plain-language descriptions of each answer transcription mode: full text for the live room, short choices for setup. */
+/** Plain-language descriptions of each answer transcription mode: full text for the live room, short choices for setup,
+ * and why hands-free mode is unavailable without live transcription.
+ */
 import type { TranscriptionMode } from './transcriptionCapture'
 
 export const TRANSCRIPTION_HELP: Record<TranscriptionMode, string> = {
@@ -12,3 +14,5 @@ export const SETUP_TRANSCRIPTION_OPTIONS: { value: TranscriptionMode; label: str
   { value: 'streaming', label: 'Streaming', description: 'Fills in as you speak. Try it if Browser misses words.' },
   { value: 'recorded', label: 'Recorded', description: 'Records first. When you finish, choose Transcribe recording.' },
 ]
+
+export const HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION = 'Hands-free mode needs live transcription. Choose Browser or Streaming transcription to use it.'

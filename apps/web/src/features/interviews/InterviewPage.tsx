@@ -198,7 +198,7 @@ function OwnedInterview({ id }: { id: string }) {
             <DialogTitle>Interview settings</DialogTitle>
             <DialogDescription>Choose when the microphone opens and how your answers are transcribed. These settings are remembered for future interviews.</DialogDescription>
           </DialogHeader>
-          <InterviewMicrophoneSettings microphone={microphone} />
+          <InterviewMicrophoneSettings microphone={microphone} mode={transcriptionMode} />
           <label className="grid max-w-md gap-2 text-sm" htmlFor="interview-transcription-mode">Answer transcription
             <select id="interview-transcription-mode" aria-describedby="interview-transcription-help interview-transcription-recovery" className="min-h-11 rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={transcriptionSettingsLocked} onChange={(event) => {
               const mode = event.target.value as TranscriptionMode

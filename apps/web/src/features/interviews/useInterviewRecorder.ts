@@ -171,5 +171,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
     }, Math.max(0, current.remaining))
     setStatus('recording')
   }, [discard])
-  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, liveFailed, start, stop, resume, reset }
+  /** The open microphone stream, so hands-free mode can listen for silence without a second permission prompt. */
+  const microphoneStream = useCallback(() => capture.current?.stream ?? null, [])
+  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, liveFailed, start, stop, resume, reset, microphoneStream }
 }

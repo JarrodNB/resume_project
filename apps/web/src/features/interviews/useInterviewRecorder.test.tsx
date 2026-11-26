@@ -62,6 +62,15 @@ describe('useInterviewRecorder', () => {
     expect(result.current.status).toBe('idle')
   })
 
+  it('shares the open microphone stream while capture is alive, for end-of-speech detection', async () => {
+    const { result } = renderHook(useInterviewRecorder)
+    expect(result.current.microphoneStream()).toBeNull()
+    await act(() => result.current.start())
+    expect(result.current.microphoneStream()).toBe(stream)
+    act(() => result.current.reset())
+    expect(result.current.microphoneStream()).toBeNull()
+  })
+
   it.each(['browser', 'streaming', 'recorded'] as const)('continues the same audio container in %s mode without counting paused time', async (mode) => {
     vi.stubGlobal('SpeechRecognition', class { onend?: () => void; start() {} stop() { this.onend?.() } abort() {} })
     const startStreaming = vi.fn(() => ({ finish: async () => 'spoken words', cancel: vi.fn() }))

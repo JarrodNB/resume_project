@@ -1,9 +1,13 @@
 /** The live room's remembered microphone controls. Setup shows the same preferences in InterviewAnswerSettings.
- * Changing preferences never requests microphone access or starts capture.
+ * Changing preferences never requests microphone access or starts capture. Hands-free mode only works
+ * with live transcription, so the switch is disabled in recorded mode while the saved choice is kept.
  */
+import { HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION } from './transcriptionHelp'
+import type { TranscriptionMode } from './transcriptionCapture'
 import type { useInterviewMicSettings } from './useInterviewMicSettings'
 
-export function InterviewMicrophoneSettings({ microphone }: { microphone: ReturnType<typeof useInterviewMicSettings> }) {
+export function InterviewMicrophoneSettings({ microphone, mode }: { microphone: ReturnType<typeof useInterviewMicSettings>; mode: TranscriptionMode }) {
+  const liveTranscription = mode !== 'recorded'
   return <div className="grid gap-4">
     <label className="flex min-h-11 items-center justify-between gap-4 text-sm" htmlFor="interview-auto-mic">
       Turn the microphone on automatically
@@ -16,5 +20,10 @@ export function InterviewMicrophoneSettings({ microphone }: { microphone: Return
       </select>
     </label>
     <p className="text-sm leading-relaxed text-muted-foreground">Take a short beat to think before speaking. Tap the mic to start sooner. Microphone access is requested only when an answer starts.</p>
+    <label className="flex min-h-11 items-center justify-between gap-4 text-sm" htmlFor="interview-hands-free">
+      Hands-free mode
+      <input id="interview-hands-free" type="checkbox" role="switch" aria-describedby="interview-hands-free-help" className="size-5 shrink-0 accent-primary" checked={microphone.handsFree} disabled={!liveTranscription} onChange={(event) => microphone.update({ handsFree: event.target.checked })} />
+    </label>
+    <p id="interview-hands-free-help" className="text-sm leading-relaxed text-muted-foreground">{liveTranscription ? 'When you stop talking, your answer is sent after a short countdown. You can keep editing instead. Turning this on also turns on the automatic microphone.' : HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION}</p>
   </div>
 }

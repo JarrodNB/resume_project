@@ -1,13 +1,15 @@
-/** The setup step that picks how spoken answers are captured: when the mic opens and how speech becomes text.
+/** The setup step that picks how spoken answers are captured: when the mic opens, whether answers send
+ * themselves when you stop talking (hands-free), and how speech becomes text.
  * Changing these never requests microphone access or starts capture. They are remembered per account.
  * The live room has its own controls because switching there can discard a recording in progress.
  */
 import { SetupRow, Switch } from './InterviewSetupControls'
 import type { TranscriptionMode } from './transcriptionCapture'
-import { SETUP_TRANSCRIPTION_OPTIONS } from './transcriptionHelp'
+import { HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION, SETUP_TRANSCRIPTION_OPTIONS } from './transcriptionHelp'
 import type { useInterviewMicSettings } from './useInterviewMicSettings'
 
 const microphoneOptions = [{ value: 'automatic', label: 'Automatic' }, { value: 'tap', label: 'Tap to start' }]
+const handsFreeOptions = [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }]
 const thinkingOptions = [{ value: '0', label: 'Off' }, { value: '3', label: '3 sec' }, { value: '5', label: '5 sec' }, { value: '10', label: '10 sec' }]
 
 export function InterviewAnswerSettings({ microphone, canRecord, mode, changeMode }: { microphone: ReturnType<typeof useInterviewMicSettings>; canRecord: boolean; mode: TranscriptionMode; changeMode: (mode: TranscriptionMode) => void }) {
@@ -22,6 +24,10 @@ export function InterviewAnswerSettings({ microphone, canRecord, mode, changeMod
         <Switch name="thinking-time" columns={4} options={thinkingOptions} value={String(microphone.seconds)} change={(value) => microphone.update({ seconds: Number(value) })} />
         <p className="interview-setup-help">Pause before the mic opens. Tap the mic to start sooner.</p>
       </SetupRow>}
+      <SetupRow title="Hands-free">
+        <Switch name="hands-free" options={handsFreeOptions} value={microphone.handsFree ? 'on' : 'off'} disabled={mode === 'recorded'} change={(value) => microphone.update({ handsFree: value === 'on' })} />
+        <p className="interview-setup-help">{mode === 'recorded' ? HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION : 'When you stop talking, your answer sends after a short countdown. You can keep editing instead.'}</p>
+      </SetupRow>
     </> : <SetupRow group={false} title="Microphone"><p className="interview-answer-note">This browser can’t record. You can type every answer.</p></SetupRow>}
     <SetupRow title="Transcription">
       <Switch name="transcription" options={SETUP_TRANSCRIPTION_OPTIONS} value={mode} change={(value) => changeMode(value as TranscriptionMode)} />

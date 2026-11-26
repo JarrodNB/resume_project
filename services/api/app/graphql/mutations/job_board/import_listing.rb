@@ -10,7 +10,7 @@ module Mutations
       def resolve(listing_id:)
         listing = ::JobBoardListing.find(listing_id)
         result = ::JobBoard::ImportListingService.call(user: current_user, listing: listing)
-        { job: result.value&.fetch(:job), warnings: result.value&.fetch(:warnings) || [], errors: result.errors }
+        { job: result.value&.fetch(:job), warnings: result.value&.fetch(:warnings) || [] }.merge(error_fields_from(result))
       end
     end
   end

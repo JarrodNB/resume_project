@@ -1,4 +1,4 @@
-/** Lets users archive a job directly from a Home tile or list row, keeping all saved data. */
+/** Lets users archive a job directly from a Jobs board tile, keeping all saved data. */
 import { useState } from 'react'
 import { Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'

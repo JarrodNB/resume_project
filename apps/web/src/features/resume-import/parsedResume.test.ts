@@ -2,7 +2,7 @@
  * Description: Tests for reading a parse_resume task result into a ParsedResume.
  */
 import { expect, it } from 'vitest'
-import { emptyExperience, parsedResumeFromTaskResult } from './parsedResume'
+import { emptyExperience, parsedLinks, parsedResumeFromTaskResult } from './parsedResume'
 
 it('returns null when the result has no parsed_resume', () => {
   expect(parsedResumeFromTaskResult(null)).toBeNull()
@@ -33,4 +33,20 @@ it('reads certifications separately from education and preserves credential deta
   } })
   expect(parsed?.educations[0]?.institution).toBe('University')
   expect(parsed?.certifications[0]).toEqual({ name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: '2024', expiry_date: null, credential_id: 'ABC', credential_url: 'https://example.com/ABC', description: null })
+})
+
+it('drops imported links whose scheme is not http or https', () => {
+  expect(parsedLinks([
+    { label: 'Click me', url: 'javascript:alert(1)' },
+    { label: 'Data', url: 'data:text/html,<b>x</b>' },
+    'JavaScript:alert(1)',
+    { label: 'Site', url: 'https://example.com/me' },
+  ])).toEqual([{ label: 'Site', url: 'https://example.com/me' }])
+})
+
+it('still turns bare web addresses, including ones with a port, into https links', () => {
+  expect(parsedLinks(['linkedin.com/in/jane', { label: 'Local', url: 'example.com:8080/path' }])).toEqual([
+    { label: 'linkedin.com/in/jane', url: 'https://linkedin.com/in/jane' },
+    { label: 'Local', url: 'https://example.com:8080/path' },
+  ])
 })

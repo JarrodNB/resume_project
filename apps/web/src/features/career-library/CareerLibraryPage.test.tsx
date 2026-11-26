@@ -59,6 +59,19 @@ it('shows every section\'s records on arrival, with tabs that jump to each secti
   expect(tabs.queryByText(/questions? for you/)).not.toBeInTheDocument()
 })
 
+it('shows a saved link with a non-web address as plain text, not a clickable link', async () => {
+  const links = [
+    { __typename: 'ProfileLink', label: 'GitHub', url: 'https://github.com/jane' },
+    { __typename: 'ProfileLink', label: 'Click me', url: 'javascript:alert(1)' },
+  ]
+  const unsafeLinkMock = { ...libraryMock, result: { data: { ...libraryMock.result.data, me: { ...libraryMock.result.data.me, links } } } }
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, unsafeLinkMock] })
+
+  expect(await screen.findByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/jane')
+  expect(screen.getByText('Click me')).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Click me' })).not.toBeInTheDocument()
+})
+
 it('counts waiting review questions and links to the first one', async () => {
   const experienceReview = {
     request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } },

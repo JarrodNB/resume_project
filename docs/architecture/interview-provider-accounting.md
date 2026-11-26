@@ -75,8 +75,8 @@ assigned zero or deleted.
 ### Development-only unmetered local testing
 
 The real browser-QA overlay sets `INTERVIEW_LOCAL_TESTING_UNMETERED=true`. Only Rails
-development honors it. This mode also skips the per-user interview monthly/hourly allowance
-gates. It retains the ledger, preregistered provider identities, pricing allowlist,
+development honors it. This mode also skips the plan, daily spend cap and interview hourly
+allowance gates. It retains the ledger, preregistered provider identities, pricing allowlist,
 all estimates, actual reconciliation, owner scoping, lease fences and resource/attempt limits.
 
 Estimates are conservative and actual charges are reconciled. They are not a

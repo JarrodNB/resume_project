@@ -10,7 +10,6 @@ GraphQL output/input types, enums, and root operation fields.
 - `ai_task_status_enum.rb`
 - `ai_task_type.rb`
 - `ai_task_type_enum.rb`
-- `ai_usage_type.rb`
 - `base_argument.rb`
 - `base_connection.rb`
 - `base_edge.rb`

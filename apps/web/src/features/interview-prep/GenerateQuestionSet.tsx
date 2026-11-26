@@ -7,6 +7,7 @@ import { Link } from 'react-router'
 import { useState } from 'react'
 import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { useCareerLibrary } from '@/features/career-library/useCareerLibrary'
@@ -17,7 +18,7 @@ const SET_TYPES: InterviewQuestionSetTypeEnum[] = ['FIT_MOTIVATION', 'BEHAVIORAL
 const TYPE_HELP: Record<InterviewQuestionSetTypeEnum, string> = {
   FIT_MOTIVATION: 'Your background, motivation, goals, working preferences, and contribution.',
   BEHAVIORAL: 'Real examples of collaboration, problem solving, adaptation, initiative, and judgment.',
-  HYPOTHETICAL: 'How you would handle a situation: priorities, reasoning, communication, and checking the outcome.',
+  HYPOTHETICAL: 'How you would handle workplace situations: priorities, communication, teamwork, and judgment. These focus on behavior, not technical problem solving.',
   TECHNICAL: 'How you actually do your work: methods, tools, decisions, tradeoffs, and quality.',
   KNOWLEDGE: 'Whether you understand the subjects in your field. Feedback corrects wrong facts.',
 }
@@ -54,7 +55,7 @@ export function GenerateQuestionSet({ generating, checking }: { generating: bool
         </div>
       </>}
     </div>}
-    <ErrorAlert title="Couldn't get questions" messages={generation.errors} />
+    <MutationErrorAlert title="Couldn't get questions" errors={generation.errors} errorCode={generation.errorCode} />
     {libraryError && <ErrorAlert title="Couldn't check your career library" messages={[requestErrorMessage(libraryError, libraryError.message)]} />}
   </section>
 }

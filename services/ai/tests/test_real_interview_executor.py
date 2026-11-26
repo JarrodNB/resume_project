@@ -140,15 +140,14 @@ def test_repaired_interviewer_output_is_accepted_without_returning_history(monke
             async def respond(messages, info):
                 self.interviewer_requests += 1
                 self.retry_prompts.update((part.tool_call_id, part.tool_name) for message in messages for part in message.parts if isinstance(part, RetryPromptPart))
-                if decision == "advance" and self.interviewer_requests == 2:
-                    part = ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-intent")
-                else:
-                    output = {"decision": decision,
-                              "acknowledgement": "You checked the shorter waiting time against the original schedule.",
-                              "reply": None if decision == "advance" or self.interviewer_requests == 1
-                              else "How did you check the change lasted?"}
-                    part = ToolCallPart(info.output_tools[0].name, output,
-                                        tool_call_id=f"result-{self.interviewer_requests}")
+                # The first output breaks the reply rule for its decision; the repaired second one is valid.
+                first = self.interviewer_requests == 1
+                follow_up = "How did you check the change lasted?"
+                output = {"decision": decision,
+                          "acknowledgement": "You checked the shorter waiting time against the original schedule.",
+                          "reply": (follow_up if first else None) if decision == "advance" else (None if first else follow_up)}
+                part = ToolCallPart(info.output_tools[0].name, output,
+                                    tool_call_id=f"result-{self.interviewer_requests}")
                 return ModelResponse(parts=[part], usage=RequestUsage(input_tokens=100, output_tokens=10))
 
             return InterviewModel(FunctionModel(respond, model_name=name), rails, request, stage, "openai", name)
@@ -160,7 +159,7 @@ def test_repaired_interviewer_output_is_accepted_without_returning_history(monke
     assert len(client.accepted) == 1
     assert client.accepted[0]["decision"] == decision
     assert models.retry_prompts == {("result-1", "final_result")}
-    assert models.interviewer_requests == (3 if decision == "advance" else 2)
+    assert models.interviewer_requests == 2
 
 
 def test_spoken_turn_needs_no_screen_credentials(monkeypatch):

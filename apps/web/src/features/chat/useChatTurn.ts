@@ -5,6 +5,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import type { ChatOperationQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { PLAN_ENDED_FAILURE_CODE, PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
 import { observeChatOutput } from './chatOutputStream'
 import { AUTHORIZE_CHAT_OUTPUT, CHAT_CONVERSATION_UPDATED, CHAT_OPERATION_QUERY, RETRY_CHAT_MESSAGE, SEND_CHAT_MESSAGE } from './chatTurnOperations'
 
@@ -25,7 +26,8 @@ const failureMessages: Record<string, string> = {
   execution_timeout: 'The reply took too long. You can try again.',
   lease_expired: 'The reply was interrupted. You can try again.',
   dependency_unavailable: 'The AI service is unavailable. Try again shortly.',
-  ai_usage_limit_reached: 'Your AI usage limit has been reached. Try again after it resets.',
+  ai_usage_limit_reached: "You've reached today's usage limit. Try again tomorrow.",
+  [PLAN_ENDED_FAILURE_CODE]: PLAN_ENDED_MESSAGE,
 }
 export const chatFailureMessage = (code: string | null) => failureMessages[code ?? ''] ?? 'Careerdrafter could not finish the reply. You can try again.'
 
@@ -35,6 +37,7 @@ export function useChatTurn(conversationId: string, onAccepted: (operationId: st
   const saved = query.data?.chatConversation.latestOperation ?? null
   const operation = saved && (!latest || newer(saved, latest)) ? saved : latest
   const [errors, setErrors] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [output, setOutput] = useState({ attempt: '', text: '' })
   const retained = useRef<{ key: string; text: string } | null>(null)
@@ -90,6 +93,7 @@ export function useChatTurn(conversationId: string, onAccepted: (operationId: st
     writing.current = true
     setBusy(true)
     setErrors([])
+    setErrorCode(null)
     try {
       if (retained.current && retained.current.text !== text) throw new Error('Check the previous message’s saved status before sending a different message.')
       if (retained.current) {
@@ -99,7 +103,7 @@ export function useChatTurn(conversationId: string, onAccepted: (operationId: st
       } else retained.current = { key: crypto.randomUUID(), text }
       const submission = retained.current!
       const result = (await sendMutation({ variables: { input: { conversationId, message: submission.text, idempotencyKey: submission.key } } })).data?.sendChatMessage
-      if (result?.errors.length) { retained.current = null; throw new Error(result.errors.join(' ')) }
+      if (result?.errors.length) { retained.current = null; setErrorCode(result.errorCode ?? null); throw new Error(result.errors.join(' ')) }
       if (!result?.operation) throw new Error('No saved status was received. Retry the same message to check its status safely.')
       update(result.operation)
       retained.current = null
@@ -114,17 +118,18 @@ export function useChatTurn(conversationId: string, onAccepted: (operationId: st
     writing.current = true
     setBusy(true)
     setErrors([])
+    setErrorCode(null)
     try {
       // Read first: an ambiguous earlier request may already have retried/finished.
       const latest = (await query.refetch()).data?.chatConversation.latestOperation
       update(latest)
       if (latest?.id !== operation.id || latest.status !== 'failed') return
       const result = (await retryMutation({ variables: { input: { operationId: operation.id } } })).data?.retryChatMessage
-      if (!result?.operation || result.errors.length) throw new Error(result?.errors.join(' ') || 'Could not retry this message.')
+      if (!result?.operation || result.errors.length) { setErrorCode(result?.errorCode ?? null); throw new Error(result?.errors.join(' ') || 'Could not retry this message.') }
       update(result.operation)
     } catch (error) { setErrors([requestErrorMessage(error, error instanceof Error ? error.message : 'Could not retry this message.')]) }
     finally { setBusy(false); writing.current = false }
   }
   return { operation, pending, busy, provisional, send, retry, refetch: query.refetch,
-    error: query.error, liveError: subscription.error, checking: query.loading && !query.data, errors }
+    error: query.error, liveError: subscription.error, checking: query.loading && !query.data, errors, errorCode }
 }

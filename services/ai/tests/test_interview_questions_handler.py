@@ -119,6 +119,29 @@ def _output(count=5, set_type="fit_motivation"):
             categories)]}
 
 
+@pytest.mark.parametrize("replacement", [False, True])
+def test_hypothetical_software_requests_workplace_behavior_not_technical_solving(task_dependencies, replacement):
+    """The shipped provider request keeps software context from becoming a technical test."""
+    library = CareerLibrary(summary="Software engineer. Python, Kubernetes, production incident response.")
+    deps = replace(task_dependencies, read_career_library=lambda _: library)
+    calls = []
+
+    def respond(messages, info):
+        instructions = "\n".join(filter(None, (getattr(message, "instructions", None) for message in messages)))
+        assert "future workplace behavior and judgment" in instructions
+        assert "technical troubleshooting" in instructions
+        assert "specialist knowledge" in instructions
+        assert "real past examples" not in instructions
+        calls.append(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            json.dumps(_output(1 if replacement else 5, "hypothetical")))])
+
+    with interview_questions_agent.override(model=FunctionModel(respond)):
+        result = handle_ai_task(_task(replacement, "hypothetical"), deps)
+    assert result.status == "completed"
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize("avoided", [[], ["What are your career goals?"]])
 def test_recent_history_is_soft_prompt_context_not_evidence_or_exclusions(task_dependencies, monkeypatch, avoided):
     """Owned generated history is not rescreened and overlap is accepted on the first request."""

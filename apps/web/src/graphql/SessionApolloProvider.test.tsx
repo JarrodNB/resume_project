@@ -42,7 +42,7 @@ function SavedRevision() {
 const originalSocket = adapters.WebSocket
 const auth: AuthContextValue = {
   user: { id: 'owner', email: 'owner@example.test', name: 'Owner' }, csrfToken: 'csrf',
-  signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), expireSession: vi.fn(),
+  signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), expireSession: vi.fn(), signedOut: false,
 }
 afterEach(() => { adapters.WebSocket = originalSocket; vi.useRealTimers(); vi.restoreAllMocks() })
 

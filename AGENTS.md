@@ -6,6 +6,18 @@ Add nested instructions only where a module needs rules beyond its parent.
 
 Before planning or implementing, fetch origin and compare HEAD with origin/develop. Report stale code before making architectural recommendations.
 
+**In cloud sessions (Claude or Codex), always work from the latest `develop`.** A cloud checkout
+can be older than `develop`: it may have been cloned before the latest merge, or its session
+branch may be left over from a PR that has since merged. At the start of every task:
+
+1. Run `git fetch origin`.
+2. If your branch has no commits of its own, bring it up to date with
+   `git merge --ff-only origin/develop`. Start any new branch from `origin/develop`
+   (`git switch -c claude/<topic> origin/develop`).
+3. If your branch's PR has already merged, restart the branch from `origin/develop` before new work.
+
+Fetch again before opening a PR, and merge `origin/develop` into your branch if it has moved.
+
 ## Branches and releases
 
 Careerdrafter is in production (careerdrafter.app, live since 2026-11-20).
@@ -18,6 +30,12 @@ Careerdrafter is in production (careerdrafter.app, live since 2026-11-20).
 - Both branches are protected: a PR is required, with no force pushes or deletions. Never commit
   or PR to `master` directly, even for a production fix. Fix it on a branch from `develop` and
   release it, or the branches drift apart and PRs start to conflict.
+- **Never commit on, or push to, `develop` or `master`, even when asked to "commit" or "push".**
+  Admin accounts can bypass the PR requirement, so GitHub may accept a direct push; that does not
+  make it allowed, and a force push to undo it is refused. If you are on `develop` or `master`
+  when asked to commit, first create a branch (`git switch -c claude/<topic>` or `codex/<topic>`),
+  commit there, push that branch and open a PR into `develop`. "Push" means push the feature
+  branch.
 - **No feature switches.** Do not add environment variables that turn a feature on or off.
   Features are always on. Environment variables are for real configuration: keys, secrets,
   addresses and limits.

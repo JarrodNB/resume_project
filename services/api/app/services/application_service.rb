@@ -16,9 +16,10 @@ class ApplicationService
     ServiceResult.new(success: true, value: value, errors: [])
   end
 
-  # Builds a failed result. Accepts an array of messages or an ActiveModel::Errors.
-  def failure(errors)
+  # Builds a failed result. Accepts an array of messages or an ActiveModel::Errors, and an optional
+  # machine-readable `code` for callers that need to tell failures apart.
+  def failure(errors, code: nil)
     messages = errors.respond_to?(:full_messages) ? errors.full_messages : Array(errors)
-    ServiceResult.new(success: false, value: nil, errors: messages)
+    ServiceResult.new(success: false, value: nil, errors: messages, code: code)
   end
 end

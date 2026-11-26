@@ -1,5 +1,6 @@
 /** Remember an unwanted spoken prompt without submitting, skipping, or clearing an answer. */
 import { Button } from '@/components/ui/button'
+import { PlanEndedErrorLink } from '@/features/billing/PlanBillingLink'
 import { useAvoidedInterviewPrompt } from './useAvoidedInterviewPrompt'
 
 type Props = { interviewId: string; messageId: string; avoided: boolean; disabled: boolean }
@@ -12,6 +13,6 @@ export function AvoidInterviewPromptButton({ interviewId, messageId, avoided, di
       {preference.saved ? 'Question avoided' : preference.saving ? 'Saving preference…' : "Don't see this again"}
     </Button>
     {preference.saved && <p role="status" className="text-sm text-muted-foreground">Saved — future interviews will avoid this question.</p>}
-    {preference.errors.map((error) => <p key={error} role="alert" className="text-sm">{error}</p>)}
+    {preference.errors.map((error) => <p key={error} role="alert" className="text-sm">{error} <PlanEndedErrorLink errorCode={preference.errorCode} /></p>)}
   </div>
 }

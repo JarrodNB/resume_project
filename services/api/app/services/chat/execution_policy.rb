@@ -5,7 +5,7 @@ module Chat
     LEASE = 30.seconds
     DEADLINE = 120.seconds
     BACKOFF = [2, 5, 10].freeze
-    FAILURE_CODES = %w[ai_usage_limit_reached dependency_unavailable context_limit screening_blocked screening_unavailable execution_failed execution_timeout lease_expired].freeze
+    FAILURE_CODES = %w[ai_usage_limit_reached plan_ended dependency_unavailable context_limit screening_blocked screening_unavailable execution_failed execution_timeout lease_expired].freeze
 
     private
 

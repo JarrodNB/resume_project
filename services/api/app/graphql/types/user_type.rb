@@ -3,8 +3,8 @@
 # Description: The signed-in user.
 # Index:
 #   - id, email (sign-in), name
+#   - billing: plan and dates from Billing::ResolvePlanService
 #   - profile: contact_email, phone, location, links, summary; derived job search suggestions
-#   - ai_usage: this month's estimated AI spend and budget
 module Types
   class UserType < Types::BaseObject
     field :id, ID, null: false
@@ -19,7 +19,10 @@ module Types
     field :include_summary, Boolean, null: false
     field :resume_section_order, [ Types::ResumeSectionTypeEnum ], null: false, method: :ordered_resume_section_types,
           description: "Default section order for new resumes. Contact is always first and is not listed."
-    field :ai_usage, Types::AiUsageType, null: false
+
+    field :billing, Types::BillingType, null: false, description: "Plan and dates only; never limits or spend."
+
+    def billing = Billing::ResolvePlanService.call(user: object).value
 
     # Returns structured links while keeping legacy string rows readable.
     def links
@@ -28,8 +31,5 @@ module Types
         normalized if normalized["label"].present? && normalized["url"].present?
       end
     end
-    # Summarizes the user's AI spend this month. Only reachable through `me`, so it's always the
-    # signed-in user.
-    def ai_usage = AiUsage::SummarizeMonthlyAiUsageService.call(user: object).value
   end
 end

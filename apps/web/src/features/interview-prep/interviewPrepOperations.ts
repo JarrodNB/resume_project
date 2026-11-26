@@ -35,6 +35,7 @@ export const GENERATE_INTERVIEW_SET = graphql(`
   mutation GenerateInterviewSet($setType: InterviewQuestionSetTypeEnum!) {
     generateInterviewQuestionSet(input: { setType: $setType }) {
       errors
+      errorCode
       aiTask { id input }
     }
   }
@@ -55,14 +56,14 @@ export const SAVE_INTERVIEW_ANSWER = graphql(`
 export const REQUEST_INTERVIEW_FEEDBACK = graphql(`
   mutation RequestInterviewFeedback($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!, $answerFormat: String, $answerDrafts: JSON) {
     requestInterviewAnswerFeedback(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor, answerFormat: $answerFormat, answerDrafts: $answerDrafts }) {
-      errors aiTask { id status taskType errorMessage }
+      errors errorCode aiTask { id status taskType errorMessage }
     }
   }
 `)
 export const REGENERATE_INTERVIEW_QUESTION = graphql(`
   mutation RegenerateInterviewQuestion($questionSetId: ID!, $questionId: ID!, $confirmed: Boolean!) {
     regenerateInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId, confirmed: $confirmed }) {
-      errors aiTask { id status taskType errorMessage }
+      errors errorCode aiTask { id status taskType errorMessage }
     }
   }
 `)
@@ -93,7 +94,7 @@ export const CREATE_CUSTOM_INTERVIEW_QUESTION = graphql(`
 export const GENERATE_INTERVIEW_MEMORY_ANCHOR = graphql(`
   mutation GenerateInterviewMemoryAnchor($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!, $answerFormat: String, $answerDrafts: JSON) {
     generateInterviewMemoryAnchor(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor, answerFormat: $answerFormat, answerDrafts: $answerDrafts }) {
-      errors aiTask { id status taskType errorMessage }
+      errors errorCode aiTask { id status taskType errorMessage }
     }
   }
 `)

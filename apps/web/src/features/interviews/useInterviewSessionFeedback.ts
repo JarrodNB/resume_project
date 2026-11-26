@@ -17,6 +17,7 @@ export function useInterviewSessionFeedback(interviewId: string, saved: SavedSes
   const record = local && (!saved || local.attemptCount > saved.attemptCount) ? local : saved
   const [request, { loading }] = useMutation(REQUEST_INTERVIEW_SESSION_FEEDBACK)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const locked = useRef(false)
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(record?.aiTaskId ?? '')
   const task = aiTask?.id === record?.aiTaskId ? aiTask : null
@@ -32,17 +33,21 @@ export function useInterviewSessionFeedback(interviewId: string, saved: SavedSes
     if (locked.current || content || pending) return
     locked.current = true
     setError(null)
+    setErrorCode(null)
     try {
       const response = await request({ variables: { input: { interviewId, retryFailed } } })
       const payload = response.data?.requestInterviewSessionFeedback
       if (payload?.feedback) setLocal(payload.feedback)
-      if (payload?.errors.length || !payload?.feedback) setError(payload?.errors.join('. ') || 'Could not request feedback. Please retry.')
+      if (payload?.errors.length || !payload?.feedback) {
+        setError(payload?.errors.join('. ') || 'Could not request feedback. Please retry.')
+        setErrorCode(payload?.errorCode ?? null)
+      }
     } catch {
       setError('Could not confirm feedback. Retry to check its saved status.')
     } finally { locked.current = false }
   }
 
-  return { generate, content, pending: pending || loading, failed,
+  return { generate, content, errorCode, pending: pending || loading, failed,
     canRetry: (record?.attemptCount ?? 0) < 2,
     error: error || (failed ? task?.errorMessage || 'Feedback did not finish. Please retry.' : null),
     subscriptionError: subscriptionError ? 'Live feedback updates disconnected. Reopen this interview to check saved status.' : null }

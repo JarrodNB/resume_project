@@ -1,7 +1,7 @@
 """Supply deterministic fixture text and an offline Pydantic interviewer.
 
 These adapters never infer anything from the recording and cannot resolve a real model.
-The advance tool expresses intent only; Rails still chooses the accepted response.
+An advance decision expresses intent only; Rails still chooses the accepted response.
 """
 
 from pathlib import Path
@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import Hooks
-from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai_harness import InputGuardrail
 
@@ -33,7 +33,7 @@ class InterviewReply(BaseModel):
 
 
 def make_agent(scenario: str, guard, provider_call):
-    """Build a local agent with a real tool exchange and official input guardrail."""
+    """Build a local agent that answers in one request, behind the official input guardrail."""
     if scenario not in SCENARIOS:
         raise ValueError("Unknown fake scenario")
 
@@ -41,24 +41,13 @@ def make_agent(scenario: str, guard, provider_call):
         return await provider_call(lambda: respond_locally(messages, info))
 
     def respond_locally(messages, info):
-        returned = any(isinstance(part, ToolReturnPart) and part.tool_name == "advance_to_next_question"
-                       for part in messages[-1].parts)
-        if scenario == "early-advance" and not returned:
-            return ModelResponse(parts=[ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-fixture")])
         output = {"decision": "advance" if scenario == "early-advance" else "continue",
                   "reply": None if scenario == "early-advance" else FOLLOW_UP}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)])
 
-    agent = Agent(FunctionModel(respond), output_type=InterviewReply, retries=0,
-                  capabilities=[Hooks(before_model_request=_mask_request, after_model_request=_unmask_response),
-                                InputGuardrail(guard=guard)])
-
-    @agent.tool_plain
-    def advance_to_next_question() -> str:
-        """Request advancement; the durable Rails owner decides whether to advance."""
-        return "Advancement requested. Rails will apply the saved interview policy."
-
-    return agent
+    return Agent(FunctionModel(respond), output_type=InterviewReply, retries=0,
+                 capabilities=[Hooks(before_model_request=_mask_request, after_model_request=_unmask_response),
+                               InputGuardrail(guard=guard)])
 
 
 def speech_bytes(text: str) -> bytes:

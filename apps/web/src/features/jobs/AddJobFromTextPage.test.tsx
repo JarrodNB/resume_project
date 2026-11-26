@@ -14,7 +14,7 @@ function parseJobMock(payload: Record<string, unknown>) {
   return {
     request: { query: PARSE_JOB_POSTING_MUTATION, variables: { text: AD } },
     result: {
-      data: { parseJobPosting: { __typename: 'ParseJobPostingPayload', aiTask: null, errors: [], ...payload } },
+      data: { parseJobPosting: { __typename: 'ParseJobPostingPayload', aiTask: null, errors: [], errorCode: null, ...payload } },
     },
   }
 }
@@ -48,6 +48,26 @@ it('shows why a paste was rejected', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Add job' }))
 
   expect(await screen.findByText('This job ad is too long. Shorten it and try again.')).toBeInTheDocument()
+})
+
+it('links to Plan & billing when the paste is refused because the trial ended', async () => {
+  renderPastePage([parseJobMock({ errors: ['Trial over.'], errorCode: 'PLAN_ENDED' })])
+
+  await userEvent.type(screen.getByLabelText('Job ad'), AD)
+  await userEvent.click(screen.getByRole('button', { name: 'Add job' }))
+
+  expect(await screen.findByText('Trial over.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+})
+
+it('adds no billing link to other rejections', async () => {
+  renderPastePage([parseJobMock({ errors: ['Too long.'] })])
+
+  await userEvent.type(screen.getByLabelText('Job ad'), AD)
+  await userEvent.click(screen.getByRole('button', { name: 'Add job' }))
+
+  await screen.findByText('Too long.')
+  expect(screen.queryByRole('link', { name: 'Plan & billing' })).not.toBeInTheDocument()
 })
 
 it('stays on the form when the ad is empty', async () => {

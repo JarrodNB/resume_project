@@ -57,11 +57,11 @@ RSpec.describe "Generating interview memory anchors" do
   end
 
   it "saves drafts even when admission fails and supports later retry" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     result = InterviewPrep::StartQuestionTaskService.call(user: user, question: question, task_type: "generate_interview_memory_anchor", answer_text: "Changed answer", memory_anchor: "Custom")
     expect(result).not_to be_success
     expect(question.reload).to have_attributes(answer_text: "Changed answer", memory_anchor: "Custom")
-    user.update!(max_in_flight_ai_tasks: 5)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 5)
     expect(start).to be_success
   end
 

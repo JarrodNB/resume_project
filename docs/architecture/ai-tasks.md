@@ -154,17 +154,6 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
 
 Per task type:
 
-- `rerank_job_listings`: durable input `{keyword, listing_ids: [...]}` selects 1–100
-  shared catalogue listings. The worker verifies the queued task's owner and type, then
-  reads only catalogue `id`/`payload` columns and builds current readable excerpts locally:
-  at most 6,000 UTF-8 bytes each and 140,000 total, with a 200,000-byte serialized cap.
-  Legacy commands retain their selected IDs; copied text is ignored. Missing listings fail
-  before embedding. The worker uses only this owner's model-matched career-library vectors
-  for semantic order, fused equally with submitted-keyword BM25 (RRF k=60).
-  Results contain only `{ranked_listing_ids: [...]}`; Rails accepts an exact permutation
-  of the selected IDs. Budgets, attempt costs, subscriptions and duplicate completion
-  handling remain unchanged. No generative model is used.
-
 - `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
   Active Storage blob key in the S3 uploads bucket. The completed result is
   `{parsed_resume: ParsedResume, job_title_suggestions: [...]}`. The optional suggestions are
@@ -375,8 +364,8 @@ The worker retries through SQS redelivery instead of in-process loops:
   Rails-owned durable operations. It does not change existing queue contracts.
 
 - **AI tasks outlive their job.** `Job has_many :ai_tasks, dependent: :nullify`: deleting a job
-  clears the tasks' subject but keeps them, so their cost still counts toward the monthly
-  budget.
+  clears the tasks' subject but keeps them, so their cost still counts toward the user's daily
+  spend cap.
 
 - **Uploads go to S3; only the key goes over SQS.** SQS messages are capped at 256 KB, so
   Rails stores uploads with Active Storage (S3 service) and the worker downloads them by blob

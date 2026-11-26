@@ -4,7 +4,7 @@
 # nothing the second time. Moving into another role queues an embedding sync (the highlight's
 # embedding text names its role).
 # Index:
-#   - call: moves and renumbers in one transaction; returns the target experience, or errors
+#   - call: moves and renumbers in one transaction under the user lock; returns the target experience, or errors
 module Experiences
   class MoveHighlightService < ApplicationService
     # @param highlight [ExperienceHighlight] the bullet point to move (already scoped to the user)
@@ -16,18 +16,21 @@ module Experiences
       @position = position
     end
 
-    # Moves the highlight and renumbers both experiences' highlights.
+    # Moves the highlight and renumbers both experiences' highlights. The user lock makes the
+    # bullet limit and the renumbering see the lists as other moves left them.
     def call
-      error = invalid_move_error
-      return failure([ error ]) if error
+      result = @experience.user.with_lock do
+        @highlight.reload
+        error = invalid_move_error
+        next failure([ error ]) if error
 
-      source_experience = @highlight.experience
-      ActiveRecord::Base.transaction do
+        source_experience = @highlight.experience
         renumber(@experience, target_order)
         renumber(source_experience, highlights_without_moved(source_experience)) if source_experience.id != @experience.id
+        CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@experience.user_id) if source_experience.id != @experience.id
+        success(@experience.reload)
       end
-      CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@experience.user_id) if source_experience.id != @experience.id
-      success(@experience.reload)
+      result
     end
 
     private

@@ -5,8 +5,9 @@
  * Three columns: saved chats, the conversation with its pinned message box, and a plain notes
  * panel. Its look lives in the `.chat-*` rules in index.css.
  */
+import { CombinedGraphQLErrors } from '@apollo/client/errors'
 import { ContentSkeleton } from '@/components/ContentSkeleton'
-import { Navigate, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { Plus } from 'lucide-react'
 import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -62,12 +63,19 @@ export function ChatPage() {
   </div>
 }
 
-/** Reads accepted dialogue only; partial model output will use a separate live execution view. */
+/** Reads accepted dialogue only; partial model output will use a separate live execution view.
+ * A chat that was deleted or belongs to another account can't be retried, so it gets no Retry button. */
 function SavedConversation({ id, maxCharacters }: { id: string; maxCharacters: number }) {
   const history = useChatConversation(id)
+  const missing = CombinedGraphQLErrors.is(history.error)
+    && history.error.errors.some((item) => item.message === 'Record not found')
   return <section aria-label="Conversation" className="chat-conversation">
     {history.loading && !history.conversation && <ContentSkeleton label="Loading conversation…" layout="conversation" />}
-    {history.error && <div className="chat-alert">
+    {missing && <div className="chat-alert">
+      <ErrorAlert title="This chat is unavailable" messages={['It may have been deleted, or it belongs to another account.']} />
+      <Button asChild variant="outline"><Link to="/chat">Back to your chats</Link></Button>
+    </div>}
+    {history.error && !missing && <div className="chat-alert">
       <ErrorAlert title="Couldn't open this chat" messages={[requestErrorMessage(history.error, 'Try loading the chat again.')]} />
       <Button variant="outline" onClick={() => void history.refetch().catch(() => undefined)}>Retry loading conversation</Button>
     </div>}

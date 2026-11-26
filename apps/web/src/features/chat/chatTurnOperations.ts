@@ -22,6 +22,8 @@ export const SEND_CHAT_MESSAGE = graphql(`
     sendChatMessage(input: $input) {
       operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }
       errors
+      errorCode
+
     }
   }
 `)
@@ -30,6 +32,8 @@ export const RETRY_CHAT_MESSAGE = graphql(`
     retryChatMessage(input: $input) {
       operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }
       errors
+      errorCode
+
     }
   }
 `)

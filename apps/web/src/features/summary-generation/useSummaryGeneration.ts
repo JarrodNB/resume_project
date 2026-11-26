@@ -13,6 +13,7 @@ export function useSummaryGeneration(targetKind: string, targetId?: string, onAc
   const [acting, setActing] = useState(false)
   const [submitted, setSubmitted] = useState<SummaryTask | null>(null)
   const [messages, setMessages] = useState<string[]>([])
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [start, startState] = useMutation(START_SUMMARY_GENERATION_MUTATION)
   const [accept, acceptState] = useMutation(ACCEPT_SUMMARY_GENERATION_MUTATION)
   const [discard, discardState] = useMutation(DISCARD_SUMMARY_GENERATION_MUTATION)
@@ -32,10 +33,12 @@ export function useSummaryGeneration(targetKind: string, targetId?: string, onAc
     setActing(true)
     onBusyChange?.(true)
     setMessages([])
+    setErrorCode(null)
     try {
       const response = await start({ variables: { targetKind, targetId } })
       const payload = response.data?.startSummaryGeneration
       setMessages(payload?.errors ?? ['Could not generate a summary. Try again.'])
+      setErrorCode(payload?.errorCode ?? null)
       if (payload?.aiTask) setSubmitted(payload.aiTask)
     } catch (failure) {
       setMessages([requestErrorMessage(failure, 'Could not generate a summary. Try again.')])
@@ -78,6 +81,7 @@ export function useSummaryGeneration(targetKind: string, targetId?: string, onAc
   }
 
   return { task, loading, saving, stale, acceptedThisVisit: !!submitted?.acceptedAt, generate, accept: (text: string) => finish(text), discard: () => finish(undefined, true), refresh,
+    errorCode,
     errors: [...messages, ...(error ? ['Could not load saved summary work. Refresh status to try again.'] : []),
       ...(liveError ? ['Live updates disconnected. Refresh status to check progress.'] : []),
       ...(task?.status === 'FAILED' && task.errorMessage && task.errorMessage !== 'Summary draft discarded.' ? [task.errorMessage] : [])] }

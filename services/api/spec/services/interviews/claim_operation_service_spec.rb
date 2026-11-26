@@ -143,6 +143,18 @@ RSpec.describe "Interview admission", type: :service do
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
   end
 
+  it "records plan_ended when the trial has ended, still without creating a task" do
+    interview = Interviews::CreateFixtureService.call(user: create(:user)).value
+    interview.user.update!(trial_ends_at: 1.minute.ago)
+    operation = interview.operations.first
+
+    result = Interviews::ClaimOperationService.call(operation: operation)
+
+    expect(result.errors).to eq([ AiUsage::CheckAiTaskAllowanceService::PLAN_ENDED_MESSAGE ])
+    expect(operation.reload).to have_attributes(status: "failed", failure_code: "plan_ended")
+    expect(operation.ai_task).to be_nil
+  end
+
   it "does not execute a stale turn or expired completed-session speech" do
     interview = Interviews::CreateFixtureService.call(user: create(:user)).value
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
@@ -163,14 +175,14 @@ RSpec.describe "Interview admission", type: :service do
       claim_generation: operation.claim_generation, code: "execution_failed", retryable: true)
     travel 3.seconds
     operation.ai_task.update!(cost_microdollars: 1)
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 1)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 1)
     expect(Interviews::ClaimOperationService.call(operation: operation)).not_to be_success
     expect(operation.reload.execution_count).to eq(1)
     expect(operation).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil)
     expect(operation.ai_task.reload).to have_attributes(status: "failed", error_message: "ai_usage_limit_reached")
     expect(operation.execution_attempts.count).to eq(1)
     expect(Interviews::RetryOperationService.call(operation: operation)).not_to be_success
-    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 2)
+    stub_const("TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS", 2)
     expect(Interviews::ClaimOperationService.call(operation: operation)).not_to be_success
     expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success

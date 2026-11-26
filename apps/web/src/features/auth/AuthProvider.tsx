@@ -12,6 +12,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<BrowserSession | null>(null)
   const [error, setError] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [signedOut, setSignedOut] = useState(false)
   const generation = useRef(0)
   const broadcasts = useRef<BroadcastChannel | null>(null)
 
@@ -29,7 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof BroadcastChannel === 'undefined') return
     const channel = new BroadcastChannel('careerdrafter-session')
     broadcasts.current = channel
-    channel.onmessage = () => expireSession()
+    channel.onmessage = (event?: MessageEvent) => {
+      if (event?.data === 'signed-out') setSignedOut(true)
+      expireSession()
+    }
     return () => { channel.close(); broadcasts.current = null }
   }, [expireSession])
 
@@ -48,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const value = await request()
     if (current === generation.current) {
       setSession(value)
+      setSignedOut(false)
       broadcasts.current?.postMessage('changed')
     }
   }, [])
@@ -61,7 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session) return
     // Keep the session visible if the server could not confirm revocation.
     await signOutRequest(session.csrfToken)
-    broadcasts.current?.postMessage('changed')
+    broadcasts.current?.postMessage('signed-out')
+    setSignedOut(true)
     expireSession()
   }, [session, expireSession])
   if (error) return <main className="flex min-h-svh items-center justify-center px-6 py-12">
@@ -79,6 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       Checking your session…
     </p>
   </main>
-  const value: AuthContextValue = { ...session, signIn, signUp, signOut, expireSession }
+  const value: AuthContextValue = { ...session, signIn, signUp, signOut, expireSession, signedOut }
   return <AuthContext value={value}>{children}</AuthContext>
 }

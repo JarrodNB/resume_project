@@ -1,6 +1,8 @@
 /** Stream one answer through the AI runtime while a separate recorder preserves fallback audio.
  * The caller authorizes through the signed-in GraphQL client; provider credentials stay server-side.
  */
+import { PlanEndedError } from '@/lib/planEnded'
+import { TranscriptionRefusedError } from './transcriptionCapture'
 type Callbacks = { text(text: string): void; fallback(reason: string): void }
 type Authorization = () => Promise<{ captureId: string; token: string }>
 type Dependencies = { audio(): AudioContext; socket(): WebSocket }
@@ -140,7 +142,11 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
           }
         } catch { fail('Live transcription sent back something unexpected.') }
       }
-    }).catch(() => fail('We couldn\'t start live transcription.'))
+    }).catch((error: unknown) => {
+      if (error instanceof PlanEndedError) fail(error.message)
+      else if (error instanceof TranscriptionRefusedError) fail(`We couldn't start live transcription: ${error.message}`)
+      else fail('We couldn\'t start live transcription.')
+    })
   } catch { fail('This browser can\'t do live transcription.') }
   return {
     finish() {

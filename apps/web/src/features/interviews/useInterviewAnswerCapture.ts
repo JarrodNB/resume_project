@@ -8,6 +8,7 @@ import { useAnswerDraft } from './useAnswerDraft'
 import { useInterviewRecorder } from './useInterviewRecorder'
 import type { useInterviewSession } from './useInterviewSession'
 import type { TranscriptionMode } from './transcriptionCapture'
+import { cancelInterviewTiming, finishInterviewTiming, startInterviewTiming } from './interviewLatency'
 
 type Ticket = ReturnType<ReturnType<typeof useAnswerDraft>['beginCapture']>
 type Upload = { kind: 'uploading'; context: string; ticket: Ticket }
@@ -67,13 +68,16 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
     }
   }, [recorder.status, recorder.transcript, previewCapture])
   useEffect(() => {
-    if (recorder.status !== 'ready' || !recorder.candidateTranscript || !captureTicket.current) return
+    if (recorder.status !== 'ready') return
+    if (!recorder.candidateTranscript || !captureTicket.current) { cancelInterviewTiming('speech-end-to-transcript'); return }
+    finishInterviewTiming('speech-end-to-transcript')
     recordedTranscript.current = [recordedTranscript.current, recorder.candidateTranscript].filter(Boolean).join(' ')
     finishCapture(captureTicket.current, recorder.candidateTranscript)
     captureTicket.current = null
   }, [recorder.status, recorder.candidateTranscript, finishCapture])
   useEffect(() => {
     if (selectedReview?.ticket && operation?.status === 'accepted' && operation.reviewTranscript) {
+      finishInterviewTiming('recording-to-transcript')
       recordedTranscript.current = operation.reviewTranscript
       finishCapture(selectedReview.ticket, operation.reviewTranscript)
     }
@@ -115,6 +119,11 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
     }
     recorder.resume()
   }
+  function stop() {
+    // Live recognition finishes after the pause; recorded mode waits for an explicit Transcribe.
+    if (recorder.effectiveMode !== 'recorded') startInterviewTiming('speech-end-to-transcript', { mode: recorder.effectiveMode })
+    recorder.stop()
+  }
   function edit(text: string) {
     if (capturing) draft.editCapture(text)
     else { cancelReview(); draft.setText(text) }
@@ -133,14 +142,18 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
   }
   async function submit(text: string) {
     cancelReview()
+    startInterviewTiming('submit-to-reply')
+    startInterviewTiming('submit-to-audio', { mode: interview?.speechPlaybackMode ?? 'unknown' })
     const saved = await session.answerText(text)
     if (saved) clearDraft()
+    else { cancelInterviewTiming('submit-to-reply'); cancelInterviewTiming('submit-to-audio') }
     return saved
   }
   async function transcribe() {
     if (!recorder.recording || currentLifecycle.current.upload || terminal) return
     const request: Upload = { kind: 'uploading', context, ticket: captureTicket.current ?? draft.beginCapture() }
     captureTicket.current = null
+    startInterviewTiming('recording-to-transcript', { mode: 'recorded' })
     changeLifecycle({ review: request, upload: request })
     try {
       const id = await transcribeRecording(recorder.recording)
@@ -162,7 +175,7 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
   }
   const reviewed = selectedReview !== null || (review.kind === 'dismissed' && review.recording === recorder.recording)
   return {
-    text: draft.text, edit, start, resume, stop: recorder.stop, discardRecording, clear, changeMode, submit, cancelReview, transcribe, reviewSavedTranscript,
+    text: draft.text, edit, start, resume, stop, discardRecording, clear, changeMode, submit, cancelReview, transcribe, reviewSavedTranscript,
     terminal, capturing,
     recorder: {
       status: recorder.status, recording: recorder.recording, error: recorder.error,

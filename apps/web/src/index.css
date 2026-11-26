@@ -263,7 +263,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 599px) {
   .workspace :is(input:not([type=checkbox], [type=radio], [type=range]), textarea, select) { font-size: 16px; }
 }
-.workspace { min-height: 100svh; }
+.workspace { display: flex; flex-direction: column; min-height: 100svh; }
 /* The signage band: brand, the four sections, then notifications and account. It reads like
    station signage: white type on black, with a thick white underline under the current section. */
 .signage-band { position: sticky; top: 0; z-index: 30; background: var(--band); color: var(--band-foreground); }
@@ -294,6 +294,18 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .security-password-section input { min-height: 44px; background: var(--card); caret-color: var(--primary); }
 .security-password-section a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
 .security-session-notice { border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+.billing-plan { padding-top: 28px; }
+.billing-plan-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); }
+.billing-plan-title { margin-top: 12px; font-size: 1.75rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+.billing-plan-detail { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--muted-foreground); }
+.billing-plan-status { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--muted); font-size: 14px; }
+.billing-plan-action { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+.billing-plan-price { font-size: 14px; color: var(--muted-foreground); }
+.billing-manage { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px 16px; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
+.billing-manage-title { font-size: 14px; font-weight: 600; }
+.billing-manage-detail { margin-top: 2px; font-size: 14px; color: var(--muted-foreground); }
+.billing-manage > :nth-child(n+3) { grid-column: 1 / -1; }
+@media (max-width: 479px) { .billing-manage { grid-template-columns: 1fr; } .billing-plan-title { font-size: 1.5rem; } }
 .account-data-section { margin-top: 36px; border-top: 1px solid var(--border); }
 .account-delete-block { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
 
@@ -656,6 +668,84 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .signal-dot.is-ai::after { animation: none; opacity: 0.35; transform: none; }
 }
 
+/* Home, redesigned: a fixed-size stage line (the overview), then "Do next" beside the AI work strip.
+   Nothing here grows with the number of saved jobs; the full board and list live on Jobs. */
+.stage-line { padding: 24px 0 18px; border-bottom: 1px solid var(--border); }
+.stage-line ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stage-line li { position: relative; }
+.stage-line li::before, .stage-line li::after { content: ""; position: absolute; top: 17px; height: 8px; background: var(--rule-strong); }
+.stage-line li::before { left: 0; right: 50%; }
+.stage-line li::after { left: 50%; right: 0; }
+.stage-line li:first-child::before, .stage-line li:last-child::after { display: none; }
+.stage-line li.is-offer::after, .stage-line li.is-rejected::before { top: 19px; height: 0; background: none; border-top: 4px dashed var(--stop-closed); }
+.stage-line a { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; padding: 0 4px 4px; color: var(--foreground); text-align: center; }
+.stage-line a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
+.stage-line .station-bullet { transition: background-color 160ms; }
+.stage-line li.is-offer .station-bullet { border-color: var(--signal-done); }
+.stage-line li.is-rejected .station-bullet { border-color: var(--stop-closed); color: var(--muted-foreground); }
+.stage-line-name { font-size: 14px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 48px; margin-top: 32px; }
+.home-lane { display: grid; gap: 4px; min-width: 0; }
+.lane-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 10px; border-bottom: 2px solid var(--rule-strong); }
+.lane-head h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.lane-head span { color: var(--muted-foreground); font-size: 14px; font-variant-numeric: tabular-nums; }
+.home-lane .pipeline-row { grid-template-columns: minmax(0, 1fr) auto; padding: 16px 4px; }
+.lane-step { display: grid; justify-items: end; gap: 2px; }
+.lane-stage { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+.lane-quiet { margin-top: 10px; color: var(--muted-foreground); font-size: 14px; line-height: 1.5; }
+.lane-quiet a { color: var(--foreground); font-weight: 700; text-underline-offset: 4px; text-decoration: underline; }
+.lane-clear { padding: 18px 0; max-width: 55ch; color: var(--muted-foreground); font-size: 15px; line-height: 1.55; }
+.lane-clear strong { display: block; color: var(--foreground); font-size: 17px; }
+.lane-all { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 32px; margin-top: 12px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
+.lane-all svg { width: 15px; }
+.lane-all:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
+/* Library lane: a bar of how the library's details graded, then the next step. */
+.health-bar { display: flex; gap: 3px; height: 12px; margin: 14px 0 10px; }
+.health-bar span { min-width: 6px; border-radius: 3px; }
+.health-good { background: var(--signal-done); }
+.health-improve { background: var(--rule-strong); }
+.health-weak { background: var(--signal-action); }
+.health-none { background: var(--stop-off); }
+.health-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-bottom: 4px; color: var(--muted-foreground); font-size: 13px; font-variant-numeric: tabular-nums; }
+.health-legend li { display: flex; align-items: center; gap: 6px; }
+.health-legend .signal-dot { width: 9px; height: 9px; }
+/* This-week lane: seven stops, one per day, over four counts. */
+.week-line { position: relative; display: flex; justify-content: space-between; margin: 18px 0 14px; }
+.week-line::before { content: ""; position: absolute; left: 24px; right: 24px; top: 8px; height: 4px; background: var(--border); }
+.week-line li { position: relative; display: grid; justify-items: center; gap: 6px; min-width: 48px; }
+.week-stop { width: 16px; height: 16px; border: 3px solid var(--stop-off); border-radius: 50%; background: var(--background); }
+.week-line li.has-activity .week-stop { border-color: var(--rule-strong); background: var(--rule-strong); }
+.week-line li.is-today .week-stop { box-shadow: 0 0 0 3px var(--background), 0 0 0 5px var(--rule-strong); }
+.week-day { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+.week-line li.is-today .week-day { color: var(--foreground); font-weight: 800; }
+.week-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 14px; border-top: 1px solid var(--border); }
+.week-totals dd { font-size: 28px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.week-totals dt { margin-top: 6px; color: var(--muted-foreground); font-size: 13px; line-height: 1.3; }
+/* Jobs page toolbar: count, stage filter, list/board switch. */
+.jobs-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.jobs-toolbar h2 { margin-right: auto; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stage-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.stage-filter button { min-height: 34px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 4px; background: var(--background); color: var(--foreground); font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 160ms, color 160ms, border-color 160ms; }
+.stage-filter button[aria-pressed=true] { border-color: var(--rule-strong); background: var(--rule-strong); color: var(--background); }
+.stage-filter button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .stage-line a:hover .station-bullet { background: var(--muted); }
+  .stage-line a:hover .stage-line-name, .lane-all:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .stage-filter button[aria-pressed=false]:hover { background: var(--muted); }
+}
+@media (max-width: 899px) {
+  .home-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 599px) {
+  .stage-line a { padding: 0; }
+  .stage-line-name { font-size: 11px; overflow-wrap: normal; }
+  .home-lane .pipeline-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .lane-step { justify-items: start; }
+  .week-line li { min-width: 0; }
+  .week-line::before { left: 12px; right: 12px; }
+  .week-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 18px; }
+}
+
 /* One saved job: header, job tabs, and the selected tab's work. */
 .job-workspace { max-width: 1040px; display: grid; min-width: 0; }
 .job-workspace-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 24px; padding-bottom: 24px; }
@@ -988,8 +1078,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 
 /* Practice questions: one bank, focused answer editing, and saved-answer rehearsal. */
-.question-bank-page, .question-set-page { display: grid; gap: 28px; min-width: 0; }
-.question-set-page { max-width: 1180px; }
+.question-bank-page { display: grid; gap: 28px; min-width: 0; }
 .question-generate { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 14px 28px; padding: 20px 22px; border: 1.5px solid var(--rule-strong); border-radius: 6px; }
 .question-generate-text h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
 .question-generate-text p, .question-generate-help { margin-top: 4px; max-width: 60ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
@@ -1003,7 +1092,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .question-generate-empty { display: grid; gap: 8px; font-size: 14px; }
 .question-generate-empty a { font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
 .question-pending { display: grid; gap: 12px; }
-.question-pending > li { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+.question-pending > li { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px; }
+.question-pending[hidden], .question-pending > li[hidden] { display: none; }
 .question-bank { display: grid; gap: 14px; min-width: 0; }
 .question-bank-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
 .question-bank-toolbar h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
@@ -1034,8 +1124,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .retired-question[open] summary::before { transform: rotate(45deg); }
 .retired-question summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .retired-question-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 4px 4px 18px 26px; }
-.question-back-link { display: inline-flex; align-items: center; gap: 6px; justify-self: start; font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
-.question-back-link svg { width: 16px; height: 16px; }
 .question-card { display: grid; gap: 14px; min-width: 0; padding: 24px; border: 1.5px solid var(--rule-strong); border-radius: 6px; }
 .question-rehearsal { max-width: 900px; gap: 20px; }
 .question-rehearsal > [data-slot=button] { justify-self: start; }

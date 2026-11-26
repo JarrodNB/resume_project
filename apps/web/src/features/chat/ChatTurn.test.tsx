@@ -196,3 +196,28 @@ it('draws saved assistant replies as Markdown and keeps user messages as plain t
   expect(screen.getByText('**not bold**')).toBeInTheDocument()
   expect(screen.getByText('First').tagName).toBe('STRONG')
 })
+
+it('links to Plan & billing when a send is refused because the trial ended', async () => {
+  const send = vi.fn(() => ({ data: { sendChatMessage: { __typename: 'SendChatMessagePayload', operation: null, errors: ['Trial over.'], errorCode: 'PLAN_ENDED' } } }))
+  renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={10000} onAccepted={vi.fn()} />, mocks: [query(), subscription(), {
+    request: { query: SEND_CHAT_MESSAGE, variables: (variables) => variables.input.message === 'Help me prepare.' }, result: send,
+  }] })
+  const textbox = await screen.findByRole('textbox', { name: 'Your message' })
+  fireEvent.change(textbox, { target: { value: 'Help me prepare.' } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send message' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+  expect(await screen.findByText('Trial over.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+})
+
+it('links to Plan & billing for a reply that failed with the plan_ended code, and not for other failures', async () => {
+  const { unmount } = renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={10000} onAccepted={vi.fn()} />,
+    mocks: [query(operation('failed', { failureCode: 'plan_ended' })), subscription()] })
+  expect(await screen.findByText('Reply not saved')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+  unmount()
+  renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={10000} onAccepted={vi.fn()} />,
+    mocks: [query(operation('failed', { failureCode: 'dependency_unavailable' })), subscription()] })
+  expect(await screen.findByText('Reply not saved')).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Plan & billing' })).not.toBeInTheDocument()
+})

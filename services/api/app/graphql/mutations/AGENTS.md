@@ -11,6 +11,7 @@ GraphQL mutations grouped by domain, including interview_prep/.
 
 - `.keep`
 - `base_mutation.rb`
+- `billing` — `startBillingCheckout`: returns a Stripe Checkout URL via `Billing::StartCheckoutService`.
 - `career_library` — subfolder; inherits these rules unless overridden locally.
 - `certifications` — subfolder; inherits these rules unless overridden locally.
 - `educations` — subfolder; inherits these rules unless overridden locally.
@@ -18,7 +19,7 @@ GraphQL mutations grouped by domain, including interview_prep/.
 - `gap_analysis` — subfolder; inherits these rules unless overridden locally.
 - `gap_responses` — subfolder; inherits these rules unless overridden locally.
 - `interview_prep` — subfolder; inherits these rules unless overridden locally.
-- `job_board` — shared listing import and optional `rerankJobBoardListings` queued ordering.
+- `job_board` — shared listing import.
 - `jobs` — subfolder; inherits these rules unless overridden locally.
 - `career_contexts` — subfolder; inherits these rules unless overridden locally.
 - `projects` — subfolder; inherits these rules unless overridden locally.

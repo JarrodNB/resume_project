@@ -1,16 +1,15 @@
 # Per-user AI cost accounting
 
-`me { aiUsage }` reports the current UTC month's known costs for general AI,
-all spoken-interview stages, and background career-library / saved-Q&A embeddings.
-`monthlyBudgetUsd` sums the independent general and spoken allowances. Admission
-checks explicitly select their allowance; aggregation does not combine task-rate
-or concurrency limits. Background embeddings contribute spend but create no task
-start or concurrency slot.
+`AiUsage::DailySpend` adds a user's known costs for today (UTC): general AI, all
+spoken-interview stages, and background career-library / saved-Q&A embeddings. The total is
+checked against the user's hidden daily spend cap by `AiUsage::CheckAiTaskAllowanceService`; it is
+never exposed to users. Hourly-start and in-flight limits stay separate for general AI and
+interviews. Background embeddings contribute spend but create no task start or concurrency slot and
+are never refused.
 
-`incompleteAttempts` counts unresolved task executions and embedding requests.
-`accountingComplete` is false while that count is positive. Known subtotals remain
-available; neither missing usage nor missing prices are treated as free calls.
-These fields cover recorded requests, not historical embeddings made before their
+Unresolved task executions and embedding requests are listed by `rake ai_usage:unresolved`.
+Known subtotals remain available; neither missing usage nor missing prices are treated as free calls.
+These records cover recorded requests, not historical embeddings made before their
 ledger existed. Paid quality evaluations and infrastructure costs are separate.
 
 ## Provider receipts and prices

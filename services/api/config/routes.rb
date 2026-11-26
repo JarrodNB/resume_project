@@ -6,6 +6,7 @@
 #   - POST/PUT /auth/password (request/reset), PATCH /auth/password/change
 #   - DELETE /auth/account (permanent self-service deletion; requires the current password)
 #   - POST /graphql
+#   - POST /billing/stripe/webhook: Stripe webhooks (signature-verified, no browser session)
 #   - GET /up: health check
 Rails.application.routes.draw do
   mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
@@ -47,6 +48,7 @@ Rails.application.routes.draw do
   end
 
   post "/graphql", to: "graphql#execute"
+  post "/billing/stripe/webhook", to: "billing/stripe_webhooks#create"
 
   get "up" => "rails/health#show", as: :rails_health_check
 end

@@ -47,21 +47,6 @@ export const JOB_BOARD_LOCATIONS_QUERY = graphql(`
   }
 `)
 
-export const RERANK_JOB_BOARD_LISTINGS_MUTATION = graphql(`
-  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {
-    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {
-      aiTask { id status result errorMessage }
-      errors
-    }
-  }
-`)
-
-export const JOB_BOARD_RERANKING_SUBSCRIPTION = graphql(`
-  subscription JobBoardReranking($id: ID!) {
-    aiTaskUpdated(id: $id) { id status result errorMessage }
-  }
-`)
-
 export const JOB_BOARD_SEARCH_IDEAS_QUERY = graphql(`
   query JobBoardSearchIdeas {
     me { id jobTitleSuggestions }

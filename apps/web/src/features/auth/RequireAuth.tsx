@@ -8,11 +8,12 @@ import { useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from './useAuth'
 
-/** Redirects to /sign-in (remembering where the user was going) when there is no session. */
+/** Redirects to /sign-in when there is no session. It remembers where the user was going, except
+ * after a deliberate sign-out: the next person to sign in shouldn't land on the last user's page. */
 export function RequireAuth() {
-  const { user } = useAuth()
+  const { user, signedOut } = useAuth()
   const location = useLocation()
-  if (!user) return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />
+  if (!user) return <Navigate to="/sign-in" replace state={signedOut ? null : { from: location.pathname }} />
   return <Outlet />
 }
 

@@ -38,7 +38,7 @@ RSpec.describe "Interview memory anchors" do
   end
 
   it "saves both drafts before feedback allowance failure without copying cues into commands" do
-    user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_AI_TASKS", 0)
     result = InterviewPrep::StartQuestionTaskService.call(user: user, question: question,
       task_type: "review_interview_answer", answer_text: "Updated answer", memory_anchor: "Private recall cue")
     expect(result).not_to be_success

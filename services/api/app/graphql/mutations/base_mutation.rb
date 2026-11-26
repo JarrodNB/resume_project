@@ -4,7 +4,8 @@
 # return its result through `payload_from`.
 # Index:
 #   - current_user: the authenticated user from context
-#   - payload_from: maps a ServiceResult to `{ <record_key> => value, errors: [...] }`
+#   - payload_from: maps a ServiceResult to `{ <record_key> => value, errors: [...], error_code: ... }`
+#   - error_fields_from: the `errors` and `error_code` part alone, for hand-built payloads
 module Mutations
   class BaseMutation < GraphQL::Schema::RelayClassicMutation
     argument_class Types::BaseArgument
@@ -13,6 +14,8 @@ module Mutations
     object_class Types::BaseObject
 
     field :errors, [ String ], null: false, description: "Validation or business-rule errors; empty on success."
+    field :error_code, Types::MutationErrorCodeEnum, null: true,
+      description: "Machine-readable reason for a refusal the client reacts to (such as PLAN_ENDED); null otherwise."
 
     private
 
@@ -21,9 +24,15 @@ module Mutations
       context[:current_user]
     end
 
-    # Builds the mutation payload from a ServiceResult.
+    # Builds the mutation payload from a ServiceResult, passing along its failure code.
     def payload_from(result, record_key)
-      { record_key => result.value, errors: result.errors }
+      { record_key => result.value }.merge(error_fields_from(result))
+    end
+
+    # The `errors` and `error_code` fields for a ServiceResult. Use this for hand-built payloads
+    # so the failure code is mapped in one place.
+    def error_fields_from(result)
+      { errors: result.errors, error_code: result.code&.to_s }
     end
   end
 end

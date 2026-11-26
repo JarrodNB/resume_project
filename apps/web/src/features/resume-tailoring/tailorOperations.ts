@@ -42,6 +42,8 @@ export const START_RESUME_TAILORING_MUTATION = graphql(`
         input
       }
       errors
+      errorCode
+
     }
   }
 `)

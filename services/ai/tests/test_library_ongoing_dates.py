@@ -15,6 +15,7 @@ from schemas.gap_analysis_context import (
     CareerLibrary,
     GapAnalysisContext,
     JobToAnalyze,
+    LibraryCertification,
     LibraryEducation,
     LibraryExperience,
     LibraryProject,
@@ -54,3 +55,14 @@ def test_legacy_missing_ongoing_does_not_invent_current_education_or_project():
     assert not LibraryEducation(id="ed", institution="College").ongoing
     library = CareerLibrary(experiences=[LibraryExperience(id="e", company="Co", title="Analyst", start_date=date(2024, 1, 1))])
     assert "present" in "\n".join(render_career_library_sections(library))
+
+
+def test_chat_library_keeps_the_stated_precision_of_certification_dates():
+    library = CareerLibrary(certifications=[LibraryCertification(
+        id="c", name="Cloud credential", issued_date=date(2020, 1, 1), issued_date_precision="year",
+        expiry_date=date(2025, 3, 1), expiry_date_precision="month")])
+
+    rendered = "\n".join(render_career_library_sections(library))
+
+    assert "Issued: 2020\n" in rendered
+    assert "Expires: 2025-03\n" in rendered

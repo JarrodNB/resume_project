@@ -23,6 +23,26 @@ RSpec.describe "Development account seeds" do
     end
   end
 
+  it "gives new accounts a long trial with the paid daily cap and no Stripe records" do
+    seed_accounts
+
+    User.where(email: emails).each do |user|
+      expect(user.trial_ends_at).to be > 9.years.from_now
+      expect(user.daily_ai_spend_cap_microdollars).to eq(PAID_DAILY_AI_SPEND_CAP_MICRODOLLARS)
+      expect(user.billing_subscription).to be_nil
+    end
+  end
+
+  it "replaces a fake Stripe row from older seeds with the long trial" do
+    user = create(:user, email: emails.first, trial_ends_at: 1.day.ago)
+    create(:billing_subscription, user: user, stripe_customer_id: "cus_seed_1", stripe_subscription_id: "sub_seed_1")
+
+    seed_accounts
+
+    expect(user.reload.billing_subscription).to be_nil
+    expect(user.trial_ends_at).to be > 9.years.from_now
+  end
+
   it "preserves existing passwords, profiles, and saved work when rerun" do
     user = create(:user, email: emails.first, name: "Edited QA profile", password: "a quiet orchard after rain")
     job = create(:job, user: user)

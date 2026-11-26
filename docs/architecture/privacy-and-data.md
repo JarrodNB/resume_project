@@ -33,8 +33,11 @@ The rows marked "outside this repo" are deployment settings. The
 
 `DELETE /auth/account` with `{ user: { current_password } }` (session cookie and CSRF
 required, throttled per IP and per user like password changes). `Auth::AccountsController`
-calls `Accounts::DeleteAccountService`, which locks the user row, checks the password and
-runs `user.destroy!`. On success the controller signs the browser out and resets the session.
+calls `Accounts::DeleteAccountService`, which checks the password, cancels any live Stripe
+subscription immediately (no refund), then locks the user row and runs `user.destroy!`. If Stripe
+can't cancel (down, or not configured while a live subscription exists) the account is kept and
+the user is asked to retry; a subscription Stripe no longer has counts as cancelled. Stripe keeps
+its own customer and invoice records. On success the controller signs the browser out and resets the session.
 
 What the destroy does:
 

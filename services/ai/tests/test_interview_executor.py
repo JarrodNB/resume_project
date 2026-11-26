@@ -108,6 +108,7 @@ def test_normal_turn_returns_no_private_history_and_reports_each_zero_cost_stage
 def test_advance_returns_only_intent_without_choosing_next_opening():
     client = Client()
     execute(client, claim(), "early-advance")
+    assert len([call for call in client.calls if call[0] == "start" and call[2] == "interviewer"]) == 1
     result = client.accepted[0]
     assert result["decision"] == "advance"
     assert result["reply"] is None

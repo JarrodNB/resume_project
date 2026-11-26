@@ -34,13 +34,13 @@ RSpec.describe AiUsage::ReconcileReceiptService do
     expect(task.reload.cost_microdollars).to eq(55)
   end
 
-  it "resolves a crashed embedding request and exposes its known cost in the combined summary" do
+  it "resolves a crashed embedding request and counts its known cost toward today's spend" do
     request = user.ai_embedding_requests.create!(model: "text-embedding-3-small", purpose: "career_library")
     input = { user: user, record_type: "embedding", attempt_id: request.id, receipt_reference: "embedding-receipt-line-1",
       usage: [ { "input_tokens" => 1_000, "cost_microdollars" => 20 } ], apply: true }
     2.times { expect(described_class.call(**input)).to be_success }
     expect(request.reload).to have_attributes(input_tokens: 1_000, cost_microdollars: 20, incomplete: false, finalized: true)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user).value).to have_attributes(spent_microdollars: 20, incomplete_attempts: 0)
+    expect(AiUsage::DailySpend.known_microdollars(user)).to eq(20)
   end
 
   it "reconciles retained spoken verification reservations along with the user's total" do

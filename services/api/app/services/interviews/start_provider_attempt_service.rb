@@ -34,7 +34,7 @@ module Interviews
         if interview.execution_mode == "real"
           allowance = CheckOperationAllowanceService.call(operation: @operation)
           unless allowance.success?
-            reject_allowance(expiry: @operation.retry_expires_at)
+            reject_allowance(expiry: @operation.retry_expires_at, allowance: allowance)
             next allowance
           end
           unless VerificationBudget.reserve(observation_id: @observation_id, stage: @stage, provider: @provider, model: @model)

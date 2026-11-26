@@ -85,6 +85,19 @@ RSpec.describe GapAnalysis::StartGapAnalysisService do
     expect(described_class.call(user: user, job: job)).to be_success
   end
 
+  it "refuses when another request queues an analysis of the same job while this one waits for the user lock" do
+    allow(user).to receive(:with_lock).and_wrap_original do |original, *args, &block|
+      create(:ai_task, user: user, task_type: "analyze_gaps", subject: job)
+      original.call(*args, &block)
+    end
+
+    result = described_class.call(user: user, job: job)
+
+    expect(result.errors).to eq([ described_class::ALREADY_RUNNING_MESSAGE ])
+    expect(user.ai_tasks.analyze_gaps.count).to eq(1)
+    expect(queue).not_to have_received(:send_message)
+  end
+
   it "doesn't let a stuck queued analysis block the job forever" do
     travel_to(1.hour.ago) { create(:ai_task, user: user, task_type: "analyze_gaps", subject: job) }
 

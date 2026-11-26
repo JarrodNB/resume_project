@@ -21,7 +21,7 @@ module Chat
         next failure("Chat revision changed") unless (conversation.messages.maximum(:position) || 0) == @operation.expected_position
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: conversation.user, existing_task: @operation.ai_task)
         unless allowance.success?
-          fail_execution("ai_usage_limit_reached", retryable: false)
+          fail_execution(AiUsage::CheckAiTaskAllowanceService.refusal_code(allowance), retryable: false)
           next allowance
         end
         plan = ContextPlanService.call(conversation: conversation, operation: @operation)

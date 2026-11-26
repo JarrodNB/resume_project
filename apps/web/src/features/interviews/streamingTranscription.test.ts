@@ -1,6 +1,8 @@
 /** Exercise streamed answer capture through its browser adapter with fake audio and sockets. */
 import { describe, expect, it, vi } from 'vitest'
+import { PLAN_ENDED_MESSAGE, PlanEndedError } from '@/lib/planEnded'
 import { Pcm24Encoder, startStreamingTranscription } from './streamingTranscription'
+import { TranscriptionRefusedError } from './transcriptionCapture'
 
 describe('streaming transcription', () => {
   it('resamples continuous microphone buffers to little-endian mono PCM24', () => {
@@ -42,6 +44,21 @@ describe('streaming transcription', () => {
     expect(setup.callbacks.fallback).toHaveBeenCalledWith(expect.stringContaining('lost its connection'))
     setup.message({ type: 'final', text: 'Late', captureId: 'capture' })
     expect(setup.callbacks.text).not.toHaveBeenCalled()
+  })
+
+  it('says the trial has ended when authorization is refused for that reason', async () => {
+    const setup = fixture()
+    setup.authorize.mockRejectedValue(new PlanEndedError())
+    startStreamingTranscription({} as MediaStream, setup.callbacks, setup.authorize, setup.dependencies)
+    await vi.waitFor(() => expect(setup.callbacks.fallback).toHaveBeenCalledWith(PLAN_ENDED_MESSAGE))
+  })
+
+  it('shows why Rails refused to authorize the capture', async () => {
+    const setup = fixture()
+    setup.authorize.mockRejectedValue(new TranscriptionRefusedError('This question reached its streaming capture limit'))
+    startStreamingTranscription({} as MediaStream, setup.callbacks, setup.authorize, setup.dependencies)
+    await vi.waitFor(() => expect(setup.callbacks.fallback).toHaveBeenCalledWith('We couldn\'t start live transcription: This question reached its streaming capture limit'))
+    expect(setup.dependencies.socket).not.toHaveBeenCalled()
   })
 
   it('closes a malformed stream before fallback can request recorder finalization', async () => {

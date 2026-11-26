@@ -71,6 +71,23 @@ module JobBoard
       end
     end
 
+    # Net::HTTP proxy arguments: [nil] connects directly; otherwise [host, port, user, password].
+    def proxy_arguments
+      configured = ENV.fetch("CLEANJOBDATA_PROXY_URL", "").strip
+      return [ nil ] if configured.empty?
+
+      proxy = URI(configured)
+      unless %w[http https].include?(proxy.scheme) && proxy.host
+        Rails.logger.warn("CLEANJOBDATA_PROXY_URL is not an http(s) URL; connecting directly")
+        return [ nil ]
+      end
+      decode = ->(part) { part && URI.decode_www_form_component(part) }
+      [ proxy.host, proxy.port, decode.call(proxy.user), decode.call(proxy.password) ]
+    rescue URI::InvalidURIError
+      Rails.logger.warn("CLEANJOBDATA_PROXY_URL is not a valid URL; connecting directly")
+      [ nil ]
+    end
+
     def build_request
       uri = URI(ENDPOINT)
       parameters = { title: @keyword.strip, country_id: "233", extra_fields: "description" }
@@ -80,8 +97,9 @@ module JobBoard
       parameters[:remote] = "true" if @filters[:remote_type]
       parameters[:cursor] = @cursor if @cursor
       uri.query = URI.encode_www_form(parameters)
-      # Ignore proxy environment variables; the host and HTTPS transport are fixed.
-      http = Net::HTTP.new(uri.host, uri.port, nil)
+      # Ignore the general proxy environment variables so the key can only travel to the fixed
+      # host over HTTPS. A proxy is used only when CLEANJOBDATA_PROXY_URL names one on purpose.
+      http = Net::HTTP.new(uri.host, uri.port, *proxy_arguments)
       http.use_ssl = true
       http.open_timeout = 2
       http.read_timeout = 3

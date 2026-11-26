@@ -11,6 +11,7 @@
 #   - RackAttackRequestKeys.session_user_id: user id from a valid persisted session
 #   - throttles: auth/sign_in (IP, email), auth/sign_up (IP, mailbox), auth/account deletion (IP, user),
 #     graphql (user, IP)
+#   - not throttled: POST /billing/stripe/webhook (Stripe signs it and retries; throttles match only the routes above)
 #   - throttled_responder: JSON 429 response
 module RackAttackRequestKeys
   # Public proxy ranges, such as Cloudflare's, that sit in front of the app. Private ranges are

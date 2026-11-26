@@ -47,7 +47,7 @@ def test_feedback_eval_uses_readable_production_prompt() -> None:
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 32
+    assert len(dataset.cases) == 36
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",

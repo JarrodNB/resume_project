@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { ChevronDown, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react'
+import { ChevronDown, CreditCard, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/features/auth/useAuth'
@@ -47,6 +47,9 @@ export function AccountMenu() {
           </DropdownMenuLabel>}
           <DropdownMenuItem asChild>
             <Link to="/account/security"><ShieldCheck aria-hidden /> Account and data</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to="/account/billing"><CreditCard aria-hidden /> Plan &amp; billing</Link>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={toggleTheme}>
             {theme === 'dark' ? <Sun aria-hidden /> : <Moon aria-hidden />} Switch to {nextTheme} theme

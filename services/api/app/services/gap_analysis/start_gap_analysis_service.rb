@@ -20,9 +20,10 @@ module GapAnalysis
     def call
       return failure([ NO_REQUIREMENTS_MESSAGE ]) if nothing_to_compare?
       return failure([ EMPTY_LIBRARY_MESSAGE ]) if career_library_empty?
-      return failure([ ALREADY_RUNNING_MESSAGE ]) if analysis_running?
 
-      AiTasks::EnqueueAiTaskService.call(user: @user, task_type: "analyze_gaps", input: { job_id: @job.id }, subject: @job)
+      # The running check happens under the user's lock so two quick requests can't both pass it.
+      AiTasks::EnqueueAiTaskService.call(user: @user, task_type: "analyze_gaps", input: { job_id: @job.id }, subject: @job,
+                                         resolve_existing: method(:resolve_existing))
     end
 
     private
@@ -36,6 +37,11 @@ module GapAnalysis
     # Job-only gap responses are not library content.
     def career_library_empty?
       [ @user.experiences, @user.projects, @user.educations, @user.certifications, @user.skills, @user.career_contexts ].none?(&:exists?)
+    end
+
+    # Stops the enqueue (without publishing) while an analysis of this job is already queued.
+    def resolve_existing
+      failure([ ALREADY_RUNNING_MESSAGE ]) if analysis_running?
     end
 
     # True when a recent analysis of this job is still queued (older ones count as stuck).

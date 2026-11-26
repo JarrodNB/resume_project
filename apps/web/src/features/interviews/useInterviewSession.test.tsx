@@ -4,7 +4,7 @@ import { MockedProvider } from '@apollo/client/testing/react'
 import type { MockLink } from '@apollo/client/testing'
 import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useInterviewSession, useStartInterview } from './useInterviewSession'
+import { recordingUploadTimeout, useInterviewSession, useStartInterview } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
 import { RETRY_OPERATION, ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION } from './interviewOperations'
 const snapshot = {
@@ -346,4 +346,24 @@ it('preserves a plan-ended retry refusal and clears it after a successful retry'
   await act(() => result.current.retryOperation('operation'))
   expect(result.current.errorCode).toBeNull()
   expect(result.current.error).toBeNull()
+})
+
+it('gives slow connections time to upload a full two-minute recording', () => {
+  expect(recordingUploadTimeout(3)).toBe(60_000)
+  // A two-minute answer at 128 kbps is about 1.9 MB.
+  expect(recordingUploadTimeout(1_920_000)).toBe(120_000)
+  expect(recordingUploadTimeout(10 * 1024 * 1024)).toBe(656_000)
+})
+
+it('explains a timed-out recording upload and keeps the recording for another try', async () => {
+  sessionStorage.clear()
+  const put = vi.fn().mockRejectedValue(new DOMException('signal timed out', 'TimeoutError'))
+  vi.stubGlobal('fetch', put)
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: { query: AUTHORIZE_RECORDING, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, contentType: 'audio/webm', byteSize: 3, checksum: 'kAFQmDzST7DWlj99KOF/cg==' } } }, result: { data: { authorizeInterviewRecording: { __typename: 'AuthorizeInterviewRecordingPayload', errors: [], upload: { __typename: 'InterviewRecordingUpload', mediaId: 'recording', uploadUrl: 'https://storage.test/upload', headers: { 'Content-Type': 'audio/webm' }, expiresIn: 60 } } } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(async () => expect(await result.current.transcribeRecording(new Blob(['abc'], { type: 'audio/webm' }))).toBeNull())
+  expect(result.current.error).toBe('Uploading your recording took too long. Check your connection, then choose Transcribe recording again.')
 })

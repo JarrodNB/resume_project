@@ -75,7 +75,10 @@ module Types
     end
 
     def job_board_search(keyword:, remote_only: false, cursor: nil, experience_levels: [], filters: nil)
-      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, experience_levels: experience_levels, cursor: cursor, filters: filters&.to_h || {})
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, experience_levels: experience_levels, cursor: cursor, filters: filters&.to_h || {},
+        provider: JobBoard::ProviderCallLimit.provider_for(user: current_user))
       result.value || { listings: [], next_cursor: nil, retrieved_at: nil, stale: false, errors: result.errors }
     end
 
@@ -84,6 +87,9 @@ module Types
     end
 
     def job_board_locations(query:)
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      return { locations: [], errors: [ JobBoard::ProviderCallLimit::MESSAGE ] } unless JobBoard::ProviderCallLimit.allow?(user: current_user, kind: :locations)
+
       result = JobBoard::SuggestLocationsService.call(query: query)
       result.value || { locations: [], errors: result.errors }
     end

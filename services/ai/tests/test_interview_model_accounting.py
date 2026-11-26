@@ -1,13 +1,21 @@
-"""Exercise pinned SDK request settings and billing receipts with mocked HTTP only."""
+"""Exercise pinned SDK request settings and billing receipts with mocked HTTP only.
+
+Streamed requests are checked against the same receipt rules, including cancellation,
+timeouts, a passed deadline and unpriced responses.
+"""
 
 import asyncio
 import json
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
 from pydantic_ai import Agent, models
+from pydantic_ai.models.function import FunctionModel
 
-from interviews.models import InterviewModels
+from interviews.models import InterviewModel, InterviewModels
+from interviews.provider_calls import ProviderCalls
 from tests.test_interview_executor import Client, claim
 
 pytestmark = pytest.mark.real_guardrail
@@ -74,3 +82,109 @@ def test_unpriceable_usage_remains_unknown_after_one_wire_dispatch(model, input_
     entries, receipt = client.reports[-1]
     assert entries == [] and receipt["incomplete"] is True
     assert receipt["observation_id"] == client.calls[0][1]
+
+
+# Streamed requests share the same rule: register first, bound by the deadline, always send one receipt,
+# and only a complete, priced response becomes a known bill.
+
+class FakeStreamResponse:
+    def __init__(self):
+        self.final = object()
+
+    def get(self):
+        return self.final
+
+
+def fake_stream(opened):
+    @asynccontextmanager
+    async def open_stream():
+        opened.append(True)
+        yield FakeStreamResponse()
+    return open_stream
+
+
+def stream_once(request, body, finished=lambda response: [{"cost_microdollars": 1}]):
+    client, opened = AccountingClient(), []
+
+    async def execute():
+        async with ProviderCalls(client).stream(request, "interviewer", "openai", "gpt-6-luna",
+                                                fake_stream(opened), finished) as response:
+            await body(response)
+
+    return client, opened, execute
+
+
+def only_receipt(client):
+    starts = [call for call in client.calls if call[0] == "start"]
+    assert len(starts) == 1 and len(client.reports) == 1
+    entries, receipt = client.reports[0]
+    assert receipt["observation_id"] == starts[0][1]
+    return entries, receipt
+
+
+def test_streamed_request_sends_one_incomplete_receipt_when_cancelled_mid_stream():
+    async def body(response):
+        raise asyncio.CancelledError
+
+    client, opened, execute = stream_once(claim(), body, finished=lambda response: [])
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(execute())
+    assert opened == [True]
+    entries, receipt = only_receipt(client)
+    assert entries == [] and receipt["incomplete"] is True
+
+
+def test_streamed_request_times_out_at_the_deadline_and_sends_one_incomplete_receipt():
+    request = claim().model_copy(update={"execution_deadline": datetime.now(UTC) + timedelta(seconds=0.05)})
+
+    async def body(response):
+        await asyncio.sleep(1)
+
+    client, _, execute = stream_once(request, body, finished=lambda response: [])
+    with pytest.raises(TimeoutError):
+        asyncio.run(execute())
+    entries, receipt = only_receipt(client)
+    assert entries == [] and receipt["incomplete"] is True
+
+
+def test_streamed_request_past_its_deadline_never_opens_the_stream():
+    request = claim().model_copy(update={"execution_deadline": datetime.now(UTC) - timedelta(seconds=1)})
+
+    async def body(response):
+        raise AssertionError("The stream must not open")
+
+    client, opened, execute = stream_once(request, body)
+    with pytest.raises(TimeoutError):
+        asyncio.run(execute())
+    assert opened == []
+    entries, receipt = only_receipt(client)
+    assert entries == [] and receipt["incomplete"] is True
+
+
+def test_streamed_request_keeps_a_received_bill_when_the_caller_fails_after_the_last_chunk():
+    async def body(response):
+        raise ValueError("invalid output")
+
+    client, _, execute = stream_once(claim(), body)
+    with pytest.raises(ValueError, match="invalid output"):
+        asyncio.run(execute())
+    entries, receipt = only_receipt(client)
+    assert entries == [{"cost_microdollars": 1}] and receipt["incomplete"] is False
+
+
+def test_unpriced_streamed_response_stays_unknown_after_its_receipt():
+    async def stream_text(messages, info):
+        yield "A response"
+
+    client = AccountingClient()
+    model = InterviewModel(FunctionModel(stream_function=stream_text), client, claim(), "interviewer", "openai", "gpt-6-luna")
+
+    async def execute():
+        with models.override_allow_model_requests(True):
+            async with Agent(model).run_stream("A synthetic interview response") as result:
+                await result.get_output()
+
+    with pytest.raises(ValueError, match="unknown_provider_usage"):
+        asyncio.run(execute())
+    entries, receipt = only_receipt(client)
+    assert entries == [] and receipt["incomplete"] is True

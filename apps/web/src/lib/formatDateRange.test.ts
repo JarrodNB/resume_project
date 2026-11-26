@@ -11,3 +11,8 @@ it('formats closed and open-ended ranges', () => {
   expect(formatDateRange(null, null, { openEndedMeansPresent: true })).toBe('')
   expect(formatDateRange('2025-01', '2026-09')).toBe('Jan 2025 – Sep 2026')
 })
+
+it('shows an impossible month as typed instead of throwing', () => {
+  expect(formatDateRange('2021-13', '2021-00')).toBe('2021-13 – 2021-00')
+  expect(formatDateRange('2021-13', null, { openEndedMeansPresent: true })).toBe('2021-13 – Present')
+})

@@ -143,8 +143,8 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
   scoped exceptions: the shared AI-service FastAPI runtime claims durable Rails-owned
   operations over authenticated internal HTTP and runs them asynchronously using the
   same execution runner, leases and recovery jobs. Browser requests never wait for
-  model execution. Chat opts into the shared streaming layer; interviews retain final
-  results. See docs/architecture/interview-sessions.md and docs/architecture/chat.md.
+  model execution. Chat and interview answer turns opt into the shared streaming layer;
+  Rails still accepts only the final result. See docs/architecture/interview-sessions.md and docs/architecture/chat.md.
 - All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
  embeds career library entries and saved interview Q&A itself (OpenAI embeddings API,
  `CareerLibrary::SyncLibraryEmbeddingsJob` and `InterviewPrep::SyncQuestionEmbeddingJob`),

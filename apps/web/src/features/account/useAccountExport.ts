@@ -14,7 +14,7 @@ export function useAccountExport() {
     try {
       const { data } = await client.query({ query: ACCOUNT_EXPORT_QUERY, fetchPolicy: 'no-cache' })
       if (!data) throw new Error('No export returned')
-      saveJsonFile(data.accountExport, `careerdrafter-export-${new Date().toISOString().slice(0, 10)}.json`)
+      saveJsonFile(data.accountExport, `careerdrafter-export-${localDateStamp(new Date())}.json`)
     } catch {
       setError('We couldn’t prepare your data. Try again in a moment.')
     } finally {
@@ -30,6 +30,16 @@ function saveJsonFile(value: unknown, filename: string) {
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+  document.body.append(link)
   link.click()
-  URL.revokeObjectURL(url)
+  link.remove()
+  // Some browsers start the download after click() returns, so keep the URL alive for a while.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/** Today's date in the user's own timezone, so an evening export is not named for tomorrow. */
+function localDateStamp(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
 }

@@ -104,3 +104,19 @@ it('does not observe provider playback', async () => {
   expect(Socket.instances).toHaveLength(0)
   expect(view.result.current.speech).toBeNull()
 })
+
+it('leaves a later reply that no turn produced, such as the question after Skip, to normal playback', async () => {
+  const consume = vi.fn()
+  const view = mount(snapshot('running'), consume)
+  const socket = await attachedSocket()
+  socket.receive(event('delta', { text: 'You cut the wait.\n\nHow did you measure it?', cursor: '1-0' }))
+  act(() => view.result.current.speechStarted('stream:turn'))
+  const answer = message('answer', 'answer', 'I shortened it.')
+  const saved = message('follow-up', 'follow_up', 'How did you measure it?', 'You cut the wait.')
+  view.rerender({ interview: snapshot('accepted', [opening, answer, saved]) })
+  expect(consume).toHaveBeenCalledTimes(1)
+  // Skip adds the next question without a new turn operation.
+  view.rerender({ interview: snapshot('accepted', [opening, answer, saved, message('next', 'opening', 'Tell me about a conflict.')]) })
+  expect(view.result.current.speech).toBeNull()
+  expect(consume).toHaveBeenCalledTimes(1)
+})

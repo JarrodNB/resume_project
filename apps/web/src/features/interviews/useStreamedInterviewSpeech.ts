@@ -4,7 +4,8 @@
  * saved text, so nothing is said twice (this also covers an acknowledgement followed by the next question).
  * If the stream fails, the turn fails, or the saved reply differs, the streamed voice stops. Once any
  * streamed sentence was heard, the saved reply is then shown but not spoken again automatically; if none
- * was heard, the saved reply plays as usual. Observing never starts or retries model work.
+ * was heard, the saved reply plays as usual. Only the reply the turn saved is handled; any later reply,
+ * such as the next question after Skip, plays normally. Observing never starts or retries model work.
  */
 import { useCallback, useEffect, useEffectEvent, useState } from 'react'
 import { useMutation } from '@apollo/client/react'
@@ -16,7 +17,9 @@ import { keyInterviewTiming, STREAMED_SPEECH_TIMING } from './interviewLatency'
 
 export type StreamedInterviewSpeech = { key: string; text: string; streaming: boolean }
 /** `observation` tells one attempt to observe a turn apart from a retry of the same turn. */
-type Stream = { observation: object; operationId: string; baseReplyId: string | undefined; text: string; heard: boolean }
+type Stream = { observation: object; operationId: string; baseReplyId: string | undefined; text: string; heard: boolean
+  /** The reply this turn saved. Later replies (for example the next question after Skip) are left alone. */
+  replyId?: string }
 
 export function useStreamedInterviewSpeech(interview: InterviewSnapshotFragment | null, consumeNewSpeech: (messageId: string) => void): {
   speech: StreamedInterviewSpeech | null
@@ -59,7 +62,9 @@ export function useStreamedInterviewSpeech(interview: InterviewSnapshotFragment 
   if (stream && turn && stream.operationId === turn.id && interview?.speechPlaybackMode === 'browser') {
     const key = `stream:${turn.id}`
     if (turn.status === 'running' && stream.text) speech = { key, text: stream.text, streaming: true }
-    else if (turn.status === 'accepted' && reply && reply.id !== stream.baseReplyId) {
+    else if (turn.status === 'accepted' && reply && reply.id !== stream.baseReplyId && (stream.replyId ?? reply.id) === reply.id) {
+      // Remember the first reply seen after acceptance; it is the one this turn produced.
+      if (!stream.replyId) setStream({ ...stream, replyId: reply.id })
       const saved = reply.spokenContent ?? reply.content
       if (stream.text && saved.startsWith(stream.text)) {
         speech = { key, text: saved, streaming: false }

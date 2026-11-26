@@ -1711,6 +1711,42 @@ describe('hands-free answers', () => {
 })
 
 describe('hands-free setting', () => {
+  it('lets the candidate choose and keep the silence length in the room, and the detector waits that long', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      localStorage.setItem('Careerdrafter:interview-transcription:owner', 'browser')
+      recorder.microphoneStream = () => ({ getAudioTracks: () => [] })
+      vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[]) {} })
+      let level = 0
+      vi.stubGlobal('AudioContext', class {
+        state = 'running'
+        resume() { return Promise.resolve() }
+        close() { return Promise.resolve() }
+        createMediaStreamSource() { return { connect() {}, disconnect() {} } }
+        createAnalyser() { return { fftSize: 32, getFloatTimeDomainData(target: Float32Array) { target.fill(level) } } }
+      })
+      renderInterview()
+      fireEvent.click(screen.getByRole('button', { name: 'Interview settings' }))
+      const silence = screen.getByRole('combobox', { name: 'Silence before your answer ends' })
+      expect(silence).toBeDisabled()
+      fireEvent.click(screen.getByRole('switch', { name: 'Hands-free mode' }))
+      expect(silence).toBeEnabled()
+      expect(silence).toHaveValue('2.5')
+      fireEvent.change(silence, { target: { value: '4' } })
+      expect(JSON.parse(localStorage.getItem('Careerdrafter:interview-microphone:owner') ?? '{}')).toMatchObject({ handsFree: true, silenceSeconds: 4 })
+      fireEvent.keyDown(silence, { key: 'Escape' })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      recorder.status = 'recording'; recorder.transcript = 'I led the migration.'; level = 0.2
+      act(() => recorder.refresh())
+      await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+      level = 0
+      await act(async () => { await vi.advanceTimersByTimeAsync(3800) })
+      expect(recorder.stop).not.toHaveBeenCalled()
+      await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+      expect(recorder.stop).toHaveBeenCalledOnce()
+    } finally { vi.useRealTimers(); recorder.microphoneStream = () => null }
+  })
+
   it('turns automatic capture on with hands-free in the room, and hands-free off with automatic capture', async () => {
     renderInterview()
     await userEvent.click(screen.getByRole('button', { name: 'Interview settings' }))
@@ -1747,8 +1783,15 @@ describe('hands-free setting', () => {
     expect(screen.getByRole('radio', { name: 'Automatic' })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: 'Tap to start' }))
     expect(handsFree.getByRole('radio', { name: 'Off' })).toBeChecked()
+    await userEvent.click(handsFree.getByRole('radio', { name: 'On' }))
+    const silence = within(screen.getByRole('radiogroup', { name: 'Silence length' }))
+    expect(silence.getByRole('radio', { name: 'Normal 2.5 sec' })).toBeChecked()
+    await userEvent.click(silence.getByRole('radio', { name: 'Quick 1.5 sec' }))
+    expect(JSON.parse(localStorage.getItem('Careerdrafter:interview-microphone:owner') ?? '{}')).toMatchObject({ handsFree: true, silenceSeconds: 1.5 })
+    expect(silence.getByRole('radio', { name: 'Patient 4 sec' })).toBeEnabled()
     await userEvent.click(screen.getByRole('radio', { name: 'Recorded' }))
     expect(handsFree.getByRole('radio', { name: 'On' })).toBeDisabled()
+    expect(silence.getByRole('radio', { name: 'Quick 1.5 sec' })).toBeDisabled()
     expect(screen.getByText(/Hands-free mode needs live transcription/)).toBeVisible()
   })
 })

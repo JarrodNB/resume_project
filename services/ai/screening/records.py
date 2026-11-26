@@ -250,6 +250,9 @@ def checkpoint_record_approvals():
     For callers that screen sub-batches to locate a rejection and then decide not to use
     them: restoring withdraws every receipt, field check and approved source `_finish`
     recorded since the checkpoint, so acceptance cannot approve text the caller withheld.
+    Restore resets the whole session to the snapshot, so nothing else may screen records in
+    this session between checkpoint and restore. Today `mcp_tools/client.py` runs tool
+    renderers one at a time under one lock, which guarantees that.
     """
     session = current_session()
     if session is None:

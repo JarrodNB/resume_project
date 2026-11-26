@@ -66,8 +66,9 @@ def practice_feedback_status(question):
     """
     if not question.get("has_feedback"):
         return "none"
-    # A format change always bumps answer_revision (SaveAnswerService), so exact revisions
-    # also cover the app's answer_format_revision check.
+    # A format change always bumps answer_revision (SaveAnswerService; pinned by Rails
+    # spec/services/interview_prep/answer_formats_spec.rb), so exact revisions also cover
+    # the app's answer_format_revision check.
     current = (question.get("feedback_question_revision") == question.get("question_revision", 1)
                and question.get("feedback_answer_revision") == question.get("answer_revision", 0))
     return "current" if current else "out_of_date"

@@ -42,7 +42,8 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   as one labeled blob (split only past the masked screen cap, records kept whole) with no
   phrase check, fails the whole call on any rejected blob, and writes one `RecordScreening`
   receipt per saved record. `checkpoint_record_approvals` lets a caller withdraw receipts
-  and checks from sub-batch screens it decides not to use. Only the fields a caller uses are screened. Chat and interviews
+  and checks from sub-batch screens it decides not to use; no other screening may run in the
+  session between its checkpoint and restore. Only the fields a caller uses are screened. Chat and interviews
   pass their operation-billed `screen` function.
 - `record_adapters.py` — pure snapshot-to-`ScreenableRecord` functions (library, job,
   gap responses, written answers/questions, saved avoided questions, summary sources). Types, ids and fingerprints match the

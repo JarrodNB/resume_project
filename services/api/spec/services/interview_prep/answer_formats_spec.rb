@@ -16,6 +16,21 @@ RSpec.describe "Saved practice answer formats" do
     expect(question.answer_text).to eq("Context: A delay\n\nAction: I planned")
     expect(question.answer_drafts.dig("plain_text", "text")).to eq("Original\n answer")
   end
+  # Chat's practice_feedback_status (services/ai/mcp_tools/interview_questions.py) relies on this:
+  # a format change always advances answer_revision, so exact revisions also cover the format.
+  it "advances answer_revision whenever the answer format changes" do
+    drafts = { "plain_text" => { "text" => question.answer_text },
+      "star" => { "situation" => "A delay", "task" => "Ship", "action" => "I planned", "result" => "On time" } }
+    before = question.answer_revision
+    expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "ignored",
+      answer_format: "star", answer_drafts: drafts)).to be_success
+    expect(question.reload.answer_revision).to eq(before + 1)
+    expect(question.answer_format_revision).to eq(question.answer_revision)
+    expect(InterviewPrep::SaveAnswerService.call(question: question, answer_text: "ignored",
+      answer_format: "plain_text", answer_drafts: drafts)).to be_success
+    expect(question.reload.answer_revision).to eq(before + 2)
+    expect(question.answer_format_revision).to eq(question.answer_revision)
+  end
   it "preserves inactive drafts for legacy saves and does not advance active revisions for inactive edits" do
     drafts = { "plain_text" => { "text" => question.answer_text }, "car" => { "action" => "Alternative" } }
     expect do

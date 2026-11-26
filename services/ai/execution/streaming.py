@@ -157,11 +157,11 @@ class StreamSink:
 
 
 class StreamingOutputs:
-    """A server-owned opt-in; interviews always keep their final-only output."""
+    """A server-owned opt-in; each adapter decides which of its operations publish."""
 
     def __init__(self, buffer, features):
         self.buffer = buffer
-        self.features = frozenset(features) - {"interviews"}
+        self.features = frozenset(features)
 
     def __call__(self, feature, claim):
         if feature not in self.features:

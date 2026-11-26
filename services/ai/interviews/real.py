@@ -68,7 +68,7 @@ class RealInterviewExecutor(InterviewExecutor):
         ):
             yield
 
-    async def execute(self, claim, *, deadline_managed=False):
+    async def execute(self, claim, *, deadline_managed=False, output=None):
         """Standalone calls own their timeout; the shared runner supplies it otherwise."""
         if claim.execution_mode != "real":
             raise ValueError("Real executor requires a real claim")
@@ -89,7 +89,7 @@ class RealInterviewExecutor(InterviewExecutor):
             async with asyncio.timeout(None if deadline_managed else remaining):
                 version = INTERVIEW_PREPARATION_PROMPT_VERSION if claim.kind == "preparation" else SPOKEN_INTERVIEW_PROMPT_VERSION
                 with self._trace(claim), record_prompt_version(version):
-                    await super().execute(claim)
+                    await super().execute(claim, output=output)
         except ContextLimitExceeded:
             await self.client.fail(claim, "context_limit", False)
         except ModelAPIError:
@@ -158,7 +158,7 @@ class RealInterviewExecutor(InterviewExecutor):
         output = result.output.model_dump(mode="json")
         await self._reconcile(claim, lambda: self.client.accept_preparation(claim, **output))
 
-    async def _turn(self, claim):
+    async def _turn(self, claim, output=None):
         payload = claim.payload
         role = payload.interview_context.fictional_role if payload.interview_context else None
         formatted = "# Prepared interview\nUse the prepared question and accepted dialogue. Do not infer unsupplied career facts."
@@ -195,12 +195,20 @@ class RealInterviewExecutor(InterviewExecutor):
             return True
 
         agent, options = self._interviewer(claim, guard, system_prompt=formatted)
+        if output:
+            # The same structured run, streamed so observers can hear the reply early.
+            await output.start()
+            options = {**options, "event_stream_handler": output.handle_events}
         result = await agent.run(prompt, message_history=history,
             usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
+        if output:
+            await output.finish(result.output)
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
                 reply=result.output.reply, acknowledgement=result.output.acknowledgement)
         await self._reconcile(claim, accept)
+        if output:
+            await output.complete()
 
     async def _synthesize(self, claim):
         try:

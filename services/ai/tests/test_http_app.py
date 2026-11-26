@@ -110,7 +110,7 @@ def test_chat_and_interview_share_one_enabled_execution_runner(monkeypatch):
         runner = app.state.execution_runner
         assert set(runner.adapters) == {"interviews", "chat"}
         assert runner.adapters["chat"].stream_output is True
-        assert not getattr(runner.adapters["interviews"], "stream_output", False)
+        assert runner.adapters["interviews"].stream_output is True
         assert app.state.execution_streams is None
     assert runner.ready is False
 

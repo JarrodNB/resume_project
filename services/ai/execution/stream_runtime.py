@@ -8,7 +8,7 @@ async def optional_streaming(app, runner, *, redis_url, rails_origin, secret):
     app.state.execution_streams = None
     app.state.streaming_reason = "final_only"
     features = {name for name, adapter in runner.adapters.items()
-                if name != "interviews" and getattr(adapter, "stream_output", False)}
+                if getattr(adapter, "stream_output", False)}
     if not features:
         yield
         return

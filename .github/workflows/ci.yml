@@ -67,17 +67,26 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+    # Placeholder keys and local AWS values match docker-compose.yml; specs stub every request.
     env:
       RAILS_ENV: test
       DB_HOST: localhost
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
+      OPENAI_API_KEY: ci-placeholder
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
     defaults:
       run:
         working-directory: services/api
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq-dev libvips
+      # Same init script as the local database, so the ai_reader role exists for grant specs.
+      - run: psql -h localhost -U postgres -f ../../infra/postgres/init/01_create_ai_reader_role.sql
+        env:
+          PGPASSWORD: postgres
       - uses: ruby/setup-ruby@v1
         with:
           working-directory: services/api
@@ -90,17 +99,17 @@ jobs:
     if: needs.changes.outputs.ai == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Same base image as services/ai/Dockerfile.dev, so ffmpeg's audio decoding matches local.
+    container: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    # Placeholder key lets agents build their provider; tests never send model requests.
+    env:
+      OPENAI_API_KEY: ci-placeholder
     defaults:
       run:
         working-directory: services/ai
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: '3.13'
-          enable-cache: true
-          cache-dependency-glob: services/ai/uv.lock
+      - run: apt-get update && apt-get install -y --no-install-recommends ffmpeg
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run pytest -m "not db"

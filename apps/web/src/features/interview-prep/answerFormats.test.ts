@@ -1,6 +1,34 @@
 /** Independent answer drafts retain text without converting between story formats. */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { expect, it } from 'vitest'
-import { normalizeAnswerDrafts, projectAnswer } from './answerFormats'
+import { isBlankAnswer, normalizeAnswerDrafts, normalizeAnswerForComparison, projectAnswer, type AnswerFormat } from './answerFormats'
+import { hasFeedback, questionProgress } from './questionProgress'
+
+// Shared with Rails (ActiveAnswer) and the Python chat reader.
+const cases: {
+  answers: { name: string; format: AnswerFormat; drafts: Record<string, Record<string, string>>; text: string; answered: boolean }[]
+  same_answer_pairs: { name: string; a: string; b: string; same: boolean }[]
+  feedback_cases: { name: string; feedback: unknown; present: boolean }[]
+} = JSON.parse(readFileSync(resolve(process.cwd(), '../../services/ai/tests/fixtures/active_answer_cases.json'), 'utf8'))
+
+it.each(cases.answers)('projects and counts the active answer like Rails: $name', ({ format, drafts, text, answered }) => {
+  expect(projectAnswer(format, normalizeAnswerDrafts(drafts))).toBe(text)
+  expect(!isBlankAnswer(text)).toBe(answered)
+})
+
+it.each(cases.same_answer_pairs)('compares answers for freshness like Rails: $name', ({ a, b, same }) => {
+  expect(normalizeAnswerForComparison(a) === normalizeAnswerForComparison(b)).toBe(same)
+})
+
+it.each(cases.feedback_cases)('decides whether feedback has anything to show like Rails: $name', ({ feedback, present }) => {
+  expect(hasFeedback(feedback)).toBe(present)
+})
+
+it('shows the progress the server decided', () => {
+  expect(questionProgress({ progress: 'UNANSWERED' })).toBe('unanswered')
+  expect(questionProgress({ progress: 'OUTDATED' })).toBe('outdated')
+})
 
 it('keeps legacy text in Plain text and projects only populated active fields', () => {
   const drafts = normalizeAnswerDrafts(undefined, 'Existing answer')

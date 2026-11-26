@@ -11,7 +11,7 @@ import { QuestionBankList } from './QuestionBankList'
 afterEach(() => vi.restoreAllMocks())
 
 function question(id: string, overrides: Partial<InterviewQuestionBankQuery['interviewQuestions'][number]> = {}): InterviewQuestionBankQuery['interviewQuestions'][number] {
-  return { answerFormat: 'plain_text', answerDrafts: {}, id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: `Saved answer ${id}`, feedback: {}, feedbackOutdated: false, latestTask: null,
+  return { answerFormat: 'plain_text', answerDrafts: {}, id, position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: `Saved answer ${id}`, feedback: {}, feedbackOutdated: false, answered: true, progress: 'ANSWERED', latestTask: null,
     questionSet: { id: 'set', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-12T00:00:00Z' }, ...overrides }
 }
 function bank(questions = [question('one', { memoryAnchor: 'Launch checklist' }), question('two')]) {
@@ -49,7 +49,7 @@ it('practices saved answers in bank order and exposes an answer only after revea
 
 it('rehearses only saved active answers matching search and restores the search', () => {
   bank([question('selected', { memoryAnchor: 'Unique cue' }),
-    question('unanswered', { answerText: '  ', memoryAnchor: 'No answer cue' }),
+    question('unanswered', { answerText: '  ', answered: false, progress: 'UNANSWERED', memoryAnchor: 'No answer cue' }),
     question('retired', { retiredAt: '2026-10-13T00:00:00Z', memoryAnchor: 'Unique cue' }),
     question('other-search')])
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Unique cue' } })
@@ -148,7 +148,7 @@ it('keeps one-question rehearsal usable through reveal, shuffle and inline editi
 
 it('rehearses without API requests or changes to saved answer progress', async () => {
   const requests = vi.spyOn(MockLink.prototype, 'request')
-  const questions = [question('one'), question('two', { feedback: { strengths: ['Clear'] } })]
+  const questions = [question('one'), question('two', { feedback: { strengths: ['Clear'] }, progress: 'REVIEWED' })]
   const saved = structuredClone(questions)
   const user = userEvent.setup()
   bank(questions)
@@ -166,7 +166,7 @@ it('rehearses without API requests or changes to saved answer progress', async (
 
 it('combines selected types and resets the pass without revealing answers', async () => {
   const user = userEvent.setup()
-  bank([question('technical'), question('fit', { questionSet: { id: 'fit', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-12T00:00:00Z' } }), question('blank', { answerText: ' ' })])
+  bank([question('technical'), question('fit', { questionSet: { id: 'fit', number: 1, setType: 'FIT_MOTIVATION', createdAt: '2026-10-12T00:00:00Z' } }), question('blank', { answerText: ' ', answered: false, progress: 'UNANSWERED' })])
   await user.click(screen.getByRole('button', { name: 'Practice' }))
   await user.click(screen.getByRole('button', { name: 'Reveal answer' }))
   await user.click(screen.getByRole('button', { name: /Question types/ }))

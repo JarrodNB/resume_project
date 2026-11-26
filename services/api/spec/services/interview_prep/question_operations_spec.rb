@@ -132,24 +132,24 @@ RSpec.describe "Interview practice services" do
     question.update!(answer_text: "I led a project.", answer_revision: 1, feedback: feedback,
       feedback_question_revision: 1, feedback_answer_revision: 1)
     create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", status: "completed",
-      input: { "question_revision" => 1, "answer_revision" => 1, "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text) },
+      input: { "question_revision" => 1, "answer_revision" => 1, "normalized_answer_sha256" => InterviewPrep::ActiveAnswer.fingerprint(question.answer_text) },
       result: { "interview_feedback" => feedback })
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "  I LED\n a PROJECT. ")
     expect(question.reload.answer_revision).to eq(2)
     expect(question.feedback_answer_revision).to eq(1)
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(false)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question)).to be(false)
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "I led two projects.")
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question.reload).value).to be(true)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question.reload)).to be(true)
   end
 
   it "keeps coaching outdated when its reviewed snapshot cannot be verified" do
     question.update!(answer_text: "Same text", answer_revision: 2, feedback: { "strengths" => [ "Clear" ] },
       feedback_question_revision: 1, feedback_answer_revision: 1)
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(true)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question)).to be(true)
     create(:ai_task, user: user, subject: question, task_type: "review_interview_answer", status: "completed",
-      input: { "question_revision" => 1, "answer_revision" => 1, "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint("same text") },
+      input: { "question_revision" => 1, "answer_revision" => 1, "normalized_answer_sha256" => InterviewPrep::ActiveAnswer.fingerprint("same text") },
       result: { "interview_feedback" => { "strengths" => [ "Different feedback" ] } })
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(true)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question)).to be(true)
   end
 
   it "rejects blank and oversized feedback answers without queueing" do
@@ -185,6 +185,19 @@ RSpec.describe "Interview practice services" do
     expect(result.value.input["peer_revisions"]).to eq(question_set.questions.where.not(id: question.id).to_h { |peer| [ peer.id, peer.question_revision ] })
     expect(question.reload.answer_text).to eq("Existing")
     expect(question.feedback).to be_present
+  end
+
+  # Only the active answer counts, so text left in an inactive format draft needs no confirmation.
+  it "replaces without confirmation when only an inactive format draft has text" do
+    question.update!(answer_format: "star", answer_text: "", answer_drafts: { "car" => { "action" => "Unused draft" } })
+    expect(start_operation("regenerate_interview_question")).to be_success
+  end
+
+  it "still asks for confirmation when the active structured answer has text" do
+    question.update!(answer_format: "car", answer_text: "Action: Done", answer_drafts: { "car" => { "action" => "Done" } })
+    result = start_operation("regenerate_interview_question")
+    expect(result).not_to be_success
+    expect(result.errors).to eq([ "Confirm replacement of this question and its answer." ])
   end
 
   it "rejects a second successful feedback request for the same saved version" do

@@ -7,7 +7,7 @@ import { graphql } from '@/graphql/generated'
 export const INTERVIEW_QUESTION_BANK_QUERY = graphql(`
   query InterviewQuestionBank {
     interviewQuestions {
-      id position retiredAt questionText answerText answerFormat answerDrafts memoryAnchor feedback feedbackOutdated
+      id position retiredAt questionText answerText answerFormat answerDrafts memoryAnchor feedback feedbackOutdated answered progress
       latestTask { id status taskType }
       questionSet { id number setType createdAt }
     }
@@ -27,7 +27,7 @@ export const INTERVIEW_SET_QUERY = graphql(`
     interviewQuestionSet(id: $id) {
       id number setType origin createdAt
       latestTask { id status errorMessage result }
-      questions { id avoided position questionText answerText answerFormat answerDrafts memoryAnchor answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
+      questions { id avoided position questionText answerText answerFormat answerDrafts memoryAnchor answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated answered progress latestTask { id status taskType errorMessage } }
     }
   }
 `)
@@ -49,7 +49,7 @@ export const DELETE_INTERVIEW_SET = graphql(`
 export const SAVE_INTERVIEW_ANSWER = graphql(`
   mutation SaveInterviewAnswer($questionSetId: ID!, $questionId: ID!, $answerText: String!, $memoryAnchor: String!, $answerFormat: String, $answerDrafts: JSON) {
     saveInterviewAnswer(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText, memoryAnchor: $memoryAnchor, answerFormat: $answerFormat, answerDrafts: $answerDrafts }) {
-      errors question { id answerText answerFormat answerDrafts memoryAnchor answerRevision feedbackOutdated }
+      errors question { id answerText answerFormat answerDrafts memoryAnchor answerRevision feedbackOutdated answered progress }
     }
   }
 `)

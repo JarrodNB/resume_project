@@ -26,15 +26,15 @@ const SETS = {
 
 /** Builds one bank row; set membership decides its type label. */
 function bankQuestion(id: string, overrides: Record<string, unknown> = {}, setId: keyof typeof SETS = 'set-1') {
-  return { __typename: 'InterviewQuestion', id, answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, typeof overrides.answerText === 'string' ? overrides.answerText : ''), position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: '', feedback: {}, feedbackOutdated: false, latestTask: null, questionSet: SETS[setId], ...overrides }
+  return { __typename: 'InterviewQuestion', id, answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, typeof overrides.answerText === 'string' ? overrides.answerText : ''), position: 1, retiredAt: null, questionText: `Question ${id}?`, memoryAnchor: '', answerText: '', feedback: {}, feedbackOutdated: false, answered: typeof overrides.answerText === 'string' && overrides.answerText !== '', progress: typeof overrides.answerText === 'string' && overrides.answerText !== '' ? 'ANSWERED' : 'UNANSWERED', latestTask: null, questionSet: SETS[setId], ...overrides }
 }
-const reviewed = { answerText: 'I shipped the scheduler.', feedback: { strengths: ['Specific'] } }
+const reviewed = { answerText: 'I shipped the scheduler.', feedback: { strengths: ['Specific'] }, progress: 'REVIEWED' }
 function defaultBank() {
   return [
     bankQuestion('q-tech', { answerText: 'I profiled the slow query.' }, 'set-2'),
     bankQuestion('q-empty', { position: 2 }),
     bankQuestion('q-reviewed', { position: 3, ...reviewed }),
-    bankQuestion('q-outdated', { position: 4, answerText: 'Edited answer', feedback: { strengths: ['Clear'] }, feedbackOutdated: true }),
+    bankQuestion('q-outdated', { position: 4, answerText: 'Edited answer', feedback: { strengths: ['Clear'] }, feedbackOutdated: true, progress: 'OUTDATED' }),
   ]
 }
 function bankMock(questions: unknown[] = defaultBank()) {
@@ -288,7 +288,7 @@ it('protects inline edits when switching type or leaving and saves without navig
   const { router } = render([detailMock(), {
     request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 'set-2', questionId: 'q-tech', answerText, memoryAnchor: '' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText) } },
     result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: {
-      __typename: 'InterviewQuestion', id: 'q-tech', answerText, answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText), memoryAnchor: '', answerRevision: 2, feedbackOutdated: false,
+      __typename: 'InterviewQuestion', id: 'q-tech', answerText, answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText), memoryAnchor: '', answerRevision: 2, feedbackOutdated: false, answered: true, progress: 'ANSWERED',
     } } } },
   }, detailMock(answerText), bankMock(), setsMock()])
   fireEvent.click(await screen.findByRole('button', { name: /^Question q-tech/ }))

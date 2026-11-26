@@ -61,13 +61,15 @@ def resolve_question_reference(secret, reference, *, user_id, operation_id):
 def practice_feedback_status(question):
     """Chat's freshness rule: "current" only when feedback matches the current question and answer.
 
-    Stricter than the app's FeedbackOutdatedService, which also accepts formatting-only
-    answer edits by reading the review task; chat calls those "out_of_date".
+    Chat reads only the saved revisions, so it is stricter than Rails' ActiveAnswer.feedback_outdated?,
+    which also accepts formatting-only answer edits by reading the completed review task (the
+    tool server does not read tasks). Chat calls those edits "out_of_date". It is never more
+    lenient: whenever Rails says outdated, so does this.
     """
     if not question.get("has_feedback"):
         return "none"
     # A format change always bumps answer_revision (SaveAnswerService; pinned by Rails
-    # spec/services/interview_prep/answer_formats_spec.rb), so exact revisions also cover
+    # spec/services/interview_prep/active_answer_spec.rb), so exact revisions also cover
     # the app's answer_format_revision check.
     current = (question.get("feedback_question_revision") == question.get("question_revision", 1)
                and question.get("feedback_answer_revision") == question.get("answer_revision", 0))

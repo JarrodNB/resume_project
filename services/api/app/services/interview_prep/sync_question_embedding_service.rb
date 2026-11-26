@@ -40,7 +40,7 @@ module InterviewPrep
     # Captures source revisions and original/masked text, skipping an already current row.
     def current_snapshot
       question = owned_question
-      return unless question&.answer_text.present?
+      return unless question && ActiveAnswer.answered?(question)
 
       snapshot = snapshot_for(question)
       stored = question.embedding
@@ -63,7 +63,7 @@ module InterviewPrep
     # Writes only if the exact saved source still exists under the same owner.
     def persist_if_current(snapshot, vector)
       question = owned_question
-      return false unless question&.answer_text.present? && snapshot_for(question) == snapshot
+      return false unless question && ActiveAnswer.answered?(question) && snapshot_for(question) == snapshot
 
       attributes = snapshot.except(:outbound).merge(model: @client.model, embedding: vector)
       (question.embedding || question.build_embedding).update!(attributes)

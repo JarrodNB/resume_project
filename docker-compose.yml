@@ -209,6 +209,8 @@ services:
       - ./example_resumes/uci_business.pdf:/example_resumes/uci_business.pdf:ro
       # GraphQL codegen input, at the same relative path (../../services/api) as on the host.
       - ./services/api/graphql_schema:/services/api/graphql_schema:ro
+      # Shared rule cases that web tests read (../../services/ai/tests/fixtures).
+      - ./services/ai/tests/fixtures:/services/ai/tests/fixtures:ro
 
   landing:
     build:

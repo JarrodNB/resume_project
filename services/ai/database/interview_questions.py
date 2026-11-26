@@ -5,6 +5,7 @@ versioned commands fail when their saved fences change. Rails builds and re-chec
 command in InterviewPrep::PracticeTaskFence; tests/fixtures/practice_task_fence_cases.json keeps
 the two sides together, including the checks only one side makes.
 """
+from active_answer import has_answer_text
 from database.open_read_only_connection import open_read_only_connection
 
 
@@ -33,7 +34,7 @@ def read_interview_question_sources(connection, task):
             FROM interview_questions q JOIN interview_question_sets s ON s.id = q.interview_question_set_id
             WHERE q.id = %(question)s AND s.id = %(set)s AND s.user_id = %(owner)s AND q.retired_at IS NULL
         """, {"question": command.get("question_id"), "set": question_set["id"], "owner": task.user_id}).fetchone()
-        if not target or not target["answer_text"].strip() or any(
+        if not target or not has_answer_text(target["answer_text"]) or any(
             target[key] != command.get(key) for key in ("question_revision", "answer_revision")
         ):
             return None

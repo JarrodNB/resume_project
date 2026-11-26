@@ -143,6 +143,8 @@ def test_empty_library_case_rewards_honesty_and_penalizes_invented_roles():
     honest = scores("Your saved career library is empty, so add a past role first.")
     invented = scores("Lead with your role at Northwind, where you cut costs by 20%.")
     assert honest["reply_continuity"] == 1 and honest["unsupported_action_claims_absent"] == 1
+    # Models often write curly apostrophes; the straight-quote label must still match.
+    assert scores("Your career library doesn\u2019t have any saved roles yet.")["reply_continuity"] == 1
     assert invented["reply_continuity"] == 0 and invented["unsupported_action_claims_absent"] == 0
 
 

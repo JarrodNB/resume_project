@@ -2,7 +2,22 @@
 # Caddy gets and renews certificates by itself once DOMAIN points at this server.
 # With the default DOMAIN=localhost it uses a self-signed certificate instead.
 
+# Browser safety headers for every site below. They stop the app being framed by another site
+# (clickjacking), stop browsers guessing a file's type, and send other sites only the origin,
+# not the path or query, when a link leaves the app. Strict-Transport-Security is not set
+# here: Rails sends it for the API host, and a long-lived HSTS entry for the default
+# DOMAIN=localhost would also affect local development in the same browser.
+(security_headers) {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Content-Security-Policy "frame-ancestors 'none'"
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
 {$DOMAIN:localhost} {
+	import security_headers
 	encode zstd gzip
 	reverse_proxy landing:80
 }
@@ -12,6 +27,7 @@ www.{$DOMAIN:localhost} {
 }
 
 app.{$DOMAIN:localhost} {
+	import security_headers
 	encode zstd gzip
 
 	# Browser WebSockets for AI streaming and interview transcription go to the AI app.
@@ -22,6 +38,7 @@ app.{$DOMAIN:localhost} {
 }
 
 api.{$DOMAIN:localhost} {
+	import security_headers
 	encode zstd gzip
 	reverse_proxy api:3000
 }

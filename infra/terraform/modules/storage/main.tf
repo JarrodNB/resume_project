@@ -1,4 +1,5 @@
 variable "name" { type = string }
+variable "domain" { type = string }
 
 data "aws_caller_identity" "current" {}
 
@@ -42,6 +43,20 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
+  }
+}
+
+# The web app uploads interview recordings straight to the uploads bucket with a signed URL,
+# so the browser needs CORS permission for PUT. Interviewer audio plays from a signed GET URL.
+resource "aws_s3_bucket_cors_configuration" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+
+  cors_rule {
+    allowed_methods = ["PUT", "GET"]
+    allowed_origins = ["https://app.${var.domain}"]
+    allowed_headers = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
   }
 }
 

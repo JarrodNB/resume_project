@@ -170,6 +170,9 @@ services:
       <<: *ai-db
       AI_STREAM_REDIS_URL: redis://redis:6379/0
       INTERVIEW_RAILS_ORIGIN: http://api:3000
+      # Rails signs recording and speech URLs for the uploads bucket at its regional S3 address.
+      # The AI app refuses media URLs from any other origin.
+      INTERVIEW_STORAGE_ORIGINS: https://${S3_UPLOADS_BUCKET}.s3.${AWS_REGION:-us-east-2}.amazonaws.com
       AI_BROWSER_ORIGINS: https://app.${DOMAIN:-localhost}
       INTERVIEW_BROWSER_ORIGINS: https://app.${DOMAIN:-localhost}
       LOGFIRE_ENVIRONMENT: production

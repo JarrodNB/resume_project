@@ -59,6 +59,7 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
     rec.onerror = ({ error }) => {
       if (!active || current !== rec || failed) return
       if (error === 'no-speech') return
+      console.warn('Browser speech recognition error:', error)
       fail(error === 'not-allowed' || error === 'service-not-allowed'
         ? 'Browser recognition permission was denied. If microphone recording succeeds, finish recording, then choose Transcribe recording.'
         : 'Your browser\'s speech recognition hit a problem.')

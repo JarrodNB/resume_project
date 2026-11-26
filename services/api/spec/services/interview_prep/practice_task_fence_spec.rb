@@ -58,7 +58,8 @@ RSpec.describe InterviewPrep::PracticeTaskFence do
       create(:ai_task, user: owner, task_type: shared_case["task_type"], subject: subject, input: command) if shared_case["newer_task"]
 
       expected = shared_case["expect"]["rails"]
-      expect(described_class.stale_reason(task)).to eq(expected == "current" ? nil : expected.to_sym)
+      # Reload so the command comes back through jsonb, as it does in production.
+      expect(described_class.stale_reason(task.reload)).to eq(expected == "current" ? nil : expected.to_sym)
     end
   end
 

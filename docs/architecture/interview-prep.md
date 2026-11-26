@@ -95,8 +95,9 @@ fence also builds the commands that Start queues. It checks ownership, subject/s
 identity, latest task identity, and command revisions before writing. Each task type keeps its own
 rules (retired questions, revision comparison, five-slot count, generated origin), and Python's
 reader-side check in `services/ai/database/interview_questions.py` is deliberately not identical:
-Python also needs a queued task and a nonblank answer, while Rails also checks newer tasks, origin and
-digests. `services/ai/tests/fixtures/practice_task_fence_cases.json` holds shared cases that both an
+Python also needs a queued task and a nonblank answer, while Rails also checks for a newer task,
+generated origin, the feedback answer format and the memory-anchor digest. Neither side checks the
+feedback answer digest here; only the outdated-feedback check uses it. `services/ai/tests/fixtures/practice_task_fence_cases.json` holds shared cases that both an
 RSpec spec and a pytest test run, with each difference written down. Change a rule, command field or
 case on both sides together. Replacement requires unchanged target, peer-question and answer
 revisions and checks distinctness against the current set, including the old question. On

@@ -9,6 +9,11 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 state="$root/.native"
 
+if [[ $(id -u) -ne 0 ]]; then
+  echo 'Run this script as root (it switches to the claude user itself).' >&2
+  exit 1
+fi
+
 run_as_claude() {
   runuser -u claude -- env HOME="$state/home" PATH="$PATH" "$@"
 }
@@ -30,7 +35,12 @@ fi
 # bundle forces a restart even when the stack looks healthy.
 source "$root/script/claude-cloud-ca.sh"
 ca_changed=false
-if refresh_proxy_ca_bundle "$state"; then
+ca_status=0
+refresh_proxy_ca_bundle "$state" || ca_status=$?
+if [[ $ca_status -eq 2 ]]; then
+  echo 'Could not copy the proxy CA bundle into .native.' >&2
+  exit 1
+elif [[ $ca_status -eq 0 ]]; then
   ca_changed=true
   echo 'Refreshed the proxy CA bundle.'
 fi

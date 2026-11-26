@@ -5,7 +5,8 @@
 
 # Copies the session CA bundle to "$1/ca-bundle.crt" (mode 0644). Uses $CCR_CA_BUNDLE, else
 # /root/.ccr/ca-bundle.crt, else the system bundle. Returns 0 when the copy was created or its
-# contents changed, and 1 when it was already current or no source bundle exists.
+# contents changed, 1 when it was already current or no source bundle exists, and 2 when the copy
+# failed. Run it as root: /root is private, so another user would silently get the system bundle.
 refresh_proxy_ca_bundle() {
   local copy="$1/ca-bundle.crt" source
   for source in "${CCR_CA_BUNDLE:-/root/.ccr/ca-bundle.crt}" /etc/ssl/certs/ca-certificates.crt; do
@@ -13,7 +14,7 @@ refresh_proxy_ca_bundle() {
     if [[ -f $copy ]] && cmp -s "$source" "$copy"; then
       return 1
     fi
-    install -m 0644 "$source" "$copy"
+    install -m 0644 "$source" "$copy" || return 2
     return 0
   done
   return 1

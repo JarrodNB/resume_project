@@ -26,9 +26,10 @@ export function countByStage(entries: PipelineEntry[]) {
   return counts
 }
 
-/** Whether the user is past the first-run guide: they have written a tailored resume, or moved a
- * job past "not applied" (someone tracking applications is not new, even without our resumes).
+/** Whether a user with saved jobs is past the first-run guide: they have written a tailored resume,
+ * saved more than one job, or moved a job past "not applied". Any of those means they are using the
+ * search, and the guide only describes one job, so they need the dashboard instead.
  * `resumeCount` is null while resumes are still loading. */
 export function finishedFirstRun(entries: PipelineEntry[], resumeCount: number | null) {
-  return (resumeCount ?? 0) > 0 || entries.some((entry) => entry.job.stage !== 'UNAPPLIED')
+  return (resumeCount ?? 0) > 0 || entries.length > 1 || entries.some((entry) => entry.job.stage !== 'UNAPPLIED')
 }

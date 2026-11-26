@@ -100,11 +100,20 @@ function StepLink({ to, primary, children }: { to: string; primary: boolean; chi
   return <Link to={to}>{children} <ArrowRight aria-hidden /></Link>
 }
 
+/** Button wording for next steps whose Home label is a status, not something to do. */
+const STEP_ACTIONS: Partial<Record<PipelineEntry['nextStep'], string>> = {
+  COMPARISON_RUNNING: 'See the comparison',
+  COMPARISON_FAILED: 'Retry the comparison',
+  RESUME_RUNNING: 'See the resume draft',
+  RESUME_FAILED: 'Retry the resume draft',
+}
+
 /** Links the saved job to the tab its suggested next step opens (Fit to compare, Resume to write). */
 function JobStepLink({ job, primary }: { job: PipelineEntry; primary: boolean }) {
   const view = NEXT_STEPS[job.nextStep]
   const to = view?.tab != null ? nextStepPath(job.job.id, view.tab) : `/jobs/${job.job.id}`
-  return <StepLink to={to} primary={primary}>{view?.tab != null ? view.label : 'Open the job'}</StepLink>
+  const label = view?.tab != null ? STEP_ACTIONS[job.nextStep] ?? view.label : 'Open the job'
+  return <StepLink to={to} primary={primary}>{label}</StepLink>
 }
 
 function jobName({ job }: PipelineEntry) {

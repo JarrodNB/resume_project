@@ -8,10 +8,11 @@
  * interview practice appear in Practice rather than Do next. A second row holds "Library" (see
  * LibraryHealthPanel: how well-reviewed the career library is, shown once it has content) and "This week"
  * (see WeekPanel: what the user got done in the last seven days). Rails suggests each job's next step; colors follow the signal rules in nextSteps.ts.
- * The full board and list live on the Jobs page. Until the user writes their first tailored resume
- * (or moves a job past "not applied"), Home shows only the four steps that start a search (see
- * FirstRunGuide), and the page header drops its buttons so the guide's current step is the one
- * action. With jobs but an empty library, the dashboard shows a red note that comparisons have
+ * The full board and list live on the Jobs page. With no saved jobs, Home shows the four steps that
+ * start a search (see FirstRunGuide). With exactly one saved job, the guide stays (under the AI work
+ * strip, so running work shows and the steps refresh when it finishes) until the user writes a
+ * tailored resume or moves the job past "not applied". While the guide shows, the page header drops
+ * its buttons so the guide's current step is the one action. With jobs but an empty library, the dashboard shows a red note that comparisons have
  * nothing to compare yet.
  */
 import { ContentSkeleton } from '@/components/ContentSkeleton'
@@ -52,7 +53,8 @@ export function HomePage() {
   const entries = data?.jobPipeline ?? []
   const reloadPipeline = useCallback(() => { void refetch().catch(() => { /* The query error stays on screen. */ }) }, [refetch])
   const finished = finishedFirstRun(entries, resumesData ? resumesData.resumes.length : null)
-  const showGuide = !!data && !finished && (entries.length === 0 || !!resumesData)
+  // With no saved jobs there is nothing for the dashboard to show, so the guide always leads.
+  const showGuide = !!data && (entries.length === 0 || (!finished && !!resumesData))
   // If resumes can't load, fall back to the dashboard rather than hiding saved jobs.
   const showDashboard = entries.length > 0 && !showGuide && (finished || !!resumesError)
   const deciding = !!data && !showGuide && !showDashboard
@@ -74,6 +76,7 @@ export function HomePage() {
         </div>
       )}
       {((!data && loading) || deciding) && <ContentSkeleton label="Loading your jobs…" layout="sections" />}
+      {showGuide && entries.length > 0 && <AiWorkStrip onWorkFinished={reloadPipeline} />}
       {showGuide && <FirstRunGuide libraryStarted={libraryStarted} job={entries[0] ?? null} />}
       {showDashboard && (
         <>

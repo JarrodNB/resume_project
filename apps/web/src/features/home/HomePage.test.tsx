@@ -235,3 +235,53 @@ it('says when no AI work is running and explains the signal colors', async () =>
   expect(await within(await screen.findByRole('region', { name: 'AI work in progress' })).findByText('Nothing running right now')).toBeInTheDocument()
   expect(within(screen.getByRole('list', { name: 'Signal colors' })).getByText('Needs you')).toBeInTheDocument()
 })
+
+it('shows the guide, not an endless loading state, when a resume exists but no jobs are saved', async () => {
+  renderHome([], [], undefined, practiceMocks([], [], [writtenResume]))
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
+  await waitFor(() => expect(within(firstRun).getByRole('heading', { name: 'Save a job you want' }).closest('li')).toHaveAttribute('aria-current', 'step'))
+  expect(screen.queryByText('Loading your jobs…')).not.toBeInTheDocument()
+})
+
+it('keeps the dashboard for a user with several saved jobs, even before any resume or application', async () => {
+  renderHome([
+    entry('job-1', 'Platform Engineer', 'UNAPPLIED', 'COMPARE'),
+    entry('job-2', 'Data Analyst', 'UNAPPLIED', 'WRITE_RESUME'),
+  ])
+  expect(await screen.findByRole('region', { name: 'Do next' })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Start your search in four steps' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Add a job' })).toHaveAttribute('href', '/jobs/new')
+})
+
+it('shows running AI work above the guide and refreshes step 3 when it finishes', async () => {
+  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'RESUME_RUNNING')] } } },
+    runningMock([runningTask('task-1', 'Resume draft: Data Analyst', '/jobs/job-2/resume')]),
+    libraryMock([{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 1 }]),
+    ...practiceMocks(),
+    taskUpdate('task-1', 'COMPLETED'),
+    runningMock([]),
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'REVIEW_RESUME_DRAFT')] } } },
+  ] })
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
+  expect(within(firstRun).getByRole('link', { name: 'See the resume draft' })).toHaveAttribute('href', '/jobs/job-2/resume')
+  const running = screen.getByRole('region', { name: 'AI work in progress' })
+  expect(await within(running).findByText('Nothing running right now')).toBeInTheDocument()
+  await waitFor(() => expect(within(firstRun).getByRole('link', { name: 'Review resume draft' })).toHaveAttribute('href', '/jobs/job-2/resume'))
+})
+
+it('names an action, not a status, when the comparison failed', async () => {
+  renderHome([entry('job-1', 'Platform Engineer', 'UNAPPLIED', 'COMPARISON_FAILED')])
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in four steps' })
+  expect(within(firstRun).getByRole('link', { name: 'Retry the comparison' })).toHaveAttribute('href', '/jobs/job-1')
+})
+
+it('falls back to the dashboard when resumes cannot load, so a saved job is never hidden', async () => {
+  const withoutResumes = practiceMocks().filter((mock) => mock.request.query !== RESUMES_QUERY)
+  renderHome([entry('job-1', 'Platform Engineer', 'UNAPPLIED', 'WRITE_RESUME')], [], undefined, [
+    ...withoutResumes,
+    { request: { query: RESUMES_QUERY }, maxUsageCount: Infinity, error: new Error('Network down') },
+  ] as ReturnType<typeof practiceMocks>)
+  expect(await screen.findByRole('region', { name: 'Do next' })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Start your search in four steps' })).not.toBeInTheDocument()
+})

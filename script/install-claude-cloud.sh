@@ -46,7 +46,7 @@ if [[ ! -x /usr/local/bin/uv ]]; then
   install -m 0755 "$(command -v uv)" /usr/local/bin/uv
 fi
 source "$root/script/claude-cloud-ca.sh"
-refresh_proxy_ca_bundle "$state" || true
+refresh_proxy_ca_bundle "$state" || [[ $? -eq 1 ]]
 
 # 3. Hand the checkout to the claude user and run the shared installer as that user.
 chown -R claude:claude "$root"

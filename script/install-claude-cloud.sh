@@ -45,12 +45,8 @@ ln -sfn "$(command -v nm)" "$state/bin/llvm-nm"
 if [[ ! -x /usr/local/bin/uv ]]; then
   install -m 0755 "$(command -v uv)" /usr/local/bin/uv
 fi
-for ca in "${CCR_CA_BUNDLE:-/root/.ccr/ca-bundle.crt}" /etc/ssl/certs/ca-certificates.crt; do
-  if [[ -f $ca ]]; then
-    install -m 0644 "$ca" "$state/ca-bundle.crt"
-    break
-  fi
-done
+source "$root/script/claude-cloud-ca.sh"
+refresh_proxy_ca_bundle "$state" || true
 
 # 3. Hand the checkout to the claude user and run the shared installer as that user.
 chown -R claude:claude "$root"

@@ -6,6 +6,9 @@ import { TranscriptionRefusedError } from './transcriptionCapture'
 type Callbacks = { text(text: string): void; fallback(reason: string): void }
 type Authorization = () => Promise<{ captureId: string; token: string }>
 type Dependencies = { audio(): AudioContext; socket(): WebSocket }
+// About ten seconds of PCM24 audio. Startup audio waits in the queue until the relay is ready, then
+// sits in the socket buffer, so both use the same bound or flushing a full queue would fail.
+const MAX_UNSENT_BYTES = 480_000
 
 export class Pcm24Encoder {
   private offset = 0
@@ -79,7 +82,7 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
     callbacks.fallback(message)
   }
   function send(value: ArrayBuffer | string) {
-    if (!socket || socket.readyState !== 1 || socket.bufferedAmount > 256_000) throw new Error('Streaming disconnected')
+    if (!socket || socket.readyState !== 1 || socket.bufferedAmount > MAX_UNSENT_BYTES) throw new Error('Streaming disconnected')
     socket.send(value)
   }
   function commit() {
@@ -106,10 +109,13 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
           if (ready) send(frame)
           else {
             queued.push(frame); queuedBytes += frame.byteLength
-            if (queuedBytes > 480_000) throw new Error('Streaming connection is too slow')
+            if (queuedBytes > MAX_UNSENT_BYTES) throw new Error('Streaming connection is too slow')
           }
         }
-      } catch { fail('Live transcription was interrupted.') }
+      } catch (error) {
+        console.warn('Live transcription audio failed:', error)
+        fail('Live transcription was interrupted.')
+      }
     }
     source.connect(processor); processor.connect(audio.destination)
     void audio.resume().catch(() => fail('We couldn\'t start listening for live transcription.'))
@@ -140,7 +146,10 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
           } else if (message.type === 'error' || message.type === 'final') {
             fail('Live transcription couldn\'t pick up your words.')
           }
-        } catch { fail('Live transcription sent back something unexpected.') }
+        } catch (error) {
+          console.warn('Live transcription message failed:', error)
+          fail('Live transcription sent back something unexpected.')
+        }
       }
     }).catch((error: unknown) => {
       if (error instanceof PlanEndedError) fail(error.message)

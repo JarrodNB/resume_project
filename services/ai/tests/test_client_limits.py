@@ -95,6 +95,30 @@ def test_past_the_tracking_limit_new_addresses_share_one_budget():
     assert limits.admit("198.51.100.0") is not None  # an already tracked address keeps its own budget
 
 
+def test_a_full_table_drops_quiet_addresses_before_sharing_a_budget():
+    clock = FakeClock()
+    limits = ClientLimits(max_failures=1, max_tracked=3, window_seconds=60, clock=clock)
+    for number in range(3):
+        limits.admit(f"198.51.100.{number}").close()
+    clock.now += 61  # all three have gone quiet
+
+    ticket = limits.admit("203.0.113.1")
+    ticket.close()
+
+    assert limits.admit("203.0.113.1") is None  # its own failure counts; it was not sent to the shared bucket
+    assert limits.admit("203.0.113.9") is not None  # another new address still has its own budget
+
+
+def test_flooding_the_shared_bucket_cannot_reset_a_tracked_clients_budget():
+    limits = ClientLimits(max_failures=1, max_tracked=2)
+    limits.admit("198.51.100.1").close()  # tracked and at its limit
+    limits.admit("198.51.100.2").close()
+    for number in range(20):
+        limits.admit(f"203.0.113.{number}")  # a flood of new addresses
+
+    assert limits.admit("198.51.100.1") is None
+
+
 def test_ticket_calls_are_safe_to_repeat():
     limits = ClientLimits(max_pending=1)
     ticket = limits.admit("a")
@@ -173,3 +197,25 @@ def test_a_socket_that_disconnects_before_sending_a_token_releases_its_slot():
         pass  # disconnects without sending a token
 
     assert limits._pending.get("203.0.113.7", 0) == 0
+
+
+def test_both_endpoints_draw_on_one_budget():
+    owner = RefusingOwner()
+    app = FastAPI()
+    app.state.execution_streams = (object(), owner)
+    app.state.capture_owner = owner
+    limits = ClientLimits(max_failures=2)
+    install_output_stream(app, allowed_origins={"http://allowed"}, limits=limits)
+    install_streaming(app, allowed_origins={"http://allowed"}, api_key="not-sent", limits=limits)
+
+    with TestClient(app) as client:
+        with connect(client, "/ai/executions/stream") as socket:
+            socket.send_json({"type": "authorize", "token": "a" * 43})
+            socket.receive_json()
+        with connect(client, "/interview-transcription/stream") as socket:
+            socket.send_json({"type": "authorize", "token": "a" * 43})
+            socket.receive_json()
+        with pytest.raises(WebSocketDisconnect), connect(client, "/ai/executions/stream"):
+            pass
+        with pytest.raises(WebSocketDisconnect), connect(client, "/interview-transcription/stream"):
+            pass

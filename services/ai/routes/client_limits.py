@@ -12,7 +12,7 @@ connection (it does not trust client-supplied values), or the direct peer addres
 no proxy. An IPv6 address counts as its whole /64 network, because one customer usually controls
 a /64 (the Rails limits do the same), and a value that is not an address shares one bucket.
 Counts are kept in this process only, so with more than one worker or replica each has its own
-limits. Entries for addresses that have gone quiet are dropped, and the number of addresses
+limits. A Rails outage makes sign-in checks fail, which counts against the client like a wrong token. Entries for addresses that have gone quiet are dropped, and the number of addresses
 tracked is capped, so the tables cannot grow without bound.
 
 A refused socket is closed before it is accepted, so a browser sees a failed connection (HTTP 403
@@ -80,7 +80,7 @@ class ClientLimits:
         self._admits += 1
         if self._admits % SWEEP_EVERY_ADMITS == 0:
             self._sweep()
-        if client not in self._pending and client not in self._failures and self._tracked() >= self.max_tracked:
+        if client not in self._pending and client not in self._failures and self._at_tracking_limit():
             client = OVERFLOW_CLIENT  # too many different addresses: the rest share one budget
         if self._pending[client] >= self.max_pending or self._recent_failures(client) >= self.max_failures:
             self._forget_if_idle(client)
@@ -88,8 +88,12 @@ class ClientLimits:
         self._pending[client] += 1
         return Ticket(self, client)
 
-    def _tracked(self) -> int:
-        return len(self._pending.keys() | self._failures.keys())
+    def _at_tracking_limit(self) -> bool:
+        """True when the tables are full even after dropping addresses that have gone quiet."""
+        if len(self._pending) + len(self._failures) < self.max_tracked:  # cheap check; the sum over-counts at most
+            return False
+        self._sweep()
+        return len(self._pending.keys() | self._failures.keys()) >= self.max_tracked
 
     def _sweep(self):
         """Drops every address whose failures are all older than the window."""

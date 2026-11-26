@@ -3,7 +3,8 @@
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
 read-only tools for the career library, active saved-job postings and saved interview
-practice questions. A chat-local
+practice questions (a list, and one selected question with its answer and current
+feedback). A chat-local
 `save_career_context` tool stages user-requested new career contexts. Attachments
 and other app actions are not available.
 
@@ -287,6 +288,32 @@ Question references use the shared signer in `mcp_tools/references.py`, like job
 references, but with their own `Q-` prefix and scope string, so a job reference never
 resolves as a question. The chat eval runner serves synthetic questions from the local
 tool server and records which tools' readers ran for its `tool_use` check.
+
+### Selected saved practice question
+
+`read_interview_question(question_reference)` (`read_interview_question-v1`, same file as
+the list) resolves a `Q-` reference from `list_interview_questions` in this operation, bound
+to the owner, operation and expiry. Job references, malformed or expired references and
+references from another user or operation are refused with the short
+`interview_question_unavailable` error before any read; database failures return the same
+code. It then independently reads the owner's active question
+(`database/interview_question_bank.py`); a missing, retired or other-owner question is
+"no longer available". It never reads answer drafts.
+
+The labeled text shows the set number and type, slot, question, answer format (Plain text,
+STAR, CAR or CARL) and the saved answer, which is already stored in its selected format
+with labeled parts such as "Situation: ...", or "No answer saved yet". Saved feedback
+(strengths, improvements and example answer; evidence quotes are left out) is shown only
+when it is current by the list's rule. Otherwise a sentence says the feedback is out of date
+and not shown, or that there is none. The whole result must fit 40,000 characters.
+
+Saved `question_text` and `answer_text` approvals are reused; unchecked ones are screened
+together with the operation's accounted screen. Feedback is model-generated text Rails stored
+after review, so it is not screened again. A blocked or unavailable check shows none of the
+entry. The question's receipt carries its question revision (so a check made by the list
+is reused); the answer's receipt carries both question and answer revisions, and Rails
+approves `answer_text` from chat only when both still match. Chat is told to read a
+question before critiquing its saved answer and to ask which one when several could match.
 
 ### Saving career context
 

@@ -18,7 +18,8 @@ class ChatEvalInput(BaseModel):
     payload: ChatPayload
     # Synthetic saved library the read_career_library tool returns; empty when omitted.
     career_library: CareerLibrary = Field(default_factory=CareerLibrary)
-    # Synthetic practice-question rows (reader shape) the list_interview_questions tool returns.
+    # Synthetic practice-question rows (reader shape), with optional answer_text, answer_format and
+    # feedback, that list_interview_questions and read_interview_question return.
     interview_questions: list[dict] = Field(default_factory=list)
 
 

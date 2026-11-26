@@ -18,7 +18,7 @@ def anyio_backend():
 
 @pytest.mark.anyio
 async def test_saved_job_list_is_available_over_authenticated_http():
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [], read_job_summary=lambda _, __: None, read_interview_questions=lambda _: []).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [], read_job_summary=lambda _, __: None, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         token = mint_tool_token(SECRET, user_id="owner", operation_id="operation")
@@ -41,7 +41,7 @@ async def test_list_reads_token_owner_and_renders_only_checked_labels():
                  "screened_fields": ["title", "company"], "notes": "PRIVATE"}]
     async def screen(text):
         pytest.fail("Saved checks must be reused")
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None, read_interview_questions=lambda _: []).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         token = mint_tool_token(SECRET, user_id="owner", operation_id="operation")
@@ -75,7 +75,7 @@ async def test_auth_rejects_before_any_saved_jobs_read(kind):
     token = "bad" if kind == "bad" else jwt.encode(claims, SECRET, algorithm="HS256")
     app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(),
                             read_jobs=lambda user: users.append(user) or [],
-                            read_job_summary=lambda _, __: None, read_interview_questions=lambda _: []).http_app(path="/mcp", stateless_http=True)
+                            read_job_summary=lambda _, __: None, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None).http_app(path="/mcp", stateless_http=True)
     with serve_in_background(app) as url, pytest.raises(Exception):  # noqa: B017
         async with Client(url, auth=None if kind == "missing" else BearerAuth(token)) as client:
             await client.call_tool("list_saved_jobs", {})
@@ -87,7 +87,7 @@ async def test_database_failure_hides_details():
     import psycopg
     def read(_):
         raise psycopg.OperationalError("private password details")
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None, read_interview_questions=lambda _: []).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id="owner", operation_id="op"))) as client:
@@ -156,7 +156,7 @@ async def test_server_returns_overflow_sentinel_and_arguments_cannot_select_anot
     def read(user):
         users.append(user)
         return [{"id": str(uuid4()), "title": "Engineer"}] * 501
-    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None, read_interview_questions=lambda _: []).http_app(
+    app = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=lambda _, __: None, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id="owner", operation_id="op"))) as client:
@@ -217,7 +217,7 @@ async def test_selected_summary_reads_owned_reference_over_http():
     async def screen(_):
         pytest.fail('Saved checks must be reused')
     server = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(),
-                              read_jobs=lambda _: [row], read_job_summary=detail, read_interview_questions=lambda _: [])
+                              read_jobs=lambda _: [row], read_job_summary=detail, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None)
     with serve_in_background(server.http_app(path='/mcp', stateless_http=True)) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id='owner', operation_id='op'))) as client:
             async def call(name, args):
@@ -253,7 +253,7 @@ async def test_summary_selection_fails_safely(kind):
         expires_at=time.time() + (-1 if kind == 'expired' else 60))
     if kind == 'tampered':
         reference = reference[:-1] + ('A' if reference[-1] != 'A' else 'B')
-    server = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [], read_job_summary=read, read_interview_questions=lambda _: [])
+    server = create_mcp_server(secret=SECRET, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [], read_job_summary=read, read_interview_questions=lambda _: [], read_interview_question=lambda _, __: None)
     with serve_in_background(server.http_app(path='/mcp', stateless_http=True)) as url:
         async with Client(url, auth=BearerAuth(mint_tool_token(SECRET, user_id='owner', operation_id='op'))) as client:
             result = await client.call_tool('read_job_summary', {'job_reference': reference}, raise_on_error=False)

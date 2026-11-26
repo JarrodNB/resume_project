@@ -1,7 +1,9 @@
 """Load saved written-practice sources after checking the durable task and its owner.
 
 Commands carry identities and revisions. Source text stays in its domain tables;
-versioned commands fail when their saved fences change.
+versioned commands fail when their saved fences change. Rails builds and re-checks the same
+command in InterviewPrep::PracticeTaskFence; tests/fixtures/practice_task_fence_cases.json keeps
+the two sides together, including the checks only one side makes.
 """
 from database.open_read_only_connection import open_read_only_connection
 

@@ -90,8 +90,15 @@ lock. Result application takes the owner lock before the task lock. Only one que
 or feedback operation may run per question; replacement blocks answer saving, while pending
 feedback permits edits. Replacing an answered question requires `confirmed: true`.
 
-Result services check ownership, subject/set/question identity, latest task identity, and
-command revisions before writing. Replacement requires unchanged target, peer-question and answer
+Result services ask `InterviewPrep::PracticeTaskFence` whether the task is still current; the
+fence also builds the commands that Start queues. It checks ownership, subject/set/question
+identity, latest task identity, and command revisions before writing. Each task type keeps its own
+rules (retired questions, revision comparison, five-slot count, generated origin), and Python's
+reader-side check in `services/ai/database/interview_questions.py` is deliberately not identical:
+Python also needs a queued task and a nonblank answer, while Rails also checks newer tasks, origin and
+digests. `services/ai/tests/fixtures/practice_task_fence_cases.json` holds shared cases that both an
+RSpec spec and a pytest test run, with each difference written down. Change a rule, command field or
+case on both sides together. Replacement requires unchanged target, peer-question and answer
 revisions and checks distinctness against the current set, including the old question. On
 success it first keeps a question with any nonblank format draft as a retired copy (below), then increments both
 revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest

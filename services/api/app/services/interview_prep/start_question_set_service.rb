@@ -32,8 +32,8 @@ module InterviewPrep
       number = [ previous, @user.interview_question_sets.maximum(:number).to_i ].max + 1
       question_set = @user.interview_question_sets.create!(number: number, set_type: @set_type)
       task.subject = question_set
-      task.input = { "source_version" => 1, "question_set_id" => question_set.id,
-                     "set_number" => number, "set_type" => @set_type }
+      task.input = PracticeTaskFence.build_command(task_type: "generate_interview_questions",
+                                                   subject: question_set, set_number: number)
       success(task)
     end
   end

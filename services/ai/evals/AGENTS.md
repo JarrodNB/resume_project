@@ -215,6 +215,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Prints JSON; only `--output PATH` saves a report. Evaluation does not change interview behavior.
 
 - `run_chat_evals.py` / `chat_evaluators.py` — synthetic career chat and rolling-memory cases through the production guarded adapter. Deterministic continuity/outcome/honesty signals; no Rails writes, actual synthetic provider receipts retained; paid runs are explicit.
+  Fake MCP readers record which tools reached them; `required_tool_calls` / `forbidden_tool_calls`
+  score tool use. Cases cover more saved jobs than the prompt's five recent ones (list, then summary),
+  empty and multi-section career libraries. Run `python -m evals.run_chat_evals`.
 
 - `run_summary_generation_evals.py` / `datasets/summary_generation_cases.yaml` — three synthetic missing-summary cases through the reference-only handler with execution-local synthetic evidence (no database), retaining production screening/generation; citation contract and independent faithfulness/usefulness judge. Prints results; run with `python -m evals.run_summary_generation_evals`. No broad quality claim from this bounded sample.
 

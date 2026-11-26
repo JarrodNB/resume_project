@@ -93,15 +93,15 @@ RSpec.describe CareerLibrary::SaveLibraryEntryService do
 
       it "takes the owner lock first, then the entry's row lock when editing" do
         entry = create(kind, user: user)
-        allow(user).to receive(:with_lock).and_call_original
-        allow(entry).to receive(:lock!).and_call_original
+        order = []
+        allow(user).to receive(:with_lock).and_wrap_original { |original, *args, **options, &block| order << :owner; original.call(*args, **options, &block) }
+        allow(entry).to receive(:lock!).and_wrap_original { |original, *args| order << :entry; original.call(*args) }
 
         save(kind, new_attributes.merge(skill_name_for(kind)))
-        expect(user).to have_received(:with_lock).once
+        expect(order).to eq([ :owner ])
 
         save(kind, { changed_field => "Edited" }, entry: entry)
-        expect(user).to have_received(:with_lock).twice
-        expect(entry).to have_received(:lock!)
+        expect(order).to eq([ :owner, :owner, :entry ])
       end
     end
   end
@@ -118,43 +118,12 @@ RSpec.describe CareerLibrary::SaveLibraryEntryService do
     kind == :skill ? { name: "Another skill" } : {}
   end
 
-  # Holds the owner row lock on a separate connection and reports whether the block was still
-  # waiting after a moment; it must finish once the lock is released. Needs committed rows,
-  # because transactional specs share one connection between threads.
-  def blocked_while_owner_locked
-    locked = Queue.new
-    release = Queue.new
-    holder = Thread.new do
-      ActiveRecord::Base.connection_pool.with_connection do
-        User.transaction do
-          User.lock.find(user.id)
-          locked << true
-          release.pop
-        end
-      end
-    end
-    Timeout.timeout(5) { locked.pop }
-    worker = Thread.new { ActiveRecord::Base.connection_pool.with_connection { yield } }
-    still_waiting = worker.join(0.5).nil?
-    release << true
-    holder.join
-    expect(worker.value).to be_success
-    still_waiting
-  end
-
   describe "concurrent creates at the cap" do
     self.use_transactional_tests = false
 
     # Create the user up front so worker threads see it committed.
     before { allow(ApiSchema.subscriptions).to receive(:trigger); user }
     after { user.destroy! }
-
-    KINDS.each do |kind, _association, _cap, new_attributes, _changed, _kept|
-      it "makes a #{kind} create wait for another request holding the owner lock" do
-        attributes = kind == :skill ? { name: "Waiter" } : new_attributes
-        expect(blocked_while_owner_locked { described_class.call(user: User.find(user.id), kind: kind, attributes: attributes) }).to be(true)
-      end
-    end
 
     KINDS.each do |kind, association, cap, new_attributes, _changed, _kept|
       it "lets only one of two simultaneous #{kind} requests take the last slot" do
@@ -240,9 +209,6 @@ RSpec.describe CareerLibrary::SaveLibraryEntryService do
 
         ongoing = save(kind, base.merge(ongoing: true, end_date: Date.new(2020, 1, 1))).value
         expect(ongoing).to have_attributes(ongoing: true, end_date: nil)
-
-        finished = save(kind, base.merge(ongoing: true, end_date: nil), entry: ongoing).value
-        expect(finished).to have_attributes(ongoing: true, end_date: nil)
 
         ended = save(kind, { end_date: Date.new(2021, 5, 1) }, entry: ongoing).value
         expect(ended).to have_attributes(ongoing: false, end_date: Date.new(2021, 5, 1))

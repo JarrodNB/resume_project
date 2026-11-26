@@ -61,8 +61,9 @@ module CareerLibrary
     def call
       @entry ? update_entry : create_entry
     rescue ActiveRecord::RecordNotUnique
-      # Only skills have a unique index. A twin request committed the same name after validation passed.
-      raise unless @kind.append
+      # A twin request committed the same skill name after validation passed. Career contexts
+      # also have a unique index, but the owner lock serializes their saves, so re-raise anything else.
+      raise unless @kind == KINDS[:skill]
 
       failure([ "You already have a skill called #{(@new_entry || @entry).name}" ])
     end

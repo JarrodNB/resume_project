@@ -22,7 +22,11 @@ MAX_DELTA_CHARACTERS = 4096
 
 
 def spoken_text(acknowledgement, decision, reply):
-    """Join interviewer text the way Rails composes saved spoken content."""
+    """Join interviewer text the way Rails composes saved spoken content.
+
+    Keep in step with `Interviews::MessageText.spoken_content` in services/api. The browser hands
+    streamed speech over to the saved reply only when the saved text starts with this text.
+    """
     parts = [acknowledgement] if isinstance(acknowledgement, str) and acknowledgement else []
     if decision == "continue" and isinstance(reply, str) and reply:
         parts.append(reply)

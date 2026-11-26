@@ -21,6 +21,7 @@ class Socket {
 }
 const event = (type: string, extra = {}) => ({ type, version: 1, feature: 'interviews', operation_id: 'turn', attempt_id: 'attempt', claim_generation: 1, ...extra })
 const question = { __typename: 'InterviewSessionQuestion' as const, id: 'question', content: 'Describe a project.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false }
+const lastQuestion = { ...question, id: 'last-question', content: 'Tell me about a conflict.', position: 1 }
 const message = (id: string, kind: string, content: string, acknowledgement: string | null = null) => ({
   __typename: 'InterviewSessionMessage' as const, id, questionId: 'question', kind, position: 0, content, avoided: false, acknowledgement,
   spokenContent: [acknowledgement, content].filter(Boolean).join('\n\n'), careerReferences: null, clarification: null,
@@ -28,10 +29,10 @@ const message = (id: string, kind: string, content: string, acknowledgement: str
 const turn = (status: string) => ({ __typename: 'InterviewSessionOperation' as const, id: 'turn', questionId: 'question', messageId: null, kind: 'turn', status,
   failureCode: null, checkpoint: null, submissionKey: 'key', canRetry: false, reviewTranscript: null, expectedRevision: 0 })
 const opening = message('opening', 'opening', 'Describe a project.')
-function snapshot(status: string, messages = [opening], speechPlaybackMode = 'browser') {
+function snapshot(status: string, messages = [opening], speechPlaybackMode = 'browser', currentQuestionPosition = 0) {
   return { __typename: 'InterviewSession', id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode,
-    preparedRole: {}, revision: 1, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-12-01T00:00:00Z', feedback: null, jobContext: null,
-    setup: null, questions: [question], messages, operations: [turn(status)] } as unknown as InterviewSnapshotFragment
+    preparedRole: {}, revision: 1, answerCap: 2, currentQuestionPosition, expiresAt: '2026-12-01T00:00:00Z', feedback: null, jobContext: null,
+    setup: null, questions: [question, lastQuestion], messages, operations: [turn(status)] } as unknown as InterviewSnapshotFragment
 }
 const authorize = { request: { query: AUTHORIZE_INTERVIEW_OUTPUT, variables: { input: { feature: 'interviews', operationId: 'turn' } } },
   result: { data: { authorizeAiExecutionStream: { __typename: 'AuthorizeAiExecutionStreamPayload', token: 'observer-capability', expiresAt: '2026-12-01T00:01:00Z', errors: [] } } } }
@@ -100,7 +101,7 @@ it('stops streamed speech when the stream fails', async () => {
 
 it('does not observe provider playback', async () => {
   const view = mount(snapshot('running', [opening], 'provider'))
-  await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+  await act(() => new Promise((resolve) => setTimeout(resolve, 200)))
   expect(Socket.instances).toHaveLength(0)
   expect(view.result.current.speech).toBeNull()
 })
@@ -131,4 +132,11 @@ it('does not replay text a failed attempt streamed when the same turn is retried
   view.rerender({ interview: snapshot('running') })
   expect(view.result.current.speech).toBeNull()
   await waitFor(() => expect(Socket.instances.length).toBe(2))
+})
+
+it('does not stream speech on the last question, where completing the interview would cut the voice off', async () => {
+  const view = mount(snapshot('running', [opening], 'browser', 1))
+  await act(() => new Promise((resolve) => setTimeout(resolve, 200)))
+  expect(Socket.instances).toHaveLength(0)
+  expect(view.result.current.speech).toBeNull()
 })

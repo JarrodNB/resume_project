@@ -1852,6 +1852,8 @@ describe('streamed interviewer speech', () => {
     close() {}
     receive(value: object) { act(() => this.onmessage?.({ data: JSON.stringify({ version: 1, feature: 'interviews', operation_id: 'turn', attempt_id: 'attempt', claim_generation: 1, ...value }) })) }
   }
+  // Streaming is skipped on the last question, so these turns answer the first of two.
+  const streamedSnapshot = { ...snapshot, questions: [...snapshot.questions, { ...snapshot.questions[0], id: 'next-question', position: 2, content: 'How do you review code?' }] }
   const speak = vi.fn()
   const cancel = vi.fn()
   const authorize = { request: { query: AUTHORIZE_INTERVIEW_OUTPUT, variables: { input: { feature: 'interviews', operationId: 'turn' } } }, maxUsageCount: Infinity,
@@ -1859,11 +1861,11 @@ describe('streamed interviewer speech', () => {
   const answer = { id: 'answer', questionId: 'question', kind: 'answer', position: 2, content: 'I shortened the wait.' }
   const turn = (status: string, failureCode: string | null = null) => ({ id: 'turn', questionId: 'question', messageId: null, kind: 'turn', status, failureCode, checkpoint: null, submissionKey: 'key', canRetry: false })
   function interviewWith(status: string, revision: number, extra: object[] = [], failureCode: string | null = null) {
-    return { ...snapshot, speechPlaybackMode: 'browser', revision, operations: [turn(status, failureCode)], messages: [snapshot.messages[0], answer, ...extra] }
+    return { ...streamedSnapshot, speechPlaybackMode: 'browser', revision, operations: [turn(status, failureCode)], messages: [snapshot.messages[0], answer, ...extra] }
   }
   const followUp = (content: string, acknowledgement: string | null) => ({ id: 'follow-up', questionId: 'question', kind: 'follow_up', position: 3, content, acknowledgement, spokenContent: [acknowledgement, content].filter(Boolean).join('\n\n') })
   async function streamTurn(text: string, beforeSubmit = () => {}) {
-    state.interview = { ...snapshot, speechPlaybackMode: 'browser', operations: [] }
+    state.interview = { ...streamedSnapshot, speechPlaybackMode: 'browser', operations: [] }
     renderInterview('/practice/interviews/session', [authorize])
     beforeSubmit()
     saveTurn(interviewWith('running', 1))

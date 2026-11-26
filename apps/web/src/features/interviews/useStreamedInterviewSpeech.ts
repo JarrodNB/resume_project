@@ -5,7 +5,8 @@
  * If the stream fails, the turn fails, or the saved reply differs, the streamed voice stops. Once any
  * streamed sentence was heard, the saved reply is then shown but not spoken again automatically; if none
  * was heard, the saved reply plays as usual. Only the reply the turn saved is handled; any later reply,
- * such as the next question after Skip, plays normally. Observing never starts or retries model work.
+ * such as the next question after Skip, plays normally. The last question never streams, because finishing
+ * the interview replaces the room at once. Observing never starts or retries model work.
  */
 import { useCallback, useEffect, useEffectEvent, useState } from 'react'
 import { useMutation } from '@apollo/client/react'
@@ -31,7 +32,10 @@ export function useStreamedInterviewSpeech(interview: InterviewSnapshotFragment 
   const turn = interview?.operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview ? currentInterviewPrompt(interview).reply : undefined
   const currentReplyId = useEffectEvent(() => reply?.id)
-  const runningTurnId = interview?.speechPlaybackMode === 'browser' && interview.status === 'active' && turn?.status === 'running' ? turn.id : null
+  // An answer to the last question can complete the interview, and the completed review replaces the room
+  // (and its voice) at once, so streamed speech there would be cut off mid-sentence.
+  const lastQuestion = interview ? interview.currentQuestionPosition >= Math.max(...interview.questions.map((question) => question.position)) : true
+  const runningTurnId = interview?.speechPlaybackMode === 'browser' && interview.status === 'active' && !lastQuestion && turn?.status === 'running' ? turn.id : null
 
   useEffect(() => {
     if (!runningTurnId) return

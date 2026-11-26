@@ -6,8 +6,11 @@ module Interviews
   module ExecutionPolicy
     private
 
+    # Rebuilt when @operation changes, because some services (backfill) walk several operations.
     def lifecycle
-      @lifecycle ||= AiExecutions::OperationLifecycle.new(@operation, OperationPolicy.new(@operation))
+      return @lifecycle if @lifecycle&.operation.equal?(@operation)
+
+      @lifecycle = AiExecutions::OperationLifecycle.new(@operation, OperationPolicy.new(@operation))
     end
 
     def with_operation_lock(&block)

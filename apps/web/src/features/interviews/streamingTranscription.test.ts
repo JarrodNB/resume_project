@@ -53,6 +53,19 @@ describe('streaming transcription', () => {
     await vi.waitFor(() => expect(setup.callbacks.fallback).toHaveBeenCalledWith(PLAN_ENDED_MESSAGE))
   })
 
+  it('sends several seconds of startup audio when the relay is slow to become ready', async () => {
+    const setup = fixture()
+    setup.socket.send.mockImplementation((value: ArrayBuffer | string) => { setup.socket.bufferedAmount += typeof value === 'string' ? value.length : value.byteLength })
+    startStreamingTranscription({} as MediaStream, setup.callbacks, setup.authorize, setup.dependencies)
+    await vi.waitFor(() => expect(setup.socket.onopen).toBeTruthy())
+    setup.socket.onopen?.({} as Event)
+    for (let second = 0; second < 7; second++) setup.process(new Float32Array(48_000))
+    setup.message({ type: 'ready' })
+    expect(setup.callbacks.fallback).not.toHaveBeenCalled()
+    const audioBytes = setup.socket.send.mock.calls.reduce((total, [value]) => total + (typeof value === 'string' ? 0 : value.byteLength), 0)
+    expect(audioBytes).toBe(7 * 48_000)
+  })
+
   it('shows why Rails refused to authorize the capture', async () => {
     const setup = fixture()
     setup.authorize.mockRejectedValue(new TranscriptionRefusedError('This question reached its streaming capture limit'))

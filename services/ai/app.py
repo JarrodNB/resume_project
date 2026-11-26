@@ -96,12 +96,15 @@ def create_app():
                       "/ready", "/health", "/internal/executions", "/ai/executions/stream"}})
     from routes.executions import install_execution_routes
     install_execution_routes(app, secret=execution_service_secret)
+    from routes.client_limits import ClientLimits
     from routes.execution_streams import install_output_stream
+    # One budget per client address across both browser WebSockets.
+    socket_limits = ClientLimits()
     install_output_stream(app, allowed_origins=set(filter(None, os.getenv(
-        "AI_BROWSER_ORIGINS", os.getenv("INTERVIEW_BROWSER_ORIGINS", "")).split(","))))
+        "AI_BROWSER_ORIGINS", os.getenv("INTERVIEW_BROWSER_ORIGINS", "")).split(","))), limits=socket_limits)
     from interviews.live_transcription import install_streaming
     install_streaming(app, allowed_origins=set(filter(None, os.getenv("INTERVIEW_BROWSER_ORIGINS", "").split(","))),
-                      api_key=os.getenv("OPENAI_API_KEY", ""))
+                      api_key=os.getenv("OPENAI_API_KEY", ""), limits=socket_limits)
 
     @app.get("/health")
     async def health():

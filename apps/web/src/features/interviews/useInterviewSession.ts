@@ -38,6 +38,12 @@ export function useStartInterview() {
   return { start, loading, error, errorCode }
 }
 
+/** Time allowed to upload a recording. Slow connections need more than a fixed minute for a
+ * two-minute answer, so allow at least 16 KB/s (the recording's own 128 kbps bitrate). */
+export function recordingUploadTimeout(bytes: number) {
+  return Math.max(60_000, Math.ceil(bytes / 16_000) * 1000)
+}
+
 export function useInterviewSession(id: string, ownerId: string) {
   const client = useApolloClient()
   const query = useQuery(INTERVIEW_QUERY, { variables: { id }, fetchPolicy: 'network-only' })
@@ -117,7 +123,13 @@ export function useInterviewSession(id: string, ownerId: string) {
     if (!grant) throw new Error('No recording upload was authorized.')
     const headers = grant.headers
     if (!headers || typeof headers !== 'object' || Array.isArray(headers) || !Object.values(headers).every((value) => typeof value === 'string')) throw new Error('The upload headers are invalid.')
-    const response = await fetch(grant.uploadUrl, { method: 'PUT', headers: headers as Record<string, string>, body: blob, credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(60_000) })
+    let response: Response
+    try {
+      response = await fetch(grant.uploadUrl, { method: 'PUT', headers: headers as Record<string, string>, body: blob, credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(recordingUploadTimeout(blob.size)) })
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'TimeoutError') throw new Error('Uploading your recording took too long. Check your connection, then choose Transcribe recording again.')
+      throw cause
+    }
     if (!response.ok) throw new Error('The recording upload failed. Try transcribing your recording again.')
     requirePayload((await register({ variables: { input: { interviewId: id, mediaId: grant.mediaId } } })).data?.registerInterviewRecording)
     return grant.mediaId

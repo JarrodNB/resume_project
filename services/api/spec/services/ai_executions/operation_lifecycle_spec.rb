@@ -54,6 +54,15 @@ RSpec.shared_examples "a leased AI operation" do
       end
     end
 
+    it "records the feature's code when a claim finds an attempt past its deadline" do
+      claim_operation
+      operation.update!(lease_expires_at: operation.execution_deadline)
+      travel_to(operation.execution_deadline + 1.second) do
+        expect(claim_operation.errors).to eq([ "Recovery scheduled" ])
+        expect(operation.reload).to have_attributes(status: "pending", failure_code: deadline_claim_code)
+      end
+    end
+
     it "stops claiming once the execution budget is spent" do
       claim_operation
       fail_with(retryable: true)
@@ -88,9 +97,14 @@ RSpec.shared_examples "a leased AI operation" do
       expect(renew(attempt_id: SecureRandom.uuid)).not_to be_success
     end
 
-    it "stops giving that receipt once the lease has expired" do
+    it "gives that receipt only while the lease is live" do
       fail_with
-      travel_to(operation.lease_expires_at + 1.second) { expect(renew).not_to be_success }
+      travel_to(operation.lease_expires_at - 1.second) { expect(renew.value).to eq(execution_finished: true) }
+      travel_to(operation.lease_expires_at + 1.second) do
+        result = renew
+        expect(result).not_to be_success
+        expect(result.errors).to eq([ "Claim is stale or expired" ])
+      end
     end
   end
 
@@ -174,6 +188,7 @@ RSpec.describe "Chat operations through the shared lifecycle" do
   def claim_operation = Chat::ClaimOperationService.call(operation: operation)
   let(:final_failure_code) { "screening_blocked" }
   let(:stale_claim_code) { "lease_expired" }
+  let(:deadline_claim_code) { "lease_expired" } # chat does not tell a passed deadline apart at claim time
   let(:claim_budget_status) { "failed" } # chat ends the operation with execution_timeout
 
   it_behaves_like "a leased AI operation"
@@ -186,6 +201,7 @@ RSpec.describe "Interview operations through the shared lifecycle" do
   def claim_operation = Interviews::ClaimOperationService.call(operation: operation)
   let(:final_failure_code) { "context_limit" }
   let(:stale_claim_code) { "lease_expired" }
+  let(:deadline_claim_code) { "execution_timeout" }
   let(:claim_budget_status) { "pending" } # interviews leave the operation for an explicit retry
 
   it_behaves_like "a leased AI operation"

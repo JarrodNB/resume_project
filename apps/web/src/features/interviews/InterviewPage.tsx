@@ -12,7 +12,7 @@ import { SaveInterviewAnswer } from './SaveInterviewAnswer'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
 import { InterviewRoleStep } from './InterviewRoleStep'
-import { TRANSCRIPTION_HELP } from './transcriptionHelp'
+import { handsFreeAvailable, TRANSCRIPTION_HELP } from './transcriptionHelp'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { interviewerOptions } from './interviewSetupOptions'
 import { PageHeading } from '@/components/PageHeading'
@@ -89,7 +89,7 @@ function OwnedInterview({ id }: { id: string }) {
   const [abandoned, setAbandoned] = useState(false)
   const microphone = useInterviewMicSettings(user?.id ?? '')
   // The saved hands-free choice is kept but inactive while recorded transcription is chosen.
-  const handsFreeActive = microphone.handsFree && transcriptionMode !== 'recorded'
+  const handsFreeActive = microphone.handsFree && handsFreeAvailable(transcriptionMode)
   const answer = useInterviewAnswerCapture({ session: state, abandoned, mode: transcriptionMode, startStreaming, pauseAtLimit: handsFreeActive, onModeChange: setTranscriptionMode })
   const { recorder, text: draftText, terminal, start: startCapture } = answer
   const { operation: reviewOperation, pending: reviewPending, saving: savingRecording } = answer.review

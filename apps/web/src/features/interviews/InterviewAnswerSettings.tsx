@@ -5,7 +5,7 @@
  */
 import { SetupRow, Switch } from './InterviewSetupControls'
 import type { TranscriptionMode } from './transcriptionCapture'
-import { HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION, SETUP_TRANSCRIPTION_OPTIONS } from './transcriptionHelp'
+import { HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION, handsFreeAvailable, SETUP_TRANSCRIPTION_OPTIONS } from './transcriptionHelp'
 import { SILENCE_LENGTH_OPTIONS, type useInterviewMicSettings } from './useInterviewMicSettings'
 
 const microphoneOptions = [{ value: 'automatic', label: 'Automatic' }, { value: 'tap', label: 'Tap to start' }]
@@ -26,11 +26,11 @@ export function InterviewAnswerSettings({ microphone, canRecord, mode, changeMod
         <p className="interview-setup-help">Pause before the mic opens. Tap the mic to start sooner.</p>
       </SetupRow>}
       <SetupRow title="Hands-free">
-        <Switch name="hands-free" options={handsFreeOptions} value={microphone.handsFree ? 'on' : 'off'} disabled={mode === 'recorded'} change={(value) => microphone.update({ handsFree: value === 'on' })} />
-        <p className="interview-setup-help">{mode === 'recorded' ? HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION : 'When you stop talking, your answer sends after a short countdown. You can keep editing instead.'}</p>
+        <Switch name="hands-free" options={handsFreeOptions} value={microphone.handsFree ? 'on' : 'off'} disabled={!handsFreeAvailable(mode)} change={(value) => microphone.update({ handsFree: value === 'on' })} />
+        <p className="interview-setup-help">{!handsFreeAvailable(mode) ? HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION : 'When you stop talking, your answer sends after a short countdown. You can keep editing instead.'}</p>
       </SetupRow>
       <SetupRow title="Silence length">
-        <Switch name="silence-length" options={silenceOptions} value={String(microphone.silenceSeconds)} disabled={mode === 'recorded' || !microphone.handsFree} change={(value) => microphone.update({ silenceSeconds: Number(value) })} />
+        <Switch name="silence-length" options={silenceOptions} value={String(microphone.silenceSeconds)} disabled={!handsFreeAvailable(mode) || !microphone.handsFree} change={(value) => microphone.update({ silenceSeconds: Number(value) })} />
         <p className="interview-setup-help">How long you stay quiet before a hands-free answer ends. Choose Patient if you pause to think.</p>
       </SetupRow>
     </> : <SetupRow group={false} title="Microphone"><p className="interview-answer-note">This browser can’t record. You can type every answer.</p></SetupRow>}

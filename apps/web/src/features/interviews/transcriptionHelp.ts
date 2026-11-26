@@ -15,4 +15,9 @@ export const SETUP_TRANSCRIPTION_OPTIONS: { value: TranscriptionMode; label: str
   { value: 'recorded', label: 'Recorded', description: 'Records first. When you finish, choose Transcribe recording.' },
 ]
 
+/** Hands-free mode ends answers from live text, so it works only with live transcription modes. */
+export function handsFreeAvailable(mode: TranscriptionMode) {
+  return mode !== 'recorded'
+}
+
 export const HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION = 'Hands-free mode needs live transcription. Choose Browser or Streaming transcription to use it.'

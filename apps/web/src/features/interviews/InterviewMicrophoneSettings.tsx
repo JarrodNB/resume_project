@@ -3,12 +3,12 @@
  * with live transcription, so the switch and its silence length are disabled in recorded mode while the
  * saved choices are kept.
  */
-import { HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION } from './transcriptionHelp'
+import { HANDS_FREE_NEEDS_LIVE_TRANSCRIPTION, handsFreeAvailable } from './transcriptionHelp'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { SILENCE_LENGTH_OPTIONS, type useInterviewMicSettings } from './useInterviewMicSettings'
 
 export function InterviewMicrophoneSettings({ microphone, mode }: { microphone: ReturnType<typeof useInterviewMicSettings>; mode: TranscriptionMode }) {
-  const liveTranscription = mode !== 'recorded'
+  const liveTranscription = handsFreeAvailable(mode)
   return <div className="grid gap-4">
     <label className="flex min-h-11 items-center justify-between gap-4 text-sm" htmlFor="interview-auto-mic">
       Turn the microphone on automatically

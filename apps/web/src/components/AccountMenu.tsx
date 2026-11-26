@@ -1,5 +1,6 @@
 /** The signed-in account menu: who is signed in (name if set, email), account security and data, light/dark theme, and sign out.
- * Sits at the right of the signage band; phones show an icon instead of the email. Signing out
+ * Sits at the right of the signage band and shows the user's name, or their email if they gave no
+ * name; phones show an icon instead. Signing out
  * replaces the session; a failure stays visible next to the menu.
  */
 import { useState } from 'react'
@@ -35,7 +36,7 @@ export function AccountMenu() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="account-menu-trigger" aria-label="Account menu">
             <UserRound className="account-menu-icon" aria-hidden />
-            <span className="account-menu-email">{user?.email ?? 'Account'}</span>
+            <span className="account-menu-email">{user?.name?.trim() || user?.email || 'Account'}</span>
             <ChevronDown className="account-menu-email" aria-hidden />
           </Button>
         </DropdownMenuTrigger>

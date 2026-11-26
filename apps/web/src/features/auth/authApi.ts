@@ -39,7 +39,8 @@ export function signUpRequest(credentials: AuthCredentials, turnstileToken: stri
 export function resendConfirmationRequest(email: string, csrfToken: string): Promise<{ message: string }> {
   return accountRequest('/auth/confirmation', { user: { email } }, csrfToken)
 }
-export function verifyEmailRequest(token: string, csrfToken: string): Promise<{ message: string }> {
+/** Consumes an email link token. On success the API returns the confirmed email so sign-in can be prefilled. */
+export function verifyEmailRequest(token: string, csrfToken: string): Promise<{ message: string; email?: string }> {
   return accountRequest('/auth/confirmation/verify', { confirmation_token: token }, csrfToken)
 }
 export function requestPasswordReset(email: string, csrfToken: string): Promise<{ message: string }> {

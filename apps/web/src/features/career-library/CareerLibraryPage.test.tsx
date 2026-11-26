@@ -180,12 +180,14 @@ it('lists sections in the saved order, with the profile first and career context
   expect(screen.getByRole('button', { name: 'Drag Skills section' })).toBeInTheDocument()
 })
 
-it('hides Delete all and summary generation, and unchecks Include summary, while the library is empty', async () => {
+it('keeps an empty library calm: no Delete all, summary generation, Include summary or Review, but adding by hand stays', async () => {
   const empty = { ...libraryMock, result: { data: { ...libraryMock.result.data, me: { ...libraryMock.result.data.me, summary: null }, experiences: [], skills: [] } } }
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, empty] })
   expect(await screen.findByRole('heading', { name: 'Start with your resume' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Delete all/ })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Generate summary/ })).not.toBeInTheDocument()
   expect(screen.getByText(/then a summary can be written from it/)).toBeInTheDocument()
-  expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
+  expect(screen.queryByRole('checkbox', { name: 'Include summary' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Review / })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Add role' })).toBeInTheDocument()
 })

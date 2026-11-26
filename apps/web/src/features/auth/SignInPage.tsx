@@ -1,4 +1,5 @@
 /** Returns users to their requested page after sign-in.
+ * Arriving from a verified email link fills in the email (passed in router state, not the URL).
  * Recovery and verification links remain separate, accessible account-help actions.
  */
 import { Link, useLocation, useNavigate } from 'react-router'
@@ -14,6 +15,7 @@ export function SignInPage() {
   const location = useLocation()
   const returnTo = (location.state as { from?: string } | null)?.from ?? '/'
   const notice = (location.state as { notice?: string } | null)?.notice
+  const verifiedEmail = (location.state as { email?: unknown } | null)?.email
 
   async function handleSignIn(credentials: AuthCredentials) {
     await signIn(credentials)
@@ -34,7 +36,7 @@ export function SignInPage() {
       }
     >
       {notice && <p role="status" className="mb-4">{notice}</p>}
-      <AuthForm submitLabel="Sign in" onSubmit={handleSignIn} />
+      <AuthForm submitLabel="Sign in" initialEmail={typeof verifiedEmail === 'string' ? verifiedEmail : undefined} onSubmit={handleSignIn} />
       <nav aria-label="Account help" className="auth-help-links">
         <Link to="/forgot-password">Forgot your password?</Link>
         <Link to="/verify-email">Need a verification email?</Link>

@@ -3,7 +3,8 @@
  * placed among the other resume sections; contact details stay in the profile at the top.
  * Supports explicit missing-text generation, review and individual improvement.
  * Index:
- *   - SummarySection: summary text, with its default for new resumes in the heading row
+ *   - SummarySection: summary text, with its default for new resumes in the heading row (only once a
+ *     summary exists, since there is nothing to include before then)
  */
 import { useState } from 'react'
 import { useApolloClient } from '@apollo/client/react'
@@ -29,8 +30,10 @@ export function SummarySection({ profile, libraryHasContent }: { profile: Career
 
   return (
     <LibrarySectionFrame sectionId={LIBRARY_SECTION_ANCHORS.summary} title="Summary" reviewSection="summary" actions={<>
-      <SummaryInclusionControl checked={!!profile.summary && profile.includeSummary !== false} disabled={preference.busy || !profile.summary} description={null} onChange={(checked) => void preference.save(UPDATE_PROFILE_MUTATION, { attributes: { includeSummary: checked } })} />
-      {profile.summary && <LibrarySectionReview section="summary" />}
+      {profile.summary && <>
+        <SummaryInclusionControl checked={profile.includeSummary !== false} disabled={preference.busy} description={null} onChange={(checked) => void preference.save(UPDATE_PROFILE_MUTATION, { attributes: { includeSummary: checked } })} />
+        <LibrarySectionReview section="summary" />
+      </>}
       <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setEditing(true)}>
         Edit summary
       </Button>

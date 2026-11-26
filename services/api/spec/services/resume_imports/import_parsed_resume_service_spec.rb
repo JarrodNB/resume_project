@@ -141,6 +141,15 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.experiences).not_to be_empty
   end
 
+  it "counts what a first import added by section, skills included" do
+    described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+
+    expect(ai_task.reload.result["import_summary"]).to eq(
+      "added" => 4, "merged" => 0,
+      "added_by_section" => { "experiences" => 2, "projects" => 1, "educations" => 1, "certifications" => 0, "skills" => 2 }
+    )
+  end
+
   it "merges entries that match the library instead of duplicating them" do
     described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
     second_task = create(:ai_task, :completed_resume_parse, user: user)
@@ -156,7 +165,10 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(acme.highlights.map(&:content)).to eq([ "Built the API", "Led the team", "Mentored two juniors" ])
     expect(user.projects.sole).to have_attributes(name: "Side project", role: "Author")
     expect(user.educations.count).to eq(1)
-    expect(second_task.reload.result["import_summary"]).to eq("added" => 1, "merged" => 5)
+    expect(second_task.reload.result["import_summary"]).to eq(
+      "added" => 1, "merged" => 5,
+      "added_by_section" => { "experiences" => 1, "projects" => 0, "educations" => 0, "certifications" => 0, "skills" => 0 }
+    )
   end
 
   it "marks the task accepted and refuses to import it twice" do

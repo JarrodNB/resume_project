@@ -9,7 +9,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { AccountDataSection } from '@/features/account/AccountDataSection'
 import { AuthPageShell } from './AuthPageShell'
 import { PasswordInput } from './PasswordInput'
-import { PasswordGuidance } from './PasswordGuidance'
+import { NEW_PASSWORD_MIN_LENGTH, PasswordGuidance } from './PasswordGuidance'
 import { AuthRequestError, changePasswordRequest, resetPasswordRequest } from './authApi'
 import { forgetResetPasswordToken, readResetPasswordToken } from './resetPasswordLink'
 import { useAuth } from './useAuth'
@@ -53,7 +53,7 @@ export function PasswordUpdatePage({ change = false }: { change?: boolean }) {
         <Link to="/forgot-password" className="inline-flex min-h-11 w-fit items-center text-sm underline underline-offset-4">Forgot your current password?</Link>
       </div>}
       <div className="grid gap-2"><Label htmlFor="new-password">New password</Label>
-        <PasswordInput id="new-password" autoComplete="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={`new-password-guidance${errors.length ? ' password-update-errors' : ''}`} aria-invalid={errors.length > 0 || undefined} />
+        <PasswordInput id="new-password" autoComplete="new-password" required minLength={NEW_PASSWORD_MIN_LENGTH} value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={`new-password-guidance${errors.length ? ' password-update-errors' : ''}`} aria-invalid={errors.length > 0 || undefined} />
         <PasswordGuidance id="new-password-guidance" />
       </div>
       <div className="grid gap-2"><Label htmlFor="confirm-password">Confirm new password</Label>

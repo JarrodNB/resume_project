@@ -8,9 +8,11 @@
  * interview practice appear in Practice rather than Do next. A second row holds "Library" (see
  * LibraryHealthPanel: how well-reviewed the career library is, shown once it has content) and "This week"
  * (see WeekPanel: what the user got done in the last seven days). Rails suggests each job's next step; colors follow the signal rules in nextSteps.ts.
- * The full board and list live on the Jobs page. With no saved jobs yet, Home shows the four steps
- * that start a search, marking the career library step done once the library has content. With
- * jobs but an empty library, a red note says comparisons have nothing to compare yet.
+ * The full board and list live on the Jobs page. Until the user writes their first tailored resume
+ * (or moves a job past "not applied"), Home shows only the four steps that start a search (see
+ * FirstRunGuide), and the page header drops its buttons so the guide's current step is the one
+ * action. With jobs but an empty library, the dashboard shows a red note that comparisons have
+ * nothing to compare yet.
  */
 import { ContentSkeleton } from '@/components/ContentSkeleton'
 import { useCallback } from 'react'
@@ -25,7 +27,9 @@ import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
 import { libraryHasContent } from '@/features/career-library/libraryHasContent'
 import { JOB_PIPELINE_QUERY } from './homeOperations'
-import { jobsNeedingYou, type PipelineEntry } from './homeSummary'
+import { RESUMES_QUERY } from '@/features/resumes/resumesOperations'
+import { finishedFirstRun, jobsNeedingYou, type PipelineEntry } from './homeSummary'
+import { FirstRunGuide } from './FirstRunGuide'
 import { AiWorkStrip } from './AiWorkStrip'
 import { NextStep, SignalDot } from './NextStepSignal'
 import { PipelineJobName } from './PipelineJobName'
@@ -42,15 +46,23 @@ export function HomePage() {
   // The library only shapes the first-run guidance; Home still works if it fails or is slow.
   const { data: libraryData } = useQuery(CAREER_LIBRARY_QUERY, { fetchPolicy: 'cache-and-network' })
   const libraryStarted = libraryData ? libraryHasContent(libraryData) : null
+  // Whether any tailored resume exists decides when the first-run guide gives way to the dashboard.
+  // This Week reads the same query, so the dashboard costs no extra request.
+  const { data: resumesData, error: resumesError } = useQuery(RESUMES_QUERY, { fetchPolicy: 'cache-and-network' })
   const entries = data?.jobPipeline ?? []
   const reloadPipeline = useCallback(() => { void refetch().catch(() => { /* The query error stays on screen. */ }) }, [refetch])
+  const finished = finishedFirstRun(entries, resumesData ? resumesData.resumes.length : null)
+  const showGuide = !!data && !finished && (entries.length === 0 || !!resumesData)
+  // If resumes can't load, fall back to the dashboard rather than hiding saved jobs.
+  const showDashboard = entries.length > 0 && !showGuide && (finished || !!resumesError)
+  const deciding = !!data && !showGuide && !showDashboard
 
   return (
     <div className="home-page">
       <PageHeading
         title="Your job search"
-        description="What needs you today: applications, practice and your library."
-        actions={<>
+        description={showGuide ? 'Four steps to get your search going.' : 'What needs you today: applications, practice and your library.'}
+        actions={showDashboard && <>
           <Button asChild variant="outline" size="lg"><Link to="/jobs/find">Find jobs</Link></Button>
           <Button asChild size="lg"><Link to="/jobs/new">Add a job</Link></Button>
         </>}
@@ -61,9 +73,9 @@ export function HomePage() {
           <Button variant="outline" className="justify-self-start" disabled={loading} onClick={reloadPipeline}>Try again</Button>
         </div>
       )}
-      {!data && loading && <ContentSkeleton label="Loading your jobs…" layout="sections" />}
-      {data && entries.length === 0 && <FirstRun libraryStarted={libraryStarted} />}
-      {entries.length > 0 && (
+      {((!data && loading) || deciding) && <ContentSkeleton label="Loading your jobs…" layout="sections" />}
+      {showGuide && <FirstRunGuide libraryStarted={libraryStarted} job={entries[0] ?? null} />}
+      {showDashboard && (
         <>
           {libraryStarted === false && <EmptyLibraryNote />}
           <AiWorkStrip onWorkFinished={reloadPipeline} />
@@ -121,45 +133,5 @@ function EmptyLibraryNote() {
       <p><strong>Your career library is empty.</strong> Comparisons and resumes are built from it, so they have nothing to use yet.</p>
       <Link to="/library">Import a resume <ArrowRight aria-hidden /></Link>
     </aside>
-  )
-}
-
-/** The four steps that start a search, shown before any job is saved. Step 1 is marked done once
- * the library has content; the first unfinished step is the one to do now. */
-function FirstRun({ libraryStarted }: { libraryStarted: boolean | null }) {
-  return (
-    <section className="home-first-run" aria-labelledby="first-run-heading">
-      <h2 id="first-run-heading">Start your search in four steps</h2>
-      <p className="first-run-time">Do these in order. The first comparison of a job against your library is where it starts to pay off.</p>
-      <ol>
-        <li data-state={libraryStarted ? 'done' : 'now'} aria-current={libraryStarted ? undefined : 'step'}>
-          <h3>Fill your career library{libraryStarted && <span className="sr-only"> (done)</span>}</h3>
-          {libraryStarted ? (
-            <>
-              <p>Your library has content. Everything you write later comes from here.</p>
-              <Link to="/library">Review your library <ArrowRight aria-hidden /></Link>
-            </>
-          ) : (
-            <>
-              <p>Import a PDF or Word resume, or add details by hand. Everything you write later comes from here.</p>
-              <Link to="/library">Import a resume <ArrowRight aria-hidden /></Link>
-            </>
-          )}
-        </li>
-        <li data-state={libraryStarted ? 'now' : 'next'} aria-current={libraryStarted ? 'step' : undefined}>
-          <h3>Save a job you want</h3>
-          <p>Search current listings, paste a job ad, or add a posting link.</p>
-          <Link to="/jobs/find">Find jobs <ArrowRight aria-hidden /></Link>
-        </li>
-        <li data-state="next">
-          <h3>Compare, then write</h3>
-          <p>Open a saved job to see how your library matches it, answer gaps, and write a tailored resume.</p>
-        </li>
-        <li data-state="next">
-          <h3>Prepare for the interview</h3>
-          <p>Practice answering interview questions using your experience and the job you saved.</p>
-        </li>
-      </ol>
-    </section>
   )
 }

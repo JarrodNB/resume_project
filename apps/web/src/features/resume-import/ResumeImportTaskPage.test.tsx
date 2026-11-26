@@ -114,5 +114,5 @@ it('imports the reviewed resume and opens the career library', async () => {
 
   expect(await screen.findByText('Library page')).toBeInTheDocument()
   expect(router.state.location.pathname).toBe('/library')
-  expect(screen.getByText('2 entries added, 3 merged into existing entries.')).toBeInTheDocument()
+  expect(screen.getByText('Added 2 entries. 3 entries matched ones you already had, so they were merged into them.')).toBeInTheDocument()
 })

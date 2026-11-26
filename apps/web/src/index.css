@@ -613,7 +613,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .job-tile .next-step-row { padding-top: 11px; border-top: 1px solid var(--border); }
 .next-step { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 24px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
 .next-step.is-quiet { color: var(--muted-foreground); font-weight: 500; }
-.pipeline-job a:focus-visible, .next-step:focus-visible, .home-first-run a:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
+.pipeline-job a:focus-visible, .next-step:focus-visible, .home-first-run a:not([data-slot=button]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
 .pipeline-empty { display: grid; place-items: center; height: 92px; border: 1.5px dashed var(--border); border-radius: 6px; color: var(--muted-foreground); font-size: 13px; }
 .pipeline-list { display: grid; gap: 32px; margin-top: 22px; }
 .list-station { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--rule-strong); }
@@ -643,10 +643,13 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .library-note a svg { width: 15px; }
 .library-note a:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
 .home-first-run p { max-width: 40ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
-.home-first-run a { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 32px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
-.home-first-run a svg { width: 15px; }
+.home-first-run a:not([data-slot=button]) { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 32px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
+.home-first-run a:not([data-slot=button]) svg { width: 15px; }
+/* The step to do now carries the page's one filled button; other routes stay quiet text links. */
+.home-first-run .first-run-action { justify-self: start; margin-top: 4px; }
+.first-run-links { display: grid; justify-items: start; gap: 4px; }
 @media (hover: hover) and (pointer: fine) {
-  .pipeline-job a:hover, .next-step:is(a):hover, .home-first-run a:hover, .library-note a:hover { text-decoration: underline; }
+  .pipeline-job a:hover, .next-step:is(a):hover, .home-first-run a:not([data-slot=button]):hover, .library-note a:hover { text-decoration: underline; }
   .view-switch button[aria-pressed=false]:hover { background: var(--muted); }
 }
 @media (max-width: 899px) {

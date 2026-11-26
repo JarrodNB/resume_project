@@ -4,13 +4,15 @@ import { act, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { AppLayout } from './AppLayout'
 import { RedirectToPath } from './RedirectToPath'
 import { useFocusMode } from './useFocusMode'
 
 const signOut = vi.fn()
-vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner', email: 'owner@example.test', name: null }, signOut }) }))
+const signedIn = vi.hoisted(() => ({ user: { id: 'owner', email: 'owner@example.test', name: null as string | null } }))
+vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: signedIn.user, signOut }) }))
+afterEach(() => { signedIn.user.name = null })
 vi.mock('@/features/ai-tasks/TaskNotifications', () => ({ TaskNotifications: () => null }))
 
 function renderWorkspace(url: string) {
@@ -52,6 +54,19 @@ it('offers account security, theme, and sign out from the account menu', async (
   expect(screen.getByRole('menuitem', { name: /Switch to (dark|light) theme/ })).toBeInTheDocument()
   await user.click(screen.getByRole('menuitem', { name: 'Sign out' }))
   expect(signOut).toHaveBeenCalled()
+})
+
+it('shows the email on the account menu when the user gave no name', () => {
+  renderWorkspace('/')
+  expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('owner@example.test')
+})
+
+it('prefers the name over the email on the account menu', () => {
+  signedIn.user.name = 'Nina Patel'
+  renderWorkspace('/')
+  const trigger = screen.getByRole('button', { name: 'Account menu' })
+  expect(trigger).toHaveTextContent('Nina Patel')
+  expect(trigger).not.toHaveTextContent('owner@example.test')
 })
 
 it('redirects an old bookmark with its id and query string', () => {

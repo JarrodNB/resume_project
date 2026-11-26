@@ -1,4 +1,6 @@
 # Adapts confirmation requests; GET never consumes email links.
+# A successful verify returns the confirmed email (only to whoever holds the one-time token) so the
+# sign-in form can be filled in; it does not create a session.
 module Auth
   class ConfirmationsController < ApplicationController
     def create
@@ -14,7 +16,7 @@ module Auth
     def verify
       result = Accounts::ConfirmAccountService.call(token: params[:confirmation_token])
       if result.success?
-        render json: { message: "Email verified. You can now sign in." }
+        render json: { message: "Email verified. You can now sign in.", email: result.value }
       else
         render json: { errors: result.errors }, status: :unprocessable_content
       end

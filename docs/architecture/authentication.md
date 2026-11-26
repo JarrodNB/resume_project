@@ -159,6 +159,9 @@ Malformed envelopes return 400; invalid fields return 422. All POSTs require CSR
 
 `POST /auth/confirmation/verify` accepts `{ confirmation_token }`, returning 200
 on confirmation or generic 422 for malformed, expired, reused or superseded links.
+The 200 body includes the confirmed `email`, so only the holder of that one-time
+token learns it; the web app passes it to `/sign-in` in router state (never the URL)
+to fill in the email field.
 Devise owns tokens and the explicit 24-hour expiry. A user row lock serializes
 confirmation and resend. Resend forces Devise's own generator to replace the old
 token; even a queued old email cannot verify after a newer resend commits. Success

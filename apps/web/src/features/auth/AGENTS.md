@@ -12,10 +12,13 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
 - `SignInPage.tsx`, `SignUpPage.tsx`, `AuthForm.tsx`, `AuthPageShell.tsx` — pages and UI
 - `TurnstileWidget.tsx` — Cloudflare's sign-up bot check; tokens work once, so remount after a failed submit
 - `PasswordInput.tsx` — shared password-manager-friendly input and accessible visibility toggle;
-  password acceptance remains server-owned, with no native truncating maximum length
+  password acceptance remains server-owned, with no native truncating maximum length.
+  New-password fields (sign-up, reset, change) set `minLength` from `NEW_PASSWORD_MIN_LENGTH` in
+  `PasswordGuidance.tsx`, which must match Devise `password_length`; sign-in sets none
 - `*.test.ts(x)` — auth API and sign-in flow tests
 - `VerifyEmailPage.tsx`, `ResendConfirmationForm.tsx`, `confirmationLink.ts` — public
-  automatic verification and explicit resend; capture/clear fragment before app bootstrap
+  automatic verification and explicit resend; capture/clear fragment before app bootstrap.
+  After verifying, Sign in carries the confirmed email in router state so `SignInPage` prefills it
 - `ForgotPasswordPage.tsx`, `PasswordUpdatePage.tsx`, `resetPasswordLink.ts` — public recovery
   and signed-in current-password change; success survives session/cache refresh on a public route.
   The signed-in page also renders `features/account/AccountDataSection` (export and deletion)

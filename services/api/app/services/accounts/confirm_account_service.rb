@@ -1,5 +1,7 @@
 # Serializes confirmation and resend; Devise owns tokens, expiry and account state.
 # Confirming also starts the account's one 7-day free trial (see Billing::Trial).
+# A successful confirmation returns the account's email, so the web app can fill in the sign-in
+# form for the person who just opened their own email link. It never signs anyone in.
 module Accounts
   class ConfirmAccountService < ApplicationService
     INVALID = [ "This verification link is invalid or expired. Request a new email." ].freeze
@@ -9,6 +11,7 @@ module Accounts
     end
 
     # Resends without revealing existence, or consumes a valid token exactly once.
+    # @return [ServiceResult] on confirmation, value is the confirmed account's email
     def call
       return resend if @email
       return failure(INVALID) unless @token.is_a?(String) && @token.match?(/\A[A-Za-z0-9_-]{20,128}\z/)
@@ -18,7 +21,7 @@ module Accounts
         return failure(INVALID) unless user.confirmation_token == @token && !user.confirmed?
         return failure(INVALID) unless user.confirm
         Billing::Trial.start!(user, at: user.confirmed_at)
-        success
+        success(user.email)
       end
     end
 

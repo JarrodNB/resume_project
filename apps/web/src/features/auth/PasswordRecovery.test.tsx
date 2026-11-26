@@ -100,6 +100,7 @@ it('shows current-password and policy errors, blocks duplicate submits and allow
   expect(screen.getByLabelText('Confirm new password')).toHaveAttribute('aria-invalid', 'true')
   expect(passwordSection.getByRole('alert').parentElement).toHaveFocus()
   expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
+  expect(screen.getByLabelText('New password')).toHaveAttribute('minlength', '15')
   expect(screen.getByLabelText('New password')).not.toHaveAttribute('maxlength')
 })
 

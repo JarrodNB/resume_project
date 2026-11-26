@@ -3,7 +3,8 @@
  * Index:
  *   - TRANSIENT_ALERT_MS: default visibility duration
  *   - TRANSIENT_ALERT_EXIT_MS: how long the fade-out plays before the alert unmounts
- *   - TransientAlert: dismissible shadcn alert
+ *   - TransientAlert: dismissible shadcn alert; pass `autoDismiss={false}` to keep one that holds a
+ *     link the user needs time to reach
  */
 import { useEffect, useState, type ComponentProps } from 'react'
 import { X } from 'lucide-react'
@@ -15,13 +16,14 @@ export const TRANSIENT_ALERT_MS = 8000
 export const TRANSIENT_ALERT_EXIT_MS = 150
 
 /** Shows an alert briefly, fading in and out; use a new key for a new notification. */
-export function TransientAlert({ children, className, ...props }: ComponentProps<typeof Alert>) {
+export function TransientAlert({ children, className, autoDismiss = true, ...props }: ComponentProps<typeof Alert> & { autoDismiss?: boolean }) {
   const [phase, setPhase] = useState<'shown' | 'leaving' | 'gone'>('shown')
   const dismiss = () => setPhase((current) => (current === 'shown' ? 'leaving' : current))
   useEffect(() => {
+    if (!autoDismiss) return
     const timer = window.setTimeout(() => setPhase('leaving'), TRANSIENT_ALERT_MS)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [autoDismiss])
   useEffect(() => {
     if (phase !== 'leaving') return
     const timer = window.setTimeout(() => setPhase('gone'), TRANSIENT_ALERT_EXIT_MS)

@@ -41,9 +41,10 @@ format as bounded control metadata, and results for a different current format a
 Retirement of an answered question and account export preserve all drafts, inactive ones included.
 Only the active answer counts: a question whose only text sits in an inactive format draft is not
 answered, needs no replacement confirmation and keeps no retired copy. Preview, rehearsal, anchors and search use active `answer_text` only.
-`InterviewPrep::ActiveAnswer` owns this: projection, `answered?` (the active text has a character other
-than space, tab, newline, vertical tab, form feed or carriage return; other Unicode spaces count as text),
-progress and feedback freshness. Python's reader and the web draft check use the same rule, and
+`InterviewPrep::ActiveAnswer` owns this: projection, `answered?` (the active text has a character outside
+Ruby's `[[:space:]]` set, which `blank?` and `squish` use: ASCII whitespace, U+0085, U+00A0, U+1680, U+2000-U+200A,
+U+2028, U+2029, U+202F, U+205F, U+3000; U+FEFF and U+001C-U+001F count as text),
+progress and feedback freshness. Python, the chat list's SQL and the web draft check spell out that same set, and
 `services/ai/tests/fixtures/active_answer_cases.json` holds shared cases that RSpec, pytest and the web tests all read. The answer limit is
 2,000 characters, defined in Rails `config/initializers/text_limits.rb`, Python `text_limits.py`,
 and web `src/lib/textLimits.ts`. Answers never become career-library entries. Deleting a set

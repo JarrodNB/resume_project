@@ -17,7 +17,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.
 - `apply_questions_service.rb` — validates generation/replacement drafts and task identity/revisions, then persists atomically inside the owner/task transaction, retiring an answered copy on replacement.
 - `apply_feedback_service.rb` — validates task ownership/identity and coaching shape; stores reviewed revisions while preserving answers.
-- `active_answer.rb` — the one definition of the active answer: format drafts and validation, readable text, `answered?` (active text only; inactive drafts never count), progress, and feedback freshness (revisions plus normalized digest, ignoring capitalization and whitespace edits). Python's reader and the web draft check follow its blank rule; shared cases live in `services/ai/tests/fixtures/active_answer_cases.json`. Change a rule and the fixture together.
+- `active_answer.rb` — the one definition of the active answer: format drafts and validation, readable text, `answered?` (active text only; inactive drafts never count), progress, and feedback freshness (revisions plus normalized digest, ignoring capitalization and whitespace edits). Python, SQL and the web draft check spell out its blank set (Ruby `[[:space:]]`); shared cases live in `services/ai/tests/fixtures/active_answer_cases.json`. Change a rule and the fixture together.
 - `sync_question_embedding_service.rb` — embeds one owned saved Q&A, masks outbound contact, serializes duplicates, and rejects changed/deleted sources after provider work.
 
 ## Local Rules

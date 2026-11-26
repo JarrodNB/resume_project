@@ -3,18 +3,18 @@
 # Each question keeps one draft per written format (plain text, CAR, CARL, STAR); only the selected
 # one is the active answer. Inactive drafts are saved privately and never count as an answer.
 #
-# Blank rule (the same in Postgres, Python and the web app): text is blank when it has no
-# character other than space, tab, newline, vertical tab, form feed or carriage return. Other
-# Unicode spaces (like a no-break space) count as text, so every layer agrees without locale rules.
-# Shared cases live in services/ai/tests/fixtures/active_answer_cases.json.
+# Blank rule (the same in Postgres, Python and the web app): text is blank when it holds only
+# Ruby's `[[:space:]]` characters, as `blank?` and `squish` see them: tab, newline, vertical tab,
+# form feed, carriage return, space, U+0085, U+00A0, U+1680, U+2000-U+200A, U+2028, U+2029,
+# U+202F, U+205F and U+3000. U+FEFF, U+180E, U+200B and the controls U+001C-U+001F are text.
+# Each other layer spells this set out explicitly (Python `str.strip`, JS `trim` and Postgres `\s`
+# differ). Shared cases live in services/ai/tests/fixtures/active_answer_cases.json.
 module InterviewPrep
   module ActiveAnswer
     FIELDS = {
       "plain_text" => %w[text], "car" => %w[context action result],
       "carl" => %w[context action result learning], "star" => %w[situation task action result]
     }.freeze
-    NON_BLANK = /[^ \t\n\v\f\r]/
-    WHITESPACE_RUN = /[ \t\n\v\f\r]+/
 
     # Old questions retain their exact free-form text until their first structured save.
     def self.drafts(question)
@@ -24,7 +24,7 @@ module InterviewPrep
     end
 
     def self.blank?(text)
-      !text.to_s.match?(NON_BLANK)
+      text.to_s.blank?
     end
 
     # The selected format's readable text. Structured formats list only their filled fields.
@@ -55,8 +55,9 @@ module InterviewPrep
     end
 
     # Collapses whitespace runs and capitalization so formatting-only edits do not change freshness.
+    # Saved review digests were made from exactly this (`squish.downcase`), so keep it unchanged.
     def self.normalize(text)
-      text.to_s.gsub(WHITESPACE_RUN, " ").delete_prefix(" ").delete_suffix(" ").downcase
+      text.to_s.squish.downcase
     end
 
     def self.fingerprint(text)

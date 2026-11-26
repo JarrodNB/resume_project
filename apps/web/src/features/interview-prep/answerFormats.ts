@@ -31,13 +31,21 @@ export function normalizeAnswerDrafts(value: unknown, legacyText = ''): AnswerDr
     return [format, Object.fromEntries(Object.keys(definition.fields).map((field) => [field, typeof draft[field] === 'string' ? draft[field] : format === 'plain_text' ? legacyText : '']))]
   })) as AnswerDrafts
 }
-/** Blank means no character besides space, tab, newline, vertical tab, form feed or carriage return (same as Rails). */
+/**
+ * The characters Ruby's `[[:space:]]` matches, spelled out because JS `\s` and `trim` differ
+ * (they include U+FEFF). Same set as Rails and Python; see active_answer_cases.json.
+ */
+const SPACE_CHARACTERS = '\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000'
+const SPACE_RUN = new RegExp(`[${SPACE_CHARACTERS}]+`, 'g')
+const NON_SPACE = new RegExp(`[^${SPACE_CHARACTERS}]`)
+const EDGE_SPACE = new RegExp(`^[${SPACE_CHARACTERS}]+|[${SPACE_CHARACTERS}]+$`, 'g')
+/** Blank means only those space characters (same as Rails `blank?`). */
 export function isBlankAnswer(text: string): boolean {
-  return !/[^ \t\n\v\f\r]/.test(text)
+  return !NON_SPACE.test(text)
 }
-/** Collapses whitespace runs and capitalization so formatting-only edits compare equal (same as Rails' fingerprint input). */
+/** Collapses whitespace runs and capitalization so formatting-only edits compare equal (same as Rails `squish.downcase`). */
 export function normalizeAnswerForComparison(text: string): string {
-  return text.replace(/[ \t\n\v\f\r]+/g, ' ').replace(/^ | $/g, '').toLowerCase()
+  return text.replace(SPACE_RUN, ' ').replace(EDGE_SPACE, '').toLowerCase()
 }
 export function projectAnswer(format: AnswerFormat, drafts: AnswerDrafts): string {
   if (format === 'plain_text') return drafts.plain_text.text

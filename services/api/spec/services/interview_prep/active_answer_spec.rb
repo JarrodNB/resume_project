@@ -133,6 +133,17 @@ RSpec.describe InterviewPrep::ActiveAnswer do
     end
   end
 
+  # Review digests already saved in production were made with squish.downcase; they must keep matching.
+  it "normalizes exactly like the old squish.downcase digest input" do
+    inputs = fixture.fetch("answers").map { |example| example["text"] } +
+      fixture.fetch("same_answer_pairs").flat_map { |example| [ example["a"], example["b"] ] } +
+      [ "A B", "x y\t\nz", "　Hi ", nil ]
+    inputs.each do |text|
+      expect(described_class.normalize(text)).to eq(text.to_s.squish.downcase)
+      expect(described_class.fingerprint(text)).to eq(Digest::SHA256.hexdigest(text.to_s.squish.downcase))
+    end
+  end
+
   describe ".progress" do
     let(:question) { set.questions.create!(position: 1, question_text: "Q?") }
     let(:feedback) { { "strengths" => [ "Clear" ] } }

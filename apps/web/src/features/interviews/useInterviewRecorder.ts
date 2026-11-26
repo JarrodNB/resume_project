@@ -22,6 +22,8 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
   const [candidateTranscript, setCandidateTranscript] = useState<string | null>(null)
   const [effectiveMode, setEffectiveMode] = useState<TranscriptionMode>(mode)
   const [fallbackReason, setFallbackReason] = useState<string | null>(null)
+  // Stays true after a live failure even if a later segment succeeds, since earlier words may be missing.
+  const [liveFailed, setLiveFailed] = useState(false)
   const transcription = useRef<TranscriptionCapture | null>(null)
   const finalized = useRef<Promise<string | null> | null>(null)
   const generation = useRef(0)
@@ -46,7 +48,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
   const reset = useCallback(() => {
     discard()
     setStatus('idle'); setRecording(null); setError(null)
-    setTranscript(''); setCandidateTranscript(null); setFallbackReason(null); setEffectiveMode(mode)
+    setTranscript(''); setCandidateTranscript(null); setFallbackReason(null); setEffectiveMode(mode); setLiveFailed(false)
   }, [discard, mode])
 
   const stop = useCallback(() => {
@@ -100,7 +102,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       recorder.onerror = () => fail('Recording failed. Please check your microphone and try again.')
       const review = async () => {
         const finalText = finalized.current ? await finalized.current.catch(() => {
-          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Live transcription couldn\'t finish.') }
+          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Live transcription couldn\'t finish.'); setLiveFailed(true) }
           return null
         }) : null
         if (current.discard || capture.current !== current) return
@@ -124,7 +126,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
           fallback(reason) {
             if (capture.current !== current || current.discard || attempt !== listening || failed) return
             failed = true
-            setEffectiveMode('recorded'); setFallbackReason(reason)
+            setEffectiveMode('recorded'); setFallbackReason(reason); setLiveFailed(true)
             // Startup can fail synchronously, before pause listeners are ready.
             // Fence queued failures so they cannot pause a resumed or replacement capture.
             queueMicrotask(() => { if (capture.current === current && !current.discard && attempt === listening) stop() })
@@ -169,5 +171,5 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
     }, Math.max(0, current.remaining))
     setStatus('recording')
   }, [discard])
-  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, start, stop, resume, reset }
+  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, liveFailed, start, stop, resume, reset }
 }

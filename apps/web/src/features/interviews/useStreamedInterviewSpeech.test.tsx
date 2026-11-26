@@ -38,7 +38,7 @@ const authorize = { request: { query: AUTHORIZE_INTERVIEW_OUTPUT, variables: { i
 function mount(initial: InterviewSnapshotFragment, consume = vi.fn()) {
   return renderHook(({ interview }) => useStreamedInterviewSpeech(interview, consume), {
     initialProps: { interview: initial },
-    wrapper: ({ children }) => <MockedProvider mocks={[authorize]}>{children}</MockedProvider>,
+    wrapper: ({ children }) => <MockedProvider mocks={[authorize, authorize]}>{children}</MockedProvider>,
   })
 }
 async function attachedSocket() {
@@ -119,4 +119,16 @@ it('leaves a later reply that no turn produced, such as the question after Skip,
   view.rerender({ interview: snapshot('accepted', [opening, answer, saved, message('next', 'opening', 'Tell me about a conflict.')]) })
   expect(view.result.current.speech).toBeNull()
   expect(consume).toHaveBeenCalledTimes(1)
+})
+
+it('does not replay text a failed attempt streamed when the same turn is retried', async () => {
+  const view = mount(snapshot('running'))
+  const first = await attachedSocket()
+  first.receive(event('delta', { text: 'A draft from the failed attempt.', cursor: '1-0' }))
+  act(() => view.result.current.speechStarted('stream:turn'))
+  // The failure snapshot can arrive before the stream's own failed event.
+  view.rerender({ interview: snapshot('failed') })
+  view.rerender({ interview: snapshot('running') })
+  expect(view.result.current.speech).toBeNull()
+  await waitFor(() => expect(Socket.instances.length).toBe(2))
 })

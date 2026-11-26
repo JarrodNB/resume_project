@@ -57,6 +57,9 @@ export function useStreamedInterviewSpeech(interview: InterviewSnapshotFragment 
     setStream((current) => current && !current.heard && key === `stream:${current.operationId}` ? { ...current, heard: true } : current)
   }, [])
 
+  // A failed or waiting turn can be retried under the same id: forget what its earlier attempt streamed.
+  if (stream && turn?.id === stream.operationId && turn.status !== 'running' && turn.status !== 'accepted') setStream(null)
+
   let speech: StreamedInterviewSpeech | null = null
   let quietReplyId: string | null = null
   if (stream && turn && stream.operationId === turn.id && interview?.speechPlaybackMode === 'browser') {

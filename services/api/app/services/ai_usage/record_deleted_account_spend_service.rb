@@ -12,7 +12,8 @@ module AiUsage
       totals = Hash.new { |hash, key| hash[key] = { cost: 0, requests: 0 } }
       add_rows(totals, @user.ai_tasks)
       add_rows(totals, @user.ai_embedding_requests)
-      totals.each do |(spend_date, counts_toward_trial_budget), amount|
+      # Always write in the same order, so two accounts deleted at once can't wait on each other's rows.
+      totals.sort_by { |(spend_date, counts_toward_trial_budget), _| [ spend_date, counts_toward_trial_budget ? 1 : 0 ] }.each do |(spend_date, counts_toward_trial_budget), amount|
         DeletedAccountAiSpend.add(spend_date: spend_date, counts_toward_trial_budget: counts_toward_trial_budget,
                                   cost_microdollars: amount[:cost], request_count: amount[:requests])
       end

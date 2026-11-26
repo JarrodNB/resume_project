@@ -11,6 +11,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - `record_screening_service.rb` — delegates exact owned target/sibling receipt reports and
   records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when active format/fields change.
+- `practice_task_fence.rb` — builds each practice task's durable command and decides whether a task is still current (with a reason) and newest of its type. Start and apply services only ask it; Python's reader check is paired through `services/ai/tests/fixtures/practice_task_fence_cases.json` (shared RSpec/pytest cases). Change a rule and the fixture together; keep per-type differences unless proven a bug.
 - `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues replacement/feedback identity/revision commands.
 - `delete_question_service.rb` — deletes one owned question and its derived vector while retaining AI usage records.
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.

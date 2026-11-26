@@ -2,6 +2,8 @@
  * Final results replace their indexed slots; interim words are never submitted. A bounded
  * stop waits for final callbacks. Failure selects recorded fallback rather than partial text.
  */
+/** Rails refused the capture; its message is safe to show and explains what to do next. */
+export class TranscriptionRefusedError extends Error {}
 export interface TranscriptionCallbacks { text(text: string): void; fallback(reason: string): void }
 export interface TranscriptionCapture { finish(): Promise<string | null>; cancel(): void }
 export type TranscriptionMode = 'browser' | 'streaming' | 'recorded'

@@ -6,7 +6,7 @@ import { useMutation } from '@apollo/client/react'
 import { graphql } from '@/graphql/generated'
 import { PLAN_ENDED_ERROR_CODE, PlanEndedError } from '@/lib/planEnded'
 import { startStreamingTranscription } from './streamingTranscription'
-import type { TranscriptionCallbacks } from './transcriptionCapture'
+import { TranscriptionRefusedError, type TranscriptionCallbacks } from './transcriptionCapture'
 
 export const AUTHORIZE_TRANSCRIPTION = graphql(`
   mutation AuthorizeInterviewTranscription($input: AuthorizeInterviewTranscriptionInput!) {
@@ -24,7 +24,7 @@ export function useInterviewStreaming(interview: Snapshot | null) {
       interviewId: interview.id, questionId: question.id, expectedRevision: interview.revision,
     } } })).data?.authorizeInterviewTranscription
     if (payload?.errorCode === PLAN_ENDED_ERROR_CODE) throw new PlanEndedError()
-    if (payload?.errors.length) throw new Error(payload.errors.join(' '))
+    if (payload?.errors.length) throw new TranscriptionRefusedError(payload.errors.join(' '))
     if (!payload?.captureId || !payload.token) throw new Error('Streaming authorization was not received.')
     return { captureId: payload.captureId, token: payload.token }
   }), [authorize, interview])

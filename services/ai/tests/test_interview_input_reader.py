@@ -450,14 +450,15 @@ def test_recent_history_is_empty_on_first_preparation(admin_connection):
     assert read_as_reader(admin_connection, claim).payload.preparation_context["recent_questions"] == []
 
 
-@pytest.mark.parametrize("accepted_answers,final_answer", [(0, False), (1, True)])
-def test_turn_says_whether_this_answer_is_the_final_one_allowed(admin_connection, accepted_answers, final_answer):
+# The same cases as services/api/spec/services/interviews/final_answer_spec.rb, so both rules stay in step.
+@pytest.mark.parametrize("accepted_answers,answer_cap,final_answer", [(0, 2, False), (1, 2, True), (1, 3, False), (2, 3, True)])
+def test_turn_says_whether_this_answer_is_the_final_one_allowed(admin_connection, accepted_answers, answer_cap, final_answer):
     claim, _ = seed(admin_connection)
     connection = admin_connection
     session = claim.payload.interview_id
     question = _insert(connection, "interview_session_questions", interview_session_id=session, position=0,
                        content="Prepared question?", accepted_answer_count=accepted_answers)
-    connection.execute("UPDATE interview_sessions SET status = 'active', answer_cap = 2 WHERE id = %s", (session,))
+    connection.execute("UPDATE interview_sessions SET status = 'active', answer_cap = %s WHERE id = %s", (answer_cap, session))
     connection.execute(
         "UPDATE interview_session_operations SET kind = 'turn', question_id = %s, expected_revision = 0, submission_key = 'typed', request_fingerprint = 'fingerprint', transcription_mode = 'typed', candidate_transcript = 'Reviewed answer' WHERE id = %s",
         (question, claim.operation_id),

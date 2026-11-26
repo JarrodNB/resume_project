@@ -4,6 +4,7 @@ from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
 from llm.run_generative_agent import run_generative_agent
+from privacy.contact_mask import mask_outbound
 from prompts.interview_memory_anchor_instructions import (
     INTERVIEW_MEMORY_ANCHOR_INSTRUCTIONS,
     INTERVIEW_MEMORY_ANCHOR_PROMPT_VERSION,
@@ -21,7 +22,10 @@ interview_memory_anchor_agent = Agent(
 @interview_memory_anchor_agent.output_validator
 def validate_anchor(context: RunContext[str], anchor: InterviewMemoryAnchor) -> InterviewMemoryAnchor:
     """Reject skipped/reordered source text and unusable or overlong cues."""
-    if " ".join(" ".join(cue.sentence for cue in anchor.cues).split()) != " ".join(context.deps.split()):
+    # Contact masking ignores case, so a restored email or name can differ from the answer only in
+    # capitals. Compare with the known contact masked on both sides.
+    returned = mask_outbound(" ".join(" ".join(cue.sentence for cue in anchor.cues).split()))
+    if returned != mask_outbound(" ".join(context.deps.split())):
         raise ModelRetry("Copy every complete sentence exactly once, in original order, including labels.")
     if any(not cue.cue.strip() or "→" in cue.cue for cue in anchor.cues) or len(anchor.text) > 600:
         raise ModelRetry("Use nonblank cues without arrows inside them; the joined anchor must fit 600 characters.")

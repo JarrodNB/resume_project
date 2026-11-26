@@ -75,3 +75,58 @@ def test_eval_contract_detects_lost_details_and_sentence_merging():
     context.output = InterviewMemoryAnchor.model_validate({"cues": [{"sentence": case.inputs, "cue": "improved process"}]})
     scores = AnchorContract().evaluate(context)
     assert not scores["sentence_count"] and not scores["key_details"]
+
+
+def test_known_contact_is_masked_in_the_provider_request_and_restored_in_the_anchor(task_dependencies, monkeypatch):
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
+
+    answer = "I emailed jane@example.com. It worked."
+    monkeypatch.setattr("screening.records.screen_user_text", lambda *a, **kw: ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_interview_memory_anchor", input={})
+    source = {"origin": "generated", "question_set_id": str(uuid4()), "set_type": "technical", "question_id": str(uuid4()), "question_text": "What improved?", "answer_text": answer, "question_revision": 1, "answer_revision": 1}
+    dependencies = replace(task_dependencies, read_interview_question_sources=lambda _task: source)
+    seen = []
+
+    def respond(messages, info):
+        seen.extend(str(message) for message in messages)
+        cues = [{"sentence": "I emailed «email».", "cue": "Emailed"}, {"sentence": "It worked.", "cue": "worked"}]
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"cues": cues})])
+
+    install_contact_hooks()
+    with contact_scope(KnownContact.from_values(emails=["jane@example.com"])), accounted_override(interview_memory_anchor_agent, FunctionModel(respond)):
+        result = handle_ai_task(task, dependencies)
+
+    assert result.status == "completed"
+    assert "jane@example.com" not in "\n".join(seen)
+    assert "«email»" in "\n".join(seen)
+    assert result.result == {"memory_anchor": "Emailed → worked"}
+
+
+def test_answer_that_writes_the_contact_in_different_capitals_still_gets_an_anchor(task_dependencies, monkeypatch):
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
+
+    answer = "Email JANE@EXAMPLE.COM or ask jane smith. It worked."
+    monkeypatch.setattr("screening.records.screen_user_text", lambda *a, **kw: ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=3), model="typesafe:jev-1.13.0"))
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="generate_interview_memory_anchor", input={})
+    source = {"origin": "generated", "question_set_id": str(uuid4()), "set_type": "technical", "question_id": str(uuid4()), "question_text": "What improved?", "answer_text": answer, "question_revision": 1, "answer_revision": 1}
+    dependencies = replace(task_dependencies, read_interview_question_sources=lambda _task: source)
+
+    def respond(messages, info):
+        cues = [{"sentence": "Email «email» or ask «name».", "cue": "Contact"}, {"sentence": "It worked.", "cue": "worked"}]
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"cues": cues})])
+
+    install_contact_hooks()
+    contact = KnownContact.from_values(names=["Jane Smith"], emails=["jane@example.com"])
+    with contact_scope(contact), accounted_override(interview_memory_anchor_agent, FunctionModel(respond)):
+        result = handle_ai_task(task, dependencies)
+
+    assert result.status == "completed"
+    assert result.result == {"memory_anchor": "Contact → worked"}

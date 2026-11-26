@@ -6,6 +6,7 @@
  *   - parsedResumeFromTaskResult: reads a task result into a ParsedResume with defaults filled in
  *   - emptyExperience, emptyProject, emptyEducation, emptyCertification: blank entries for "Add" buttons
  */
+import { hasUrlScheme, isWebUrl } from '@/lib/webUrl'
 
 export interface ParsedLink {
   label: string
@@ -90,23 +91,29 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
   }
 }
 
-/** Reads structured or legacy string-only links and makes bare web addresses valid URLs. */
+/** Reads structured or legacy string-only links and makes bare web addresses valid URLs.
+ * Links with a scheme other than http or https (such as javascript:) are dropped, because the
+ * text comes from an uploaded file and the URL is later opened or put into exported files. */
 export function parsedLinks(value: unknown): ParsedLink[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((link) => {
-    if (typeof link === 'string') return [{ label: link, url: normalizeBareWebUrl(link) }]
+    if (typeof link === 'string') return withSafeUrl({ label: link, url: normalizeBareWebUrl(link) })
     if (typeof link !== 'object' || link === null) return []
     const record = link as Record<string, unknown>
     return typeof record.label === 'string' && typeof record.url === 'string'
-      ? [{ label: record.label, url: normalizeBareWebUrl(record.url) }]
+      ? withSafeUrl({ label: record.label, url: normalizeBareWebUrl(record.url) })
       : []
   })
+}
+
+function withSafeUrl(link: ParsedLink): ParsedLink[] {
+  return hasUrlScheme(link.url) && !isWebUrl(link.url) ? [] : [link]
 }
 
 /** Adds the conventional secure scheme when an extracted link is a bare domain address. */
 function normalizeBareWebUrl(value: string): string {
   const trimmed = value.trim()
-  if (!trimmed || /^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed
+  if (!trimmed || hasUrlScheme(trimmed)) return trimmed
   return /^(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:[/:?#][^\s]*)?$/i.test(trimmed)
     ? `https://${trimmed}`
     : trimmed

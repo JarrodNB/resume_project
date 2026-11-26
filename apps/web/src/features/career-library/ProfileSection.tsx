@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
+import { isWebUrl } from '@/lib/webUrl'
 import { ProfileFormDialog } from './ProfileFormDialog'
 
 type Profile = CareerLibraryQuery['me']
@@ -27,7 +28,12 @@ export function ProfileSection({ profile }: { profile: Profile }) {
         {profile.links.length > 0 && (
           <ul>
             {profile.links.map((link) => (
-              <li key={link.url}><a className="underline-offset-4 hover:underline" href={link.url}>{link.label}</a></li>
+              <li key={link.url}>
+                {/* Links saved before imports were filtered may use another scheme; show those as plain text. */}
+                {isWebUrl(link.url)
+                  ? <a className="underline-offset-4 hover:underline" href={link.url}>{link.label}</a>
+                  : <span>{link.label}</span>}
+              </li>
             ))}
           </ul>
         )}

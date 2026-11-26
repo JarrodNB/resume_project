@@ -3,6 +3,7 @@
 Run with `python -m evals.run_chat_evals`; this calls Jev and configured generation
 providers and incurs charges. It makes no Rails writes. Its in-memory owner records
 provider receipts while the production adapter handles screening, privacy and agents.
+Fake tool readers record which tools reached them, so cases can require or forbid tool use.
 Deterministic checks measure targeted continuity and honesty signals, not broad quality.
 """
 import os
@@ -23,8 +24,10 @@ from evals.chat_evaluators import (
     ChatEvalOutput,
 )
 from evals.telemetry import evaluate_dataset
+from mcp_tools.career_library import READ_CAREER_LIBRARY
 from mcp_tools.client import ToolServerConnection
 from mcp_tools.local_server import serve_in_background
+from mcp_tools.saved_jobs import LIST_SAVED_JOBS, READ_JOB_SUMMARY
 from mcp_tools.server import create_mcp_server
 from prompts.chat_instructions import CHAT_PROMPT_VERSION
 from prompts.chat_summary_instructions import CHAT_SUMMARY_PROMPT_VERSION
@@ -78,12 +81,23 @@ async def execute_chat_case(case, *, models=None):
             return "already_saved" if existing.response == response else "conflict"
         return "full" if len(contexts) >= 100 else "ready"
 
+    tool_calls = []
+
+    def recorded(tool_name, read):
+        """Note that a tool reached its reader, then read the case's synthetic data."""
+        def read_and_record(*args):
+            tool_calls.append(tool_name)
+            return read(*args)
+        return read_and_record
+
     async def execute(model_pool):
         # Evals never read the database: a local tool server serves the case's synthetic library.
         secret = secrets.token_urlsafe(48)
-        server = create_mcp_server(secret=secret, read_library=lambda user_id: case.career_library,
-            read_jobs=lambda user_id: case.saved_jobs,
-            read_job_summary=lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None))
+        server = create_mcp_server(secret=secret,
+            read_library=recorded(READ_CAREER_LIBRARY, lambda user_id: case.career_library),
+            read_jobs=recorded(LIST_SAVED_JOBS, lambda user_id: case.saved_jobs),
+            read_job_summary=recorded(READ_JOB_SUMMARY,
+                lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None)))
         with serve_in_background(server.http_app(path="/mcp", stateless_http=True)) as url:
             await ChatExecutionAdapter(owner, model_pool,
                 tool_server=ToolServerConnection(url=url, secret=secret), context_save_check=check_context).execute(current, None)
@@ -99,7 +113,8 @@ async def execute_chat_case(case, *, models=None):
     return ChatEvalOutput(career_contexts=result.get("career_contexts", []), status="completed" if owner.result else "failed", reply=result.get("reply", ""),
         summary=(result.get("summary_update") or {}).get("text", ""), failure_code=owner.failure,
         known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
-        accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()))
+        accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()),
+        tool_calls=tool_calls)
 
 
 def run_chat_evals():

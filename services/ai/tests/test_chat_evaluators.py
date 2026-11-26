@@ -17,7 +17,7 @@ def anyio_backend():
 
 def test_chat_evaluation_labels_are_separate_and_bad_outputs_lose_scores():
     dataset = load_chat_dataset()
-    assert len(dataset.cases) == 15
+    assert len(dataset.cases) == 19
     case = dataset.cases[0]
     assert 'required_reply_terms' not in case.inputs.model_dump()
     evaluator = CareerChatOutcome()
@@ -117,3 +117,61 @@ def test_context_save_evaluator_catches_unsolicited_and_invented_saves():
     assert unsolicited["career_context_save_policy"] == 0
     invented = evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(expects_context_save=True, forbidden_context_terms=["50%"]), output=saved))
     assert invented["career_context_evidence"] == 0
+
+
+def test_tool_use_evaluator_requires_and_forbids_recorded_tools():
+    evaluator = CareerChatOutcome()
+    expected = ChatEvalExpectations(required_tool_calls=["list_saved_jobs", "read_job_summary"],
+                                    forbidden_tool_calls=["read_career_library"])
+    def score(tool_calls):
+        output = ChatEvalOutput(status="completed", reply="Denver.", tool_calls=tool_calls)
+        return evaluator.evaluate(SimpleNamespace(metadata=expected, output=output))["tool_use_policy"]
+    assert score(["list_saved_jobs", "read_job_summary"]) == 1
+    assert score(["read_job_summary"]) == 0
+    assert score(["list_saved_jobs", "read_job_summary", "read_career_library"]) == 0
+    assert evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(),
+        output=ChatEvalOutput(status="completed", reply="Hi.")))["tool_use_policy"] == 1
+
+
+def test_empty_library_case_rewards_honesty_and_penalizes_invented_roles():
+    case = next(case for case in load_chat_dataset().cases if case.name == "empty_career_library_does_not_invent_experience")
+    assert case.inputs.career_library.is_empty()
+    evaluator = CareerChatOutcome()
+    def scores(reply):
+        return evaluator.evaluate(SimpleNamespace(metadata=case.metadata,
+            output=ChatEvalOutput(status="completed", reply=reply, tool_calls=["read_career_library"])))
+    honest = scores("Your saved career library is empty, so add a past role first.")
+    invented = scores("Lead with your role at Northwind, where you cut costs by 20%.")
+    assert honest["reply_continuity"] == 1 and honest["unsupported_action_claims_absent"] == 1
+    assert invented["reply_continuity"] == 0 and invented["unsupported_action_claims_absent"] == 0
+
+
+@pytest.mark.anyio
+async def test_oldest_saved_job_eval_records_list_then_summary(monkeypatch):
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from tests.test_chat_execution import Models, tool_returns
+
+    monkeypatch.setattr('pii._detect_spans', lambda text: [])
+    monkeypatch.setattr(ChatExecutionAdapter, '_screen', AsyncMock())
+    prompts = []
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            prompts.append(str(messages))
+            yield {0: DeltaToolCall(name='list_saved_jobs', json_args='{}', tool_call_id='list')}
+        elif len(returns) == 1:
+            line = next(line for line in returns[0].content.split('\n\n') if 'Northfield Clinic' in line)
+            reference = line.split('Reference: ')[1].splitlines()[0]
+            yield {0: DeltaToolCall(name='read_job_summary', json_args=json.dumps({'job_reference': reference}), tool_call_id='summary')}
+        else:
+            assert 'Location: Denver, CO' in returns[1].content and 'Phlebotomy' in returns[1].content
+            yield 'Denver, CO; phlebotomy certification.'
+    case = next(case for case in load_chat_dataset().cases if case.name == 'reads_oldest_saved_job_through_list')
+    output = await execute_chat_case(case.inputs, models=Models(stream))
+    # Only the five newest jobs reach the prompt, so the case needs the list tool.
+    assert 'Evergreen Builders' in prompts[0] and 'Fernway Foods' not in prompts[0]
+    assert output.tool_calls == ['list_saved_jobs', 'read_job_summary']
+    assert CareerChatOutcome().evaluate(SimpleNamespace(metadata=case.metadata, output=output))['tool_use_policy'] == 1

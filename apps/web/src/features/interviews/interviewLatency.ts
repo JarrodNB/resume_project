@@ -13,6 +13,8 @@ export type InterviewLatencyStage =
   | 'submit-to-audio'
 
 type Detail = { mode: string }
+/** Browser speech that began from the streamed reply rather than the saved one. */
+export const STREAMED_SPEECH_TIMING: Detail = { mode: 'browser-streamed' }
 const ALL_MODES: Detail = { mode: 'all' }
 type Pending = { start: number; key: string | null; detail: Detail }
 type Summary = { stage: InterviewLatencyStage; mode: string; count: number; p50Ms: number; p95Ms: number; maxMs: number }
@@ -25,10 +27,12 @@ export function startInterviewTiming(stage: InterviewLatencyStage, detail: Detai
   pending.set(stage, { start: performance.now(), key, detail })
 }
 
-/** Attach a key to a stage that started before its message existed. */
-export function keyInterviewTiming(stage: InterviewLatencyStage, key: string) {
+/** Attach a key to a stage that started before its message existed, and optionally the mode that will play it. */
+export function keyInterviewTiming(stage: InterviewLatencyStage, key: string, detail?: Detail) {
   const current = pending.get(stage)
-  if (current) current.key = key
+  if (!current) return
+  current.key = key
+  if (detail) current.detail = detail
 }
 
 /** Record a pending stage when its key matches. Returns the duration in milliseconds, or null. */

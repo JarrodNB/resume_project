@@ -256,7 +256,8 @@ it('uses one playback control to play and stop, then hides it after the turn end
 
 it('speaks growing text sentence by sentence, holding the unfinished one, without repeating at the end', async () => {
   const changed = vi.fn()
-  const props = { messageId: 'stream', automatic: true, streaming: true, onPlayingChange: changed }
+  const started = vi.fn()
+  const props = { messageId: 'stream', automatic: true, streaming: true, onPlayingChange: changed, onSpeechStart: started }
   const view = render(<BrowserInterviewSpeech {...props} text="You cut the wait" />)
   await act(() => new Promise((resolve) => setTimeout(resolve, 5)))
   expect(speak).not.toHaveBeenCalled()
@@ -264,6 +265,10 @@ it('speaks growing text sentence by sentence, holding the unfinished one, withou
   view.rerender(<BrowserInterviewSpeech {...props} text={'You cut the wait.\n\nHow did'} />)
   expect(speak).toHaveBeenCalledTimes(1)
   expect(speak.mock.calls[0][0].text).toBe('You cut the wait.')
+  // Asking the engine to speak is not hearing it; only the engine's start counts.
+  expect(started).not.toHaveBeenCalled()
+  act(() => speak.mock.calls[0][0].onstart())
+  expect(started).toHaveBeenCalledExactlyOnceWith('stream')
   act(() => speak.mock.calls[0][0].onend())
   // Still speaking: the microphone stays off while the next sentence is written.
   expect(speak).toHaveBeenCalledTimes(1)
@@ -271,6 +276,8 @@ it('speaks growing text sentence by sentence, holding the unfinished one, withou
   view.rerender(<BrowserInterviewSpeech {...props} streaming={false} text={'You cut the wait.\n\nHow did you measure it?'} />)
   expect(speak).toHaveBeenCalledTimes(2)
   expect(speak.mock.calls[1][0].text).toBe('How did you measure it?')
+  act(() => speak.mock.calls[1][0].onstart())
+  expect(started).toHaveBeenCalledOnce()
   act(() => speak.mock.calls[1][0].onend())
   expect(speak).toHaveBeenCalledTimes(2)
   expect(changed).toHaveBeenLastCalledWith(false, 'stream')

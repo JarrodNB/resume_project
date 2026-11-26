@@ -8,7 +8,8 @@ import { act, render, cleanup, fireEvent, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPage } from './InterviewPage'
-import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK, REQUEST_INTERVIEW_REFERENCES } from './interviewOperations'
+import { AUTHORIZE_INTERVIEW_OUTPUT, AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK, REQUEST_INTERVIEW_REFERENCES } from './interviewOperations'
+import { cancelInterviewTiming, startInterviewTiming } from './interviewLatency'
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null as string | null, errorCode: null as string | null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
@@ -1836,5 +1837,126 @@ describe('hands-free setting', () => {
     expect(handsFree.getByRole('radio', { name: 'On' })).toBeDisabled()
     expect(silence.getByRole('radio', { name: 'Quick 1.5 sec' })).toBeDisabled()
     expect(screen.getByText(/Hands-free mode needs live transcription/)).toBeVisible()
+  })
+})
+
+describe('streamed interviewer speech', () => {
+  class Socket {
+    static instances: Socket[] = []
+    onopen: (() => void) | null = null
+    onmessage: ((event: { data: string }) => void) | null = null
+    onclose: (() => void) | null = null
+    onerror: (() => void) | null = null
+    constructor() { Socket.instances.push(this) }
+    send() {}
+    close() {}
+    receive(value: object) { act(() => this.onmessage?.({ data: JSON.stringify({ version: 1, feature: 'interviews', operation_id: 'turn', attempt_id: 'attempt', claim_generation: 1, ...value }) })) }
+  }
+  const speak = vi.fn()
+  const cancel = vi.fn()
+  const authorize = { request: { query: AUTHORIZE_INTERVIEW_OUTPUT, variables: { input: { feature: 'interviews', operationId: 'turn' } } }, maxUsageCount: Infinity,
+    result: { data: { authorizeAiExecutionStream: { __typename: 'AuthorizeAiExecutionStreamPayload', token: 'observer-capability', expiresAt: '2099-12-01T00:01:00Z', errors: [] } } } }
+  const answer = { id: 'answer', questionId: 'question', kind: 'answer', position: 2, content: 'I shortened the wait.' }
+  const turn = (status: string, failureCode: string | null = null) => ({ id: 'turn', questionId: 'question', messageId: null, kind: 'turn', status, failureCode, checkpoint: null, submissionKey: 'key', canRetry: false })
+  function interviewWith(status: string, revision: number, extra: object[] = [], failureCode: string | null = null) {
+    return { ...snapshot, speechPlaybackMode: 'browser', revision, operations: [turn(status, failureCode)], messages: [snapshot.messages[0], answer, ...extra] }
+  }
+  const followUp = (content: string, acknowledgement: string | null) => ({ id: 'follow-up', questionId: 'question', kind: 'follow_up', position: 3, content, acknowledgement, spokenContent: [acknowledgement, content].filter(Boolean).join('\n\n') })
+  async function streamTurn(text: string, beforeSubmit = () => {}) {
+    state.interview = { ...snapshot, speechPlaybackMode: 'browser', operations: [] }
+    renderInterview('/practice/interviews/session', [authorize])
+    beforeSubmit()
+    saveTurn(interviewWith('running', 1))
+    await waitFor(() => expect(Socket.instances).toHaveLength(1))
+    const socket = Socket.instances[0]
+    act(() => socket.onopen?.())
+    socket.receive({ type: 'attached' })
+    socket.receive({ type: 'delta', text, cursor: '1-0' })
+    return socket
+  }
+  function saveTurn(next: object) {
+    state.interview = next
+    act(() => recorder.refresh())
+  }
+  const spoken = () => speak.mock.calls.map(([utterance]) => utterance.text)
+  beforeEach(() => {
+    Socket.instances = []
+    vi.stubGlobal('WebSocket', Socket)
+    vi.stubGlobal('speechSynthesis', { speak, cancel })
+    vi.stubGlobal('SpeechSynthesisUtterance', class { text: string; onstart: (() => void) | null = null; onend: (() => void) | null = null; onerror: (() => void) | null = null; constructor(text: string) { this.text = text } })
+  })
+  afterEach(() => {
+    performance.clearMeasures()
+    for (const stage of ['submit-to-reply', 'reply-to-audio', 'submit-to-audio'] as const) cancelInterviewTiming(stage)
+  })
+
+  it('stops the voice and leaves the saved reply to read when it differs from speech already heard', async () => {
+    await streamTurn('You cut the wait.\n\nHow')
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    act(() => speak.mock.calls[0][0].onstart())
+    saveTurn(interviewWith('accepted', 2, [followUp('What changed for the team?', 'You reduced the wait.')]))
+    const room = within(screen.getByRole('region', { name: 'Current interview turn' }))
+    expect(room.getByText('What changed for the team?')).toBeVisible()
+    expect(cancel).toHaveBeenCalled()
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    // Nothing already said is spoken again; the candidate can still replay the saved reply.
+    expect(spoken()).toEqual(['You cut the wait.'])
+    expect(room.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+  })
+
+  it('speaks the saved reply as usual when it differs before any streamed speech was heard', async () => {
+    await streamTurn('You cut the wait.\n\nHow')
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    saveTurn(interviewWith('accepted', 2, [followUp('What changed for the team?', 'You reduced the wait.')]))
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.', 'You reduced the wait.']))
+  })
+
+  it('does not replay the saved reply after the stream fails part way through speech', async () => {
+    const socket = await streamTurn('You cut the wait.\n\nHow')
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    act(() => speak.mock.calls[0][0].onstart())
+    socket.receive({ type: 'failed', cursor: '2-0' })
+    expect(cancel).toHaveBeenCalled()
+    saveTurn(interviewWith('accepted', 2, [followUp('How did you measure it?', 'You cut the wait.')]))
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('How did you measure it?')).toBeVisible()
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    expect(spoken()).toEqual(['You cut the wait.'])
+  })
+
+  it('stops the voice and shows the answer failure when the turn fails after speech began', async () => {
+    await streamTurn('You cut the wait.\n\nHow')
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    act(() => speak.mock.calls[0][0].onstart())
+    saveTurn(interviewWith('failed', 2, [], 'provider_error'))
+    expect(cancel).toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Answer failed: provider error.')
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    expect(spoken()).toEqual(['You cut the wait.'])
+  })
+
+  it('measures streamed speech as its own mode when the first sentence starts before the saved reply', async () => {
+    await streamTurn('You cut the wait.\n\nHow', () => {
+      startInterviewTiming('submit-to-reply')
+      startInterviewTiming('submit-to-audio', { mode: 'browser' })
+    })
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    act(() => speak.mock.calls[0][0].onstart())
+    const entries = performance.getEntriesByName('interview:submit-to-audio') as PerformanceMeasure[]
+    expect(entries.map((entry) => entry.detail)).toEqual([{ mode: 'browser-streamed' }])
+  })
+
+  it('measures streamed speech as its own mode, even when the saved reply arrives before the first sentence', async () => {
+    await streamTurn('You cut the wait', () => {
+      startInterviewTiming('submit-to-reply')
+      startInterviewTiming('submit-to-audio', { mode: 'browser' })
+    })
+    expect(speak).not.toHaveBeenCalled()
+    saveTurn(interviewWith('accepted', 2, [followUp('How did you measure it?', 'You cut the wait.')]))
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    act(() => speak.mock.calls[0][0].onstart())
+    for (const stage of ['submit-to-audio', 'reply-to-audio']) {
+      const entries = performance.getEntriesByName(`interview:${stage}`) as PerformanceMeasure[]
+      expect(entries.map((entry) => entry.detail)).toEqual([{ mode: 'browser-streamed' }])
+    }
   })
 })

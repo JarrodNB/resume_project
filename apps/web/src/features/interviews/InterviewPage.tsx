@@ -6,7 +6,7 @@
  * Saved server state controls progression; recording, review and submission remain explicit, except that
  * optional hands-free mode pauses on silence and sends after a countdown the candidate can stop.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { SaveInterviewAnswer } from './SaveInterviewAnswer'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
@@ -43,7 +43,7 @@ import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { useHandsFreeAnswer } from './useHandsFreeAnswer'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { useStreamedInterviewSpeech } from './useStreamedInterviewSpeech'
-import { finishInterviewTiming, keyInterviewTiming, startInterviewTiming } from './interviewLatency'
+import { finishInterviewTiming, keyInterviewTiming, startInterviewTiming, STREAMED_SPEECH_TIMING } from './interviewLatency'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewStreaming } from './useInterviewStreaming'
@@ -113,7 +113,7 @@ function OwnedInterview({ id }: { id: string }) {
   }, [])
   const interview = state.interview
   const newSpeech = useNewInterviewSpeech(interview)
-  const streamedSpeech = useStreamedInterviewSpeech(interview, newSpeech.consume)
+  const { speech: streamedSpeech, speechStarted: streamedSpeechStarted } = useStreamedInterviewSpeech(interview, newSpeech.consume)
   useFocusMode(interview?.status === 'active' && !state.loadError)
   const recordingWarning = <RecordingUnsavedChanges textDraft={Boolean(draftText)} dirty={!terminal && (Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing')} />
   const autoPrompt = interview ? currentInterviewPrompt(interview).reply : undefined
@@ -134,12 +134,16 @@ function OwnedInterview({ id }: { id: string }) {
     if (autoPrompt?.id && answerSubmitted) { setAnswerSubmitted(false); setNextQuestionReady(true) }
   }
   // A new prompt after a submission in this page ends the reply wait and starts the wait for sound.
+  // When streamed speech carries on with the saved reply, its player (not the reply's) finishes both waits.
   const autoPromptId = autoPrompt?.id
   const playbackMode = interview?.speechPlaybackMode
+  const streamedSpeechKey = useEffectEvent(() => streamedSpeech?.key)
   useEffect(() => {
     if (!autoPromptId || finishInterviewTiming('submit-to-reply') === null) return
-    startInterviewTiming('reply-to-audio', { mode: playbackMode ?? 'unknown' }, autoPromptId)
-    keyInterviewTiming('submit-to-audio', autoPromptId)
+    const streamedKey = streamedSpeechKey()
+    const detail = streamedKey ? STREAMED_SPEECH_TIMING : { mode: playbackMode ?? 'unknown' }
+    startInterviewTiming('reply-to-audio', detail, streamedKey ?? autoPromptId)
+    keyInterviewTiming('submit-to-audio', streamedKey ?? autoPromptId, detail)
   }, [autoPromptId, playbackMode])
   useEffect(() => {
     if (!nextQuestionReady) return
@@ -251,7 +255,7 @@ function OwnedInterview({ id }: { id: string }) {
       {interview.status === 'active' && interview.executionMode === 'real' && <InterviewClarification key={`clarification:${reply.id}`} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
       {interview.status === 'active' && interview.executionMode === 'real' && (reply.kind === 'opening' || reply.kind === 'follow_up') && <AvoidInterviewPromptButton key={`avoid:${reply.id}`} interviewId={id} messageId={reply.id} avoided={reply.avoided} disabled={turnActive || state.busy} />}
       {interview.status === 'active' && <SkipInterviewQuestionButton pending={state.skipPending} dirty={Boolean(draftText) || Boolean(recorder.recording)} disabled={(!canRecord && !state.skipPending) || turnActive || state.loading || Boolean(state.loadError) || Boolean(state.unresolved) || speechPlaying || reviewPending || savingRecording || recorder.status === "recording" || recorder.status === "requesting" || recorder.status === "finalizing"} busy={state.busy} error={state.error} skip={state.skipQuestion} onOpenChange={setSkipOpen} onSkipped={answer.clear} />}
-      {browserSpeech && <BrowserInterviewSpeech key={streamedSpeech?.key ?? reply.id} messageId={streamedSpeech?.key ?? reply.id} text={streamedSpeech?.text ?? reply.spokenContent ?? reply.content} streaming={streamedSpeech?.streaming} automatic={Boolean(streamedSpeech) || newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== (streamedSpeech?.key ?? reply.id)} onPlayingChange={playbackChanged} />}
+      {browserSpeech && <BrowserInterviewSpeech key={streamedSpeech?.key ?? reply.id} messageId={streamedSpeech?.key ?? reply.id} text={streamedSpeech?.text ?? reply.spokenContent ?? reply.content} streaming={streamedSpeech?.streaming} automatic={Boolean(streamedSpeech) || newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== (streamedSpeech?.key ?? reply.id)} onPlayingChange={playbackChanged} onSpeechStart={streamedSpeechStarted} />}
       {!browserSpeech && speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       <Button variant="ghost" size="icon" className="size-11" aria-label={muted ? 'Unmute interviewer' : 'Mute interviewer'} title={muted ? 'Unmute interviewer' : 'Mute interviewer'} aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</Button>
       </div>

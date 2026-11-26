@@ -21,6 +21,8 @@ type Props = {
   otherSpeechPlaying?: boolean
   onAutomaticAttempt?: (id: string) => void
   onPlayingChange?: (playing: boolean, id: string) => void
+  /** Called when the browser actually starts saying the first sentence of a play. */
+  onSpeechStart?: (id: string) => void
 }
 type Playback = {
   utterance: SpeechSynthesisUtterance | null
@@ -36,7 +38,7 @@ let activePlayback: Playback | null = null
 export function BrowserInterviewSpeech(props: Props) {
   return <BrowserSpeech key={props.messageId} {...props} />
 }
-function BrowserSpeech({ messageId, text, streaming = false, automatic = false, muted = false, disabled = false, otherSpeechPlaying = false, onAutomaticAttempt, onPlayingChange }: Props) {
+function BrowserSpeech({ messageId, text, streaming = false, automatic = false, muted = false, disabled = false, otherSpeechPlaying = false, onAutomaticAttempt, onPlayingChange, onSpeechStart }: Props) {
   const supported = Boolean(globalThis.speechSynthesis && globalThis.SpeechSynthesisUtterance)
   const playback = useRef<Playback | null>(null)
   const allowed = useRef(!muted && !disabled)
@@ -128,6 +130,7 @@ function BrowserSpeech({ messageId, text, streaming = false, automatic = false, 
       utterance.onstart = () => {
         if (!live() || current.utterance !== utterance) return
         started = true
+        if (position === 1) onSpeechStart?.(messageId)
         // Only an automatic first sentence measures the reply-to-sound wait; manual plays include reading time.
         if (automaticPlay && position === 1) {
           finishInterviewTiming('reply-to-audio', messageId)
@@ -170,7 +173,7 @@ function BrowserSpeech({ messageId, text, streaming = false, automatic = false, 
         speakNext()
       }, 300)
     } else speakNext()
-  }, [messageId, notify, stop, supported])
+  }, [messageId, notify, onSpeechStart, stop, supported])
   useEffect(() => {
     if (!automatic || attempted.current) return
     const timer = setTimeout(() => {

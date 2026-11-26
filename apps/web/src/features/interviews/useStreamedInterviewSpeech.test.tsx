@@ -1,4 +1,5 @@
-/** Streamed interviewer text becomes speech while a browser-voice turn runs, then hands off to saved text. */
+/** Streamed interviewer text becomes speech while a browser-voice turn runs, then hands off to saved text.
+ * A saved reply that differs from speech already heard is left on screen without speaking it again. */
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { MockedProvider } from '@apollo/client/testing/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -56,21 +57,37 @@ it('streams the running follow-up and finishes with the saved text when it match
   const view = mount(snapshot('running'), consume)
   const socket = await attachedSocket()
   socket.receive(event('delta', { text: 'You cut the wait.', cursor: '1-0' }))
-  expect(view.result.current).toEqual({ key: 'stream:turn', text: 'You cut the wait.', streaming: true })
+  expect(view.result.current.speech).toEqual({ key: 'stream:turn', text: 'You cut the wait.', streaming: true })
   socket.receive(event('delta', { text: '\n\nHow did you measure it?', cursor: '2-0' }))
   const saved = message('follow-up', 'follow_up', 'How did you measure it?', 'You cut the wait.')
   view.rerender({ interview: snapshot('accepted', [opening, message('answer', 'answer', 'I shortened it.'), saved]) })
-  expect(view.result.current).toEqual({ key: 'stream:turn', text: 'You cut the wait.\n\nHow did you measure it?', streaming: false })
+  expect(view.result.current.speech).toEqual({ key: 'stream:turn', text: 'You cut the wait.\n\nHow did you measure it?', streaming: false })
   // The saved reply must not autoplay again as new speech.
   expect(consume).toHaveBeenCalledWith('follow-up')
 })
 
-it('leaves a saved reply that differs from the streamed text to normal playback', async () => {
-  const view = mount(snapshot('running'))
+const differentReply = () => snapshot('accepted', [opening, message('answer', 'answer', 'I shortened it.'), message('follow-up', 'follow_up', 'What changed?')])
+
+it('leaves a saved reply that differs from unheard streamed text to normal playback', async () => {
+  const consume = vi.fn()
+  const view = mount(snapshot('running'), consume)
   const socket = await attachedSocket()
   socket.receive(event('delta', { text: 'A different draft.', cursor: '1-0' }))
-  view.rerender({ interview: snapshot('accepted', [opening, message('answer', 'answer', 'I shortened it.'), message('follow-up', 'follow_up', 'What changed?')]) })
-  expect(view.result.current).toBeNull()
+  view.rerender({ interview: differentReply() })
+  expect(view.result.current.speech).toBeNull()
+  expect(consume).not.toHaveBeenCalled()
+})
+
+it('stops and does not autoplay a saved reply that differs from streamed speech already heard', async () => {
+  const consume = vi.fn()
+  const view = mount(snapshot('running'), consume)
+  const socket = await attachedSocket()
+  socket.receive(event('delta', { text: 'A different draft.', cursor: '1-0' }))
+  act(() => view.result.current.speechStarted('another-message'))
+  act(() => view.result.current.speechStarted('stream:turn'))
+  view.rerender({ interview: differentReply() })
+  expect(view.result.current.speech).toBeNull()
+  expect(consume).toHaveBeenCalledWith('follow-up')
 })
 
 it('stops streamed speech when the stream fails', async () => {
@@ -78,12 +95,12 @@ it('stops streamed speech when the stream fails', async () => {
   const socket = await attachedSocket()
   socket.receive(event('delta', { text: 'You cut the wait.', cursor: '1-0' }))
   socket.receive(event('failed', { cursor: '2-0' }))
-  expect(view.result.current).toBeNull()
+  expect(view.result.current.speech).toBeNull()
 })
 
 it('does not observe provider playback', async () => {
   const view = mount(snapshot('running', [opening], 'provider'))
   await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
   expect(Socket.instances).toHaveLength(0)
-  expect(view.result.current).toBeNull()
+  expect(view.result.current.speech).toBeNull()
 })

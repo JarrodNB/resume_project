@@ -1581,7 +1581,8 @@ describe('hands-free answers', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     microphone.level = 0
-    recorder.microphoneStream = () => ({})
+    recorder.microphoneStream = () => ({ getAudioTracks: () => [] })
+    vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[]) {} })
     vi.stubGlobal('AudioContext', class {
       state = 'running'
       resume() { return Promise.resolve() }
@@ -1674,6 +1675,28 @@ describe('hands-free answers', () => {
     await advance(10_000)
     expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
     expect(state.answerText).not.toHaveBeenCalled()
+  })
+
+  it('cancels the countdown and keeps recording into the same answer when the candidate speaks again', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    await advance(2600)
+    finishTranscript('I led the migration.')
+    expect(screen.getByText('Sending in 3…')).toBeVisible()
+    microphone.level = 0.2
+    await advance(100)
+    expect(recorder.resume).not.toHaveBeenCalled()
+    await advance(300)
+    expect(recorder.resume).toHaveBeenCalledOnce()
+    expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+    recorder.status = 'recording'; recorder.recording = null; recorder.candidateTranscript = null; recorder.transcript = 'It shipped early.'
+    act(() => recorder.refresh())
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('I led the migration.\n\nIt shipped early.')
+    await advance(10_000)
+    expect(state.answerText).not.toHaveBeenCalled()
+    microphone.level = 0
+    await advance(2600)
+    expect(recorder.stop).toHaveBeenCalledTimes(2)
   })
 
   it('starts no countdown when the final transcript is blank', async () => {

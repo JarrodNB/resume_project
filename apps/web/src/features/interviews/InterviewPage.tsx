@@ -97,7 +97,7 @@ function OwnedInterview({ id }: { id: string }) {
   const [skipOpen, setSkipOpen] = useState(false)
   const microphone = useInterviewMicSettings(user?.id ?? '')
   // The saved hands-free choice is kept but inactive while recorded transcription is chosen.
-  const handsFree = useHandsFreeAnswer({ enabled: microphone.handsFree && transcriptionMode !== 'recorded', silenceSeconds: microphone.silenceSeconds, recorder, stop: answer.stop })
+  const handsFree = useHandsFreeAnswer({ enabled: microphone.handsFree && transcriptionMode !== 'recorded', silenceSeconds: microphone.silenceSeconds, recorder, stop: answer.stop, resume: answer.resume })
   const [pageVisible, setPageVisible] = useState(!document.hidden)
   useEffect(() => {
     const changed = () => setPageVisible(!document.hidden)

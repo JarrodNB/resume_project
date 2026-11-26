@@ -2,10 +2,12 @@
  * Listening for silence starts only after live transcription has recognised a word in this capture,
  * so a slow start never ends the answer. Silence pauses capture through the normal pause path; once
  * the final transcript arrives, a countdown is offered only if it has words and live transcription
- * finished. The countdown itself and the send live in the answer editor.
+ * finished. Speaking during the countdown cancels it and continues recording through the normal
+ * continue path, so new words are added to the same answer. The countdown itself and the send live
+ * in the answer editor.
  */
 import { useEffect, useRef, useState } from 'react'
-import { openMicrophoneLevel, watchForEndOfSpeech } from './endOfSpeech'
+import { openMicrophoneLevel, watchForEndOfSpeech, watchForSpeech } from './endOfSpeech'
 import type { TranscriptionMode } from './transcriptionCapture'
 
 interface Options {
@@ -21,11 +23,13 @@ interface Options {
   }
   /** The normal "Pause recording" action. */
   stop: () => void
+  /** The normal "Continue recording" action, which adds new words to the same answer. */
+  resume: () => void
 }
 
-type Phase = 'listening' | 'finishing' | 'countdown'
+type Phase = 'listening' | 'finishing' | 'countdown' | 'resuming'
 
-export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop }: Options) {
+export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop, resume }: Options) {
   const [phase, setPhase] = useState<Phase>('listening')
   const { status, effectiveMode, microphoneStream } = recorder
   // Settle the phase from the recorder during render, so a stale countdown never shows.
@@ -33,10 +37,13 @@ export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop }: 
     const finalWords = status === 'ready' && effectiveMode !== 'recorded' && Boolean(recorder.candidateTranscript?.trim())
     setPhase(finalWords ? 'countdown' : 'listening')
   }
-  if (phase === 'countdown' && status !== 'ready') setPhase('listening')
+  if ((phase === 'countdown' || phase === 'resuming') && status !== 'ready') setPhase('listening')
 
   const stopRef = useRef(stop)
-  useEffect(() => { stopRef.current = stop }, [stop])
+  const resumeRef = useRef(resume)
+  useEffect(() => { stopRef.current = stop; resumeRef.current = resume }, [stop, resume])
+  // Continue the same capture; the phase returns to listening once recording restarts.
+  useEffect(() => { if (phase === 'resuming') resumeRef.current() }, [phase])
   const heardWords = /\S/u.test(recorder.transcript)
   const watching = enabled && phase === 'listening' && status === 'recording' && effectiveMode !== 'recorded' && heardWords
   useEffect(() => {
@@ -52,9 +59,20 @@ export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop }: 
     return () => { stopWatching(); microphone.close() }
   }, [watching, silenceSeconds, microphoneStream])
 
+  // Speaking during the countdown cancels it and continues recording into the same answer.
+  const countingDown = enabled && phase === 'countdown'
+  useEffect(() => {
+    if (!countingDown) return
+    const stream = microphoneStream()
+    const microphone = stream && openMicrophoneLevel(stream)
+    if (!microphone) return
+    const stopWatching = watchForSpeech({ readLevel: microphone.readLevel, onSpeech() { setPhase('resuming') } })
+    return () => { stopWatching(); microphone.close() }
+  }, [countingDown, microphoneStream])
+
   return {
     /** The final transcript is ready to send automatically after a countdown. */
-    countingDown: enabled && phase === 'countdown',
+    countingDown,
     /** Keep editing, Send now, a typed edit, or the countdown finishing all end the offer. */
     endCountdown: () => setPhase('listening'),
   }

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { interviewSpeechChunks, selectInterviewVoice } from './browserSpeechDelivery'
+import { finishInterviewTiming } from './interviewLatency'
 
 type Props = {
   messageId: string
@@ -60,7 +61,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
     if (!allowed.current || otherSpeechPlaying) stop()
   }, [muted, disabled, otherSpeechPlaying, stop])
   useEffect(() => () => stop(), [stop])
-  const play = useCallback(() => {
+  const play = useCallback((automaticPlay = false) => {
     if (!allowed.current || !supported || !text.trim()) return
     stop()
     activePlayback?.stop()
@@ -111,6 +112,11 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
       utterance.onstart = () => {
         if (!live() || current.utterance !== utterance) return
         started = true
+        // Only an automatic first sentence measures the reply-to-sound wait; manual plays include reading time.
+        if (automaticPlay && position === 1) {
+          finishInterviewTiming('reply-to-audio', messageId)
+          finishInterviewTiming('submit-to-audio', messageId)
+        }
         if (current.timer) clearTimeout(current.timer)
         current.timer = setTimeout(timeout, Math.max(15000, utterance.text.length * 150))
       }
@@ -148,13 +154,13 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
         speakNext()
       }, 300)
     } else speakNext()
-  }, [notify, stop, supported, text])
+  }, [messageId, notify, stop, supported, text])
   useEffect(() => {
     if (!automatic || attempted.current) return
     const timer = setTimeout(() => {
       attempted.current = true
       onAutomaticAttempt?.(messageId)
-      if (allowed.current) play()
+      if (allowed.current) play(true)
     }, 0)
     return () => clearTimeout(timer)
   }, [automatic, messageId, onAutomaticAttempt, play])

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@apollo/client/react'
 import { Button } from '@/components/ui/button'
 import { INTERVIEW_PLAYBACK } from './interviewOperations'
+import { finishInterviewTiming } from './interviewLatency'
 
 type Props = {
   interviewId: string
@@ -65,7 +66,7 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
     }
   }, [notify])
 
-  const play = useCallback(async () => {
+  const play = useCallback(async (automaticPlay = false) => {
     if (!permitted.current) return
     const identity = ++generation.current
     setError(null)
@@ -96,6 +97,10 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
         return
       }
       started = true
+      if (automaticPlay) {
+        finishInterviewTiming('reply-to-audio', messageId)
+        finishInterviewTiming('submit-to-audio', messageId)
+      }
       setPlaying(true); setEnded(false); notify(true)
     } catch (cause) {
       if (identity === generation.current) {
@@ -116,7 +121,7 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
     const timer = setTimeout(() => {
       attempted.current = true
       onAutomaticAttempt?.(messageId)
-      if (permitted.current) void play()
+      if (permitted.current) void play(true)
     }, 0)
     return () => clearTimeout(timer)
   }, [automatic, play, onAutomaticAttempt, messageId])

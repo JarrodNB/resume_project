@@ -3,7 +3,7 @@
 import asyncio
 
 import pytest
-from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage
 
@@ -13,15 +13,12 @@ pytestmark = pytest.mark.real_guardrail
 
 
 @pytest.mark.parametrize("acknowledgement", [None, "You repaired the appointment calendar."])
-def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool(acknowledgement):
+def test_real_interviewer_advances_in_one_model_request(acknowledgement):
     observed = []
 
     async def respond(messages, info):
         observed.append(str(messages))
-        if not any(isinstance(part, ToolReturnPart) and part.tool_name == "advance_to_next_question"
-                   for message in messages for part in message.parts):
-            return ModelResponse(parts=[ToolCallPart("advance_to_next_question", {})],
-                                 usage=RequestUsage(input_tokens=20, output_tokens=5))
+        assert [tool.name for tool in info.function_tools] == []
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
                              {"decision": "advance", "acknowledgement": acknowledgement, "reply": None})],
                              usage=RequestUsage(input_tokens=25, output_tokens=5))
@@ -36,7 +33,7 @@ def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool(acknowledgem
     assert result.output.acknowledgement == acknowledgement
     assert "appointment calendar" in observed[0]
     assert "Rails" in observed[0]
-    assert len(observed) == 2
+    assert len(observed) == 1
 
 
 

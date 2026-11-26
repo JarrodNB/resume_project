@@ -115,7 +115,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     project = create(:project, user: ai_task.user)
     message = result_message("failed", error_message: "Generation failed", record_screening: [ library_report(project, [ "name" ]) ])
     described_class.call(message: message)
-    Projects::UpdateProjectService.call(project: project.reload, attributes: { name: "Edited" })
+    CareerLibrary::SaveLibraryEntryService.call(user: project.reload.user, kind: :project, entry: project.reload, attributes: { name: "Edited" })
     described_class.call(message: message)
     expect(project.reload.screened_fields).to eq([])
   end

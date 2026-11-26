@@ -57,7 +57,7 @@ RSpec.describe "Career library review results" do
   it "keeps current reviews when a role is saved without text changes" do
     apply(task)
 
-    result = Experiences::UpdateExperienceService.call(experience: role, attributes: {}, highlights: [ highlight.content ])
+    result = CareerLibrary::SaveLibraryEntryService.call(user: role.user, kind: :experience, entry: role, attributes: {}, highlights: [ highlight.content ])
 
     expect(result).to be_success
     grade = state["assessments"].find { |item| item["recordId"] == highlight.id }
@@ -68,7 +68,7 @@ RSpec.describe "Career library review results" do
     edited = create(:experience_highlight, experience: role, content: "Another bullet", position: 1)
     apply(task)
 
-    result = Experiences::UpdateExperienceService.call(experience: role, attributes: {}, highlights: [ highlight.content, "Revised bullet" ])
+    result = CareerLibrary::SaveLibraryEntryService.call(user: role.user, kind: :experience, entry: role, attributes: {}, highlights: [ highlight.content, "Revised bullet" ])
 
     expect(result).to be_success
     grades = state["assessments"].index_by { |item| item["recordId"] }

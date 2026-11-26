@@ -83,7 +83,7 @@ module Chat
       result = success(nil)
       user.class.transaction(requires_new: true) do
         additions.each do |entry|
-          result = CareerContexts::CreateCareerContextService.call(user: user,
+          result = CareerLibrary::SaveLibraryEntryService.call(user: user, kind: :career_context,
             attributes: entry.merge("screened_fields" => %w[requirement response]))
           raise ActiveRecord::Rollback unless result.success?
         end

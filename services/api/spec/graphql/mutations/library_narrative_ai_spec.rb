@@ -83,8 +83,8 @@ RSpec.describe "Career library narrative AI targets" do
 
       case kind
       when "user" then Users::UpdateProfileService.call(user: user, attributes: { summary: "New user summary" })
-      when "project" then Projects::UpdateProjectService.call(project: project, attributes: { description: "New user description" })
-      when "career_context" then CareerContexts::UpdateCareerContextService.call(career_context: context, attributes: { response: "New user response" })
+      when "project" then CareerLibrary::SaveLibraryEntryService.call(user: project.user, kind: :project, entry: project, attributes: { description: "New user description" })
+      when "career_context" then CareerLibrary::SaveLibraryEntryService.call(user: context.user, kind: :career_context, entry: context, attributes: { response: "New user response" })
       end
       expect(record.reload.screened_fields).not_to include(field)
       expect(CareerLibrary::ReviewStateService.call(user: user, section: section).value[:assessments].first["stale"]).to be(true)

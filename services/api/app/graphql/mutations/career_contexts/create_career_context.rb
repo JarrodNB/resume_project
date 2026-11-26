@@ -8,10 +8,10 @@ module Mutations
 
       field :career_context, Types::CareerContextType
 
-      # Calls CareerContexts::CreateCareerContextService.
+      # Calls CareerLibrary::SaveLibraryEntryService.
       def resolve(attributes:)
         payload_from(
-          ::CareerContexts::CreateCareerContextService.call(user: current_user, attributes: attributes.to_h),
+          ::CareerLibrary::SaveLibraryEntryService.call(user: current_user, kind: :career_context, attributes: attributes.to_h),
           :career_context
         )
       end

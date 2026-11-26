@@ -8,50 +8,18 @@ RSpec.describe "Career library embedding sync enqueueing" do
   let(:user) { create(:user) }
   let(:sync_job) { CareerLibrary::SyncLibraryEmbeddingsJob }
 
-  it "queues a sync when an experience is created or updated" do
-    expect { Experiences::CreateExperienceService.call(user: user, attributes: { company: "Acme", title: "Engineer" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-
-    experience = user.experiences.sole
-    expect { Experiences::UpdateExperienceService.call(experience: experience, attributes: { title: "Lead" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-  end
-
-  it "doesn't queue a sync when saving fails" do
-    expect { Experiences::CreateExperienceService.call(user: user, attributes: { company: "", title: "" }) }
-      .not_to have_enqueued_job(sync_job)
-  end
-
-  it "queues a sync when a project, education, skill, or context is created or updated" do
-    expect { Projects::CreateProjectService.call(user: user, attributes: { name: "CLI" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-    project = user.projects.sole
-    expect { Projects::UpdateProjectService.call(project: project, attributes: { role: "Author" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-
-    expect { Educations::CreateEducationService.call(user: user, attributes: { institution: "State" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-    education = user.educations.sole
-    expect { Educations::UpdateEducationService.call(education: education, attributes: { degree: "BSc" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-
-    expect { Skills::CreateSkillService.call(user: user, attributes: { name: "Ruby" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-    skill = user.skills.sole
-    expect { Skills::UpdateSkillService.call(skill: skill, attributes: { category: "Languages" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-
-    expect { CareerContexts::CreateCareerContextService.call(user: user, attributes: { requirement: "K8s", response: "Yes" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
-    context = user.career_contexts.sole
-    expect { CareerContexts::UpdateCareerContextService.call(career_context: context, attributes: { response: "Two years" }) }
-      .to have_enqueued_job(sync_job).with(user.id)
+  it "queues a sync when any library entry is created or updated (see save_library_entry_service_spec)" do
+    %i[experience project education skill certification career_context].each do |kind|
+      attributes = attributes_for(kind)
+      expect { CareerLibrary::SaveLibraryEntryService.call(user: user, kind: kind, attributes: attributes) }
+        .to have_enqueued_job(sync_job).with(user.id)
+    end
   end
 
   it "doesn't queue a sync for a profile update or a failed library save" do
     expect { Users::UpdateProfileService.call(user: user, attributes: { name: "Ada" }) }
       .not_to have_enqueued_job(sync_job)
-    expect { Projects::CreateProjectService.call(user: user, attributes: { name: "" }) }
+    expect { CareerLibrary::SaveLibraryEntryService.call(user: user, kind: :project, attributes: { name: "" }) }
       .not_to have_enqueued_job(sync_job)
   end
 

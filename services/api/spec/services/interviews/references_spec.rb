@@ -145,7 +145,7 @@ RSpec.describe "Interview question references" do
       "status" => "completed", "result" => { "references" => [] } })
     answer = interview.messages.create!(question: prompt.question, kind: "answer", position: 1,
       semantic_key: "copied-answer", content: "Migrated the release pipeline and reduced delays.")
-    context = CareerContexts::CreateCareerContextService.call(user: interview.user,
+    context = CareerLibrary::SaveLibraryEntryService.call(user: interview.user, kind: :career_context,
       attributes: { requirement: prompt.content, response: answer.content }).value
     expect(existing.reload.references).to eq([])
     expect(existing.ai_task.reload).to be_completed

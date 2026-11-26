@@ -9,10 +9,10 @@ module Mutations
 
       field :skill, Types::SkillType
 
-      # Calls Skills::UpdateSkillService.
+      # Calls CareerLibrary::SaveLibraryEntryService.
       def resolve(id:, attributes:)
         skill = current_user.skills.find(id)
-        payload_from(::Skills::UpdateSkillService.call(skill: skill, attributes: attributes.to_h), :skill)
+        payload_from(::CareerLibrary::SaveLibraryEntryService.call(user: current_user, kind: :skill, entry: skill, attributes: attributes.to_h), :skill)
       end
     end
   end

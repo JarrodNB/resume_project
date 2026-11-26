@@ -69,6 +69,34 @@ it('downloads the export as a JSON file', async () => {
   expect(fetcher).toHaveBeenCalledWith(expect.stringContaining('/graphql'), expect.anything())
 })
 
+it('keeps the download URL alive after the click and names the file by local date', async () => {
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 25, 23, 30) })
+  try {
+    const fetcher = vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('/auth/session')
+      ? signedIn : { data: { accountExport: { format_version: 1 } } })))
+    const revokeObjectURL = vi.fn()
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:export'), revokeObjectURL }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderAccountPage(fetcher)
+    const delayed: Array<() => void> = []
+    const realSetTimeout = window.setTimeout.bind(window)
+    vi.spyOn(window, 'setTimeout').mockImplementation(((callback: () => void, ms?: number) => {
+      if (ms !== 60_000) return realSetTimeout(callback, ms)
+      delayed.push(callback)
+      return 0
+    }) as never)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Download my data' }))
+    await vi.waitFor(() => expect(click).toHaveBeenCalled())
+    expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe('careerdrafter-export-2026-11-25.json')
+    expect(revokeObjectURL).not.toHaveBeenCalled()
+    delayed.forEach((callback) => callback())
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:export')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
 it('shows the privacy policy and terms without signing in', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ user: null, csrfToken: 'csrf' }))))
   render(<AuthProvider><SessionApolloProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/privacy'] })} /></SessionApolloProvider></AuthProvider>)

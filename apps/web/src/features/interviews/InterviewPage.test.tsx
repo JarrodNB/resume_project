@@ -1699,15 +1699,17 @@ describe('hands-free answers', () => {
     expect(recorder.stop).toHaveBeenCalledTimes(2)
   })
 
-  it('starts no countdown when the final transcript is blank', async () => {
+  it('starts no countdown and keeps listening when the final transcript is blank', async () => {
     rememberMicrophone({ handsFree: true })
     await speakThenGoQuiet('um')
     await advance(2600)
     expect(recorder.stop).toHaveBeenCalledOnce()
     finishTranscript('')
+    expect(recorder.resume).toHaveBeenCalledOnce()
     await advance(10_000)
     expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
     expect(state.answerText).not.toHaveBeenCalled()
+    expect(recorder.resume).toHaveBeenCalledOnce()
   })
 
   it('keeps the text after a failed automatic send and does not retry', async () => {

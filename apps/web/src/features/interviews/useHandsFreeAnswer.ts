@@ -2,9 +2,9 @@
  * Listening for silence starts only after live transcription has recognised a word in this capture,
  * so a slow start never ends the answer. Silence pauses capture through the normal pause path; once
  * the final transcript arrives, a countdown is offered only if it has words and live transcription
- * finished. Speaking during the countdown cancels it and continues recording through the normal
- * continue path, so new words are added to the same answer. The countdown itself and the send live
- * in the answer editor.
+ * finished. A blank transcript means nothing was said, so recording simply continues. Speaking
+ * during the countdown cancels it and continues recording through the normal continue path, so new
+ * words are added to the same answer. The countdown itself and the send live in the answer editor.
  */
 import { useEffect, useRef, useState } from 'react'
 import { openMicrophoneLevel, watchForEndOfSpeech, watchForSpeech } from './endOfSpeech'
@@ -34,8 +34,9 @@ export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop, re
   const { status, effectiveMode, microphoneStream } = recorder
   // Settle the phase from the recorder during render, so a stale countdown never shows.
   if (phase === 'finishing' && status !== 'recording' && status !== 'finalizing') {
-    const finalWords = status === 'ready' && effectiveMode !== 'recorded' && Boolean(recorder.candidateTranscript?.trim())
-    setPhase(finalWords ? 'countdown' : 'listening')
+    const liveReview = status === 'ready' && effectiveMode !== 'recorded'
+    // Silence that produced no words was not an answer, so keep listening.
+    setPhase(!liveReview ? 'listening' : recorder.candidateTranscript?.trim() ? 'countdown' : 'resuming')
   }
   if ((phase === 'countdown' || phase === 'resuming') && status !== 'ready') setPhase('listening')
 

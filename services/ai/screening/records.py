@@ -244,6 +244,31 @@ def _render_entry(number, fields):
         for name, value in fields.items())
 
 
+def checkpoint_record_approvals():
+    """Snapshot this session's record approvals; the returned function puts them back.
+
+    For callers that screen sub-batches to locate a rejection and then decide not to use
+    them: restoring withdraws every receipt, field check and approved source `_finish`
+    recorded since the checkpoint, so acceptance cannot approve text the caller withheld.
+    """
+    session = current_session()
+    if session is None:
+        return lambda: None
+    receipts = [(receipt, dict(receipt.fingerprints)) for receipt in session.record_screening]
+    checks, sources = set(session.record_checks), set(session.allowed_sources)
+
+    def restore():
+        for receipt, fingerprints in receipts:
+            receipt.fingerprints.clear()
+            receipt.fingerprints.update(fingerprints)
+        session.record_screening[:] = [receipt for receipt, _ in receipts]
+        session.record_checks.clear()
+        session.record_checks.update(checks)
+        session.allowed_sources.clear()
+        session.allowed_sources.update(sources)
+    return restore
+
+
 def _finish(pending, outcomes, approved_sources, *, keep_usage):
     pending_records = tuple(record for record, _ in pending)
     decision = _combine(outcomes, keep_usage)

@@ -438,3 +438,29 @@ def test_legacy_snapshot_checks_are_reused_only_for_exact_fields_within_one_run(
     with screening_session():
         assert run_screen(classifier, monkeypatch, False, [legacy]).pending == (legacy,)
     assert len(classifier.texts) == 2
+
+
+def test_checkpoint_restores_record_approvals_made_after_it():
+    from screening.records import ScreenableRecord, checkpoint_record_approvals, screen_records
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import current_session, screening_session
+
+    async def allow(_):
+        return ScreenOutcome(True)
+
+    def record(record_id, text):
+        return ScreenableRecord(record_type="interview_question", record_id=record_id,
+                                fields={"question_text": text}, display_title="Question")
+
+    with screening_session():
+        asyncio.run(screen_records([record("kept", "Kept question?")], screen=allow))
+        session = current_session()
+        before = ([(r.record_id, dict(r.fingerprints)) for r in session.record_screening], set(session.record_checks))
+        restore = checkpoint_record_approvals()
+        asyncio.run(screen_records([record("kept", "Kept question, edited?"), record("withdrawn", "Withdrawn?")],
+                                   screen=allow))
+        assert {r.record_id for r in session.record_screening} == {"kept", "withdrawn"}
+        restore()
+        assert ([(r.record_id, dict(r.fingerprints)) for r in session.record_screening],
+                set(session.record_checks)) == before
+    assert checkpoint_record_approvals()() is None

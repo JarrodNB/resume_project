@@ -281,12 +281,13 @@ those kept. One question too large to show on its own produces a limit sentence.
 bank is stated plainly. Database failures return only
 the short `interview_questions_unavailable` error, which the model sees as a plain sentence.
 Saved `question_text` approvals are reused; unchecked questions are screened together with
-the operation's accounted screen. If that batch is blocked, it is split in halves to find
+the operation's accounted screen. If that batch is blocked, already approved questions stay
+listed, and only the unchecked ones are split in halves to find
 the blocked questions (about two checks per halving level, not one per question, and at most
 24 extra checks per list); blocked ones are left out with a note and the rest are still
 listed. If a rejected batch's halves each pass alone, the batch stays blocked, since the
-classifier rejected that combined text, and the halves' approvals are rolled back so a later
-turn checks them again. A sub-batch whose check could not finish, or that
+classifier rejected that combined text, and the halves' approvals are rolled back (`checkpoint_record_approvals` in
+`screening/records.py`) so a later turn checks them again. A sub-batch whose check could not finish, or that
 the extra-check limit did not reach, is left out whole with a separate "could not finish" note. Unavailable screening
 for the first batch shows none of the list. Receipts carry the question revision; Rails approves
 them only for the owner's active questions whose current text and revisions still match.

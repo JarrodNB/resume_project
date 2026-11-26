@@ -25,8 +25,7 @@ from model_inputs.interview_question_bank import (
     render_interview_questions,
 )
 from screening.library_inputs import LibraryScreeningError, raise_unless_screening_allowed
-from screening.records import ScreenableRecord, screen_records
-from screening.session import current_session
+from screening.records import ScreenableRecord, checkpoint_record_approvals, screen_records
 
 LIST_INTERVIEW_QUESTIONS = "list_interview_questions"
 LIST_INTERVIEW_QUESTIONS_VERSION = "list_interview_questions-v1"
@@ -144,9 +143,7 @@ async def _screen_keeping_allowed(questions, records, screen, outcome, budget):
     if len(questions) == 1:
         return [], 1, 0
     middle = len(questions) // 2
-    session = current_session()
-    saved = None if session is None else (
-        [(receipt, dict(receipt.fingerprints)) for receipt in session.record_screening], set(session.record_checks))
+    restore_approvals = checkpoint_record_approvals()
     halves = []
     for part, part_records in ((questions[:middle], records[:middle]), (questions[middle:], records[middle:])):
         if budget[0] <= 0:
@@ -157,14 +154,7 @@ async def _screen_keeping_allowed(questions, records, screen, outcome, budget):
                                                     await screen_records(part_records, screen=screen), budget))
     (first, first_blocked, first_unchecked), (second, second_blocked, second_unchecked) = halves
     if not (first_blocked or first_unchecked or second_blocked or second_unchecked):
-        if saved is not None:
-            receipts, checks = saved
-            for receipt, fingerprints in receipts:
-                receipt.fingerprints.clear()
-                receipt.fingerprints.update(fingerprints)
-            session.record_screening[:] = [receipt for receipt, _ in receipts]
-            session.record_checks.clear()
-            session.record_checks.update(checks)
+        restore_approvals()
         return [], len(questions), 0
     return first + second, first_blocked + second_blocked, first_unchecked + second_unchecked
 
@@ -187,8 +177,18 @@ async def render_interview_questions_result(call_tool, tool_args, screen):
         raise LibraryScreeningError("context_limit")
     if outcome.decision.unchecked:
         raise LibraryScreeningError("screening_unavailable")
-    usable, blocked, unchecked = await _screen_keeping_allowed(kept, records, screen, outcome,
-                                                               [MAX_EXTRA_QUESTION_SCREENS])
+    if outcome.allowed:
+        usable, blocked, unchecked = kept, 0, 0
+    else:
+        # Only unchecked questions can be blocked; already approved ones are always shown.
+        pending = {id(record) for record in outcome.pending}
+        searched = [(question, record) for question, record in zip(kept, records) if id(record) in pending]
+        allowed, blocked, unchecked = await _screen_keeping_allowed(
+            [question for question, _ in searched], [record for _, record in searched], screen, outcome,
+            [MAX_EXTRA_QUESTION_SCREENS])
+        allowed_ids = {id(question) for question in allowed}
+        usable = [question for question, record in zip(kept, records)
+                  if id(record) not in pending or id(question) in allowed_ids]
     return render_interview_questions(usable, blocked=blocked, unchecked=unchecked,
         older_not_shown=len(questions) - len(kept), more_older=len(questions) > MAX_INTERVIEW_QUESTIONS)
 

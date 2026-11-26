@@ -8,7 +8,8 @@ RSpec.describe User, "links" do
 
   it "accepts http and https addresses" do
     user.links = link("https://example.com/me") + link("HTTP://example.com:8080/a?b=1#c") +
-      link("https://bücher.de/x") + link("https://example.com/日本")
+      link("https://bücher.de/x") + link("https://example.com/日本") + link("https://example.com/a|b^c{d}`e") +
+      link("https://[::1]:3000/x")
 
     expect(user).to be_valid
   end
@@ -16,7 +17,9 @@ RSpec.describe User, "links" do
   it "rejects other schemes, control characters and addresses without a scheme" do
     [ "javascript:alert(1)", "java\tscript:alert(1)", "\u0001javascript:alert(1)", "data:text/html,x",
       "mailto:a@example.com", "example.com/me", "https://", "https://exa mple.com", "//example.com",
-      "https://google.com@evil.com", "https://user:pw@example.com" ].each do |url|
+      "https://google.com@evil.com", "https://user:pw@example.com", "https://example.com/\u202Eexe.pdf",
+      "https://example.com/a\u200Bb", "https://example.com/a\u00A0b", "https://example.com/a\u2028b",
+      "https://example.com\\@evil.com", "https:///x", "https://example.com/x\n" ].each do |url|
       user.links = link(url)
 
       expect(user).not_to be_valid, "expected #{url.inspect} to be rejected"

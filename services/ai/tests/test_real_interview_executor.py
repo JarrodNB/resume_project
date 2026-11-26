@@ -593,12 +593,13 @@ def test_streamed_text_holds_and_restores_contact_placeholders():
     assert all("«" not in payload.get("text", "") for _, payload, _ in sink.events)
 
 
-def test_advance_streams_only_the_acknowledgement():
+def test_advance_streams_only_the_acknowledgement_with_its_blank_line_even_when_chunks_arrive_together():
+    # Chunks inside one publish interval must still end with the blank line that marks the acknowledgement whole.
     client, sink = Client(), Sink()
     chunks = ['{"acknowledgement": "You checked the schedule.", ', '"decision": "advance", "reply": null}']
     stream_run(client, StreamingModels(chunks), sink)
     assert client.accepted[0]["decision"] == "advance"
-    assert sink.text() == "You checked the schedule."
+    assert sink.text() == "You checked the schedule.\n\n"
     assert sink.kinds()[-1] == "completed"
 
 
@@ -656,3 +657,19 @@ def test_continue_on_the_final_allowed_answer_streams_only_the_acknowledgement()
     assert client.accepted[0]["decision"] == "continue"
     assert sink.text() == "You cut the wait by fifteen minutes.\n\n"
     assert sink.kinds()[-1] == "completed"
+
+
+def test_a_retry_that_disagrees_with_published_text_adds_nothing_to_it():
+    from interviews.spoken_stream import SpokenTextStream
+
+    async def scenario():
+        sink = Sink()
+        stream = SpokenTextStream(sink)
+        await stream._publish("You cut the wait.\n\n")
+        # A validation retry wrote a different acknowledgement; contradicting text is never appended.
+        await stream._publish("You shortened the queue.\n\n")
+        await stream._publish("You cut the wait.\n\nHow did you measure it?")
+        return sink
+
+    sink = asyncio.run(scenario())
+    assert sink.text() == "You cut the wait.\n\nHow did you measure it?"

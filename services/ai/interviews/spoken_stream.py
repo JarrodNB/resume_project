@@ -65,6 +65,10 @@ class SpokenTextStream:
             if self.last_publish is None or loop.time() - self.last_publish >= PUBLISH_INTERVAL_SECONDS:
                 await self._publish(_partial_spoken_text(arguments, final_answer=self.final_answer))
                 self.last_publish = loop.time()
+        if arguments:
+            # Text that arrived inside the last interval, such as the blank line after a finished
+            # acknowledgement, is published once the response ends instead of waiting for acceptance.
+            await self._publish(_partial_spoken_text(arguments, final_answer=self.final_answer))
 
     async def finish(self, reply):
         """Publish whatever is left of the validated reply before acceptance."""

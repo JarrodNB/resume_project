@@ -1,6 +1,7 @@
 """Synthetic career-chat outcome and continuity signals, separate from model inputs.
 
-These deterministic checks catch missing facts and obvious unsupported-action claims.
+These deterministic checks catch missing facts, obvious unsupported-action claims and,
+when a case names them, MCP tools the reply should or should not have called.
 They are bounded regression signals, not a general assessment of writing quality.
 """
 from dataclasses import dataclass
@@ -17,6 +18,8 @@ class ChatEvalInput(BaseModel):
     payload: ChatPayload
     # Synthetic saved library the read_career_library tool returns; empty when omitted.
     career_library: CareerLibrary = Field(default_factory=CareerLibrary)
+    # Synthetic practice-question rows (reader shape) the list_interview_questions tool returns.
+    interview_questions: list[dict] = Field(default_factory=list)
 
 
 class ChatEvalExpectations(BaseModel):
@@ -27,6 +30,9 @@ class ChatEvalExpectations(BaseModel):
     required_reply_terms: list[str] = Field(default_factory=list)
     required_summary_terms: list[str] = Field(default_factory=list)
     forbidden_reply_terms: list[str] = Field(default_factory=list)
+    # MCP tools the reply must, or must not, call (scored as tool_use only when set).
+    required_tool_calls: list[str] = Field(default_factory=list)
+    forbidden_tool_calls: list[str] = Field(default_factory=list)
 
 
 class ChatEvalOutput(BaseModel):
@@ -37,6 +43,8 @@ class ChatEvalOutput(BaseModel):
     failure_code: str | None = None
     known_cost_microdollars: int = 0
     accounting_complete: bool = True
+    # MCP tools whose synthetic readers ran, in first-call order.
+    tool_calls: list[str] = Field(default_factory=list)
 
 
 @dataclass
@@ -48,7 +56,7 @@ class CareerChatOutcome(Evaluator[ChatEvalInput, ChatEvalOutput, ChatEvalExpecta
             return {"expected_outcome": float(actual.status == "failed" and actual.failure_code == "screening_blocked")}
         context = " ".join(value for entry in actual.career_contexts for value in entry.values()).casefold()
         reply, summary = actual.reply.casefold(), actual.summary.casefold()
-        return {
+        scores = {
             "career_context_save_policy": float(bool(actual.career_contexts) == expected.expects_context_save),
             "career_context_evidence": float(all(term.casefold() in context for term in expected.required_context_terms) and not any(term.casefold() in context for term in expected.forbidden_context_terms)),
             "expected_outcome": float(actual.status == "completed" and bool(reply.strip())),
@@ -56,3 +64,7 @@ class CareerChatOutcome(Evaluator[ChatEvalInput, ChatEvalOutput, ChatEvalExpecta
             "summary_continuity": float(all(term.casefold() in summary for term in expected.required_summary_terms)),
             "unsupported_action_claims_absent": float(not any(term.casefold() in reply for term in expected.forbidden_reply_terms)),
         }
+        if expected.required_tool_calls or expected.forbidden_tool_calls:
+            scores["tool_use"] = float(set(expected.required_tool_calls) <= set(actual.tool_calls)
+                                       and not set(expected.forbidden_tool_calls) & set(actual.tool_calls))
+        return scores

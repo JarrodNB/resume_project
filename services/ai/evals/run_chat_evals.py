@@ -23,8 +23,11 @@ from evals.chat_evaluators import (
     ChatEvalOutput,
 )
 from evals.telemetry import evaluate_dataset
+from mcp_tools.career_library import READ_CAREER_LIBRARY
 from mcp_tools.client import ToolServerConnection
+from mcp_tools.interview_questions import LIST_INTERVIEW_QUESTIONS
 from mcp_tools.local_server import serve_in_background
+from mcp_tools.saved_jobs import LIST_SAVED_JOBS, READ_JOB_SUMMARY
 from mcp_tools.server import create_mcp_server
 from prompts.chat_instructions import CHAT_PROMPT_VERSION
 from prompts.chat_summary_instructions import CHAT_SUMMARY_PROMPT_VERSION
@@ -78,12 +81,25 @@ async def execute_chat_case(case, *, models=None):
             return "already_saved" if existing.response == response else "conflict"
         return "full" if len(contexts) >= 100 else "ready"
 
+    tool_calls = []
+
+    def recorded(tool_name, read):
+        """Note which tool's synthetic reader ran, for the deterministic tool-use check."""
+        def read_and_record(*args):
+            if tool_name not in tool_calls:
+                tool_calls.append(tool_name)
+            return read(*args)
+        return read_and_record
+
     async def execute(model_pool):
-        # Evals never read the database: a local tool server serves the case's synthetic library.
+        # Evals never read the database: a local tool server serves the case's synthetic data.
         secret = secrets.token_urlsafe(48)
-        server = create_mcp_server(secret=secret, read_library=lambda user_id: case.career_library,
-            read_jobs=lambda user_id: case.saved_jobs,
-            read_job_summary=lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None))
+        server = create_mcp_server(secret=secret,
+            read_library=recorded(READ_CAREER_LIBRARY, lambda user_id: case.career_library),
+            read_jobs=recorded(LIST_SAVED_JOBS, lambda user_id: case.saved_jobs),
+            read_job_summary=recorded(READ_JOB_SUMMARY,
+                lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None)),
+            read_interview_questions=recorded(LIST_INTERVIEW_QUESTIONS, lambda user_id: case.interview_questions))
         with serve_in_background(server.http_app(path="/mcp", stateless_http=True)) as url:
             await ChatExecutionAdapter(owner, model_pool,
                 tool_server=ToolServerConnection(url=url, secret=secret), context_save_check=check_context).execute(current, None)
@@ -98,7 +114,7 @@ async def execute_chat_case(case, *, models=None):
     result = owner.result or {}
     return ChatEvalOutput(career_contexts=result.get("career_contexts", []), status="completed" if owner.result else "failed", reply=result.get("reply", ""),
         summary=(result.get("summary_update") or {}).get("text", ""), failure_code=owner.failure,
-        known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
+        tool_calls=tool_calls, known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
         accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()))
 
 

@@ -123,10 +123,10 @@ RSpec.describe AiReaderAccess do
   it "reads only required generation and feedback sources from written practice records" do
     expect(select_as_ai_reader("SELECT id, user_id, number, set_type, origin, created_at FROM interview_question_sets")).to eq([])
     expect(select_as_ai_reader("SELECT id, interview_question_set_id, question_text, question_revision, answer_revision, position, retired_at, answer_text, answer_format, answer_drafts, screened_fields FROM interview_questions")).to eq([])
+    # Chat's practice-question tools read saved feedback and the revisions that decide whether it is current.
+    expect(select_as_ai_reader("SELECT feedback, feedback_question_revision, feedback_answer_revision, answer_format_revision FROM interview_questions")).to eq([])
     expect(select_as_ai_reader("SELECT id, user_id, question_text, origin, screened_fields, created_at FROM avoided_interview_questions")).to eq([])
-    %w[feedback feedback_answer_revision feedback_question_revision].each do |column|
-      expect { select_as_ai_reader("SELECT #{column} FROM interview_questions") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
-    end
+    expect { select_as_ai_reader("SELECT memory_anchor FROM interview_questions") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("UPDATE interview_questions SET question_text = 'changed'") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 

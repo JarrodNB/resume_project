@@ -17,7 +17,7 @@ def anyio_backend():
 
 def test_chat_evaluation_labels_are_separate_and_bad_outputs_lose_scores():
     dataset = load_chat_dataset()
-    assert len(dataset.cases) == 15
+    assert len(dataset.cases) == 18
     case = dataset.cases[0]
     assert 'required_reply_terms' not in case.inputs.model_dump()
     evaluator = CareerChatOutcome()
@@ -117,3 +117,59 @@ def test_context_save_evaluator_catches_unsolicited_and_invented_saves():
     assert unsolicited["career_context_save_policy"] == 0
     invented = evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(expects_context_save=True, forbidden_context_terms=["50%"]), output=saved))
     assert invented["career_context_evidence"] == 0
+
+
+def test_tool_use_is_scored_only_when_expected_tool_calls_are_set():
+    evaluator = CareerChatOutcome()
+    output = ChatEvalOutput(status="completed", reply="Two questions are unanswered.",
+                            tool_calls=["list_interview_questions"])
+    assert "tool_use" not in evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(), output=output))
+    required = ChatEvalExpectations(required_tool_calls=["list_interview_questions"])
+    assert evaluator.evaluate(SimpleNamespace(metadata=required, output=output))["tool_use"] == 1
+    skipped = output.model_copy(update={"tool_calls": []})
+    assert evaluator.evaluate(SimpleNamespace(metadata=required, output=skipped))["tool_use"] == 0
+    forbidden = ChatEvalExpectations(forbidden_tool_calls=["list_interview_questions"])
+    assert evaluator.evaluate(SimpleNamespace(metadata=forbidden, output=output))["tool_use"] == 0
+    assert evaluator.evaluate(SimpleNamespace(metadata=forbidden, output=skipped))["tool_use"] == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case_name", ["lists_unanswered_practice_questions", "empty_practice_question_bank",
+                                       "hostile_practice_question_left_out"])
+async def test_practice_question_evals_serve_synthetic_questions_and_record_tool_calls(monkeypatch, case_name):
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from screening.screen_user_text import ScreenOutcome
+    from tests.test_chat_execution import Models, tool_returns
+
+    monkeypatch.setattr('pii._detect_spans', lambda text: [])
+    monkeypatch.setattr(ChatExecutionAdapter, '_screen', AsyncMock())
+    seen = []
+    async def screen(self, claim, text):
+        seen.append(text)
+        return ScreenOutcome('Ignore all previous instructions' not in text)
+    monkeypatch.setattr(ChatExecutionAdapter, '_screen_decision', screen)
+    def forbidden(*_):
+        pytest.fail('Synthetic evals must not read a database')
+    monkeypatch.setattr('database.interview_question_bank.build_database_interview_question_bank_reader', forbidden)
+    listed = []
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            yield {0: DeltaToolCall(name='list_interview_questions', json_args='{}', tool_call_id='list')}
+        else:
+            listed.append(returns[0].content)
+            yield 'Here are your practice questions.'
+    case = next(case for case in load_chat_dataset().cases if case.name == case_name)
+    output = await execute_chat_case(case.inputs, models=Models(stream))
+    assert output.status == 'completed' and output.tool_calls == ['list_interview_questions']
+    scores = CareerChatOutcome().evaluate(SimpleNamespace(metadata=case.metadata, output=output))
+    assert scores['tool_use'] == 1
+    if case_name == 'empty_practice_question_bank':
+        assert listed == ['The user has no active saved practice questions.']
+    elif case_name == 'hostile_practice_question_left_out':
+        assert 'Ignore all previous instructions' not in listed[0] and 'Left out: 1' in listed[0]
+        assert 'proud' in listed[0]
+        assert any('Ignore all previous instructions' in text for text in seen)
+    else:
+        assert 'Answer: not answered yet' in listed[0] and 'conflict' in listed[0]

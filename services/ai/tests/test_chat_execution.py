@@ -560,7 +560,7 @@ def tool_server(library):
         reads.append(user_id)
         return library
 
-    app = create_mcp_server(secret=secret, read_library=read, read_jobs=lambda _: [], read_job_summary=lambda _, __: None).http_app(path='/mcp', stateless_http=True)
+    app = create_mcp_server(secret=secret, read_library=read, read_jobs=lambda _: [], read_job_summary=lambda _, __: None, read_interview_questions=lambda _: []).http_app(path='/mcp', stateless_http=True)
     with serve_in_background(app) as url:
         yield ToolServerConnection(url=url, secret=secret), reads
 
@@ -581,7 +581,8 @@ async def test_reply_reads_the_owners_library_from_the_tool_server_and_keeps_its
     library = CareerLibrary.model_validate({"skills": [{"id": "s1", "name": "Ruby", "screened_fields": ["name"]}]})
 
     async def stream(messages, info):
-        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs', 'read_job_summary', 'save_career_context'}
+        assert {tool.name for tool in info.function_tools} == {'read_career_library', 'list_saved_jobs', 'read_job_summary',
+                                                                'list_interview_questions', 'save_career_context'}
         returns = tool_returns(messages)
         if not returns:
             # GPT models often write a short preamble before calling a tool.
@@ -761,7 +762,7 @@ async def test_reply_lists_saved_jobs_then_reads_summary_with_accounted_checks()
                 assert "Location: Remote" in returns[1].content
                 yield "You saved Platform Engineer at Acme, a remote Python role."
     secret = "saved-chat-secret-0123456789abcdefghij"
-    app = create_mcp_server(secret=secret, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=detail).http_app(
+    app = create_mcp_server(secret=secret, read_library=lambda _: CareerLibrary(), read_jobs=read, read_job_summary=detail, read_interview_questions=lambda _: []).http_app(
         path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=ToolServerConnection(url=url, secret=secret))
@@ -774,6 +775,50 @@ async def test_reply_lists_saved_jobs_then_reads_summary_with_accounted_checks()
     report = owner.accepted[0]["record_screening"][0]
     assert report["record_type"] == "job" and report["record_id"] == job_id
     assert set(report["fingerprints"]) == {"title", "company", "location", "requirements"}
+
+
+@pytest.mark.anyio
+async def test_reply_lists_owned_practice_questions_and_returns_question_receipts():
+    from uuid import uuid4
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from mcp_tools.client import ToolServerConnection
+    from mcp_tools.local_server import serve_in_background
+    from mcp_tools.server import create_mcp_server
+    from schemas.gap_analysis_context import CareerLibrary
+    from screening.screen_user_text import ScreenOutcome
+
+    owner, sink, reads = Owner(), Sink(), []
+    question_id = str(uuid4())
+    def read(user):
+        reads.append(user)
+        return [{"id": question_id, "set_number": 1, "set_type": "behavioral", "position": 2,
+                 "question_text": "Tell me about a conflict.", "question_revision": 3, "answered": False,
+                 "has_feedback": False, "screened_fields": []}]
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            yield {0: DeltaToolCall(name="list_interview_questions", json_args="{}", tool_call_id="list-1")}
+        else:
+            text = returns[0].content
+            assert "Question: Tell me about a conflict." in text and "Answer: not answered yet" in text
+            assert "Reference: Q-" in text and question_id not in text
+            yield "You have not answered the conflict question yet."
+    secret = "practice-chat-secret-0123456789abcdefg"
+    app = create_mcp_server(secret=secret, read_library=lambda _: CareerLibrary(), read_jobs=lambda _: [],
+                            read_job_summary=lambda _, __: None, read_interview_questions=read).http_app(
+        path="/mcp", stateless_http=True)
+    with serve_in_background(app) as url:
+        adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=ToolServerConnection(url=url, secret=secret))
+        adapter._screen = AsyncMock()
+        adapter._screen_decision = AsyncMock(return_value=ScreenOutcome(True))
+        await asyncio.wait_for(adapter.execute(claim(), sink), 10)
+    assert not owner.failed and reads == ["user-1"]
+    assert owner.accepted[0]["reply"] == "You have not answered the conflict question yet."
+    report = owner.accepted[0]["record_screening"][0]
+    assert report["record_type"] == "interview_question" and report["record_id"] == question_id
+    assert set(report["fingerprints"]) == {"question_text"} and report["revision"] == {"question_revision": 3}
 
 
 @pytest.mark.anyio
@@ -817,7 +862,7 @@ async def test_job_and_background_advice_screens_all_sources_with_bounded_approv
             yield "Your saved Python skills relate to the role's Python requirement."
     secret = "combined-tools-test-secret-0123456789abcdef"
     app = create_mcp_server(secret=secret, read_library=lambda _: library,
-                            read_jobs=lambda _: jobs, read_job_summary=detail).http_app(
+                            read_jobs=lambda _: jobs, read_job_summary=detail, read_interview_questions=lambda _: []).http_app(
                                 path="/mcp", stateless_http=True)
     with serve_in_background(app) as url:
         adapter = ChatExecutionAdapter(owner, Models(stream),

@@ -50,7 +50,8 @@ module Screening
     # @param user [User] owner of every record that may be approved
     # @param reports [Array<Hash>] receipts with record_type, record_id, fingerprints and optional revision
     # @param ai_task [AiTask, nil] needed for task-bound job, gap_response and interview_question receipts
-    # @param context [Symbol, nil] :chat allows owned active job receipts after chat acceptance fences
+    # @param context [Symbol, nil] :chat allows owned active job and interview question receipts
+    #   after chat acceptance fences
     def initialize(user:, reports:, ai_task: nil, context: nil)
       @user, @reports, @ai_task, @context = user, reports, ai_task, context
     end
@@ -193,7 +194,13 @@ module Screening
     end
 
     # Only the task’s owned target, selected siblings or bounded history can receive receipts.
+    # Chat acceptance reads the owner's active practice questions at their current revisions.
     def interview_question_scope(_record_type)
+      if @context == :chat && @ai_task.nil?
+        return { records: InterviewQuestion.active.joins(:interview_question_set)
+          .where(interview_question_sets: { user_id: @user.id }), current_revisions: true }
+      end
+
       return unless task_for_user? && @ai_task.input["source_version"] == 1
       return interview_question_history_scope if @ai_task.generate_interview_questions?
       return unless @ai_task.subject_type == "InterviewQuestion" &&
@@ -226,6 +233,10 @@ module Screening
     # the reviewed question itself, during answer review, at its exact answer revision.
     def interview_revision_matches?(scope:, record:, snapshot:, receipt:, field:)
       revision = receipt["revision"] || {}
+      if scope[:current_revisions]
+        return revision["question_revision"] == record.question_revision &&
+          (field != "answer_text" || revision["answer_revision"] == record.answer_revision)
+      end
       if scope[:history]
         return field == "question_text" && revision["question_revision"] == record.question_revision
       end

@@ -19,7 +19,8 @@ module AiReaderAccess
 
   READABLE_PRACTICE_COLUMNS = {
     "interview_question_sets" => %w[id user_id number set_type origin created_at],
-    "interview_questions" => %w[id interview_question_set_id position question_text question_revision answer_revision retired_at answer_text answer_format answer_drafts screened_fields],
+    "interview_questions" => %w[id interview_question_set_id position question_text question_revision answer_revision retired_at answer_text answer_format answer_drafts screened_fields
+                                feedback feedback_question_revision feedback_answer_revision answer_format_revision],
     "avoided_interview_questions" => %w[id user_id question_text origin screened_fields created_at]
   }.freeze
 

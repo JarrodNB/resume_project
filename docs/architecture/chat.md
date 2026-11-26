@@ -2,7 +2,8 @@
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
-read-only tools for the career library and active saved-job postings. A chat-local
+read-only tools for the career library, active saved-job postings and saved interview
+practice questions. A chat-local
 `save_career_context` tool stages user-requested new career contexts. Attachments
 and other app actions are not available.
 
@@ -193,8 +194,9 @@ JSON string values per field. Chat returns these in `record_screening` on final
 acceptance.
 Rails accepts them only under the current operation fence and owner lock, then
 `Screening::RecordApprovalsService` compares each fingerprint with the owned record
-under its row lock. Chat acceptance explicitly enables owned active-job approvals after
-its locked claim fences; other taskless callers can approve only career-library records. A stale
+under its row lock. Chat acceptance explicitly enables owned active-job and owned
+active interview-question approvals after its locked claim fences; other taskless callers
+can approve only career-library records. A stale
 value earns no approval. Receipts participate in acceptance replay identity. Failed
 or stale operations save no approvals; ordinary edits still clear changed checks.
 
@@ -255,6 +257,36 @@ Chat acceptance sends at most 500 optional approval receipts across all tools. A
 used fields are screened before the model sees them, including fields whose receipts
 do not fit. Excess receipts are omitted from persistence only; those fields may need
 screening again on a later turn. The reply and its source facts remain complete.
+
+### Saved practice-question list
+
+`list_interview_questions-v1` (`mcp_tools/interview_questions.py`) lists the token
+owner's active interview practice questions: retired copies of replaced slots are left
+out in SQL (`database/interview_question_bank.py`, joined to the owner's sets). Order is
+newest practice set first (set created time, then ID), then slot. Each entry shows the set
+number and readable set type (for example "Fit and motivation"), slot, question text,
+whether an answer is saved, the feedback status and a question reference. Answers,
+feedback text and raw IDs are not returned.
+
+Feedback is "current" only when saved feedback is non-empty, its question and answer
+revisions equal the question's current ones, and its answer revision is at least the
+answer-format revision. Otherwise saved feedback is "out of date"; no feedback is "none".
+This is stricter than the app's `FeedbackOutdatedService`, which also accepts
+formatting-only answer edits by reading the review task; chat says "out of date" there.
+
+The list is complete or not shown: more than 500 questions or 40,000 rendered characters
+produces a limit sentence. An empty bank is stated plainly. Database failures return only
+the short `interview_questions_unavailable` error, which the model sees as a plain sentence.
+Saved `question_text` approvals are reused; unchecked questions are screened together with
+the operation's accounted screen. If that batch is blocked, each pending question is checked
+alone, blocked ones are left out with a note and the rest are still listed. Unavailable
+screening shows none of the list. Receipts carry the question revision; Rails approves
+them only for the owner's active questions whose current text and revisions still match.
+
+Question references use the shared signer in `mcp_tools/references.py`, like job
+references, but with their own `Q-` prefix and scope string, so a job reference never
+resolves as a question. The chat eval runner serves synthetic questions from the local
+tool server and records which tools' readers ran for its `tool_use` check.
 
 ### Saving career context
 

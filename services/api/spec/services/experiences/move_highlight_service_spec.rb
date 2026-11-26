@@ -34,6 +34,21 @@ RSpec.describe Experiences::MoveHighlightService do
     expect(moved.reload.experience_id).to eq(target.id)
   end
 
+  it "enforces the bullet limit against the target as it is once the user lock is held" do
+    stub_const("TextLimits::MAX_HIGHLIGHTS_PER_ROLE", 3)
+    competing = create(:experience_highlight, experience: source, content: "D", position: 3)
+    allow_any_instance_of(User).to receive(:with_lock).and_wrap_original do |original, *args, &block|
+      # A competing move lands first and fills the role while this request waits for the lock.
+      competing.update_columns(experience_id: target.id, position: 3)
+      original.call(*args, &block)
+    end
+
+    result = described_class.call(highlight: source_highlights.first, experience: target, position: 0)
+
+    expect(result.errors).to eq([ "You can save up to 3 bullets on a role" ])
+    expect(target.highlights.count).to eq(3)
+  end
+
   it "puts the highlight last when the position is past the end" do
     described_class.call(highlight: source_highlights.first, experience: target, position: 99)
 

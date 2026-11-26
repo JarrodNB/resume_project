@@ -821,7 +821,8 @@ the model writes is never spoken. The recording interlock stays held while it wa
 
 Observing never starts, retries or cancels the turn. The page skips observing in provider
 playback; the turn still publishes its text, which then expires unread.
-The last question never streams: an answer there can complete the interview, and the completed
+The browser does not observe or speak streamed text on the last question (the turn still
+publishes it): an answer there can complete the interview, and the completed
 review replaces the room at once, which would cut streamed speech off mid-sentence. A final
 turn's closing is hidden once the interview completes, as without streaming.
 

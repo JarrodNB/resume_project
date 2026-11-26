@@ -40,6 +40,7 @@ class User < ApplicationRecord
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
   validates :summary, length: { maximum: TextLimits::PROSE }
   validate :links_within_limits
+  validate :link_urls_are_web_addresses, if: :links_changed?
   validate :resume_section_order_lists_each_section_once
   validate :password_safe_for_bcrypt
 
@@ -112,5 +113,15 @@ class User < ApplicationRecord
       values.any? { |value| value.to_s.length > TextLimits::SHORT }
     end
     errors.add(:links, "is too long (maximum is #{TextLimits::SHORT} characters)") if too_long
+  end
+
+  # Link addresses are opened from the app and put into exported resumes, so only web addresses
+  # (see WebAddress) are saved. Only checked when links change, so older saved data never
+  # blocks an unrelated save.
+  def link_urls_are_web_addresses
+    return unless links.is_a?(Array)
+
+    unsafe = links.any? { |link| link.is_a?(Hash) && !WebAddress.valid?(link["url"]) }
+    errors.add(:links, "must use web addresses that start with http:// or https://") if unsafe
   end
 end

@@ -190,6 +190,7 @@ describe('recording with live transcription', () => {
     expect(result.current.candidateTranscript).toBeNull()
     expect(result.current.fallbackReason).toMatch(/unexpected/)
     expect(finish).toHaveBeenCalledOnce()
+    expect(result.current.liveFailed).toBe(true)
     const previous = callbacks
     act(() => result.current.resume())
     await act(async () => { previous.text('Late words'); previous.fallback('Late failure') })
@@ -199,6 +200,8 @@ describe('recording with live transcription', () => {
     expect(result.current.fallbackReason).toBeNull()
     expect(result.current.effectiveMode).toBe('streaming')
     expect(startStreaming).toHaveBeenCalledTimes(2)
+    // The earlier segment's live words may be incomplete, so the recording still needs transcribing.
+    expect(result.current.liveFailed).toBe(true)
     unmount(); vi.unstubAllGlobals()
   })
 

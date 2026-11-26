@@ -94,6 +94,7 @@ cases:
   metadata:
     required_reply_terms:
     - Elixir
+    required_tool_calls: [read_career_library]
 - name: unsupported_app_action
   inputs:
     payload:
@@ -139,6 +140,9 @@ cases:
   metadata:
     required_reply_terms: [Remote, Python]
     forbidden_reply_terms: [I updated, I saved]
+    # The job is in the prompt's recent jobs, so its reference is already there.
+    required_tool_calls: [read_job_summary]
+    forbidden_tool_calls: [list_saved_jobs]
 - name: ambiguous_duplicate_saved_titles
   inputs:
     payload:
@@ -197,6 +201,7 @@ cases:
   metadata:
     required_reply_terms: [Platform Engineer, Acme]
     forbidden_reply_terms: [I updated, I saved]
+    forbidden_tool_calls: [list_saved_jobs]
 - name: blocked_recent_job_label_keeps_chat_working
   inputs:
     payload:
@@ -294,6 +299,180 @@ cases:
     forbidden_reply_terms:
     - I saved
     - I updated
+# Seven saved jobs, newest first: the prompt holds only the five newest, so the two
+# oldest are reachable only through list_saved_jobs.
+- name: reads_oldest_saved_job_through_list
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: What are the location and requirements of the Lab Technician job at
+        Northfield Clinic that I saved a while ago?
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+    saved_jobs:
+    - id: 00000000-0000-0000-0000-000000000011
+      title: Platform Engineer
+      company: Acme
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000012
+      title: Data Analyst
+      company: Beacon
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000013
+      title: Product Designer
+      company: Cobalt Studio
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000014
+      title: Support Specialist
+      company: Dovetail
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000015
+      title: Project Coordinator
+      company: Evergreen Builders
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000016
+      title: Inventory Planner
+      company: Fernway Foods
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000017
+      title: Lab Technician
+      company: Northfield Clinic
+      location: Denver, CO
+      requirements: [Phlebotomy certification, Two years of clinical lab work]
+      responsibilities: [Process patient samples]
+      nice_to_haves: []
+      screened_fields: [title, company, location, requirements, responsibilities]
+  metadata:
+    required_reply_terms: [Denver, Phlebotomy]
+    forbidden_reply_terms: [I updated, I saved]
+    required_tool_calls: [list_saved_jobs, read_job_summary]
+- name: lists_every_saved_job
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: List every job I have saved, with its title and company.
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+    saved_jobs:
+    - id: 00000000-0000-0000-0000-000000000011
+      title: Platform Engineer
+      company: Acme
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000012
+      title: Data Analyst
+      company: Beacon
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000013
+      title: Product Designer
+      company: Cobalt Studio
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000014
+      title: Support Specialist
+      company: Dovetail
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000015
+      title: Project Coordinator
+      company: Evergreen Builders
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000016
+      title: Inventory Planner
+      company: Fernway Foods
+      screened_fields: [title, company]
+    - id: 00000000-0000-0000-0000-000000000017
+      title: Lab Technician
+      company: Northfield Clinic
+      location: Denver, CO
+      requirements: [Phlebotomy certification, Two years of clinical lab work]
+      responsibilities: [Process patient samples]
+      nice_to_haves: []
+      screened_fields: [title, company, location, requirements, responsibilities]
+  metadata:
+    required_reply_terms: [Acme, Beacon, Cobalt Studio, Dovetail, Evergreen Builders,
+      Fernway Foods, Northfield Clinic]
+    required_tool_calls: [list_saved_jobs]
+    forbidden_tool_calls: [read_career_library]
+- name: empty_career_library_does_not_invent_experience
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: Based on my saved career library, which past role and achievement
+        should I lead with for a project manager job?
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+  metadata:
+    required_tool_calls: [read_career_library]
+    # Honest replies say the library has nothing to draw on, in any of several wordings.
+    required_any_reply_terms: [empty, no saved, nothing saved, no experience, no roles,
+      no entries, doesn't have any, does not have any, don't have any, do not have any,
+      isn't anything, is not anything, doesn't contain, does not contain, no past roles]
+    # Narrow phrases that claim a saved role; general advice such as "if you led" stays allowed.
+    forbidden_reply_terms: [your role at, your time at, at your previous company, your
+        experience at]
+- name: reads_multi_section_career_library
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: Using my saved career library, tell me my most recent employer, the
+        certificate I earned, and one measurable result I could use on a logistics
+        analyst resume.
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+    career_library:
+      summary: Operations coordinator moving into logistics analysis.
+      screened_fields: [summary]
+      experiences:
+      - id: synthetic-experience-recent
+        company: Harbor Freightways
+        title: Operations Coordinator
+        start_date: 2023-03-01
+        description: Coordinated inbound freight schedules for three regional warehouses.
+        screened_fields: [company, title, description]
+        highlights:
+        - id: synthetic-highlight-invoice
+          content: Cut invoice processing time by 40% by moving carrier invoices into
+            a shared tracking sheet.
+          screened_fields: [content]
+      - id: synthetic-experience-older
+        company: Maple Street Grocers
+        title: Stock Associate
+        start_date: 2019-06-01
+        end_date: 2023-02-01
+        screened_fields: [company, title]
+      projects:
+      - id: synthetic-project
+        name: Volunteer shift planner
+        role: Builder
+        description: Built a spreadsheet that schedules weekend food bank volunteers.
+        screened_fields: [name, role, description]
+      educations:
+      - id: synthetic-education
+        institution: Lakeshore Community College
+        degree: Associate degree
+        field_of_study: Logistics
+        screened_fields: [institution, degree, field_of_study]
+      certifications:
+      - id: synthetic-certification
+        name: Warehouse Analytics Certificate
+        issuer: Synthetic Logistics Institute
+        issued_date: 2024-05-01
+        screened_fields: [name, issuer]
+      skills:
+      - id: synthetic-skill-sql
+        name: SQL
+        category: Data
+        screened_fields: [name, category]
+      career_contexts:
+      - id: 00000000-0000-0000-0000-000000000021
+        requirement: Forecasting
+        response: I built weekly freight volume forecasts in a spreadsheet for my manager.
+        screened_fields: [requirement, response]
+  metadata:
+    required_reply_terms: [Harbor Freightways, Warehouse Analytics, 40%]
+    required_tool_calls: [read_career_library]
 - name: lists_unanswered_practice_questions
   inputs:
     payload:

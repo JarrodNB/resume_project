@@ -287,7 +287,7 @@ them only for the owner's active questions whose current text and revisions stil
 Question references use the shared signer in `mcp_tools/references.py`, like job
 references, but with their own `Q-` prefix and scope string, so a job reference never
 resolves as a question. The chat eval runner serves synthetic questions from the local
-tool server and records which tools' readers ran for its `tool_use` check.
+tool server and records which tools' readers ran for its `tool_use_policy` check.
 
 ### Selected saved practice question
 

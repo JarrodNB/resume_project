@@ -3,6 +3,7 @@
 Run with `python -m evals.run_chat_evals`; this calls Jev and configured generation
 providers and incurs charges. It makes no Rails writes. Its in-memory owner records
 provider receipts while the production adapter handles screening, privacy and agents.
+Fake tool readers record which tools reached them, so cases can require or forbid tool use.
 Deterministic checks measure targeted continuity and honesty signals, not broad quality.
 """
 import os
@@ -90,10 +91,9 @@ async def execute_chat_case(case, *, models=None):
     tool_calls = []
 
     def recorded(tool_name, read):
-        """Note which tool's synthetic reader ran, for the deterministic tool-use check."""
+        """Note that a tool reached its reader, then read the case's synthetic data."""
         def read_and_record(*args):
-            if tool_name not in tool_calls:
-                tool_calls.append(tool_name)
+            tool_calls.append(tool_name)
             return read(*args)
         return read_and_record
 
@@ -124,8 +124,9 @@ async def execute_chat_case(case, *, models=None):
     result = owner.result or {}
     return ChatEvalOutput(career_contexts=result.get("career_contexts", []), status="completed" if owner.result else "failed", reply=result.get("reply", ""),
         summary=(result.get("summary_update") or {}).get("text", ""), failure_code=owner.failure,
-        tool_calls=tool_calls, known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
-        accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()))
+        known_cost_microdollars=sum(entry.get("cost_microdollars", 0) for usage, _ in owner.receipts.values() for entry in usage),
+        accounting_complete=owner.pending == owner.receipts.keys() and not any(incomplete for _, incomplete in owner.receipts.values()),
+        tool_calls=tool_calls)
 
 
 def run_chat_evals():

@@ -18,7 +18,8 @@ Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker ex
   implementations and fresh reviews; fix-loop follows the same supporting guidance.
 - Companion delivery loops: `test-quality-loop/`, `simplify-loop/`, `resilience-loop/`,
   `performance-loop/`, `accessibility-loop/`, `ux-friction-loop/`, `docs-drift-loop/`,
-  `observability-loop/`, `dependency-loop/`, `boundary-loop/`, and `architecture-loop/`.
+  `observability-loop/`, `dependency-loop/`, `boundary-loop/`, `architecture-loop/`, and
+  `security-loop/` (reachable security weaknesses; run on its own, not part of super-loop's twelve categories).
   Architecture iterations require a user decision on the proposed design before implementation.
 - `orchestrator/` — Local delivery planning, approvals, delegation, and handoff.
 - `pr-review-environment/` — Isolated local PR stacks with copies of the main development database and existing accounts.

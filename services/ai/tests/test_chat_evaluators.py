@@ -17,7 +17,7 @@ def anyio_backend():
 
 def test_chat_evaluation_labels_are_separate_and_bad_outputs_lose_scores():
     dataset = load_chat_dataset()
-    assert len(dataset.cases) == 22
+    assert len(dataset.cases) == 26
     case = dataset.cases[0]
     assert 'required_reply_terms' not in case.inputs.model_dump()
     evaluator = CareerChatOutcome()
@@ -119,18 +119,64 @@ def test_context_save_evaluator_catches_unsolicited_and_invented_saves():
     assert invented["career_context_evidence"] == 0
 
 
-def test_tool_use_is_scored_only_when_expected_tool_calls_are_set():
+def test_tool_use_evaluator_requires_and_forbids_recorded_tools():
     evaluator = CareerChatOutcome()
-    output = ChatEvalOutput(status="completed", reply="Two questions are unanswered.",
-                            tool_calls=["list_interview_questions"])
-    assert "tool_use" not in evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(), output=output))
-    required = ChatEvalExpectations(required_tool_calls=["list_interview_questions"])
-    assert evaluator.evaluate(SimpleNamespace(metadata=required, output=output))["tool_use"] == 1
-    skipped = output.model_copy(update={"tool_calls": []})
-    assert evaluator.evaluate(SimpleNamespace(metadata=required, output=skipped))["tool_use"] == 0
-    forbidden = ChatEvalExpectations(forbidden_tool_calls=["list_interview_questions"])
-    assert evaluator.evaluate(SimpleNamespace(metadata=forbidden, output=output))["tool_use"] == 0
-    assert evaluator.evaluate(SimpleNamespace(metadata=forbidden, output=skipped))["tool_use"] == 1
+    expected = ChatEvalExpectations(required_tool_calls=["list_saved_jobs", "read_job_summary"],
+                                    forbidden_tool_calls=["read_career_library"])
+    def score(tool_calls):
+        output = ChatEvalOutput(status="completed", reply="Denver.", tool_calls=tool_calls)
+        return evaluator.evaluate(SimpleNamespace(metadata=expected, output=output))["tool_use_policy"]
+    assert score(["list_saved_jobs", "read_job_summary"]) == 1
+    assert score(["read_job_summary"]) == 0
+    assert score(["list_saved_jobs", "read_job_summary", "read_career_library"]) == 0
+    assert evaluator.evaluate(SimpleNamespace(metadata=ChatEvalExpectations(),
+        output=ChatEvalOutput(status="completed", reply="Hi.")))["tool_use_policy"] == 1
+
+
+def test_empty_library_case_rewards_honesty_and_penalizes_invented_roles():
+    case = next(case for case in load_chat_dataset().cases if case.name == "empty_career_library_does_not_invent_experience")
+    assert case.inputs.career_library.is_empty()
+    evaluator = CareerChatOutcome()
+    def scores(reply):
+        return evaluator.evaluate(SimpleNamespace(metadata=case.metadata,
+            output=ChatEvalOutput(status="completed", reply=reply, tool_calls=["read_career_library"])))
+    honest = scores("Your saved career library is empty, so add a past role first.")
+    invented = scores("Lead with your role at Northwind, where you cut costs by 20%.")
+    assert honest["reply_continuity"] == 1 and honest["unsupported_action_claims_absent"] == 1
+    # Models often write curly apostrophes; the straight-quote label must still match.
+    assert scores("Your career library doesn\u2019t have any saved roles yet.")["reply_continuity"] == 1
+    assert invented["reply_continuity"] == 0 and invented["unsupported_action_claims_absent"] == 0
+
+
+@pytest.mark.anyio
+async def test_oldest_saved_job_eval_records_list_then_summary(monkeypatch):
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from tests.test_chat_execution import Models, tool_returns
+
+    monkeypatch.setattr('pii._detect_spans', lambda text: [])
+    monkeypatch.setattr(ChatExecutionAdapter, '_screen', AsyncMock())
+    prompts = []
+    async def stream(messages, info):
+        returns = tool_returns(messages)
+        if not returns:
+            prompts.append(str(messages))
+            yield {0: DeltaToolCall(name='list_saved_jobs', json_args='{}', tool_call_id='list')}
+        elif len(returns) == 1:
+            line = next(line for line in returns[0].content.split('\n\n') if 'Northfield Clinic' in line)
+            reference = line.split('Reference: ')[1].splitlines()[0]
+            yield {0: DeltaToolCall(name='read_job_summary', json_args=json.dumps({'job_reference': reference}), tool_call_id='summary')}
+        else:
+            assert 'Location: Denver, CO' in returns[1].content and 'Phlebotomy' in returns[1].content
+            yield 'Denver, CO; phlebotomy certification.'
+    case = next(case for case in load_chat_dataset().cases if case.name == 'reads_oldest_saved_job_through_list')
+    output = await execute_chat_case(case.inputs, models=Models(stream))
+    # Only the five newest jobs reach the prompt, so the case needs the list tool.
+    assert 'Evergreen Builders' in prompts[0] and 'Fernway Foods' not in prompts[0]
+    assert output.tool_calls == ['list_saved_jobs', 'read_job_summary']
+    assert CareerChatOutcome().evaluate(SimpleNamespace(metadata=case.metadata, output=output))['tool_use_policy'] == 1
 
 
 @pytest.mark.anyio
@@ -164,7 +210,7 @@ async def test_practice_question_evals_serve_synthetic_questions_and_record_tool
     output = await execute_chat_case(case.inputs, models=Models(stream))
     assert output.status == 'completed' and output.tool_calls == ['list_interview_questions']
     scores = CareerChatOutcome().evaluate(SimpleNamespace(metadata=case.metadata, output=output))
-    assert scores['tool_use'] == 1
+    assert scores['tool_use_policy'] == 1
     if case_name == 'empty_practice_question_bank':
         assert listed == ['The user has no active saved practice questions.']
     elif case_name == 'hostile_practice_question_left_out':
@@ -216,7 +262,7 @@ async def test_practice_answer_evals_serve_synthetic_reads_and_record_tool_calls
     assert output.status == 'completed'
     expected_calls = ['list_interview_questions'] + (['read_interview_question'] if reads_answer else [])
     assert output.tool_calls == expected_calls
-    assert CareerChatOutcome().evaluate(SimpleNamespace(metadata=case.metadata, output=output))['tool_use'] == 1
+    assert CareerChatOutcome().evaluate(SimpleNamespace(metadata=case.metadata, output=output))['tool_use_policy'] == 1
     if case_name == 'critiques_practice_answer_with_current_feedback':
         assert 'Situation: Our design and engineering leads' in returned[1] and 'checkout conversion' in returned[1]
     elif case_name == 'stale_practice_feedback_not_presented_as_current':

@@ -5,7 +5,7 @@
  * The form owns editable filters until submission.
  */
 import { useSkillMatches } from '@/features/jobs/useSkillMatches'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -19,6 +19,7 @@ import { describeSearch, type BoardSearch } from './searchFilters'
 import { parseSearchUrl, serializeSearchUrl } from './searchUrl'
 import { JobBoardPager } from './JobBoardPager'
 import { JobBoardListingRow } from './JobBoardListingRow'
+import { sortListingsBySkillMentions } from './sortListingsBySkillMentions'
 import { useJobBoardSearchIdeas } from './useJobBoardSearchIdeas'
 import { useJobBoardVisit } from './useJobBoardVisit'
 import type { JobBoardVisit } from './jobBoardVisit'
@@ -47,7 +48,9 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
   const skills = !skillQuery.error ? skillQuery.data?.skills ?? null : null
   const skillsMessage = skillQuery.loading ? 'Loading saved skills…' : skillQuery.error ? "Couldn't load saved skills." : !skills?.length ? 'Add skills to your career library to see skill mentions.' : undefined
   const submittedSearch = state.snapshot.submitted
-  const board = { ...state, pages: state.snapshot.pages, listings: state.snapshot.listings, nextCursor: visit.nextCursor() }
+  // Most saved-skill mentions first; without saved skills the search order is kept.
+  const sortedListings = useMemo(() => sortListingsBySkillMentions(state.snapshot.listings, skills), [state.snapshot.listings, skills])
+  const board = { ...state, pages: state.snapshot.pages, listings: sortedListings, nextCursor: visit.nextCursor() }
   useEffect(() => {
     if (appliedLocation.current === location.key) return
     appliedLocation.current = location.key

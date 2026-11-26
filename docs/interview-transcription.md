@@ -6,7 +6,9 @@ recognition is the default; the browser remembers the signed-in owner's choice.
 Choose another mode between answers in Interview settings. Recorded-audio fallback
 messages remain beside the answer controls.
 
-Voice modes keep a complete WebM or MP4 recording for preview and fallback. Browser and
+Voice modes keep a complete WebM or MP4 recording for preview and fallback. Transcribe recording
+appears only in recorded mode or after live recognition failed at any point in the current
+recording; a live answer that succeeded already has its words in the box. Browser and
 streaming dictation appear live in the same answer box used for typing. Interim words
 update in place after any existing authored text, and the final transcript replaces
 that provisional portion. The answer box stays editable during recording and finalization. Manual edits protect

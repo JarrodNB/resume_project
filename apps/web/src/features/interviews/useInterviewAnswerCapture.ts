@@ -184,7 +184,8 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
     },
     review: {
       operation, pending, saving, reviewed,
-      canTranscribe: !recorder.candidateTranscript && !selectedReview && !(review.kind === 'dismissed' && review.recording === recorder.recording),
+      // Live modes put words in the box as you speak, so the recording only needs transcribing when live recognition failed.
+      canTranscribe: (recorder.effectiveMode === 'recorded' || recorder.liveFailed) && !recorder.candidateTranscript && !selectedReview && !(review.kind === 'dismissed' && review.recording === recorder.recording),
       canRestore: !selectedReview && operation?.status === 'accepted' && Boolean(operation.reviewTranscript),
     },
   }

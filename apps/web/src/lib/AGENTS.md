@@ -6,6 +6,7 @@ Shared formatting, configuration, theme state, and text limits.
 
 ## Contents
 
+- `aiOutputStream.ts` — observe one owned AI attempt's provisional text (chat replies, interview turns)
 - `apiConfig.ts`
 - `colorTheme.ts`
 - `formatCertificationDates.test.ts`

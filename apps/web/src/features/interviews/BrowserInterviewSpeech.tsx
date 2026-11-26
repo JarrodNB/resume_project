@@ -1,6 +1,8 @@
 /** Speak saved interviewer text with the browser's voice engine.
  * One control plays or stops the turn, then disappears once it finishes; recording, navigation and errors
  * release its disposable playback.
+ * While `streaming` is set, the text is still being written: only finished sentences are spoken, and playback
+ * waits (still counted as playing, so recording stays off) until more text arrives or streaming ends.
  * Browser voices may use device or network services; this never requests provider audio.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -11,6 +13,8 @@ import { finishInterviewTiming } from './interviewLatency'
 type Props = {
   messageId: string
   text: string
+  /** The text may still grow; earlier text never changes while this is set. */
+  streaming?: boolean
   automatic?: boolean
   muted?: boolean
   disabled?: boolean
@@ -23,6 +27,8 @@ type Playback = {
   timer: ReturnType<typeof setTimeout> | null
   removeVoiceListener?: () => void
   stop: () => void
+  /** Continue after waiting for streamed text; set only while waiting. */
+  resume?: () => void
 }
 // The browser has one queue, including requests waiting for voices to load.
 let activePlayback: Playback | null = null
@@ -30,11 +36,12 @@ let activePlayback: Playback | null = null
 export function BrowserInterviewSpeech(props: Props) {
   return <BrowserSpeech key={props.messageId} {...props} />
 }
-function BrowserSpeech({ messageId, text, automatic = false, muted = false, disabled = false, otherSpeechPlaying = false, onAutomaticAttempt, onPlayingChange }: Props) {
+function BrowserSpeech({ messageId, text, streaming = false, automatic = false, muted = false, disabled = false, otherSpeechPlaying = false, onAutomaticAttempt, onPlayingChange }: Props) {
   const supported = Boolean(globalThis.speechSynthesis && globalThis.SpeechSynthesisUtterance)
   const playback = useRef<Playback | null>(null)
   const allowed = useRef(!muted && !disabled)
   const attempted = useRef(false)
+  const latest = useRef({ text, streaming })
   const [playing, setPlaying] = useState(false)
   const [ended, setEnded] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,14 +68,18 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
     if (!allowed.current || otherSpeechPlaying) stop()
   }, [muted, disabled, otherSpeechPlaying, stop])
   useEffect(() => () => stop(), [stop])
+  useEffect(() => {
+    latest.current = { text, streaming }
+    const waiting = playback.current?.resume
+    if (waiting && playback.current) { playback.current.resume = undefined; waiting() }
+  }, [text, streaming])
   const play = useCallback((automaticPlay = false) => {
-    if (!allowed.current || !supported || !text.trim()) return
+    if (!allowed.current || !supported || !latest.current.text.trim()) return
     stop()
     activePlayback?.stop()
     const current: Playback = { utterance: null, timer: null, stop }
     playback.current = current
     activePlayback = current
-    const chunks = interviewSpeechChunks(text)
     let position = 0
     const live = () => playback.current === current && activePlayback === current && allowed.current
     const fail = () => {
@@ -84,7 +95,12 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
     const speakNext = () => {
       if (!live()) return
       if (current.timer) clearTimeout(current.timer)
-      if (position === chunks.length) { stop(); setEnded(true); return }
+      const chunks = interviewSpeechChunks(latest.current.text)
+      // The last chunk of growing text may be an unfinished sentence.
+      if (position >= chunks.length - (latest.current.streaming ? 1 : 0)) {
+        if (latest.current.streaming) { current.resume = speakNext; return }
+        stop(); setEnded(true); return
+      }
       let utterance: SpeechSynthesisUtterance
       try { utterance = new SpeechSynthesisUtterance(chunks[position++]) } catch { fail(); return }
       current.utterance = utterance
@@ -154,7 +170,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
         speakNext()
       }, 300)
     } else speakNext()
-  }, [messageId, notify, stop, supported, text])
+  }, [messageId, notify, stop, supported])
   useEffect(() => {
     if (!automatic || attempted.current) return
     const timer = setTimeout(() => {

@@ -1,6 +1,6 @@
 /** Exercises the public output observer with a controlled socket and canonical identity. */
 import { expect, it, vi } from 'vitest'
-import { observeChatOutput } from './chatOutputStream'
+import { observeAiOutput } from './aiOutputStream'
 
 class Socket {
   static instances: Socket[] = []
@@ -21,7 +21,7 @@ const event = (type: string, extra = {}) => ({ type, version: 1, feature: 'chat'
 
 it('sends a capability only in the first frame and reconciles completion', async () => {
   const text = vi.fn(), reconcile = vi.fn()
-  const dispose = observeChatOutput({ operation: identity, authorize: async () => 'secret-token', onText: text, onReconcile: reconcile,
+  const dispose = observeAiOutput({ feature: 'chat', operation: identity, authorize: async () => 'secret-token', onText: text, onReconcile: reconcile,
     createSocket: (url) => new Socket(url) as unknown as WebSocket })
   await vi.waitFor(() => expect(Socket.instances.length).toBeGreaterThan(0))
   const socket = Socket.instances.at(-1)!
@@ -41,7 +41,7 @@ it('sends a capability only in the first frame and reconciles completion', async
 it('clears provisional output when reset or a foreign attempt arrives', async () => {
   for (const reset of [{ type: 'reset', code: 'saved_state_required' }, event('delta', { attempt_id: 'foreign', text: 'private', cursor: '2-0' })]) {
     const text = vi.fn(), reconcile = vi.fn(), before = Socket.instances.length
-    observeChatOutput({ operation: identity, authorize: async () => 'secret', onText: text, onReconcile: reconcile,
+    observeAiOutput({ feature: 'chat', operation: identity, authorize: async () => 'secret', onText: text, onReconcile: reconcile,
       createSocket: (url) => new Socket(url) as unknown as WebSocket })
     await vi.waitFor(() => expect(Socket.instances.length).toBe(before + 1))
     const socket = Socket.instances.at(-1)!
@@ -57,7 +57,7 @@ it('reattaches with a fresh capability and cursor without replaying execution', 
   vi.useFakeTimers()
   try {
     const text = vi.fn(), reconcile = vi.fn(), authorize = vi.fn().mockResolvedValueOnce('first').mockResolvedValueOnce('second')
-    const dispose = observeChatOutput({ operation: identity, authorize, onText: text, onReconcile: reconcile,
+    const dispose = observeAiOutput({ feature: 'chat', operation: identity, authorize, onText: text, onReconcile: reconcile,
       createSocket: (url) => new Socket(url) as unknown as WebSocket })
     await Promise.resolve()
     const first = Socket.instances.at(-1)!
@@ -78,7 +78,7 @@ it('reattaches with a fresh capability and cursor without replaying execution', 
 it('does not attach after unmount while capability authorization is pending', async () => {
   let resolve!: (value: string) => void
   const before = Socket.instances.length
-  const dispose = observeChatOutput({ operation: identity, authorize: () => new Promise((done) => { resolve = done }),
+  const dispose = observeAiOutput({ feature: 'chat', operation: identity, authorize: () => new Promise((done) => { resolve = done }),
     onText: vi.fn(), onReconcile: vi.fn(), createSocket: (url) => new Socket(url) as unknown as WebSocket })
   dispose()
   resolve('token')
@@ -88,7 +88,7 @@ it('does not attach after unmount while capability authorization is pending', as
 
 it('ignores a duplicate replay cursor and rejects oversized provisional text', async () => {
   const text = vi.fn(), reconcile = vi.fn(), before = Socket.instances.length
-  observeChatOutput({ operation: identity, authorize: async () => 'secret', onText: text, onReconcile: reconcile,
+  observeAiOutput({ feature: 'chat', operation: identity, authorize: async () => 'secret', onText: text, onReconcile: reconcile,
     createSocket: (url) => new Socket(url) as unknown as WebSocket })
   await vi.waitFor(() => expect(Socket.instances.length).toBe(before + 1))
   const socket = Socket.instances.at(-1)!
@@ -96,6 +96,31 @@ it('ignores a duplicate replay cursor and rejects oversized provisional text', a
   socket.receive(event('delta', { text: 'First', cursor: '1-0' }))
   expect(text).toHaveBeenCalledTimes(1)
   socket.receive(event('delta', { text: 'a'.repeat(4097), cursor: '2-0' }))
+  expect(text).toHaveBeenLastCalledWith('')
+  expect(reconcile).toHaveBeenCalledTimes(1)
+})
+
+it('observes another feature and pins an attempt the snapshot does not show from the attached frame', async () => {
+  const text = vi.fn(), reconcile = vi.fn(), before = Socket.instances.length
+  const interview = (type: string, extra = {}) => ({ ...event(type, extra), feature: 'interviews' })
+  observeAiOutput({ feature: 'interviews', operation: { id: 'operation' }, authorize: async () => 'secret', onText: text, onReconcile: reconcile,
+    createSocket: (url) => new Socket(url) as unknown as WebSocket })
+  await vi.waitFor(() => expect(Socket.instances.length).toBe(before + 1))
+  const socket = Socket.instances.at(-1)!
+  socket.receive(interview('attached'))
+  socket.receive(interview('delta', { text: 'Tell me more.', cursor: '1-0' }))
+  expect(text).toHaveBeenLastCalledWith('Tell me more.')
+  socket.receive(interview('delta', { attempt_id: 'foreign', text: ' Private', cursor: '2-0' }))
+  expect(text).toHaveBeenLastCalledWith('')
+  expect(reconcile).toHaveBeenCalledTimes(1)
+})
+
+it('rejects output from another feature', async () => {
+  const text = vi.fn(), reconcile = vi.fn(), before = Socket.instances.length
+  observeAiOutput({ feature: 'interviews', operation: { id: 'operation' }, authorize: async () => 'secret', onText: text, onReconcile: reconcile,
+    createSocket: (url) => new Socket(url) as unknown as WebSocket })
+  await vi.waitFor(() => expect(Socket.instances.length).toBe(before + 1))
+  Socket.instances.at(-1)!.receive(event('attached'))
   expect(text).toHaveBeenLastCalledWith('')
   expect(reconcile).toHaveBeenCalledTimes(1)
 })

@@ -134,6 +134,11 @@ The short "Sending in 3…" notice after a hands-free answer ends. When it finis
 reviewed text is submitted like a normal Submit. Keep editing stops it, Send now skips it,
 and speaking again stops it and continues the same recording.
 
+**Streamed interviewer speech**:
+Browser-voice playback of the interviewer's reply while the model is still writing it,
+before the reply is saved. It is provisional: in rare cases the saved reply differs, and
+then the voice stops and the saved text is shown without repeating what was already said.
+
 **Interviewer acknowledgement**:
 A brief factual response to a detail in the candidate's previous answer, before the
 interviewer asks a follow-up, moves to the next question, or closes the interview.

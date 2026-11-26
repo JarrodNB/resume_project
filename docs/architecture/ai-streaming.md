@@ -8,10 +8,13 @@ An optional output sink adds incremental public text.
 Chat opts into incremental output using the same runner as interviews. Its AI adapter
 sets `stream_output = True`; its Rails adapter supplies ownership/current-attempt checks
 and canonical acceptance. Interviews also opt in, for answer turns only: the turn streams
-its provisional spoken text (acknowledgement, a blank line, then a follow-up) so browser
-speech can start early, while saved results still arrive through the GraphQL subscription.
-Rails authorizes interview observers only for the owner's current turn operation.
-Preparation, transcription and speech operations never stream.
+its provisional spoken text (the acknowledgement, a blank line once it is whole, then any
+follow-up) so the browser voice can start early. Saved results still arrive through the
+GraphQL subscription and stay canonical. Only browser playback observes a turn; provider
+playback does not, and Rails authorizes interview observers only for the owner's current
+turn operation. Preparation, transcription and speech operations never stream. The rules
+for speaking provisional text, and for a saved reply that differs from it, are in
+[interview sessions](interview-sessions.md#browser-speech-default).
 
 A streaming feature needs both an opted-in AI adapter and its Rails authority in
 the `stream_authority` field of `AiExecutions::Features::REGISTRY`. Each fixed

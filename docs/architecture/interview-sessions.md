@@ -295,12 +295,12 @@ the response cap forces advancement. It never changes Rails' choice of question.
 
 Message `content` remains only the question/follow-up/closing. Optional
 `acknowledgement` metadata is exposed separately; `spokenContent` joins it to content
-with a blank line. Browser and provider speech use that canonical saved text, as do
-restored public-dialogue claims. In browser playback, a running answer turn's provisional
-spoken text may be spoken sentence by sentence before it is saved; when the saved text
-begins with what was streamed, playback finishes with the saved text and repeats nothing.
-Otherwise the saved text plays as before (see docs/architecture/ai-streaming.md). Clarification can read content alone without copying
-candidate details from the acknowledgement. No new dialogue kind is introduced.
+with a blank line. That saved text is canonical: provider speech, restored public-dialogue
+claims and replay all use it. The one exception is browser playback of a running answer turn,
+which may speak provisional streamed text before it is saved. That speech can rarely differ
+from the saved text (for example after a model retry); the saved text then wins and what was
+already said is never repeated (see [Browser speech default](#browser-speech-default)).
+Clarification can read content alone without copying candidate details from the acknowledgement. No new dialogue kind is introduced.
 Acknowledgement plus follow-up share the existing 4,000-character speech-text cap.
 
 Internal acceptance permits omission for historical runtimes and old receipts. An
@@ -799,6 +799,25 @@ The recording interlock remains held across the entire sequence. Stop, mute, cap
 navigation, errors or stalled chunks cancel the sequence; stale callbacks cannot
 restart it. Actual voice quality depends on the available browser/OS voices and needs
 human listening checks.
+
+Streamed interviewer speech lets the browser voice start before a turn is saved. While an
+answer turn runs in browser playback, the page observes the turn's provisional spoken text
+through [AI output streaming](ai-streaming.md) and speaks each finished sentence, holding an
+unfinished last one. A finished acknowledgement arrives followed by a blank line, so it is
+spoken straight away even when the interviewer moves on and nothing else streams. The
+recording interlock stays held while it waits for more text. When the saved reply arrives:
+
+- If its spoken text begins with everything streamed, the same playback carries on with the
+  saved text. A follow-up finishes without repeats; after an advance, the next question is
+  spoken from the saved snapshot after the acknowledgement.
+- If it differs (rare), or the stream or the turn fails, the streamed voice stops. Once any
+  streamed sentence was heard, the saved reply is shown but not spoken again automatically;
+  Play interviewer audio still replays it, and a failed turn shows its usual failure and retry.
+- If the stream is unavailable, unauthorized or fails before anything was heard, the saved
+  reply plays automatically as usual.
+
+Observing never starts, retries or cancels the turn. Provider playback never observes it.
+A final turn's closing is hidden once the interview completes, as without streaming.
 
 ## Readable context and canonical dialogue
 

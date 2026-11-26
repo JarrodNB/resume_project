@@ -2,6 +2,8 @@
  * Final results replace their indexed slots; interim words are never submitted. A bounded
  * stop waits for final callbacks. Failure selects recorded fallback rather than partial text.
  */
+/** Rails refused the capture; its message is safe to show and explains what to do next. */
+export class TranscriptionRefusedError extends Error {}
 export interface TranscriptionCallbacks { text(text: string): void; fallback(reason: string): void }
 export interface TranscriptionCapture { finish(): Promise<string | null>; cancel(): void }
 export type TranscriptionMode = 'browser' | 'streaming' | 'recorded'
@@ -59,6 +61,7 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
     rec.onerror = ({ error }) => {
       if (!active || current !== rec || failed) return
       if (error === 'no-speech') return
+      console.warn('Browser speech recognition error:', error)
       fail(error === 'not-allowed' || error === 'service-not-allowed'
         ? 'Browser recognition permission was denied. If microphone recording succeeds, finish recording, then choose Transcribe recording.'
         : 'Your browser\'s speech recognition hit a problem.')

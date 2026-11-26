@@ -3,6 +3,7 @@
 module "storage" {
   source = "./modules/storage"
   name   = var.name
+  domain = var.domain
 }
 
 module "queues" {

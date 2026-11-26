@@ -30,6 +30,8 @@ class User < ApplicationRecord
   has_many :interview_question_sets, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :interview_sessions, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :ai_task_outcomes, dependent: :delete_all
+  # Runs before the dependent deletes below remove the rows it reads.
+  before_destroy :keep_ai_spend_totals, prepend: true
   has_many :ai_tasks, dependent: :destroy
   has_many :ai_embedding_requests, dependent: :delete_all
   has_many :library_embeddings, dependent: :delete_all
@@ -113,6 +115,12 @@ class User < ApplicationRecord
       values.any? { |value| value.to_s.length > TextLimits::SHORT }
     end
     errors.add(:links, "is too long (maximum is #{TextLimits::SHORT} characters)") if too_long
+  end
+
+  # Keeps the account's AI cost as anonymous daily totals, so deleting it can't reset the
+  # site-wide trial budget. See AiUsage::RecordDeletedAccountSpendService.
+  def keep_ai_spend_totals
+    AiUsage::RecordDeletedAccountSpendService.call(user: self)
   end
 
   # Link addresses are opened from the app and put into exported resumes, so only web addresses

@@ -10,6 +10,17 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Contents
 
+- `save_library_entry_service.rb` — create or edit one experience, project, education, skill,
+  certification or career context entry. Owns the rules every library save shares: it takes the
+  owner (user) row lock first and the entry row lock second, so the `library_size_limit` count
+  and a new skill's position cannot race between concurrent requests; normalizes submitted
+  values per kind (`OngoingDates` for projects and education, day precision for certification
+  dates given without one); drops screening marks only for changed fields on edit
+  (`discard_changed_screened_fields`); replaces an experience's highlights keeping unchanged
+  bullets' identity; and queues one `SyncLibraryEmbeddingsJob` after a successful save. Add a new
+  library kind by adding a `KINDS` entry, not a new create/update service. Merge, import and clear
+  keep their own paths (they lock the owner first too).
+
 - `find_matching_library_record_service.rb` — returns the existing entry a record duplicates.
   Match keys: experience company + title, project name, education institution + degree (a
   blank degree only matches a blank degree). Text compares case-insensitively with whitespace

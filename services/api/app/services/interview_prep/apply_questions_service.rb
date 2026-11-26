@@ -50,44 +50,21 @@ module InterviewPrep
 
     private
 
-    # Resolves through the owner, subject and command revisions; deleted targets are obsolete.
+    # Resolves the saved set or question only while the fence says the task is current.
     def current_subject
-      return unless @task.input["source_version"] == 1
+      return if PracticeTaskFence.stale_reason(@task)
 
-      record = @task.subject
-      return unless record
-      return unless record.ai_tasks.order(created_at: :desc, id: :desc)
-                          .where(task_type: @task.task_type).first&.id == @task.id
-
-      if @task.generate_interview_questions?
-        return unless record.is_a?(InterviewQuestionSet) && record.user_id == @task.user_id
-        return unless record.id == @task.input["question_set_id"] && record.questions.empty?
-      else
-        return unless record.is_a?(InterviewQuestion)
-        return unless record.interview_question_set.user_id == @task.user_id
-        return unless record.id == @task.input["question_id"] &&
-                      record.interview_question_set_id == @task.input["question_set_id"]
-        return unless record.question_revision == @task.input["question_revision"] &&
-                      record.answer_revision == @task.input["answer_revision"]
-        peers = record.interview_question_set.questions.where.not(id: record.id).to_h { |peer| [ peer.id, peer.question_revision ] }
-        return unless peers == @task.input["peer_revisions"]
-        return unless record.interview_question_set.questions.count == 5
-      end
-      question_set = record.is_a?(InterviewQuestionSet) ? record : record.interview_question_set
-      return unless question_set.generated?
-      return unless question_set.set_type == @task.input["set_type"]
-
-      record
+      @task.subject
     end
 
     # Keeps an answered question as a retired, slotless copy before its slot is replaced.
     # The copy keeps the same revisions, so its feedback stays current and its vector moves with it.
     def retain_answered_copy(record)
-      return false unless AnswerFormats.answered?(record)
+      return false unless ActiveAnswer.answered?(record)
 
       copy = record.interview_question_set.retired_questions.create!(
         retired_at: Time.current, position: nil, question_text: record.question_text,
-        answer_format_revision: record.answer_format_revision, answer_format: record.answer_format, answer_drafts: AnswerFormats.drafts(record),
+        answer_format_revision: record.answer_format_revision, answer_format: record.answer_format, answer_drafts: ActiveAnswer.drafts(record),
         answer_text: record.answer_text, memory_anchor: record.memory_anchor, question_revision: record.question_revision,
         answer_revision: record.answer_revision, feedback: record.feedback,
         feedback_question_revision: record.feedback_question_revision,

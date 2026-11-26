@@ -11,12 +11,13 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - `record_screening_service.rb` — delegates exact owned target/sibling receipt reports and
   records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when active format/fields change.
+- `practice_task_fence.rb` — builds each practice task's durable command and decides whether a task is still current (with a reason) and newest of its type. Start and apply services only ask it; Python's reader check is paired through `services/ai/tests/fixtures/practice_task_fence_cases.json` (shared RSpec/pytest cases). Change a rule and the fixture together; keep per-type differences unless proven a bug.
 - `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues replacement/feedback identity/revision commands.
 - `delete_question_service.rb` — deletes one owned question and its derived vector while retaining AI usage records.
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.
 - `apply_questions_service.rb` — validates generation/replacement drafts and task identity/revisions, then persists atomically inside the owner/task transaction, retiring an answered copy on replacement.
 - `apply_feedback_service.rb` — validates task ownership/identity and coaching shape; stores reviewed revisions while preserving answers.
-- `feedback_outdated_service.rb` — checks revisions and normalized answer digests against completed feedback, ignoring capitalization and whitespace edits.
+- `active_answer.rb` — the one definition of the active answer: format drafts and validation, readable text, `answered?` (active text only; inactive drafts never count), progress, and feedback freshness (revisions plus normalized digest, ignoring capitalization and whitespace edits). Python, SQL and the web draft check spell out its blank set (Ruby `[[:space:]]`); shared cases live in `services/ai/tests/fixtures/active_answer_cases.json`. Change a rule and the fixture together.
 - `sync_question_embedding_service.rb` — embeds one owned saved Q&A, masks outbound contact, serializes duplicates, and rejects changed/deleted sources after provider work.
 
 ## Local Rules
@@ -30,7 +31,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - Serialize mutations through the owner lock; preserve revisions and task usage records.
 - Allow one successful feedback request per question/answer revision pair. Check completed task history under the owner lock; failed requests remain retryable.
 - Feedback saves a valid answer before allowance checks; queue or screening failure must preserve it. Saving an empty answer is allowed, but feedback requires nonblank text.
-- A successful replacement first keeps any nonblank format draft as a retired copy (same revisions, feedback, approvals, and moved vector), then clears only that slot's answer and feedback; failures preserve existing content.
+- A successful replacement first keeps an answered question (nonblank active answer) as a retired copy, all drafts included (same revisions, feedback, approvals, and moved vector), then clears only that slot's answer and feedback; failures preserve existing content.
 - Retired copies have `retired_at` and no position. `InterviewQuestionSet#questions` is active-only, so every slot rule and mutation ignores them; never make them editable through the slot mutations.
 
 - Result application acquires the owner lock before the task lock, matching enqueue/save/delete. Check replacement distinctness against the current set as well as the old question. Obsolete or invalid completions become failed tasks without modifying domain content; retain billed usage once.

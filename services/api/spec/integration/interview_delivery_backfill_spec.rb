@@ -71,6 +71,21 @@ RSpec.describe "Legacy interview delivery adoption" do
     expect(@operation.delivery_job_id).to be_nil
   end
 
+  # Each pass must lock and check its own operation, whatever order the batch visits them in.
+  it "judges every operation in a batch on its own interview" do
+    other = Interviews::CreateFixtureService.call(user: @user).value
+    second = other.operations.first
+    SolidQueue::Job.where("arguments LIKE ?", "%#{second.id}%").destroy_all
+    second.update_columns(delivery_job_id: nil, recovery_job_id: nil)
+    first_visited, last_visited = [ @operation, second ].sort_by(&:id)
+    last_visited.interview_session.update!(status: "completed", completed_at: 1.hour.ago - 1.second)
+
+    result = Interviews::BackfillDeliveryService.call
+    expect(result.value).to include(expired: 1)
+    expect(last_visited.reload).to be_expired
+    expect(first_visited.reload.delivery_job_id).to be_present
+  end
+
   it "does not queue provider-disabled saved speech" do
     real = Interviews::CreateFixtureService.call(user: @user, execution_mode: "real").value
     speech = real.operations.speech.first

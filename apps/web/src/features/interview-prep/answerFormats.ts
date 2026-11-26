@@ -1,4 +1,10 @@
-/** Each answer format owns its own draft. Projection supplies existing answer consumers. */
+/**
+ * Each answer format owns its own draft. Projection supplies existing answer consumers.
+ *
+ * The server decides what is saved and answered (InterviewPrep::ActiveAnswer in Rails; the question's
+ * `answered`, `progress` and `feedbackOutdated` fields). This file only mirrors that rule for text the
+ * user is typing and has not saved yet. Shared cases: services/ai/tests/fixtures/active_answer_cases.json.
+ */
 export const answerFormats = {
   plain_text: { label: 'Plain text', explanation: 'Write a free-form answer in your own words.', fields: { text: 'Your answer' } },
   car: { label: 'CAR', explanation: 'Context, Action, Result: describe the background, what you did, and what happened.', fields: { context: 'Context', action: 'Action', result: 'Result' } },
@@ -25,7 +31,23 @@ export function normalizeAnswerDrafts(value: unknown, legacyText = ''): AnswerDr
     return [format, Object.fromEntries(Object.keys(definition.fields).map((field) => [field, typeof draft[field] === 'string' ? draft[field] : format === 'plain_text' ? legacyText : '']))]
   })) as AnswerDrafts
 }
+/**
+ * The characters Ruby's `[[:space:]]` matches, spelled out because JS `\s` and `trim` differ
+ * (they include U+FEFF). Same set as Rails and Python; see active_answer_cases.json.
+ */
+const SPACE_CHARACTERS = '\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000'
+const SPACE_RUN = new RegExp(`[${SPACE_CHARACTERS}]+`, 'g')
+const NON_SPACE = new RegExp(`[^${SPACE_CHARACTERS}]`)
+const EDGE_SPACE = new RegExp(`^[${SPACE_CHARACTERS}]+|[${SPACE_CHARACTERS}]+$`, 'g')
+/** Blank means only those space characters (same as Rails `blank?`). */
+export function isBlankAnswer(text: string): boolean {
+  return !NON_SPACE.test(text)
+}
+/** Collapses whitespace runs and capitalization so formatting-only edits compare equal (same as Rails `squish.downcase`). */
+export function normalizeAnswerForComparison(text: string): string {
+  return text.replace(SPACE_RUN, ' ').replace(EDGE_SPACE, '').toLowerCase()
+}
 export function projectAnswer(format: AnswerFormat, drafts: AnswerDrafts): string {
   if (format === 'plain_text') return drafts.plain_text.text
-  return Object.entries(answerFormats[format].fields).filter(([field]) => drafts[format][field].trim()).map(([field, label]) => `${label}: ${drafts[format][field]}`).join('\n\n')
+  return Object.entries(answerFormats[format].fields).filter(([field]) => !isBlankAnswer(drafts[format][field])).map(([field, label]) => `${label}: ${drafts[format][field]}`).join('\n\n')
 }

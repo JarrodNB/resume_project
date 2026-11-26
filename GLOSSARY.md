@@ -169,4 +169,5 @@ not a claim that the person holds that title or meets every qualification for it
 
 - **Written answer format**: An optional writing structure for one practice answer: Plain text, CAR (Context, Action, Result), CARL (adds Learning), or STAR (Situation, Task, Action, Result). Separate from question type and spoken interview format.
 - **Format draft**: One candidate-written version of a written question answer. Each format keeps its own fields; switching never converts text.
-- **Active answer**: The selected saved format draft, projected as readable text for feedback, search, rehearsal, anchors and embeddings. Alternatives remain saved privately.
+- **Active answer**: The selected saved format draft, projected as readable text for feedback, search, rehearsal, anchors and embeddings. Alternatives remain saved privately and never count: a question is answered only when its active answer has text (`InterviewPrep::ActiveAnswer`).
+- **Practice task fence**: The saved IDs, revisions and digests on a written-practice AI task, and the check that they still match the saved question bank rows. A task that no longer matches is stale: its result is not saved and the task is marked failed.

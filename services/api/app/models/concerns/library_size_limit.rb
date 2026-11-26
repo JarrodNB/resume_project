@@ -1,5 +1,7 @@
 # Description: Stops creating another career-library entry once the user is at the cap.
 # A merge validates an unsaved copy without saving it, so the check runs on create only.
+# Counting rows is only safe while the user's row is locked; create entries through
+# CareerLibrary::SaveLibraryEntryService, which takes that lock.
 # Index:
 #   - library_size_limit: declares the association, maximum, and message for this model
 module LibrarySizeLimit

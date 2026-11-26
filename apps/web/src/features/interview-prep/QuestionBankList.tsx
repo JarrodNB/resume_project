@@ -79,7 +79,7 @@ export function QuestionBankList({ questions, createdSetId }: { questions: BankQ
     <div className="question-bank-toolbar">
       <div className="flex flex-wrap items-center gap-4">
         <h2 id="question-bank-heading">Your questions</h2>
-        <Button ref={practiceButton} onClick={() => changeSelection(() => setRehearsal(visible.map(({ question }) => question).filter((question) => !question.retiredAt && question.answerText.trim())))}>Practice</Button>
+        <Button ref={practiceButton} onClick={() => changeSelection(() => setRehearsal(visible.map(({ question }) => question).filter((question) => !question.retiredAt && question.answered)))}>Practice</Button>
       </div>
       <div className="question-bank-search">
         <div className="question-bank-field">
@@ -132,7 +132,7 @@ export function QuestionBankList({ questions, createdSetId }: { questions: BankQ
                   <span className="question-row-text">
                     <span className="question-row-title">{question.questionText}</span>
                     <span className="question-row-meta">{PROGRESS_LABELS[progress]} · {interviewSetTypeLabel(question.questionSet.setType)} · {interviewSetDate(question.questionSet.createdAt)}</span>
-                    {question.answerText.trim() && <span className="question-row-answer">{question.answerText}</span>}
+                    {question.answered && <span className="question-row-answer">{question.answerText}</span>}
                   </span>
                   <ChevronRight className="record-arrow" aria-hidden="true" />
                 </button>

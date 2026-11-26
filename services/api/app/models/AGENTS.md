@@ -50,7 +50,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   - `concerns/most_recent_first.rb` — `most_recent_first` scope for experiences, projects, and
     educations (ongoing first, then by end date, undated last); `User` lists them this way
   - `concerns/library_size_limit.rb` — `library_size_limit` stops a create once the user is at
-    the cap in `config/initializers/text_limits.rb` (roles, projects, education, skills, career context)
+    the cap in `config/initializers/text_limits.rb` (roles, projects, education, skills, certifications,
+    career context). The count is only safe under the owner lock, which `CareerLibrary::SaveLibraryEntryService` takes
 - `job.rb` — job profile + application stage; `ai_tasks` it is the subject of (scrape,
   gap analyses, tailoring; nulled, not deleted, with the job so costs stay counted),
   `gap_responses` (deleted with the job; career context entries they point at are kept),

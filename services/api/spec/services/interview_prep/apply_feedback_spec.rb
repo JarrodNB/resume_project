@@ -103,13 +103,13 @@ RSpec.describe "Applying interview answer feedback" do
       expect(task.reload).to be_completed
       expect(question.reload).to have_attributes(answer_text: "New answer", answer_revision: 3,
         feedback: feedback, feedback_answer_revision: 2)
-      expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(true)
+      expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question)).to be(true)
     end
 
     it "recognizes formatting-only edits using a digest rather than a reviewed answer copy" do
       apply
       InterviewPrep::SaveAnswerService.call(question: question, answer_text: " I ORGANIZED  a workshop. ")
-      expect(InterviewPrep::FeedbackOutdatedService.call(question: question.reload).value).to be(false)
+      expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question.reload)).to be(false)
     end
 
     it "rejects malformed or mismatched references while preserving earlier feedback" do
@@ -139,7 +139,7 @@ RSpec.describe "Applying interview answer feedback" do
     create(:ai_task, user: user, task_type: "review_interview_answer", subject: question,
       input: { "question_set_id" => question_set.id, "question_id" => question.id,
         "source_version" => 1, "set_type" => question_set.set_type,
-        "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text),
+        "normalized_answer_sha256" => InterviewPrep::ActiveAnswer.fingerprint(question.answer_text),
         "question_revision" => question.question_revision, "answer_revision" => question.answer_revision })
   end
 

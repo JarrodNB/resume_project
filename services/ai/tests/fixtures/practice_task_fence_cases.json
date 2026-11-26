@@ -1,0 +1,141 @@
+{
+ "description": "Shared cases for InterviewPrep::PracticeTaskFence (Rails) and database/interview_questions.py (Python). Each case saves one task command next to a small set of rows, then both sides say whether the task is still current. expect.rails is 'current' or the fence's stale reason; expect.python is 'current' or 'stale'. Where the two sides differ on purpose, the 'note' says why. Rails checks at apply time (task running, newest of its type); Python checks at read time (task must be queued).",
+ "placeholders": "'@set' and '@q1'..'@q5' in commands stand for saved ids. q1 is the task subject; q2..q5 are its peers. A case's 'command_changes' edits the base command (null removes a key). Other overrides: 'set' changes the set row, 'questions' changes or drops (null) rows, 'retired' retires a row, 'no_questions' empties the set, 'newer_task' adds a newer task of the same type, 'task_status' sets the task status, 'task_owner' = 'other_user' queues the task for another user, 'subject' points the task at another record.",
+ "base_state": {
+  "set": {
+   "set_type": "fit_motivation",
+   "origin": "generated",
+   "number": 1
+  },
+  "questions": {
+   "q1": {
+    "question_revision": 1,
+    "answer_revision": 2,
+    "answer_text": "I led a workshop.",
+    "answer_format": "plain_text",
+    "memory_anchor": "Start with the workshop."
+   },
+   "q2": {
+    "question_revision": 1,
+    "answer_revision": 2,
+    "answer_text": "",
+    "answer_format": "plain_text",
+    "memory_anchor": ""
+   },
+   "q3": {
+    "question_revision": 1,
+    "answer_revision": 2,
+    "answer_text": "",
+    "answer_format": "plain_text",
+    "memory_anchor": ""
+   },
+   "q4": {
+    "question_revision": 1,
+    "answer_revision": 2,
+    "answer_text": "",
+    "answer_format": "plain_text",
+    "memory_anchor": ""
+   },
+   "q5": {
+    "question_revision": 1,
+    "answer_revision": 2,
+    "answer_text": "",
+    "answer_format": "plain_text",
+    "memory_anchor": ""
+   }
+  }
+ },
+ "base_commands": {
+  "generate_interview_questions": {
+   "source_version": 1,
+   "question_set_id": "@set",
+   "set_number": 1,
+   "set_type": "fit_motivation"
+  },
+  "regenerate_interview_question": {
+   "source_version": 1,
+   "set_type": "fit_motivation",
+   "question_id": "@q1",
+   "question_set_id": "@set",
+   "question_revision": 1,
+   "answer_revision": 2,
+   "peer_revisions": {
+    "@q2": 1,
+    "@q3": 1,
+    "@q4": 1,
+    "@q5": 1
+   }
+  },
+  "review_interview_answer": {
+   "source_version": 1,
+   "set_type": "fit_motivation",
+   "question_id": "@q1",
+   "question_set_id": "@set",
+   "question_revision": 1,
+   "answer_revision": 2,
+   "answer_format": "plain_text",
+   "normalized_answer_sha256": "8268ae28eafb55ac31308cc4b0bf9cf8ea7d49c93699e55e676b0aef3665ff86"
+  },
+  "generate_interview_memory_anchor": {
+   "source_version": 1,
+   "set_type": "fit_motivation",
+   "question_id": "@q1",
+   "question_set_id": "@set",
+   "question_revision": 1,
+   "answer_revision": 2,
+   "answer_format": "plain_text",
+   "normalized_answer_sha256": "8268ae28eafb55ac31308cc4b0bf9cf8ea7d49c93699e55e676b0aef3665ff86",
+   "memory_anchor_sha256": "aab197c42a35e03afc0c3232e658070fdf1b0b75e9f4bf3f73982c10770072f8"
+  }
+ },
+ "cases": [
+  {"name": "generate: current", "task_type": "generate_interview_questions", "no_questions": true, "expect": {"rails": "current", "python": "current"}},
+  {"name": "generate: set already has questions", "task_type": "generate_interview_questions", "expect": {"rails": "set_not_empty", "python": "stale"}},
+  {"name": "generate: commanded type differs", "task_type": "generate_interview_questions", "no_questions": true, "command_changes": {"set_type": "behavioral"}, "expect": {"rails": "set_type_changed", "python": "stale"}},
+  {"name": "generate: set_number differs", "task_type": "generate_interview_questions", "no_questions": true, "command_changes": {"set_number": 2}, "expect": {"rails": "current", "python": "stale"}, "note": "Only Python checks set_number."},
+  {"name": "generate: manual set", "task_type": "generate_interview_questions", "no_questions": true, "set": {"origin": "manual"}, "expect": {"rails": "set_not_generated", "python": "current"}, "note": "Only Rails checks origin."},
+  {"name": "generate: newer generation task exists", "task_type": "generate_interview_questions", "no_questions": true, "newer_task": true, "expect": {"rails": "not_latest_task", "python": "current"}, "note": "Only Rails checks for a newer task."},
+  {"name": "generate: another owner", "task_type": "generate_interview_questions", "no_questions": true, "task_owner": "other_user", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "generate: unsupported source version", "task_type": "generate_interview_questions", "no_questions": true, "command_changes": {"source_version": 2}, "expect": {"rails": "unsupported_version", "python": "stale"}},
+  {"name": "generate: task no longer queued", "task_type": "generate_interview_questions", "no_questions": true, "task_status": "completed", "expect": {"rails": "current", "python": "stale"}, "note": "Only Python needs a queued task; Rails runs while the task is processing."},
+  {"name": "replace: current", "task_type": "regenerate_interview_question", "expect": {"rails": "current", "python": "current"}},
+  {"name": "replace: question revision changed", "task_type": "regenerate_interview_question", "questions": {"q1": {"question_revision": 2}}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "replace: answer revision changed", "task_type": "regenerate_interview_question", "questions": {"q1": {"answer_revision": 3}}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "replace: peer revision changed", "task_type": "regenerate_interview_question", "questions": {"q3": {"question_revision": 2}}, "expect": {"rails": "peers_changed", "python": "stale"}},
+  {"name": "replace: peer removed", "task_type": "regenerate_interview_question", "questions": {"q5": null}, "expect": {"rails": "peers_changed", "python": "stale"}},
+  {"name": "replace: question retired", "task_type": "regenerate_interview_question", "questions": {"q1": {"retired": true}}, "expect": {"rails": "slot_count_changed", "python": "stale"}},
+  {"name": "replace: manual set with five slots", "task_type": "regenerate_interview_question", "set": {"origin": "manual"}, "expect": {"rails": "set_not_generated", "python": "current"}, "note": "Only Rails checks origin; Start and apply refuse manual replacement."},
+  {"name": "replace: commanded type differs", "task_type": "regenerate_interview_question", "command_changes": {"set_type": "technical"}, "expect": {"rails": "set_type_changed", "python": "stale"}},
+  {"name": "replace: newer replacement task exists", "task_type": "regenerate_interview_question", "newer_task": true, "expect": {"rails": "not_latest_task", "python": "current"}, "note": "Only Rails checks for a newer task."},
+  {"name": "replace: task points at another question", "task_type": "regenerate_interview_question", "subject": "q2", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "replace: another owner", "task_type": "regenerate_interview_question", "task_owner": "other_user", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "replace: task no longer queued", "task_type": "regenerate_interview_question", "task_status": "completed", "expect": {"rails": "current", "python": "stale"}, "note": "Only Python needs a queued task."},
+  {"name": "replace: blank answer is fine", "task_type": "regenerate_interview_question", "questions": {"q1": {"answer_text": ""}}, "expect": {"rails": "current", "python": "current"}, "note": "Replacement does not need an answer."},
+  {"name": "feedback: current", "task_type": "review_interview_answer", "expect": {"rails": "current", "python": "current"}},
+  {"name": "feedback: question revision changed", "task_type": "review_interview_answer", "questions": {"q1": {"question_revision": 2}}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "feedback: newer answer, command carries answer_format", "task_type": "review_interview_answer", "questions": {"q1": {"answer_revision": 3}}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "feedback: newer answer, older command without answer_format", "task_type": "review_interview_answer", "questions": {"q1": {"answer_revision": 3}}, "command_changes": {"answer_format": null}, "expect": {"rails": "current", "python": "stale"}, "note": "Rails keeps old commands attributed to the reviewed revision (revision <= saved); Python needs exact revisions."},
+  {"name": "feedback: commanded answer revision is ahead of saved", "task_type": "review_interview_answer", "command_changes": {"answer_revision": 3}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "feedback: active answer format changed", "task_type": "review_interview_answer", "questions": {"q1": {"answer_format": "car", "answer_drafts": {"car": {"action": "I led a workshop."}}}}, "expect": {"rails": "answer_format_changed", "python": "current"}, "note": "Only Rails compares the commanded answer_format."},
+  {"name": "feedback: normalized answer digest differs", "task_type": "review_interview_answer", "command_changes": {"normalized_answer_sha256": "0000000000000000000000000000000000000000000000000000000000000000"}, "expect": {"rails": "current", "python": "current"}, "note": "Neither side checks the digest here; it only decides later whether feedback is outdated."},
+  {"name": "feedback: blank saved answer", "task_type": "review_interview_answer", "questions": {"q1": {"answer_text": ""}}, "expect": {"rails": "current", "python": "stale"}, "note": "Only Python refuses a blank answer; Start never queues one."},
+  {"name": "feedback: question retired", "task_type": "review_interview_answer", "questions": {"q1": {"retired": true}}, "expect": {"rails": "current", "python": "stale"}, "note": "Rails still stores feedback on a retired copy; Python never reads one."},
+  {"name": "feedback: newer feedback task exists", "task_type": "review_interview_answer", "newer_task": true, "expect": {"rails": "not_latest_task", "python": "current"}, "note": "Only Rails checks for a newer task."},
+  {"name": "feedback: manual set", "task_type": "review_interview_answer", "set": {"origin": "manual"}, "expect": {"rails": "current", "python": "current"}, "note": "Neither side checks origin for feedback."},
+  {"name": "feedback: commanded type differs", "task_type": "review_interview_answer", "command_changes": {"set_type": "technical"}, "expect": {"rails": "set_type_changed", "python": "stale"}},
+  {"name": "feedback: task points at another question", "task_type": "review_interview_answer", "subject": "q2", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "feedback: another owner", "task_type": "review_interview_answer", "task_owner": "other_user", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "feedback: task no longer queued", "task_type": "review_interview_answer", "task_status": "completed", "expect": {"rails": "current", "python": "stale"}, "note": "Only Python needs a queued task."},
+  {"name": "anchor: current", "task_type": "generate_interview_memory_anchor", "expect": {"rails": "current", "python": "current"}},
+  {"name": "anchor: question retired", "task_type": "generate_interview_memory_anchor", "questions": {"q1": {"retired": true}}, "expect": {"rails": "question_retired", "python": "stale"}},
+  {"name": "anchor: saved cue changed", "task_type": "generate_interview_memory_anchor", "questions": {"q1": {"memory_anchor": "A different cue."}}, "expect": {"rails": "memory_anchor_changed", "python": "current"}, "note": "Only Rails checks the cue digest."},
+  {"name": "anchor: answer revision changed", "task_type": "generate_interview_memory_anchor", "questions": {"q1": {"answer_revision": 3}}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "anchor: question revision changed", "task_type": "generate_interview_memory_anchor", "questions": {"q1": {"question_revision": 2}}, "expect": {"rails": "revision_changed", "python": "stale"}},
+  {"name": "anchor: blank saved answer", "task_type": "generate_interview_memory_anchor", "questions": {"q1": {"answer_text": ""}}, "expect": {"rails": "current", "python": "stale"}, "note": "Only Python refuses a blank answer; Start never queues one."},
+  {"name": "anchor: newer anchor task exists", "task_type": "generate_interview_memory_anchor", "newer_task": true, "expect": {"rails": "not_latest_task", "python": "current"}, "note": "Only Rails checks for a newer task."},
+  {"name": "anchor: commanded type differs", "task_type": "generate_interview_memory_anchor", "command_changes": {"set_type": "technical"}, "expect": {"rails": "set_type_changed", "python": "stale"}},
+  {"name": "anchor: task points at another question", "task_type": "generate_interview_memory_anchor", "subject": "q2", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "anchor: another owner", "task_type": "generate_interview_memory_anchor", "task_owner": "other_user", "expect": {"rails": "wrong_subject", "python": "stale"}},
+  {"name": "anchor: task no longer queued", "task_type": "generate_interview_memory_anchor", "task_status": "completed", "expect": {"rails": "current", "python": "stale"}, "note": "Only Python needs a queued task."}
+ ]
+}

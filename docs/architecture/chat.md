@@ -71,7 +71,9 @@ Failed and provisional output stays separate from accepted dialogue.
 Interactive chat uses the same FastAPI app and `ExecutionRunner` as interviews.
 A chat feature adapter opts into the existing optional streaming output. Claims,
 heartbeats, leases, durable fallback delivery, recovery and attempt fencing use the
-shared execution system; chat does not have a second dispatcher or supervisor.
+shared execution system; chat does not have a second dispatcher or supervisor. On the Rails
+side the leased lifecycle is `AiExecutions::OperationLifecycle`, shared with interviews;
+`Chat::OperationPolicy` holds only chat's differences (failure codes, finished receipts).
 Feature-owned Rails services authorize and accept chat results. Chat uses the general
 AI allowance and never consumes the separate spoken-interview allowance.
 `CHAT_MODEL` defaults to `openai:gpt-6-luna`; chat supports that model and
@@ -272,7 +274,7 @@ feedback text and raw IDs are not returned.
 Feedback is "current" only when saved feedback is non-empty and its question and answer
 revisions equal the question's current ones (a format change always bumps the answer
 revision, so this also covers the answer-format revision). Otherwise saved feedback is "out of date"; no feedback is "none".
-This is stricter than the app's `FeedbackOutdatedService`, which also accepts
+This is stricter than the app's `InterviewPrep::ActiveAnswer.feedback_outdated?`, which also accepts
 formatting-only answer edits by reading the review task; chat says "out of date" there.
 
 The list keeps the newest whole questions that fit 40,000 rendered characters (about 150

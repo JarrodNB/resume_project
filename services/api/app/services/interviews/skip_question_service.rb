@@ -42,7 +42,7 @@ module Interviews
         end
         if @interview.active? && SpeechPlayback.provider?(@interview)
           speech = @interview.operations.create!(kind: "speech", question: message.question, message: message)
-          ScheduleOperationService.call(operation: speech)
+          AiExecutions::ScheduleOperationService.call(operation: speech)
         end
         @interview.update!(revision: @interview.revision + 1)
         success(@interview)

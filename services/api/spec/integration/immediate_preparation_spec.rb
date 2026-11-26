@@ -79,7 +79,7 @@ RSpec.describe "Immediate durable interview preparation" do
     expect(SolidQueue::Job.find_by!(active_job_id: original).class_name).to eq("AiExecutions::RecoveryJob")
     expect(Interviews::DeliveryStateService.call(operation: operation).value.fetch(:delivered)).to be(true)
     travel 2.seconds
-    expect(Interviews::RenewClaimService.call(operation: operation, attempt_id: operation.attempt_id,
+    expect(AiExecutions::RenewClaimService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation)).to be_success
     expect(operation.reload.recovery_job_id).not_to eq(original)
   end
@@ -124,7 +124,7 @@ RSpec.describe "Immediate durable interview preparation" do
     stale = AiExecutions::RecoveryJob.new(*first.arguments.fetch("arguments"))
     stale.job_id = first.active_job_id
     travel 2.seconds
-    expect(Interviews::RenewClaimService.call(operation: operation, attempt_id: operation.attempt_id,
+    expect(AiExecutions::RenewClaimService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation)).to be_success
     latest = SolidQueue::Job.find_by!(active_job_id: operation.reload.recovery_job_id)
     current = AiExecutions::RecoveryJob.new(*latest.arguments.fetch("arguments"))

@@ -124,11 +124,11 @@ RSpec.describe "Career library AI editing" do
     task = AiTask.find(start_edit.dig("aiTask", "id"))
     complete_edit(task)
     accept_edit(task)
-    edit = Experiences::UpdateExperienceService.call(experience: role, attributes: { description: "Manually revised role description" })
+    edit = CareerLibrary::SaveLibraryEntryService.call(user: role.user, kind: :experience, entry: role, attributes: { description: "Manually revised role description" })
     expect(edit).to be_success
     # Highlight coverage is retained when only the role description changes.
     expect(highlight.reload.screened_fields).to include("content")
-    Experiences::UpdateExperienceService.call(experience: role, attributes: {}, highlights: [ "Manually revised highlight" ])
+    CareerLibrary::SaveLibraryEntryService.call(user: role.user, kind: :experience, entry: role, attributes: {}, highlights: [ "Manually revised highlight" ])
     expect(role.reload.highlights.first.screened_fields).not_to include("content")
   end
 
@@ -138,7 +138,7 @@ RSpec.describe "Career library AI editing" do
     accept_edit(task)
     generated = highlight.reload.content
 
-    result = Experiences::UpdateExperienceService.call(experience: role, attributes: {},
+    result = CareerLibrary::SaveLibraryEntryService.call(user: role.user, kind: :experience, entry: role, attributes: {},
       highlights: [ generated, "#{generated} Added by the user." ])
 
     expect(result).to be_success

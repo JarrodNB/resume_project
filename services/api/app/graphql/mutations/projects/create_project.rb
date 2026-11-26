@@ -8,9 +8,9 @@ module Mutations
 
       field :project, Types::ProjectType
 
-      # Calls Projects::CreateProjectService.
+      # Calls CareerLibrary::SaveLibraryEntryService.
       def resolve(attributes:)
-        payload_from(::Projects::CreateProjectService.call(user: current_user, attributes: attributes.to_h), :project)
+        payload_from(::CareerLibrary::SaveLibraryEntryService.call(user: current_user, kind: :project, attributes: attributes.to_h), :project)
       end
     end
   end

@@ -87,7 +87,7 @@ RSpec.describe "Recorded transcript review" do
     operation = Interviews::StartRecordedTranscriptionService.call(**input).value
     3.times do
       claim = Interviews::ClaimOperationService.call(operation: operation.reload).value
-      expect(Interviews::FailOperationService.call(operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation],
+      expect(AiExecutions::FailOperationService.call(operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation],
         code: "dependency_unavailable", retryable: true)).to be_success
       travel 11.seconds
     end

@@ -93,20 +93,89 @@ RSpec.describe "Saved practice answer formats" do
     question.update!(feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 0)
     create(:ai_task, user: user, task_type: "review_interview_answer", status: "completed", subject: question,
       input: { "question_revision" => 1, "answer_revision" => 0, "answer_format" => "plain_text",
-        "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text) },
+        "normalized_answer_sha256" => InterviewPrep::ActiveAnswer.fingerprint(question.answer_text) },
       result: { "interview_feedback" => question.feedback })
     drafts = { "plain_text" => { "text" => question.answer_text }, "car" => { "action" => "I planned" } }
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "", answer_format: "car", answer_drafts: drafts)
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "", answer_format: "plain_text", answer_drafts: drafts)
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question.reload).value).to be(true)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question.reload)).to be(true)
   end
   it "keeps formatting-only edits current within the same selected format" do
     question.update!(feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 0)
     create(:ai_task, user: user, task_type: "review_interview_answer", status: "completed", subject: question,
       input: { "question_revision" => 1, "answer_revision" => 0, "answer_format" => "plain_text",
-        "normalized_answer_sha256" => InterviewPrep::FeedbackOutdatedService.answer_fingerprint(question.answer_text) },
+        "normalized_answer_sha256" => InterviewPrep::ActiveAnswer.fingerprint(question.answer_text) },
       result: { "interview_feedback" => question.feedback })
     InterviewPrep::SaveAnswerService.call(question: question, answer_text: "ORIGINAL answer")
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question.reload).value).to be(false)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question.reload)).to be(false)
+  end
+end
+
+# Shared with pytest (the chat list's SQL) and the web tests: services/ai/tests/fixtures/active_answer_cases.json.
+RSpec.describe InterviewPrep::ActiveAnswer do
+  fixture = JSON.parse(File.read(Rails.root.join("../ai/tests/fixtures/active_answer_cases.json")))
+  let(:user) { create(:user) }
+  let(:set) { user.interview_question_sets.create!(number: 1) }
+
+  fixture.fetch("answers").each do |example|
+    it "projects and counts the active answer: #{example['name']}" do
+      expect(described_class.render(example["format"], example["drafts"])).to eq(example["text"])
+      question = set.questions.create!(position: 1, question_text: "Q?", answer_format: example["format"],
+        answer_drafts: example["drafts"], answer_text: example["text"])
+      expect(described_class.answered?(question)).to be(example["answered"])
+      expect(described_class.blank?(example["text"])).to be(!example["answered"])
+    end
+  end
+
+  fixture.fetch("same_answer_pairs").each do |example|
+    it "compares answers for freshness: #{example['name']}" do
+      expect(described_class.fingerprint(example["a"]) == described_class.fingerprint(example["b"])).to be(example["same"])
+    end
+  end
+
+  fixture.fetch("feedback_cases").each do |example|
+    it "decides whether feedback has anything to show: #{example['name']}" do
+      expect(described_class.feedback_present?(example["feedback"])).to be(example["present"])
+      question = set.questions.create!(position: 1, question_text: "Q?", answer_text: "Done", feedback: example["feedback"],
+        feedback_question_revision: 1, feedback_answer_revision: 0)
+      expect(described_class.progress(question)).to eq(example["present"] ? :reviewed : :answered)
+    end
+  end
+
+  # Review digests already saved in production were made with squish.downcase; they must keep matching.
+  it "normalizes exactly like the old squish.downcase digest input" do
+    inputs = fixture.fetch("answers").map { |example| example["text"] } +
+      fixture.fetch("same_answer_pairs").flat_map { |example| [ example["a"], example["b"] ] } +
+      [ "A B", "x y\t\nz", "　Hi ", nil ]
+    inputs.each do |text|
+      expect(described_class.normalize(text)).to eq(text.to_s.squish.downcase)
+      expect(described_class.fingerprint(text)).to eq(Digest::SHA256.hexdigest(text.to_s.squish.downcase))
+    end
+  end
+
+  describe ".progress" do
+    let(:question) { set.questions.create!(position: 1, question_text: "Q?") }
+    let(:feedback) { { "strengths" => [ "Clear" ] } }
+
+    it "walks the answer to feedback line" do
+      expect(described_class.progress(question)).to eq(:unanswered)
+      question.update!(answer_text: "Done", answer_revision: 1)
+      expect(described_class.progress(question)).to eq(:answered)
+      question.update!(feedback: feedback, feedback_question_revision: 1, feedback_answer_revision: 1)
+      expect(described_class.progress(question)).to eq(:reviewed)
+      question.update!(answer_revision: 2)
+      expect(described_class.progress(question)).to eq(:outdated)
+    end
+
+    it "reports an answer that lives only in an inactive draft as unanswered" do
+      question.update!(answer_format: "star", answer_text: "", answer_drafts: { "plain_text" => { "text" => "Old" } })
+      expect(described_class.progress(question)).to eq(:unanswered)
+    end
+
+    it "reports getting feedback while a review task is queued" do
+      question.update!(answer_text: "Done")
+      task = create(:ai_task, user: user, task_type: "review_interview_answer", status: "queued", subject: question)
+      expect(described_class.progress(question, latest_task: task)).to eq(:reviewing)
+    end
   end
 end

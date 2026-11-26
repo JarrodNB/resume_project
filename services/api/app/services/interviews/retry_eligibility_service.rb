@@ -9,11 +9,12 @@ module Interviews
 
     def call
       interview = @operation.interview_session
+      lifecycle = AiExecutions::OperationLifecycle.new(@operation, OperationPolicy.new(@operation))
       return failure("Interview abandoned") if interview.abandoned?
       return failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?
-      return failure("Operation cannot be retried") unless @operation.failed? && @operation.execution_count < 6 &&
-        @operation.retry_expires_at && @operation.retry_expires_at > Time.current && interview.expires_at > Time.current &&
-        !%w[invalid_recording transcript_too_long empty_audio audio_too_large audio_too_long context_limit screening_blocked].include?(@operation.failure_code)
+      return failure("Operation cannot be retried") unless @operation.failed? && lifecycle.total_budget_left? &&
+        lifecycle.retry_window_open? && interview.expires_at > Time.current &&
+        !OperationPolicy::NON_RETRYABLE_CODES.include?(@operation.failure_code)
       if @operation.turn? || @operation.transcription?
         return failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision
         return failure("An answer is already processing") if interview.operations.turn.where(status: %w[pending running]).exists?

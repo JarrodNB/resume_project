@@ -299,7 +299,7 @@ RSpec.describe "Chat execution callbacks", type: :request do
     args = response.parsed_body.slice("attempt_id", "claim_generation").merge(reply: "Saved both.",
       screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
       career_contexts: [ { requirement: "Cutover", response: "New" }, { requirement: "Langfuse", response: "New" } ])
-    allow(CareerContexts::CreateCareerContextService).to receive(:call).and_wrap_original do |original, **kwargs|
+    allow(CareerLibrary::SaveLibraryEntryService).to receive(:call).and_wrap_original do |original, **kwargs|
       if kwargs[:attributes]["requirement"] == "Langfuse"
         ServiceResult.new(success: false, value: nil, errors: [ "Creation failed" ])
       else

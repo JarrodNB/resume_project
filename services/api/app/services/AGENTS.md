@@ -84,13 +84,13 @@ All business logic, as service objects grouped by domain folder.
 - `gap_responses/set_gap_dismissal_service.rb` — dismisses or restores one requirement of a job
 - `users/update_profile_service.rb` — name, contact details, links, and summary; blank strings
   are cleared; does not queue an embedding sync (the summary is read live)
-- `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,
-  `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
+- `experiences/move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
   renumbers positions in both roles)
-- `projects/`, `educations/`, `career_contexts/` — create and update services; each queues an
-  embedding sync
-- `skills/create_skill_service.rb`, `update_skill_service.rb` — a new skill is placed after
-  the user's current highest position; update leaves position alone
+- `career_library/save_library_entry_service.rb` — the one create/update path for experiences,
+  projects, education, skills, certifications and career context entries (the `create*`/`update*`
+  mutations call it directly): owner lock, normalization, size cap, screening discard, embedding
+  sync. A new skill goes after the user's highest position; an edit leaves position alone
+- `skills/validation_errors.rb` — skill duplicate-name messages used by that service
 - `career_library/` — duplicate matching and merging of experiences, projects, and educations,
   emptying the library (`clear_career_library_service.rb`), reordering of library entries, and
   syncing library embeddings (see `career_library/AGENTS.md`)
@@ -143,21 +143,27 @@ All business logic, as service objects grouped by domain folder.
 ## Local Rules
 
 - `ai_executions/` coordinates fixed-origin nudges and bounded recovery of known
-  idempotent queue jobs. Interview-specific eligibility, retry budgets and fenced
-  state changes remain in `interviews/`; no generic dispatcher writes domain state.
+  idempotent queue jobs. It also owns the leased lifecycle of claimed chat and interview
+  operations: `OperationLifecycle` (lock order, attempt/generation fencing, lease and deadline,
+  retry budgets, failure handling, dispatch and recovery scheduling) plus the shared
+  `RenewClaimService`, `FailOperationService`, `RecoverOperationService`,
+  `ScheduleOperationService` and `ScheduleRecoveryService`. Each feature supplies a small
+  `OperationPolicy` (`chat/operation_policy.rb`, `interviews/operation_policy.rb`) for what
+  differs; add a new rule there, not a parallel service. Claim, accept and eligibility rules
+  that depend on feature data (revision, recordings, allowance) stay in `chat/` and `interviews/`.
 
 - Name services `<Verb><Noun>Service` in a domain module: `Jobs::MoveJobToStageService`.
 - Subclass `ApplicationService`, take keyword arguments in `initialize`, expose only `call`.
 - Always return a `ServiceResult` via `success`/`failure`; never raise for validation errors.
 - Services receive private records already scoped to the user; they don't do authorization lookups.
   Job Board catalogue search is the shared provider-data exception documented in the API guide.
-- Multi-record changes run in a transaction (see `UpdateExperienceService`).
+- Multi-record changes run in a transaction (see `CareerLibrary::SaveLibraryEntryService`).
 - A service that changes career library text enqueues `CareerLibrary::SyncLibraryEmbeddingsJob`
-  for the user (import, merge, experience create/update, highlight moved to another role,
-  library deletes, and project, education, skill, and career-context create/update do today).
+  for the user (import, merge, highlight moved to another role, library deletes, and every
+  `CareerLibrary::SaveLibraryEntryService` create/update do today).
   Profile updates do not: the summary is read from `users`, not from embeddings.
 
-- `certifications/` — create/update credentials and enqueue embedding synchronization.
+- Certification create/update goes through `CareerLibrary::SaveLibraryEntryService` like the other library kinds.
 
 - `interview_prep/` — numbered set generation, explicit answer saving, revision-fenced question tasks, and set deletion. Preparation uses `EnqueueAiTaskService`'s optional `prepare_task` callback under the user lock after allowance checks; publication follows commit.
 

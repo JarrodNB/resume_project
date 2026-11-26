@@ -13,12 +13,12 @@ function job(id: string, title: string, nextStep = 'PRACTICE_INTERVIEW') {
 function question(id: string, answerText: string, extra: Record<string, unknown> = {}) {
   return {
     __typename: 'InterviewQuestion', id, position: 1, retiredAt: null, questionText: `Question ${id}`, answerText, answerFormat: 'free', answerDrafts: {},
-    memoryAnchor: '', feedback: {}, feedbackOutdated: false, latestTask: null,
+    memoryAnchor: '', feedback: {}, feedbackOutdated: false, answered: answerText !== '', progress: answerText === '' ? 'UNANSWERED' : 'ANSWERED', latestTask: null,
     questionSet: { __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, setType: 'BEHAVIORAL', createdAt: '2026-11-01T00:00:00Z' }, ...extra,
   }
 }
 
-const reviewed = { feedback: { strengths: ['Clear'], improvements: [] } }
+const reviewed = { feedback: { strengths: ['Clear'], improvements: [] }, progress: 'REVIEWED' }
 
 function session(id: string, status: string, createdAt: string, extra: Record<string, unknown> = {}) {
   return { __typename: 'InterviewSession', id, status, createdAt, currentQuestionPosition: 1, questions: [{ __typename: 'InterviewSessionQuestion', id: `${id}-q1` }, { __typename: 'InterviewSessionQuestion', id: `${id}-q2` }, { __typename: 'InterviewSessionQuestion', id: `${id}-q3` }], jobContext: null, ...extra }
@@ -60,8 +60,8 @@ it('offers a review of the last finished interview when none is in progress', as
 it.each([
   ['unanswered questions', [question('1', ''), question('2', 'My answer', reviewed)], 'Answer next question', '1 of 2 answered · 1 with feedback'],
   ['answers without feedback', [question('1', 'My answer')], 'Get feedback', '1 of 1 answered · 0 with feedback'],
-  ['feedback out of date', [question('1', 'My answer', { ...reviewed, feedbackOutdated: true })], 'Refresh feedback', '1 of 1 answered · 0 with feedback'],
-  ['feedback being written', [question('1', 'My answer', { latestTask: { __typename: 'AiTask', id: 't', status: 'QUEUED', taskType: 'REVIEW_INTERVIEW_ANSWER' } })], 'Getting feedback', '1 of 1 answered · 0 with feedback'],
+  ['feedback out of date', [question('1', 'My answer', { ...reviewed, feedbackOutdated: true, progress: 'OUTDATED' })], 'Refresh feedback', '1 of 1 answered · 0 with feedback'],
+  ['feedback being written', [question('1', 'My answer', { progress: 'REVIEWING', latestTask: { __typename: 'AiTask', id: 't', status: 'QUEUED', taskType: 'REVIEW_INTERVIEW_ANSWER' } })], 'Getting feedback', '1 of 1 answered · 0 with feedback'],
   ['everything reviewed', [question('1', 'My answer', reviewed)], 'Up to date', '1 of 1 answered · 1 with feedback'],
 ])('shows the next written-question step for %s', async (_name, questions, label, detail) => {
   renderPanel({ questions })

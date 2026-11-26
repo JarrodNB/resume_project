@@ -1,16 +1,14 @@
 /**
  * Description: Works out how far along a practice question is, from its saved answer and feedback.
  * The question bank list and a set's question line all use these same steps,
- * so a question reads the same everywhere. Uses saved server state, not unsaved drafts.
+ * so a question reads the same everywhere. Uses the server's saved-state decision, not unsaved drafts.
  */
+import type { InterviewQuestionProgressEnum } from '@/graphql/generated/graphql'
 
 export type QuestionProgress = 'unanswered' | 'answered' | 'reviewing' | 'reviewed' | 'outdated'
 
 interface ProgressSource {
-  answerText: string
-  feedback: unknown
-  feedbackOutdated: boolean
-  latestTask?: { status: string; taskType: string } | null
+  progress: InterviewQuestionProgressEnum
 }
 
 export const PROGRESS_LABELS: Record<QuestionProgress, string> = {
@@ -29,10 +27,7 @@ export function hasFeedback(feedback: unknown) {
     (Array.isArray(value.improvements) && value.improvements.length > 0) || typeof value.example_answer === 'string'
 }
 
-/** Places one saved question on its answer → feedback line. */
+/** Reads the server's decision (Rails InterviewPrep::ActiveAnswer.progress); nothing is re-derived here. */
 export function questionProgress(question: ProgressSource): QuestionProgress {
-  if (question.latestTask?.status === 'QUEUED' && question.latestTask.taskType === 'REVIEW_INTERVIEW_ANSWER') return 'reviewing'
-  if (!question.answerText.trim()) return 'unanswered'
-  if (!hasFeedback(question.feedback)) return 'answered'
-  return question.feedbackOutdated ? 'outdated' : 'reviewed'
+  return question.progress.toLowerCase() as QuestionProgress
 }

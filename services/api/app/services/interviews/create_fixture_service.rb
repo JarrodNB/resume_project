@@ -31,7 +31,7 @@ module Interviews
         message = interview.messages.create!(question: question, kind: "opening", position: 0,
           semantic_key: "question:#{question.id}:opening", content: question.content)
         operation = interview.operations.create!(kind: "speech", question: question, message: message)
-        ScheduleOperationService.call(operation: operation) if SpeechPlayback.provider?(interview)
+        AiExecutions::ScheduleOperationService.call(operation: operation) if SpeechPlayback.provider?(interview)
         success(interview)
       end
     rescue ActiveRecord::RecordInvalid => error

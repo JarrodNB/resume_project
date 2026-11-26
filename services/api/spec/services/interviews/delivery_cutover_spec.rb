@@ -87,7 +87,7 @@ RSpec.describe "Interview delivery cutover" do
     operation = typed_turn(fixture)
     prior_delivery = operation.delivery_job_id
     claim = Interviews::ClaimOperationService.call(operation: operation).value
-    expect(Interviews::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
+    expect(AiExecutions::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
       code: "dependency_unavailable", retryable: true)).to be_success
     expect(operation.reload).to be_pending
     expect(operation.delivery_job_id).not_to eq(prior_delivery)
@@ -98,7 +98,7 @@ RSpec.describe "Interview delivery cutover" do
     operation = typed_turn(fixture)
     prior_delivery = operation.delivery_job_id
     claim = Interviews::ClaimOperationService.call(operation: operation).value
-    expect(Interviews::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
+    expect(AiExecutions::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
       code: "dependency_unavailable", retryable: false)).to be_success
     expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
     expect(operation.reload).to have_attributes(status: "pending", cycle_execution_count: 0, execution_count: 1)

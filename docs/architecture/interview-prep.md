@@ -38,8 +38,14 @@ matches. `answer_format_revision` remembers the last selection-change revision, 
 to an older format cannot revive feedback; formatting-only text edits retain existing normalized-digest freshness. Exact unchanged projected text retains screening coverage and vectors; embedding
 revision metadata advances without another provider call. Feedback commands carry the selected
 format as bounded control metadata, and results for a different current format are rejected.
-Retirement and account export preserve all drafts, including questions answered only in an
-inactive format. Preview, rehearsal, anchors and search use active `answer_text` only. The answer limit is
+Retirement of an answered question and account export preserve all drafts, inactive ones included.
+Only the active answer counts: a question whose only text sits in an inactive format draft is not
+answered, needs no replacement confirmation and keeps no retired copy. Preview, rehearsal, anchors and search use active `answer_text` only.
+`InterviewPrep::ActiveAnswer` owns this: projection, `answered?` (the active text has a character outside
+Ruby's `[[:space:]]` set, which `blank?` and `squish` use: ASCII whitespace, U+0085, U+00A0, U+1680, U+2000-U+200A,
+U+2028, U+2029, U+202F, U+205F, U+3000; U+FEFF and U+001C-U+001F count as text),
+progress and feedback freshness. Python, the chat list's SQL and the web draft check spell out that same set, and
+`services/ai/tests/fixtures/active_answer_cases.json` holds shared cases that RSpec, pytest and the web tests all read. The answer limit is
 2,000 characters, defined in Rails `config/initializers/text_limits.rb`, Python `text_limits.py`,
 and web `src/lib/textLimits.ts`. Answers never become career-library entries. Deleting a set
 cascades its questions and nullifies AI task subjects, retaining usage records and task inputs.
@@ -88,16 +94,24 @@ screening, budget, or queue failure therefore preserves a valid submitted answer
 Enqueue preparation, answer saving, deletion, and result application serialize on the owner
 lock. Result application takes the owner lock before the task lock. Only one queued replacement
 or feedback operation may run per question; replacement blocks answer saving, while pending
-feedback permits edits. Replacing an answered question requires `confirmed: true`.
+feedback permits edits. Replacing an answered question requires `confirmed: true`. The web asks only when the saved question is answered or unsaved edits would be lost, and its dialog promises a kept copy only in the answered case.
 
-Result services check ownership, subject/set/question identity, latest task identity, and
-command revisions before writing. Replacement requires unchanged target, peer-question and answer
+Result services ask `InterviewPrep::PracticeTaskFence` whether the task is still current; the
+fence also builds the commands that Start queues. It checks ownership, subject/set/question
+identity, latest task identity, and command revisions before writing. Each task type keeps its own
+rules (retired questions, revision comparison, five-slot count, generated origin), and Python's
+reader-side check in `services/ai/database/interview_questions.py` is deliberately not identical:
+Python also needs a queued task and a nonblank answer, while Rails also checks for a newer task,
+generated origin, the feedback answer format and the memory-anchor digest. Neither side checks the
+feedback answer digest here; only the outdated-feedback check uses it. `services/ai/tests/fixtures/practice_task_fence_cases.json` holds shared cases that both an
+RSpec spec and a pytest test run, with each difference written down. Change a rule, command field or
+case on both sides together. Replacement requires unchanged target, peer-question and answer
 revisions and checks distinctness against the current set, including the old question. On
-success it first keeps a question with any nonblank format draft as a retired copy (below), then increments both
+success it first keeps an answered question (nonblank active answer) as a retired copy (below), then increments both
 revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest
 feedback task. New format-aware commands also require the exact answer revision; stale results
 cannot replace coaching after active edits or a format-selection cycle. Legacy commands retain
-reviewed-revision attribution for delayed answers. GraphQL `feedbackOutdated` marks active changes outdated. Capitalization and
+reviewed-revision attribution for delayed answers. GraphQL `feedbackOutdated` (from `ActiveAnswer.feedback_outdated?`) marks active changes outdated; `answered` and `progress` expose the same module's other decisions to the web. Capitalization and
 whitespace changes remain current when a completed task's matching feedback and normalized
 answer digest verify that only formatting changed. Exact revisions still advance on saves.
 Generated feedback never writes
@@ -175,7 +189,7 @@ Unanswered replacements keep no copy. Deleting a set deletes its retired copies 
 
 `/practice/questions` (old `/interview-prep` links redirect) is the question bank. It generates a
 set of chosen types, shows pending or failed generation, and groups active questions in type tabs with
-progress derived from saved state: not answered, no feedback yet, getting feedback, feedback ready,
+progress decided by the server (`progress`): not answered, no feedback yet, getting feedback, feedback ready,
 or out of date. Type tabs and question/answer/cue search run in the browser; rows expand an inline answer editor. Answers from
 replaced questions sit in a collapsed read-only section. Generation batches stay a backend detail: only live generation status, failures, and dismissal appear, without batch headings or cards. Empty sets without unfinished work stay hidden.
 

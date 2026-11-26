@@ -64,7 +64,7 @@ RSpec.describe Screening::RecordApprovalsService do
     it "does not approve text edited after the fingerprint was taken" do
       project = create(:project, user: user, name: "Old name")
       report = receipt("project", project, [ "name" ])
-      Projects::UpdateProjectService.call(project: project, attributes: { name: "New name" })
+      CareerLibrary::SaveLibraryEntryService.call(user: project.user, kind: :project, entry: project, attributes: { name: "New name" })
       expect(record([ report ])).to be_success
       expect(project.reload.screened_fields).to eq([])
     end

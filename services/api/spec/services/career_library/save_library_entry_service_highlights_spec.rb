@@ -2,14 +2,14 @@
 # edited bullets in order, and roll back the whole list when validation fails.
 require "rails_helper"
 
-RSpec.describe Experiences::UpdateExperienceService do
+RSpec.describe CareerLibrary::SaveLibraryEntryService, "experience highlights" do
   let(:experience) { create(:experience) }
 
   before { create(:experience_highlight, experience: experience, content: "Old bullet") }
 
   it "replaces highlights in the given order" do
     result = described_class.call(
-      experience: experience, attributes: { title: "Senior Engineer" }, highlights: [ "First", "Second" ]
+      user: experience.user, kind: :experience, entry: experience, attributes: { title: "Senior Engineer" }, highlights: [ "First", "Second" ]
     )
 
     expect(result).to be_success
@@ -18,7 +18,7 @@ RSpec.describe Experiences::UpdateExperienceService do
   end
 
   it "leaves highlights alone when none are given" do
-    described_class.call(experience: experience, attributes: { title: "Staff Engineer" })
+    described_class.call(user: experience.user, kind: :experience, entry: experience, attributes: { title: "Staff Engineer" })
     expect(experience.reload.highlights.pluck(:content)).to eq([ "Old bullet" ])
   end
 
@@ -27,7 +27,7 @@ RSpec.describe Experiences::UpdateExperienceService do
     original.update!(screened_fields: [ "content" ])
     removed = create(:experience_highlight, experience: experience, content: "Replace me", position: 1)
 
-    result = described_class.call(experience: experience, attributes: {}, highlights: [ "New bullet", "Old bullet" ])
+    result = described_class.call(user: experience.user, kind: :experience, entry: experience, attributes: {}, highlights: [ "New bullet", "Old bullet" ])
 
     expect(result).to be_success
     bullets = experience.reload.highlights.to_a
@@ -42,7 +42,7 @@ RSpec.describe Experiences::UpdateExperienceService do
     first = experience.highlights.first
     second = create(:experience_highlight, experience: experience, content: first.content, position: 1)
 
-    described_class.call(experience: experience, attributes: {}, highlights: [ first.content, first.content, first.content ])
+    described_class.call(user: experience.user, kind: :experience, entry: experience, attributes: {}, highlights: [ first.content, first.content, first.content ])
 
     ids = experience.reload.highlights.pluck(:id)
     expect(ids.first(2)).to eq([ first.id, second.id ])
@@ -53,14 +53,14 @@ RSpec.describe Experiences::UpdateExperienceService do
     original = experience.highlights.first
     removed = create(:experience_highlight, experience: experience, content: "Keep on failure", position: 1)
 
-    result = described_class.call(experience: experience, attributes: { company: "" }, highlights: [ "New", original.content ])
+    result = described_class.call(user: experience.user, kind: :experience, entry: experience, attributes: { company: "" }, highlights: [ "New", original.content ])
 
     expect(result).not_to be_success
     expect(experience.reload.highlights.pluck(:id, :position)).to eq([ [ original.id, 0 ], [ removed.id, 1 ] ])
   end
 
   it "rolls back highlight changes when validation fails" do
-    result = described_class.call(experience: experience, attributes: { company: "" }, highlights: [ "New" ])
+    result = described_class.call(user: experience.user, kind: :experience, entry: experience, attributes: { company: "" }, highlights: [ "New" ])
 
     expect(result).not_to be_success
     expect(experience.reload.highlights.pluck(:content)).to eq([ "Old bullet" ])

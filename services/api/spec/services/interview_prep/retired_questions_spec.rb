@@ -45,20 +45,29 @@ RSpec.describe "Retired interview questions" do
       feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
     expect(copy.retired_at).to be_present
     expect(copy.embedding.id).to eq(embedding_id)
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: copy).value).to be(false)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(copy)).to be(false)
     expect(question.reload).to have_attributes(question_text: replacement_text, answer_text: "", memory_anchor: "", position: 1)
     expect(question.embedding).to be_nil
     expect(question_set.reload.questions.count).to eq(5)
   end
 
-  it "retains all drafts when only an inactive draft is answered" do
-    question.update!(answer_format: "star", answer_drafts: { "car" => { "action" => "Keep this" } })
+  it "retains every draft of an answered question, inactive ones included" do
+    question.update!(answer_format: "car", answer_text: "Action: Ship it",
+      answer_drafts: { "car" => { "action" => "Ship it" }, "star" => { "action" => "Keep this too" } })
     expect(replace(question)).to be_completed
     copy = question_set.retired_questions.sole
-    expect(copy.answer_drafts).to eq({ "car" => { "action" => "Keep this" } })
-    expect(copy.answer_format).to eq("star")
+    expect(copy.answer_drafts).to eq({ "car" => { "action" => "Ship it" }, "star" => { "action" => "Keep this too" } })
+    expect(copy.answer_format).to eq("car")
     expect(question.reload.answer_drafts).to eq({})
     expect(question.answer_format).to eq("plain_text")
+  end
+
+  # Only the active answer counts as an answer, so inactive drafts alone do not earn a retired copy.
+  it "keeps no copy when only an inactive draft has text" do
+    question.update!(answer_format: "star", answer_text: "", answer_drafts: { "car" => { "action" => "Not the active answer" } })
+    expect(replace(question)).to be_completed
+    expect(question_set.retired_questions).to be_empty
+    expect(question.reload.answer_drafts).to eq({})
   end
 
   it "keeps no copy when the replaced question was unanswered" do

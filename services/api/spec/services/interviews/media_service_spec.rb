@@ -180,7 +180,7 @@ RSpec.describe "Interview private media" do
     operation = Interviews::SubmitTurnService.call(interview: interview, question_id: media.question_id,
       recording_id: media.id, expected_revision: 0, submission_key: "invalid-source").value
     Interviews::ClaimOperationService.call(operation: operation)
-    expect(Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+    expect(AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation, code: "invalid_recording", retryable: false)).to be_success
     expect(media.reload.expires_at).to be <= Time.current
     Interviews::CleanupService.call(storage: storage)

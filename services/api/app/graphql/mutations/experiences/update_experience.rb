@@ -10,12 +10,10 @@ module Mutations
 
       field :experience, Types::ExperienceType
 
-      # Calls Experiences::UpdateExperienceService.
+      # Calls CareerLibrary::SaveLibraryEntryService.
       def resolve(id:, attributes:, highlights: nil)
         experience = current_user.experiences.find(id)
-        result = ::Experiences::UpdateExperienceService.call(
-          experience: experience, attributes: attributes.to_h, highlights: highlights
-        )
+        result = ::CareerLibrary::SaveLibraryEntryService.call(user: current_user, kind: :experience, entry: experience, attributes: attributes.to_h, highlights: highlights)
         payload_from(result, :experience)
       end
     end

@@ -1,52 +1,28 @@
-# Shares the owner-first lock and lease rules across interview execution services.
+# Mixin that gives interview services the shared lifecycle helpers (lock, fence check, failure).
+# The rules themselves live in `AiExecutions::OperationLifecycle` and `Interviews::OperationPolicy`.
 # No provider or storage I/O is allowed while these database locks are held.
 # Terminal task changes record owner-visible outcomes in the same transaction.
 module Interviews
   module ExecutionPolicy
-    LEASE = 30.seconds
-    DEADLINE = 120.seconds
-    BACKOFF = [ 2, 5, 10 ].freeze
-    FAILURE_CODES = %w[ai_usage_limit_reached plan_ended dependency_unavailable storage_unavailable invalid_recording transcript_too_long empty_audio audio_too_large audio_too_long context_limit screening_blocked screening_unavailable execution_failed execution_timeout lease_expired speech_failed].freeze
-
     private
 
-    def with_operation_lock
-      interview = @operation.interview_session
-      interview.user.with_lock(requires_new: true) do
-        interview.lock!
-        interview.questions.order(:position).lock.load
-        @operation.lock!
-        @operation.ai_task&.lock!
-        yield interview
-      end
+    # Rebuilt when @operation changes, because some services (backfill) walk several operations.
+    def lifecycle
+      return @lifecycle if @lifecycle&.operation.equal?(@operation)
+
+      @lifecycle = AiExecutions::OperationLifecycle.new(@operation, OperationPolicy.new(@operation))
+    end
+
+    def with_operation_lock(&block)
+      lifecycle.with_lock(&block)
     end
 
     def current_claim?
-      !@operation.interview_session.abandoned? && !@operation.interview_session.expired? &&
-        @operation.interview_session.expires_at > Time.current &&
-        @operation.running? && @attempt_id.present? && @attempt_id == @operation.attempt_id &&
-        @generation == @operation.claim_generation && @operation.lease_expires_at > Time.current &&
-        @operation.execution_deadline > Time.current
+      lifecycle.current_claim?(@attempt_id, @generation)
     end
 
-    def expire_operation(interview)
-      return false unless @operation.pending? || @operation.running? || @operation.failed?
-
-      expiry = if @operation.text_only?
-        [ @operation.created_at + 1.hour, interview.expires_at ].min
-      elsif @operation.turn? || @operation.transcription?
-        InterviewSessionMedia.find_by(id: @operation.recording_id, interview_session_id: interview.id, kind: "recording")&.expires_at || Time.current
-      else
-        interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at
-      end
-      stale_capture = @operation.transcription? && (!interview.active? || @operation.expected_revision != interview.revision)
-      expired = stale_capture || interview.expires_at <= Time.current || interview.expired? || expiry <= Time.current ||
-        (@operation.retry_expires_at && @operation.retry_expires_at <= Time.current)
-      return false unless expired
-
-      @operation.update!(status: "expired", retry_at: nil, failure_code: "media_expired")
-      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "failed", error_message: "media_expired", completed_at: Time.current }) if @operation.ai_task
-      true
+    def expire_operation(_interview)
+      lifecycle.policy.expire_if_due?
     end
 
     def reject_allowance(expiry:, allowance: nil)
@@ -60,17 +36,7 @@ module Interviews
     end
 
     def fail_execution(code, retryable:)
-      automatic = retryable && @operation.cycle_execution_count < 3 && @operation.execution_count < 6 &&
-        @operation.retry_expires_at > Time.current
-      @operation.update!(status: automatic ? "pending" : "failed", failure_code: code,
-        retry_at: automatic ? Time.current + BACKOFF.fetch(@operation.cycle_execution_count - 1).seconds : nil)
-      ScheduleOperationService.call(operation: @operation) if automatic
-      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: automatic ? "queued" : "failed", completed_at: automatic ? nil : Time.current,
-        error_message: code }) if @operation.ai_task
-      if (@operation.turn? || @operation.transcription?) && (!retryable || @operation.execution_count >= 6)
-        InterviewSessionMedia.where(id: @operation.recording_id, interview_session_id: @operation.interview_session_id, kind: "recording")
-          .update_all(expires_at: Time.current)
-      end
+      lifecycle.fail_execution(code, retryable: retryable)
     end
   end
 end

@@ -10,8 +10,9 @@ sets `stream_output = True`; its Rails adapter supplies ownership/current-attemp
 and canonical acceptance. Interviews also opt in, for answer turns only: the turn streams
 its provisional spoken text (the acknowledgement, a blank line once it is whole, then any
 follow-up) so the browser voice can start early. Saved results still arrive through the
-GraphQL subscription and stay canonical. Only browser playback observes a turn; provider
-playback does not, and Rails authorizes interview observers only for the owner's current
+GraphQL subscription and stay canonical. Every real answer turn publishes its text; the
+browser chooses to observe it only in browser playback, so provider playback never asks for
+it. Rails authorizes interview observers only for the owner's current
 turn operation. Preparation, transcription and speech operations never stream. The rules
 for speaking provisional text, and for a saved reply that differs from it, are in
 [interview sessions](interview-sessions.md#browser-speech-default).

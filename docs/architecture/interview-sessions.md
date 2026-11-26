@@ -816,7 +816,8 @@ recording interlock stays held while it waits for more text. When the saved repl
 - If the stream is unavailable, unauthorized or fails before anything was heard, the saved
   reply plays automatically as usual.
 
-Observing never starts, retries or cancels the turn. Provider playback never observes it.
+Observing never starts, retries or cancels the turn. The page skips observing in provider
+playback; the turn still publishes its text, which then expires unread.
 A final turn's closing is hidden once the interview completes, as without streaming.
 
 ## Readable context and canonical dialogue

@@ -169,8 +169,7 @@ def test_a_socket_that_disconnects_before_sending_a_token_releases_its_slot():
     limits = ClientLimits(max_pending=1)
     install_streaming(app, allowed_origins={"http://allowed"}, api_key="not-sent", limits=limits)
 
-    with TestClient(app) as client:
-        with connect(client, "/interview-transcription/stream"):
-            pass  # disconnects without sending a token
+    with TestClient(app) as client, connect(client, "/interview-transcription/stream"):
+        pass  # disconnects without sending a token
 
     assert limits._pending.get("203.0.113.7", 0) == 0

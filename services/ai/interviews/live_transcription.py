@@ -61,7 +61,7 @@ def message_json(value):
     return parsed
 
 
-async def relay_transcription(browser, owner, connect):
+async def relay_transcription(browser, owner, connect, on_authorized=None):
     """Handle a single one-use capability, with no automatic provider reconnects."""
     capture_id = None
     usage = None
@@ -85,6 +85,8 @@ async def relay_transcription(browser, owner, connect):
             if auth.get("type") != "authorize" or not isinstance(auth.get("token"), str):
                 raise ValueError("invalid_authorization")
             grant = await owner.request("redeem", {"token": auth["token"]})
+            if on_authorized:
+                on_authorized()
             capture_id = grant["capture_id"]
             trace.set_attribute("capture_id", capture_id)
             if grant.get("observation_id") is not None:
@@ -242,16 +244,23 @@ async def relay_transcription(browser, owner, connect):
             await browser.close()
 
 
-def install_streaming(app, *, allowed_origins, api_key):
+def install_streaming(app, *, allowed_origins, api_key, limits=None):
     """Install a browser relay with exact origin checks and a fixed provider endpoint."""
     from fastapi import WebSocket
+
+    from routes.client_limits import REFUSED_CLOSE_CODE, ClientLimits, client_key
+
+    limits = limits or ClientLimits()
 
     @app.websocket("/interview-transcription/stream")
     async def transcription_stream(socket: WebSocket):
         if socket.headers.get("origin") not in allowed_origins or not getattr(app.state, "capture_owner", None):
             await socket.close(code=1008)
             return
-        await socket.accept()
+        ticket = limits.admit(client_key(socket))
+        if ticket is None:
+            await socket.close(code=REFUSED_CLOSE_CODE)
+            return
 
         async def connect():
             from websockets.asyncio.client import connect as websocket_connect
@@ -262,4 +271,8 @@ def install_streaming(app, *, allowed_origins, api_key):
                 proxy=None,
             )
 
-        await relay_transcription(socket, app.state.capture_owner, connect)
+        try:
+            await socket.accept()
+            await relay_transcription(socket, app.state.capture_owner, connect, on_authorized=ticket.authorized)
+        finally:
+            ticket.close()

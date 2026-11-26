@@ -11,6 +11,7 @@ from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from execution.streaming import CURSOR, StreamGap, StreamUnavailable
+from routes.client_limits import REFUSED_CLOSE_CODE, ClientLimits, client_key
 from schemas.execution_stream import StreamIdentity
 
 # Mirrors the finished states of Rails InterviewSessionOperation::STATUSES.
@@ -22,7 +23,7 @@ async def send(socket, payload, *, timeout=1):
         await socket.send_json(payload)
 
 
-async def relay_output(socket, buffer, owner, *, send_timeout=1, authorization_seconds=1):
+async def relay_output(socket, buffer, owner, *, send_timeout=1, authorization_seconds=1, on_authorized=None):
     tasks = []
     try:
         if not 0 < authorization_seconds <= 1:
@@ -40,6 +41,8 @@ async def relay_output(socket, buffer, owner, *, send_timeout=1, authorization_s
         if not isinstance(cursor, str) or not CURSOR.fullmatch(cursor):
             raise ValueError("Invalid cursor")
         grant = await owner("redeem", {"token": auth["token"]})
+        if on_authorized:
+            on_authorized()
         identity = StreamIdentity.model_validate({key: grant[key] for key in StreamIdentity.model_fields})
         expires = datetime.fromisoformat(grant["expires_at"])
         if expires.tzinfo is None or expires <= datetime.now(UTC):
@@ -115,12 +118,21 @@ async def relay_output(socket, buffer, owner, *, send_timeout=1, authorization_s
             await socket.close()
 
 
-def install_output_stream(app, *, allowed_origins):
+def install_output_stream(app, *, allowed_origins, limits=None):
+    limits = limits or ClientLimits()
+
     @app.websocket("/ai/executions/stream")
     async def output_stream(socket: WebSocket):
         service = getattr(app.state, "execution_streams", None)
         if socket.headers.get("origin") not in allowed_origins or socket.query_params or service is None:
             await socket.close(code=1008)
             return
-        await socket.accept()
-        await relay_output(socket, service[0], service[1])
+        ticket = limits.admit(client_key(socket))
+        if ticket is None:
+            await socket.close(code=REFUSED_CLOSE_CODE)
+            return
+        try:
+            await socket.accept()
+            await relay_output(socket, service[0], service[1], on_authorized=ticket.authorized)
+        finally:
+            ticket.close()

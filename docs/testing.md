@@ -67,6 +67,14 @@ use Postgres and roll back their writes. Run the full AI suite without the marke
 to include those tests; database tests may skip if Postgres is unavailable. API specs
 need the Compose database. See each service's `AGENTS.md` for fixtures and local rules.
 
+## Pull request checks
+
+`.github/workflows/ci.yml` runs on every pull request into `develop` or `master`. For each
+of `services/api`, `services/ai` and `apps/web` the PR changes, it runs that service's full
+suite and lint: `rspec`; `ruff check` and `pytest -m "not db"`; and the web lint, typecheck
+and tests. Untouched services report skipped. CI never calls paid models or runs evals, and
+it does not run `db`-marked AI tests.
+
 ## Billing in Stripe test mode
 
 Specs use an in-memory fake and never call Stripe. To try Upgrade end to end locally, use a Stripe

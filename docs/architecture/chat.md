@@ -71,7 +71,9 @@ Failed and provisional output stays separate from accepted dialogue.
 Interactive chat uses the same FastAPI app and `ExecutionRunner` as interviews.
 A chat feature adapter opts into the existing optional streaming output. Claims,
 heartbeats, leases, durable fallback delivery, recovery and attempt fencing use the
-shared execution system; chat does not have a second dispatcher or supervisor.
+shared execution system; chat does not have a second dispatcher or supervisor. On the Rails
+side the leased lifecycle is `AiExecutions::OperationLifecycle`, shared with interviews;
+`Chat::OperationPolicy` holds only chat's differences (failure codes, finished receipts).
 Feature-owned Rails services authorize and accept chat results. Chat uses the general
 AI allowance and never consumes the separate spoken-interview allowance.
 `CHAT_MODEL` defaults to `openai:gpt-6-luna`; chat supports that model and

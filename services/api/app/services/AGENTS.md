@@ -143,8 +143,14 @@ All business logic, as service objects grouped by domain folder.
 ## Local Rules
 
 - `ai_executions/` coordinates fixed-origin nudges and bounded recovery of known
-  idempotent queue jobs. Interview-specific eligibility, retry budgets and fenced
-  state changes remain in `interviews/`; no generic dispatcher writes domain state.
+  idempotent queue jobs. It also owns the leased lifecycle of claimed chat and interview
+  operations: `OperationLifecycle` (lock order, attempt/generation fencing, lease and deadline,
+  retry budgets, failure handling, dispatch and recovery scheduling) plus the shared
+  `RenewClaimService`, `FailOperationService`, `RecoverOperationService`,
+  `ScheduleOperationService` and `ScheduleRecoveryService`. Each feature supplies a small
+  `OperationPolicy` (`chat/operation_policy.rb`, `interviews/operation_policy.rb`) for what
+  differs; add a new rule there, not a parallel service. Claim, accept and eligibility rules
+  that depend on feature data (revision, recordings, allowance) stay in `chat/` and `interviews/`.
 
 - Name services `<Verb><Noun>Service` in a domain module: `Jobs::MoveJobToStageService`.
 - Subclass `ApplicationService`, take keyword arguments in `initialize`, expose only `call`.

@@ -10,9 +10,9 @@ module AiExecutions
     # Class names stay lazy so loading the registry does not load every feature.
     REGISTRY = {
       "interviews" => { domain: "Interviews", operation_model: "InterviewSessionOperation",
-        stream_authority: "Interviews::StreamAuthority" }.freeze,
+        policy: "Interviews::OperationPolicy", stream_authority: "Interviews::StreamAuthority" }.freeze,
       "chat" => { domain: "Chat", operation_model: "ChatOperation",
-        stream_authority: "Chat::StreamAuthority" }.freeze
+        policy: "Chat::OperationPolicy", stream_authority: "Chat::StreamAuthority" }.freeze
     }.freeze
 
     def self.stream_authority(feature)
@@ -39,7 +39,15 @@ module AiExecutions
 
     def self.recover(feature, operation_id, **identity)
       operation = operation(feature, operation_id)
-      domain(feature)::RecoverOperationService.call(operation: operation, **identity) if operation
+      RecoverOperationService.call(operation: operation, **identity) if operation
+    end
+
+    # The feature's lifecycle policy for an operation record (see OperationLifecycle).
+    def self.policy(operation)
+      name = REGISTRY.values.find { |registration| registration[:operation_model] == operation.class.name }&.fetch(:policy)
+      raise ArgumentError, "Unknown execution operation" unless name
+
+      name.constantize.new(operation)
     end
 
     def self.stop(feature, operation_id, **fence)

@@ -132,7 +132,7 @@ RSpec.describe "Preparation evidence and retention" do
         travel [ 2, 5 ][index - 1].seconds
         Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
       end
-      Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+      AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, code: "dependency_unavailable", retryable: true)
     end
     expect(operation.reload).to be_failed

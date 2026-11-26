@@ -10,7 +10,7 @@ module Internal
       respond ::Chat::ClaimOperationService.call(operation: @operation)
     end
     def heartbeat
-      respond ::Chat::RenewClaimService.call(operation: @operation, **identity)
+      respond AiExecutions::RenewClaimService.call(operation: @operation, **identity)
     end
     def accept
       respond ::Chat::AcceptReplyService.call(operation: @operation, **identity, reply: params.require(:reply), screened_message_sha256: params.require(:screened_message_sha256),
@@ -20,7 +20,7 @@ module Internal
         summary_update: params[:summary_update].respond_to?(:to_unsafe_h) ? params[:summary_update].to_unsafe_h : params[:summary_update])
     end
     def fail
-      respond ::Chat::FailOperationService.call(operation: @operation, **identity, code: params.require(:code), retryable: params.fetch(:retryable, false))
+      respond AiExecutions::FailOperationService.call(operation: @operation, **identity, code: params.require(:code), retryable: params.fetch(:retryable, false))
     end
     def start_provider
       respond ::Chat::StartProviderAttemptService.call(operation: @operation, **identity, observation_id: params.require(:observation_id), stage: params.require(:stage), provider: params.require(:provider), model: params.require(:model))

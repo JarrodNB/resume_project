@@ -82,7 +82,7 @@ RSpec.describe "Prepared interview allowances" do
         recording_id: ready_interview_recording(session).id, expected_revision: session.revision,
         submission_key: SecureRandom.uuid).value
       expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).to be_success
-      expect(Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+      expect(AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, code: "invalid_recording", retryable: false)).to be_success
     end
     result = Interviews::SubmitTurnService.call(interview: session, question_id: question.id,

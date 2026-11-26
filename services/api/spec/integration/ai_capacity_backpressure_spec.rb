@@ -75,7 +75,7 @@ RSpec.describe "AI execution capacity backpressure" do
 
   def renew_occupied_leases
     @occupied.each do |operation|
-      expect(Interviews::RenewClaimService.call(operation: operation, attempt_id: operation.attempt_id,
+      expect(AiExecutions::RenewClaimService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation)).to be_success
     end
   end
@@ -133,7 +133,7 @@ RSpec.describe "AI execution capacity backpressure" do
   it "finishes a superseded busy delivery without stopping the newer pending delivery" do
     keep_capacity_busy(35)
     old_id = @waiting.delivery_job_id
-    expect(Interviews::ScheduleOperationService.call(operation: @waiting, nudge: false)).to be_success
+    expect(AiExecutions::ScheduleOperationService.call(operation: @waiting, nudge: false)).to be_success
     new_id = @waiting.reload.delivery_job_id
     expect(new_id).not_to eq(old_id)
     expect(AiExecutions::NudgeService).not_to receive(:call)
@@ -146,7 +146,7 @@ RSpec.describe "AI execution capacity backpressure" do
   it "observes a replacement delivery committed while a busy nudge is in flight" do
     old_id = @waiting.delivery_job_id
     allow(AiExecutions::NudgeService).to receive(:call) do
-      expect(Interviews::ScheduleOperationService.call(operation: @waiting, nudge: false)).to be_success
+      expect(AiExecutions::ScheduleOperationService.call(operation: @waiting, nudge: false)).to be_success
       ServiceResult.new(success: true, value: :busy, errors: [])
     end
     perform_delivery

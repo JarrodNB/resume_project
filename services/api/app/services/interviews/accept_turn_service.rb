@@ -52,7 +52,7 @@ module Interviews
         interview.update!(revision: interview.revision + 1)
         if interview.active? && SpeechPlayback.provider?(interview)
           speech = interview.operations.create!(kind: "speech", question: response.question, message: response)
-          ScheduleOperationService.call(operation: speech)
+          AiExecutions::ScheduleOperationService.call(operation: speech)
         end
         receipt = { "revision" => interview.revision, "status" => interview.status,
           "message_ids" => [ answer.id, response.id ], "question_id" => question.id }

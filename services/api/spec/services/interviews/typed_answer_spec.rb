@@ -77,7 +77,7 @@ RSpec.describe "Typed interview answers" do
     freeze_time
     operation = Interviews::SubmitTurnService.call(**input).value
     claim = Interviews::ClaimOperationService.call(operation: operation).value
-    expect(Interviews::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
+    expect(AiExecutions::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
       code: "dependency_unavailable", retryable: true)).to be_success
     travel 3.seconds
     expect(operation.reload.delivery_job_id).to be_present

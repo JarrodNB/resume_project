@@ -26,7 +26,7 @@ RSpec.describe "Chat stream authority" do
   end
   it "revokes delivery when an attempt is superseded" do
     token = authorize.value.fetch(:token)
-    Chat::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id, claim_generation: operation.claim_generation, code: "execution_failed", retryable: false)
+    AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id, claim_generation: operation.claim_generation, code: "execution_failed", retryable: false)
     expect(AiExecutions::StreamGrantService.call(action: "redeem", token: token)).not_to be_success
     Chat::RetryOperationService.call(operation: operation)
     Chat::ClaimOperationService.call(operation: operation)

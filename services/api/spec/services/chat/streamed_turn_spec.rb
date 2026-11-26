@@ -61,7 +61,7 @@ RSpec.describe "Chat streamed turns" do
     expect(operation.execution_attempts.count).to eq(1)
     expect(operation.ai_task.ai_usage_attempts.find_by(attempt_id: saved[:attempt_id])).to be_incomplete
     expect(Chat::ClaimOperationService.call(operation: operation)).not_to be_success
-    expect(Chat::RenewClaimService.call(operation: operation, **identity(saved))).to be_success
+    expect(AiExecutions::RenewClaimService.call(operation: operation, **identity(saved))).to be_success
     expect(AiExecutions::Features.operation("chat", operation.id)).to eq(operation)
     expect(AiExecutions::Features.state("chat", operation.id)[:delivered]).to be(true)
   end
@@ -92,7 +92,7 @@ RSpec.describe "Chat streamed turns" do
   it "keeps blocked text out of history and retries the same logical task explicitly" do
     operation = start
     saved = claim(operation)
-    expect(Chat::FailOperationService.call(operation: operation, **identity(saved), code: "screening_blocked", retryable: true)).to be_success
+    expect(AiExecutions::FailOperationService.call(operation: operation, **identity(saved), code: "screening_blocked", retryable: true)).to be_success
     expect(operation.reload).to be_failed
     expect(chat.messages).to be_empty
     expect(Chat::RetryOperationService.call(operation: operation)).to be_success
@@ -109,13 +109,13 @@ RSpec.describe "Chat streamed turns" do
     expected_at = operation.reload.lease_expires_at
     job_id = operation.recovery_job_id
     travel_to(expected_at + 1.second) do
-      expect(Chat::RecoverOperationService.call(operation: operation, **{ attempt_id: saved[:attempt_id], generation: saved[:claim_generation], expected_at: expected_at.iso8601(6), job_id: job_id })).to be_success
+      expect(AiExecutions::RecoverOperationService.call(operation: operation, **{ attempt_id: saved[:attempt_id], generation: saved[:claim_generation], expected_at: expected_at.iso8601(6), job_id: job_id })).to be_success
       expect(operation.reload).to be_pending
       expect(operation.retry_at).to be > Time.current
     end
     travel_to(operation.retry_at + 1.second) do
       next_saved = claim(operation)
-      Chat::RecoverOperationService.call(operation: operation, attempt_id: saved[:attempt_id], generation: saved[:claim_generation], expected_at: expected_at.iso8601(6), job_id: job_id)
+      AiExecutions::RecoverOperationService.call(operation: operation, attempt_id: saved[:attempt_id], generation: saved[:claim_generation], expected_at: expected_at.iso8601(6), job_id: job_id)
       expect(operation.reload).to be_running
       expect(operation.attempt_id).to eq(next_saved[:attempt_id])
     end
@@ -130,7 +130,7 @@ RSpec.describe "Chat streamed turns" do
     expect(Chat::StartProviderAttemptService.call(operation: operation, **identity(saved), **labels)).to be_success
     report = operation.ai_task.ai_usage_attempts.find_by!(attempt_id: observation_id)
     expect(report).to be_incomplete
-    Chat::FailOperationService.call(operation: operation, **identity(saved), code: "execution_failed", retryable: false)
+    AiExecutions::FailOperationService.call(operation: operation, **identity(saved), code: "execution_failed", retryable: false)
     usage = [{ "input_tokens" => 20, "cached_input_tokens" => 0, "output_tokens" => 8, "cost_microdollars" => 7 }]
     args = { operation: operation, attempt_id: saved[:attempt_id], observation_id: observation_id, usage: usage }
     expect(Chat::RecordUsageService.call(**args)).to be_success
@@ -166,7 +166,7 @@ RSpec.describe "Chat streamed turns" do
   it "checks ownership for explicit retry and exposes saved progress with precise ordering" do
     operation = start
     saved = claim(operation)
-    Chat::FailOperationService.call(operation: operation, **identity(saved), code: "execution_failed", retryable: false)
+    AiExecutions::FailOperationService.call(operation: operation, **identity(saved), code: "execution_failed", retryable: false)
     query = 'mutation($id: ID!) { retryChatMessage(input: {operationId:$id}) { operation { id status updatedAt } errors } }'
     expect(execute_graphql(query, user: create(:user), variables: { id: operation.id })["errors"].first["message"]).to eq("Record not found")
     owned = execute_graphql(query, user: user, variables: { id: operation.id }).dig("data", "retryChatMessage")

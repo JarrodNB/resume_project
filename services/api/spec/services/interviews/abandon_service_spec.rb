@@ -22,7 +22,7 @@ RSpec.describe "Interview abandonment" do
     expect(Interviews::AbandonService.call(interview: interview)).to be_success
     expect(interview.reload.revision).to eq(revision + 1)
     expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
-    expect(Interviews::RenewClaimService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation))).not_to be_success
+    expect(AiExecutions::RenewClaimService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation))).not_to be_success
     expect(Interviews::ClaimOperationService.call(operation: operation)).not_to be_success
     expect(Interviews::StartProviderAttemptService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
       observation_id: observation_id, stage: "speech", provider: "fake", model: "fake")).not_to be_success
@@ -51,8 +51,8 @@ RSpec.describe "Interview abandonment" do
     role = { "title" => "Fictional technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Calibration" ] }
     questions = 8.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Question #{i}?" } }
     expect(Interviews::AcceptPreparationService.call(operation: operation, **identity, role: role, questions: questions)).not_to be_success
-    expect(Interviews::RenewClaimService.call(operation: operation, **identity)).not_to be_success
-    expect(Interviews::FailOperationService.call(operation: operation, **identity, code: "dependency_unavailable", retryable: true)).not_to be_success
+    expect(AiExecutions::RenewClaimService.call(operation: operation, **identity)).not_to be_success
+    expect(AiExecutions::FailOperationService.call(operation: operation, **identity, code: "dependency_unavailable", retryable: true)).not_to be_success
     expect(Interviews::RetryOperationService.call(operation: operation)).not_to be_success
     expect(Interviews::DeliveryStateService.call(operation: operation).value[:delivered]).to be(true)
     expect(preparing.reload.prepared_role).to eq({})

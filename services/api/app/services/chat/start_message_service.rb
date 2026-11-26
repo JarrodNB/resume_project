@@ -22,7 +22,7 @@ module Chat
         operation = @conversation.operations.create!(ai_task: task, message: @message, idempotency_key: @key,
           expected_position: @conversation.messages.maximum(:position) || 0, retry_expires_at: 1.hour.from_now)
         task.update!(input: { operation_id: operation.id })
-        ScheduleOperationService.call(operation: operation)
+        AiExecutions::ScheduleOperationService.call(operation: operation)
         PublishUpdateService.call(conversation: @conversation)
         success(operation)
       end

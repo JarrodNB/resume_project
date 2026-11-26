@@ -62,7 +62,7 @@ RSpec.describe "Interrupted AI queue delivery" do
 
   it "does not let an old delivery job stop a newly scheduled delivery" do
     old = @job
-    Interviews::ScheduleOperationService.call(operation: @operation)
+    AiExecutions::ScheduleOperationService.call(operation: @operation)
     old.stop_delivery
     expect(@operation.reload).to be_pending
     expect(AiExecutions::NudgeService).not_to receive(:call)
@@ -119,7 +119,7 @@ RSpec.describe "Interrupted AI queue delivery" do
     stored = SolidQueue::Job.find_by!(active_job_id: @operation.reload.recovery_job_id)
     old = AiExecutions::RecoveryJob.new(*stored.arguments.fetch("arguments"))
     old.job_id = stored.active_job_id
-    expect(Interviews::FailOperationService.call(operation: @operation, attempt_id: @operation.attempt_id,
+    expect(AiExecutions::FailOperationService.call(operation: @operation, attempt_id: @operation.attempt_id,
       claim_generation: @operation.claim_generation, code: "execution_failed", retryable: false)).to be_success
     expect(Interviews::RetryOperationService.call(operation: @operation)).to be_success
     old.stop_delivery

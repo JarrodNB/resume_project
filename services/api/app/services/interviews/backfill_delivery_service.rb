@@ -19,10 +19,10 @@ module Interviews
             next
           end
           if @operation.running?
-            ScheduleRecoveryService.call(operation: @operation)
+            AiExecutions::ScheduleRecoveryService.call(operation: @operation)
             counts[:watchdogs] += 1
           elsif !@operation.speech? || SpeechPlayback.provider?(interview)
-            ScheduleOperationService.call(operation: @operation, nudge: false)
+            AiExecutions::ScheduleOperationService.call(operation: @operation, nudge: false)
             counts[:dispatched] += 1
           end
         end

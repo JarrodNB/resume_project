@@ -1,6 +1,8 @@
 # Reserves a unique execution, its recovery clock and unknown-cost marker before
 # returning owner-derived context. Admission failures require an explicit retry and
 # reserve no execution or provider attempt. Retrying never publishes SQS.
+# The attempt, lease and budget rules are shared (`AiExecutions::OperationLifecycle`); this
+# service adds the interview checks: expiry, abandonment, revision, recording and allowance.
 module Interviews
   class ClaimOperationService < ApplicationService
     include ExecutionPolicy
@@ -30,21 +32,12 @@ module Interviews
           end
           next failure("Reviewed answer unavailable") if @operation.text_only? && @operation.candidate_transcript.blank?
         end
-        expiry = if @operation.text_only?
-          [ @operation.created_at + 1.hour, interview.expires_at ].min
-        elsif @operation.turn? || @operation.transcription?
-          recording.expires_at
-        else
-          interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at
-        end
-        if @operation.running?
-          next failure("Operation already claimed") if @operation.lease_expires_at > Time.current && @operation.execution_deadline > Time.current
-          fail_execution(@operation.execution_deadline <= Time.current ? "execution_timeout" : "lease_expired", retryable: true)
-          next failure("Recovery scheduled")
-        end
-        next failure("Operation is not eligible") unless @operation.pending? && (!@operation.retry_at || @operation.retry_at <= Time.current)
+        expiry = lifecycle.policy.work_expiry
+        running_error = lifecycle.running_claim_error
+        next failure(running_error) if running_error
+        next failure("Operation is not eligible") unless lifecycle.pending_and_due?
         next failure("Recording expired") if (@operation.turn? || @operation.transcription?) && @operation.created_at <= 1.hour.ago
-        next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
+        next failure("Execution limit reached") if lifecycle.executions_exhausted?
         allowance = CheckOperationAllowanceService.call(operation: @operation, create_task: true)
         unless allowance.success?
           reject_allowance(expiry: expiry, allowance: allowance)
@@ -54,17 +47,7 @@ module Interviews
           @operation.ai_task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user), task_type: "interview_#{@operation.kind}", subject: interview,
             input: { operation_id: @operation.id })
         end
-        attempt_id = SecureRandom.uuid
-        @operation.update!(status: "running", attempt_id: attempt_id, claim_generation: @operation.claim_generation + 1,
-          execution_count: @operation.execution_count + 1, cycle_execution_count: @operation.cycle_execution_count + 1,
-          lease_expires_at: LEASE.from_now, execution_deadline: DEADLINE.from_now, retry_at: nil,
-          retry_expires_at: @operation.retry_expires_at || expiry,
-          failure_code: nil, checkpoint: nil)
-        @operation.execution_attempts.create!(attempt_id: attempt_id, claim_generation: @operation.claim_generation)
-        ScheduleRecoveryService.call(operation: @operation)
-        AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
-          message: { "attempt_id" => attempt_id, "attempt_finished" => false })
-        @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)
+        attempt_id = lifecycle.reserve_attempt!(retry_expires_at: @operation.retry_expires_at || expiry, checkpoint: nil)
         payload = { version: 1, interview_id: interview.id, user_id: interview.user_id,
           setup: SetupConfiguration.for(interview) }
         success({ execution_mode: interview.execution_mode, execution_config: interview.execution_config, operation_id: @operation.id, kind: @operation.kind, attempt_id: attempt_id,

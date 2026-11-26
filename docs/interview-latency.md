@@ -27,9 +27,38 @@ provider exceptions and user details. Logfire retains the ordinary operation/mod
 | `speech_storage` | Reservation, upload and sealing |
 | `acceptance` | Durable callback and ambiguous-receipt reconciliation |
 
-Parent agent timings include nested screening; do not sum them twice. Browser upload,
-review time, subscription delivery, playback and first audible speech need their own
-measurements. Existing checks do not infer those numbers from backend acceptance.
+Parent agent timings include nested screening; do not sum them twice. Existing checks do
+not infer browser-side numbers from backend acceptance; the browser records its own below.
+
+## Browser stages
+
+`apps/web/src/features/interviews/interviewLatency.ts` records what only the browser can see as
+`performance.measure` entries named `interview:<stage>`. Entries hold a duration, a mode and
+nothing else: no text, audio or IDs, and nothing is sent to a server. They use the page's own
+clock, so do not join them to Rails or Python timestamps.
+
+| Stage | Starts | Ends | Mode |
+| --- | --- | --- | --- |
+| `speech-end-to-transcript` | Pause recording in a live mode | Final recognized text is in the answer box | `browser` / `streaming` |
+| `recording-to-transcript` | Transcribe recording (includes upload) | Transcript fills the answer box | `recorded` |
+| `submit-to-reply` | Submit answer | The next interviewer prompt appears | `all` |
+| `reply-to-audio` | The next prompt appears | Its automatic playback makes sound | `browser` / `provider` |
+| `submit-to-audio` | Submit answer | The next prompt's automatic playback makes sound | `browser` / `provider` |
+
+A failed recognition, failed submission or manual (non-automatic) playback records nothing for
+that stage, so the numbers never include reading or thinking time. In provider mode,
+`reply-to-audio` includes speech generation, storage and the playback grant. Browser "sound" is
+the first sentence's `onstart` event, which some voice engines fire slightly early.
+
+To collect numbers, run several turns at `/practice/interviews`, then in the DevTools console:
+
+```js
+console.table(__interviewLatency.report())
+```
+
+The report gives count, p50, p95 and max per stage and mode for the current page load. Entries
+also appear in the DevTools Performance panel under Timings. Compare one device, network and
+mode at a time, and record those alongside the results.
 
 ## Repeatable local HTTP dispatch probe
 

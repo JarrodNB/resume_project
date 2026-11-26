@@ -575,7 +575,7 @@ runs off the event loop so lease renewals remain responsive.
 Fake transcription is scripted and does not interpret recordings. Fake screening uses
 injected classifiers through the shared policy. The interviewer uses the pinned
 Pydantic AI FunctionModel, official input guardrail and typed restored history;
-`advance_to_next_question` returns intent for Rails to apply. Each fake stage is
+an advance decision is intent for Rails to apply. Each fake stage is
 registered before execution and reports explicit zero cost. Saved-text speech uses
 four fixed synthetic eSpeak WAV fixtures, generated offline at 155 words per minute;
 unknown text has no fallback synthesis. Their text mapping lives in
@@ -750,6 +750,8 @@ The existing Logfire operation/model traces are supplemented by content-free,
 monotonic stage events for claim requests, recording download,
 transcription, screening, reasoning, speech storage and durable acceptance.
 They do not expand public snapshots or replace Rails timestamps/accounting.
+The browser separately records content-free speech-end, submit, reply and first-sound stages
+as local `performance.measure` entries; they are never sent to the server.
 See [latency measurements](../interview-latency.md) for exact stage coverage,
 clock-domain limits and the isolated shared HTTP dispatch probe.
 

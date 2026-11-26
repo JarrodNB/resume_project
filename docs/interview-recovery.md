@@ -84,7 +84,7 @@ checks; they do not establish microphone behavior or production storage permissi
 | Row | Observable contract | Evidence |
 | --- | --- | --- |
 | 1 | Legacy fixture opening, two answers, cap, closing, saved audio | Recovery harness plus `interview_runtime_smoke.rb`; human hears audio |
-| 2 | Legacy fixture early advance and two-question openings exactly once | `accept_turn_service_spec.rb`, `create_fixture_service_spec.rb`; `test_interview_executor.py` early-advance tool/history |
+| 2 | Legacy fixture early advance and two-question openings exactly once | `accept_turn_service_spec.rb`, `create_fixture_service_spec.rb`; `test_interview_executor.py` early-advance intent in one request |
 | 3 | Identical/conflicting submission identity and competing submits | Harness real DB submit race; `submit_turn_service_spec.rb`, `concurrency_spec.rb`; frontend ambiguous-submit tests |
 | 4 | Competing/expired claims and stale dialogue/audio | Harness real HTTP claim race, killed lease recovery and stale heartbeat; `concurrency_spec.rb`, `media_service_spec.rb` stale completion |
 | 5 | Reload/disconnect and lost result receipt | Harness real committed receipt loss/status and identical acceptance replay; frontend hook/page reload/reconnect tests; human reload |

@@ -40,6 +40,7 @@ import { InterviewAudio } from './InterviewAudio'
 import { useAutomaticMicrophone } from './useAutomaticMicrophone'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
+import { finishInterviewTiming, keyInterviewTiming, startInterviewTiming } from './interviewLatency'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewStreaming } from './useInterviewStreaming'
@@ -125,6 +126,14 @@ function OwnedInterview({ id }: { id: string }) {
     setTrackedPromptId(autoPrompt?.id)
     if (autoPrompt?.id && answerSubmitted) { setAnswerSubmitted(false); setNextQuestionReady(true) }
   }
+  // A new prompt after a submission in this page ends the reply wait and starts the wait for sound.
+  const autoPromptId = autoPrompt?.id
+  const playbackMode = interview?.speechPlaybackMode
+  useEffect(() => {
+    if (!autoPromptId || finishInterviewTiming('submit-to-reply') === null) return
+    startInterviewTiming('reply-to-audio', { mode: playbackMode ?? 'unknown' }, autoPromptId)
+    keyInterviewTiming('submit-to-audio', autoPromptId)
+  }, [autoPromptId, playbackMode])
   useEffect(() => {
     if (!nextQuestionReady) return
     const timer = setTimeout(() => setNextQuestionReady(false), 4000)

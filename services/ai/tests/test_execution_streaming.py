@@ -264,7 +264,7 @@ def test_rejected_event_disables_sink_and_preserves_public_history(redis_url, ki
     asyncio.run(scenario())
 
 
-def test_optional_stream_outage_cannot_fail_canonical_acceptance_or_enable_interviews():
+def test_optional_stream_outage_cannot_fail_canonical_acceptance_or_need_redis_for_interviews():
     from datetime import UTC, datetime, timedelta
     from types import SimpleNamespace
 
@@ -304,6 +304,44 @@ def test_optional_stream_outage_cannot_fail_canonical_acceptance_or_enable_inter
             assert interviews.output_factory is None
             assert interviews.ready
         await interviews.close()
+
+    asyncio.run(scenario())
+
+
+def test_interview_turns_opt_into_shared_output_when_redis_is_configured(redis_url):
+    from datetime import UTC, datetime, timedelta
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+
+    from execution.runner import ExecutionRunner
+    from execution.stream_runtime import optional_streaming
+    from execution.streaming import StreamBuffer
+    from interviews.execution_adapter import InterviewExecutionAdapter
+
+    class Executor:
+        async def execute(self, claim, *, deadline_managed=False, output=None):
+            if output:
+                await output.start()
+                await output.complete()
+
+    async def scenario():
+        metadata = {**identity(), "feature": "interviews"}
+        claim = SimpleNamespace(kind="turn", operation_id=metadata["operation_id"],
+            attempt_id=metadata["attempt_id"], claim_generation=1,
+            execution_deadline=datetime.now(UTC) + timedelta(seconds=5))
+        adapter = InterviewExecutionAdapter(SimpleNamespace(claim=None), Executor())
+        app = FastAPI()
+        runner = ExecutionRunner({"interviews": adapter})
+        async with optional_streaming(app, runner, redis_url=redis_url,
+                rails_origin="http://rails.test", secret="s" * 32):
+            assert app.state.streaming_reason is None
+            assert await runner.output_factory("interviews", claim).emit("started")
+        await runner.close()
+        observer = StreamBuffer(redis_url)
+        events = await observer.read(metadata, "0-0", block_ms=1)
+        assert [event["type"] for _, event in events] == ["started"]
+        await observer.close()
 
     asyncio.run(scenario())
 

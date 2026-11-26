@@ -115,3 +115,9 @@ export const REQUEST_INTERVIEW_SESSION_FEEDBACK = graphql(`
     }
   }
 `)
+
+export const AUTHORIZE_INTERVIEW_OUTPUT = graphql(`
+  mutation AuthorizeInterviewOutput($input: AuthorizeAiExecutionStreamInput!) {
+    authorizeAiExecutionStream(input: $input) { token expiresAt errors }
+  }
+`)

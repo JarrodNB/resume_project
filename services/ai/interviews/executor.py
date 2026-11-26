@@ -82,14 +82,17 @@ class InterviewExecutor:
             self.input_reader = build_interview_input_reader(AISettings())
         return await asyncio.to_thread(self.input_reader, claim)
 
-    async def execute(self, claim, *, deadline_managed=False):
-        """Run one operation; fail safe domain errors, leaving transport loss recoverable."""
+    async def execute(self, claim, *, deadline_managed=False, output=None):
+        """Run one operation; fail safe domain errors, leaving transport loss recoverable.
+
+        `output` is an optional SpokenTextStream for answer turns only.
+        """
         finished = False
         try:
             claim = await self._load_inputs(claim)
 
             if claim.kind == "turn":
-                await self._turn(claim)
+                await self._turn(claim, output)
             elif claim.kind == "transcription":
                 await self._recorded_review(claim)
             elif claim.kind == "preparation":
@@ -168,7 +171,7 @@ class InterviewExecutor:
             raise ScreeningRejected("transcript_too_long")
         await self._reconcile(claim, lambda: self.client.accept_transcription(claim, transcript))
 
-    async def _turn(self, claim):
+    async def _turn(self, claim, output=None):
         payload = claim.payload
         if payload.earlier_dialogue is not None:
             size = sum(len(message.content) for group in payload.earlier_dialogue.groups for message in group.messages)
@@ -224,6 +227,9 @@ class InterviewExecutor:
                                             reply=result.output.reply)
         with stage_timing(claim, "acceptance"):
             await self._reconcile(claim, accept)
+        # Offline fixtures publish no provisional text, only that the turn was accepted.
+        if output:
+            await output.complete()
 
     async def _synthesize(self, claim):
         async with self._stage(claim, "speech"):

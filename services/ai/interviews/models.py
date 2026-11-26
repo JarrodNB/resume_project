@@ -1,13 +1,14 @@
 """Admit and price each concrete interviewer or screening model request.
 
-Accounting wraps the provider, below agent validation retries. Missing or unexpected
+Accounting wraps the provider, below agent validation retries, for both whole and
+streamed requests. Missing or unexpected
 usage remains unknown, and transport retries are disabled in both provider clients.
 Luna and Terra caching is explicitly disabled because the pinned usage mapper loses
 write-lifetime details. Unsupported long-context or unexpected write usage cannot become a
 known bill.
 """
 
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import httpx
 import httpx2
@@ -36,39 +37,62 @@ class InterviewModel(WrapperModel):
         self.calls, self.claim = ProviderCalls(rails), claim
         self.stage, self.provider_name, self.configured = stage, provider, model
 
+    def _request_settings(self, settings):
+        output_cap = 4096 if self.claim.kind == "preparation" and self.stage == "interviewer" else 1024
+        model_settings = {**(settings or {}), **({"max_tokens": output_cap} if self.provider_name == "openai" else {})}
+        if self.provider_name == "openai":
+            model_settings["openai_service_tier"] = "default"
+        if self.configured in CACHE_DISABLED_MODELS:
+            # Explicit mode without breakpoints makes no cache reads/writes. The pinned
+            # Responses adapter forwards this option; Nano uses its older cache policy.
+            model_settings["openai_prompt_cache_options"] = {"mode": "explicit"}
+        return model_settings
+
+    def _known_usage(self, response):
+        usage = response.usage
+        # Never price an unknown model as the configured one or fabricate zero.
+        if response.model_name in {self.configured, f"{self.provider_name}:{self.configured}"} and (
+            usage.input_tokens > 0 or usage.output_tokens > 0
+        ) and (self.configured not in CACHE_DISABLED_MODELS or (
+            0 <= usage.cache_read_tokens <= usage.input_tokens <= MAX_SHORT_CONTEXT_INPUT_TOKENS and
+            usage.output_tokens >= 0 and usage.cache_write_tokens == 0
+        )):
+            priced = build_model_usage(f"{self.provider_name}:{self.configured}", usage)
+            if priced.cost_microdollars is not None:
+                return [priced.model_dump(exclude={"model", "cache_write_tokens"}, exclude_none=True)]
+        return []
+
     async def request(self, messages, settings, model_request_parameters):
-        known = False
+        entries = []
 
         async def dispatch():
-            nonlocal known
-            output_cap = 4096 if self.claim.kind == "preparation" and self.stage == "interviewer" else 1024
-            model_settings = {**(settings or {}), **({"max_tokens": output_cap} if self.provider_name == "openai" else {})}
-            if self.provider_name == "openai":
-                model_settings["openai_service_tier"] = "default"
-            if self.configured in CACHE_DISABLED_MODELS:
-                # Explicit mode without breakpoints makes no cache reads/writes. The pinned
-                # Responses adapter forwards this option; Nano uses its older cache policy.
-                model_settings["openai_prompt_cache_options"] = {"mode": "explicit"}
-            response = await observe_request(self.wrapped, messages, model_settings, model_request_parameters)
-            usage = response.usage
-            # Never price an unknown model as the configured one or fabricate zero.
-            entries = []
-            if response.model_name in {self.configured, f"{self.provider_name}:{self.configured}"} and (
-                usage.input_tokens > 0 or usage.output_tokens > 0
-            ) and (self.configured not in CACHE_DISABLED_MODELS or (
-                0 <= usage.cache_read_tokens <= usage.input_tokens <= MAX_SHORT_CONTEXT_INPUT_TOKENS and
-                usage.output_tokens >= 0 and usage.cache_write_tokens == 0
-            )):
-                priced = build_model_usage(f"{self.provider_name}:{self.configured}", usage)
-                known = priced.cost_microdollars is not None
-                if known:
-                    entries = [priced.model_dump(exclude={"model", "cache_write_tokens"}, exclude_none=True)]
+            nonlocal entries
+            response = await observe_request(self.wrapped, messages, self._request_settings(settings), model_request_parameters)
+            entries = self._known_usage(response)
             return response, entries
 
         response = await self.calls.run(self.claim, self.stage, self.provider_name, self.configured, dispatch)
-        if not known:
+        if not entries:
             raise ProviderError("unknown_provider_usage")
         return response
+
+    @asynccontextmanager
+    async def request_stream(self, messages, settings, model_request_parameters, run_context=None):
+        """Stream one accounted request; only a complete, priced response becomes a known bill."""
+        entries = []
+
+        def finished(response):
+            nonlocal entries
+            entries = self._known_usage(response) if response.state == "complete" else []
+            return entries
+
+        async with self.calls.stream(self.claim, self.stage, self.provider_name, self.configured,
+                lambda: self.wrapped.request_stream(messages, self._request_settings(settings),
+                                                    model_request_parameters, run_context),
+                finished) as response:
+            yield response
+        if not entries:
+            raise ProviderError("unknown_provider_usage")
 
 
 class InterviewModels:

@@ -296,7 +296,10 @@ the response cap forces advancement. It never changes Rails' choice of question.
 Message `content` remains only the question/follow-up/closing. Optional
 `acknowledgement` metadata is exposed separately; `spokenContent` joins it to content
 with a blank line. Browser and provider speech use that canonical saved text, as do
-restored public-dialogue claims. Clarification can read content alone without copying
+restored public-dialogue claims. In browser playback, a running answer turn's provisional
+spoken text may be spoken sentence by sentence before it is saved; when the saved text
+begins with what was streamed, playback finishes with the saved text and repeats nothing.
+Otherwise the saved text plays as before (see docs/architecture/ai-streaming.md). Clarification can read content alone without copying
 candidate details from the acknowledgement. No new dialogue kind is introduced.
 Acknowledgement plus follow-up share the existing 4,000-character speech-text cap.
 

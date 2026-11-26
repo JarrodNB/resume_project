@@ -12,7 +12,7 @@ import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAY
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null as string | null, errorCode: null as string | null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
-  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
+  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, liveFailed: false, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
@@ -50,7 +50,7 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
+beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; recorder.liveFailed = false; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewPage', () => {
   it('pauses automatic microphone capture while reviewing a Career context copy', async () => {
@@ -476,7 +476,7 @@ describe('InterviewPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Record answer' }))
     expect(recorder.start).toHaveBeenCalledOnce()
     const recording = new Blob(['answer'], { type: 'audio/webm' })
-    recorder.status = 'ready'; recorder.recording = recording
+    recorder.status = 'ready'; recorder.effectiveMode = 'recorded'; recorder.recording = recording
     act(() => recorder.refresh())
     expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
     await userEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
@@ -707,7 +707,7 @@ describe('InterviewPage', () => {
     expect(answerActions.getByRole('button', { name: 'Submit answer' })).toBeDisabled()
     await userEvent.dblClick(screen.getByRole('button', { name: 'Pause recording' }))
     expect(state.answer).not.toHaveBeenCalled()
-    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
+    recorder.status = 'ready'; recorder.effectiveMode = 'recorded'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     act(() => recorder.refresh())
     expect(state.answer).not.toHaveBeenCalled()
     await userEvent.click(screen.getByText('Review recording'))
@@ -719,7 +719,7 @@ describe('InterviewPage', () => {
     expect(state.transcribeRecording).toHaveBeenCalledOnce()
   })
   it('offers continuation and explains transcription when a paused recording has no text', async () => {
-    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
+    recorder.status = 'ready'; recorder.effectiveMode = 'recorded'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     renderInterview()
     expect(screen.getByRole('heading', { name: 'Recording paused' })).toBeVisible()
     expect(screen.getByText('Continue recording to add more, or transcribe your recording to review the words.')).toBeVisible()
@@ -727,13 +727,23 @@ describe('InterviewPage', () => {
     expect(recorder.resume).toHaveBeenCalledOnce()
     expect(recorder.start).not.toHaveBeenCalled()
   })
+  it('hides Transcribe recording when live recognition already filled the answer', () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' }); recorder.candidateTranscript = 'I led the migration.'
+    renderInterview()
+    expect(screen.queryByRole('button', { name: 'Transcribe recording' })).not.toBeInTheDocument()
+  })
+  it('offers Transcribe recording when live recognition failed earlier in this recording', () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' }); recorder.liveFailed = true
+    renderInterview()
+    expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
+  })
   it('never submits a ready blob without explicit Pause recording intent', () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     renderInterview()
     expect(state.answer).not.toHaveBeenCalled()
   })
   it('locks conflicting actions and prevents duplicate explicit submissions', async () => {
-    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
+    recorder.status = 'ready'; recorder.effectiveMode = 'recorded'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     let resolve!: (saved: boolean) => void
     state.transcribeRecording.mockReturnValue(new Promise((done) => { resolve = done }))
     renderInterview()
@@ -754,7 +764,7 @@ describe('InterviewPage', () => {
     expect(state.answer).not.toHaveBeenCalled()
   })
   it('keeps submit and re-record available after preview playback fails', async () => {
-    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    recorder.status = 'ready'; recorder.effectiveMode = 'recorded'; recorder.recording = new Blob(['answer'])
     renderInterview()
     fireEvent.error(screen.getByLabelText('Your recording preview'))
     expect(screen.getByRole('alert')).toHaveTextContent('could not play')
@@ -831,7 +841,7 @@ describe('InterviewPage', () => {
     expect(state.checkSavedStatus).toHaveBeenCalledWith(true)
   })
   it('keeps the recording when upload or authorization fails before durable submission', async () => {
-    recorder.status = 'ready'; recorder.recording = new Blob(['audio'], { type: 'audio/webm' })
+    recorder.status = 'ready'; recorder.effectiveMode = 'recorded'; recorder.recording = new Blob(['audio'], { type: 'audio/webm' })
     state.transcribeRecording.mockResolvedValue(null)
     renderInterview()
     await userEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))

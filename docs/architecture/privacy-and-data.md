@@ -18,6 +18,7 @@ period here changes, change the code, this page and `legalDetails.ts` together.
 | Never-verified accounts | 7 days | `Accounts::DeleteUnverifiedAccountsService`, hourly |
 | Browser sessions | Authentication lasts one day; stale rows are pruned | See [Authentication](authentication.md#cleanup-and-operations) |
 | AI usage and cost records | With the account (they belong to its AI tasks) | Account deletion |
+| Daily AI spend totals of deleted accounts (date, whether it counted toward the trial budget, cost, request count; no user, task or content) | Kept, so the site-wide trial budget can't be reset by deleting an account | `AiUsage::RecordDeletedAccountSpendService`, run when the account is deleted |
 | Logfire traces | 30 days | Logfire project retention setting (outside this repo) |
 | Database backups | Up to 30 days | S3 lifecycle rule on the nightly `pg_dump` backups (outside this repo) |
 | OpenAI API inputs | Up to 30 days for abuse monitoring; not used for training | OpenAI API data policy |

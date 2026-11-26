@@ -16,7 +16,7 @@ def read_interview_question_bank(connection, user_id, *, limit=501):
         raise ValueError("Interview question limit must be between 1 and 501")
     return connection.execute(r"""
         SELECT q.id::text, s.number AS set_number, s.set_type, q.position, q.question_text,
-               q.question_revision, q.answer_revision, q.answer_format_revision,
+               q.question_revision, q.answer_revision,
                q.answer_text ~ '\S' AS answered, q.feedback <> '{}'::jsonb AS has_feedback,
                q.feedback_question_revision, q.feedback_answer_revision, q.screened_fields
         FROM interview_questions q
@@ -31,7 +31,7 @@ def read_interview_question(connection, user_id, question_id):
     return connection.execute("""
         SELECT q.id::text, s.number AS set_number, s.set_type, q.position, q.question_text,
                q.answer_text, q.answer_format, q.question_revision, q.answer_revision,
-               q.answer_format_revision, q.feedback, q.feedback <> '{}'::jsonb AS has_feedback,
+               q.feedback, q.feedback <> '{}'::jsonb AS has_feedback,
                q.feedback_question_revision, q.feedback_answer_revision, q.screened_fields
         FROM interview_questions q
         JOIN interview_question_sets s ON s.id = q.interview_question_set_id

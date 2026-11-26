@@ -32,6 +32,8 @@ LIST_INTERVIEW_QUESTIONS_VERSION = "list_interview_questions-v1"
 MAX_INTERVIEW_QUESTIONS = 500
 MAX_INTERVIEW_QUESTION_LIST_CHARACTERS = 40_000
 LIST_NOTES_RESERVE = 1_000  # header and left-out notes
+# Extra classifier calls allowed to find blocked questions after a rejected list batch.
+MAX_EXTRA_QUESTION_SCREENS = 24
 QUESTION_REFERENCE_SCOPE = "interview-question-v1"
 LIST_INTERVIEW_QUESTIONS_DESCRIPTION = """List the current user's active saved interview practice
 questions, newest practice set first: set number and type, slot, question text, whether an answer
@@ -124,15 +126,15 @@ def _newest_within_budget(questions):
     return kept
 
 
-async def _screen_keeping_allowed(questions, records, screen, outcome=None):
-    """Split a rejected batch in halves to find blocked questions in about log2(n) checks each.
+async def _screen_keeping_allowed(questions, records, screen, outcome, budget):
+    """Split a rejected batch in halves to find blocked questions in about 2*log2(n) checks each.
 
-    Returns the allowed questions plus counts of blocked and unfinished ones. A sub-batch whose
-    check could not finish is left out whole rather than split again, since retrying a slow or
-    failed classifier one entry at a time would only add cost.
+    Returns the allowed questions plus counts of blocked and unfinished ones. `budget` is a
+    one-item list of extra checks left for the whole list; when it runs out, the rest are left
+    out as unfinished. A sub-batch whose check could not finish is left out whole rather than
+    split again. If a rejected batch's halves all pass alone, the batch stays blocked: the
+    classifier rejected that exact combined text.
     """
-    if outcome is None:
-        outcome = await screen_records(records, screen=screen)
     if outcome.allowed:
         return questions, 0, 0
     if outcome.decision.too_long or outcome.decision.unchecked:
@@ -140,9 +142,18 @@ async def _screen_keeping_allowed(questions, records, screen, outcome=None):
     if len(questions) == 1:
         return [], 1, 0
     middle = len(questions) // 2
-    first = await _screen_keeping_allowed(questions[:middle], records[:middle], screen)
-    second = await _screen_keeping_allowed(questions[middle:], records[middle:], screen)
-    return first[0] + second[0], first[1] + second[1], first[2] + second[2]
+    halves = []
+    for part, part_records in ((questions[:middle], records[:middle]), (questions[middle:], records[middle:])):
+        if budget[0] <= 0:
+            halves.append(([], 0, len(part)))
+            continue
+        budget[0] -= 1
+        halves.append(await _screen_keeping_allowed(part, part_records, screen,
+                                                    await screen_records(part_records, screen=screen), budget))
+    (first, first_blocked, first_unchecked), (second, second_blocked, second_unchecked) = halves
+    if not (first_blocked or first_unchecked or second_blocked or second_unchecked):
+        return [], len(questions), 0
+    return first + second, first_blocked + second_blocked, first_unchecked + second_unchecked
 
 
 async def render_interview_questions_result(call_tool, tool_args, screen):
@@ -163,7 +174,8 @@ async def render_interview_questions_result(call_tool, tool_args, screen):
         raise LibraryScreeningError("context_limit")
     if outcome.decision.unchecked:
         raise LibraryScreeningError("screening_unavailable")
-    usable, blocked, unchecked = await _screen_keeping_allowed(kept, records, screen, outcome)
+    usable, blocked, unchecked = await _screen_keeping_allowed(kept, records, screen, outcome,
+                                                               [MAX_EXTRA_QUESTION_SCREENS])
     return render_interview_questions(usable, blocked=blocked, unchecked=unchecked,
         older_not_shown=len(questions) - len(kept), more_older=len(questions) > MAX_INTERVIEW_QUESTIONS)
 
@@ -218,7 +230,7 @@ def register_interview_question_read_tools(server, read_question, *, secret):
                 "answer_text": question.get("answer_text") or "",
                 "answer_format": question.get("answer_format") or "plain_text",
                 **{name: question.get(name, default) for name, default in (
-                    ("question_revision", 1), ("answer_revision", 0), ("answer_format_revision", 0),
+                    ("question_revision", 1), ("answer_revision", 0),
                     ("feedback_question_revision", None), ("feedback_answer_revision", None))},
                 "feedback": _saved_feedback(question.get("feedback")),
                 "feedback_status": practice_feedback_status(question),

@@ -42,7 +42,7 @@ def test_reads_only_owned_active_questions_newest_set_first_then_position(admin_
     assert rows[2]["set_type"] == "fit_motivation"
     assert [row["answered"] for row in rows] == [True, False, False]
     assert [row["has_feedback"] for row in rows] == [True, False, False]
-    assert rows[0]["feedback_answer_revision"] == 2 and rows[0]["answer_format_revision"] == 0
+    assert rows[0]["feedback_answer_revision"] == 2
     assert "answer_text" not in rows[0] and "feedback" not in rows[0]
     assert read_interview_question_bank(connection, other)[0]["question_text"] == "Private question"
 
@@ -83,7 +83,7 @@ def test_reads_one_owned_active_question_with_answer_format_and_feedback(admin_c
     assert row["id"] == str(question) and row["set_number"] == 4 and row["set_type"] == "behavioral"
     assert row["position"] == 3 and row["question_text"] == "Describe a conflict."
     assert row["answer_text"] == "Situation: Two teams disagreed." and row["answer_format"] == "star"
-    assert (row["question_revision"], row["answer_revision"], row["answer_format_revision"]) == (2, 5, 4)
+    assert (row["question_revision"], row["answer_revision"]) == (2, 5)
     assert row["feedback"] == feedback and row["has_feedback"] is True
     assert (row["feedback_question_revision"], row["feedback_answer_revision"]) == (2, 5)
     assert row["screened_fields"] == ["question_text"] and "answer_drafts" not in row

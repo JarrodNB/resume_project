@@ -561,7 +561,6 @@ cases:
         Action: I ran a joint review where each lead ranked features by customer impact.
         Result: We agreed on a smaller first release and launched two weeks later.
       answer_revision: 2
-      answer_format_revision: 2
       feedback:
         strengths: [Clear situation and a specific role as project coordinator.]
         improvements: [Add a measurable result, such as checkout conversion after launch.]

@@ -16,6 +16,8 @@ module InterviewPrep
     end
 
     # Exact revisions are authoritative; formatting-only edits can reuse completed feedback.
+    # Chat's practice-question tools use a stricter copy of this rule (exact revisions only):
+    # practice_feedback_status in services/ai/mcp_tools/interview_questions.py. Change both together.
     def call
       return success(false) if @question.feedback.blank?
       return success(true) if @question.feedback_question_revision != @question.question_revision

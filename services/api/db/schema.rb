@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_24_010100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -330,6 +330,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_010100) do
     t.datetime "updated_at", null: false
     t.index ["chat_execution_attempt_id"], name: "index_chat_provider_attempts_on_chat_execution_attempt_id"
     t.index ["observation_id"], name: "index_chat_provider_attempts_on_observation_id", unique: true
+  end
+
+  create_table "deleted_account_ai_spends", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.date "spend_date", null: false
+    t.boolean "counts_toward_trial_budget", null: false
+    t.bigint "cost_microdollars", default: 0, null: false
+    t.bigint "request_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["spend_date", "counts_toward_trial_budget"], name: "index_deleted_account_ai_spends_on_day_and_budget", unique: true
+    t.check_constraint "cost_microdollars >= 0 AND request_count >= 0", name: "deleted_account_ai_spend_nonnegative"
   end
 
   create_table "educations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

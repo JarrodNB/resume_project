@@ -3,6 +3,8 @@
 # never blocked by it, and their spend does not count toward the total.
 # Each receipt keeps its plan classification from creation, including after cancellation or upgrade.
 # Counts general AI, spoken interviews and background embeddings, because all of them are billed.
+# Spend from accounts deleted since is kept as anonymous daily totals (DeletedAccountAiSpend), so deleting an
+# account does not reset the total.
 # Embedding jobs are counted but never refused: they are derived data with no user waiting on them.
 # The total is cached briefly because this runs under a lock on the user row, so it can overshoot
 # by what's spent in CACHE_TTL. Unknown costs add nothing, the same as per-user daily caps.
@@ -23,7 +25,8 @@ module AiUsage
       day_start = Time.now.utc.beginning_of_day
       Rails.cache.fetch("ai_usage/site_daily_spend/#{day_start.to_date.iso8601}", expires_in: CACHE_TTL) do
         AiTask.where(created_at: day_start..).where(counts_toward_trial_budget: true).sum(:cost_microdollars) +
-          AiEmbeddingRequest.where(created_at: day_start..).where(counts_toward_trial_budget: true).sum(:cost_microdollars)
+          AiEmbeddingRequest.where(created_at: day_start..).where(counts_toward_trial_budget: true).sum(:cost_microdollars) +
+          DeletedAccountAiSpend.where(spend_date: day_start.to_date, counts_toward_trial_budget: true).sum(:cost_microdollars)
       end
     end
   end

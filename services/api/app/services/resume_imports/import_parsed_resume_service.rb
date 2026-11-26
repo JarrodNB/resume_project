@@ -82,6 +82,8 @@ module ResumeImports
     # import never overwrites what they already have.
     def fill_blank_profile_fields(contact, summary)
       values = CONTACT_COLUMNS.to_h { |key, column| [ column, contact[key] ] }.merge(summary: summary)
+      # One unusable contact link must not undo the whole import, so links that are not web addresses are left out.
+      values[:links] = values[:links].select { |link| WebAddress.valid?(link["url"]) } if values[:links].is_a?(Array)
       blank_fills = values.select { |column, value| @user.public_send(column).blank? && value.present? }
       if blank_fills.any?
         @user.assign_attributes(blank_fills)

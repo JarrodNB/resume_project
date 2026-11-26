@@ -7,14 +7,16 @@ RSpec.describe User, "links" do
   def link(url) = [ { "label" => "Site", "url" => url } ]
 
   it "accepts http and https addresses" do
-    user.links = link("https://example.com/me") + link("HTTP://example.com:8080/a?b=1#c")
+    user.links = link("https://example.com/me") + link("HTTP://example.com:8080/a?b=1#c") +
+      link("https://bücher.de/x") + link("https://example.com/日本")
 
     expect(user).to be_valid
   end
 
   it "rejects other schemes, control characters and addresses without a scheme" do
     [ "javascript:alert(1)", "java\tscript:alert(1)", "\u0001javascript:alert(1)", "data:text/html,x",
-      "mailto:a@example.com", "example.com/me", "https://", "https://exa mple.com", "//example.com" ].each do |url|
+      "mailto:a@example.com", "example.com/me", "https://", "https://exa mple.com", "//example.com",
+      "https://google.com@evil.com", "https://user:pw@example.com" ].each do |url|
       user.links = link(url)
 
       expect(user).not_to be_valid, "expected #{url.inspect} to be rejected"

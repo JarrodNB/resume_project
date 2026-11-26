@@ -115,22 +115,13 @@ class User < ApplicationRecord
     errors.add(:links, "is too long (maximum is #{TextLimits::SHORT} characters)") if too_long
   end
 
-  # Link addresses are opened from the app and put into exported resumes, so only http and
-  # https addresses are saved. Only checked when links change, so older saved data never
+  # Link addresses are opened from the app and put into exported resumes, so only web addresses
+  # (see WebAddress) are saved. Only checked when links change, so older saved data never
   # blocks an unrelated save.
   def link_urls_are_web_addresses
     return unless links.is_a?(Array)
 
-    unsafe = links.any? { |link| link.is_a?(Hash) && !web_address?(link["url"]) }
+    unsafe = links.any? { |link| link.is_a?(Hash) && !WebAddress.valid?(link["url"]) }
     errors.add(:links, "must use web addresses that start with http:// or https://") if unsafe
-  end
-
-  def web_address?(value)
-    return false unless value.is_a?(String) && value.match?(/\Ahttps?:\/\/[^\s\p{Cntrl}]+\z/i)
-
-    uri = URI.parse(value)
-    uri.is_a?(URI::HTTP) && uri.host.present?
-  rescue URI::InvalidURIError
-    false
   end
 end

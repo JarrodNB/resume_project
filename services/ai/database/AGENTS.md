@@ -89,3 +89,4 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 
 - `saved_jobs.py` — reads only current owned active job titles, companies and saved checks, newest first with ID tie-breaker; one extra row detects overflow by default, and chat hydration asks for its five newest.
 - `saved_jobs.py` also reads one selected job's current posting facts, scoped by owner and active state.
+- `interview_question_bank.py` — reads the owner's active practice questions (newest set, then slot) with answer/feedback presence and revisions, never answer or feedback text; one extra row detects overflow. `read_interview_question` reads one owned active question with its answer, format, feedback and revisions (never answer drafts).

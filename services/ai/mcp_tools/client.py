@@ -19,6 +19,12 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.toolsets import AbstractToolset, WrapperToolset
 
 from mcp_tools.career_library import READ_CAREER_LIBRARY, render_career_library_result
+from mcp_tools.interview_questions import (
+    LIST_INTERVIEW_QUESTIONS,
+    READ_INTERVIEW_QUESTION,
+    render_interview_question_result,
+    render_interview_questions_result,
+)
 from mcp_tools.saved_jobs import (
     LIST_SAVED_JOBS,
     READ_JOB_SUMMARY,
@@ -35,6 +41,8 @@ TOOL_RENDERERS = {
     LIST_SAVED_JOBS: render_saved_jobs_result,
     READ_JOB_SUMMARY: render_job_summary_result,
     READ_CAREER_LIBRARY: render_career_library_result,
+    LIST_INTERVIEW_QUESTIONS: render_interview_questions_result,
+    READ_INTERVIEW_QUESTION: render_interview_question_result,
 }
 
 # What the model reads when a tool's result can't be used. A saved record failing its check is

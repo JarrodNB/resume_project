@@ -126,6 +126,21 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.resumes).to be_empty
   end
 
+  it "leaves out contact links that are not web addresses and still imports everything else" do
+    parsed_resume["contact"]["links"] = [
+      { "label" => "Bad", "url" => "javascript:alert(1)" }, { "label" => "Email", "url" => "jane@example.com" },
+      { "label" => "GitHub", "url" => "https://github.com/jane" }, { "label" => "LinkedIn", "url" => " linkedin.com/in/jane " }
+    ]
+
+    result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+
+    expect(result).to be_success
+    expect(ai_task.reload).to be_accepted
+    expect(user.reload.links).to eq([ { "label" => "GitHub", "url" => "https://github.com/jane" }, { "label" => "LinkedIn", "url" => "https://linkedin.com/in/jane" } ])
+    expect(user.name).to eq("Jane Doe")
+    expect(user.experiences).not_to be_empty
+  end
+
   it "merges entries that match the library instead of duplicating them" do
     described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
     second_task = create(:ai_task, :completed_resume_parse, user: user)

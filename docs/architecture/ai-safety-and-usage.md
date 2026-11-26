@@ -55,7 +55,7 @@ admission stay intact. It does not forgive, erase or assign zero to unknown cost
 One limit sits above the trial users: the **site-wide daily budget** (fallback $5.00,
 `AI_SITE_DAILY_BUDGET_USD`; 0 stops all new trial AI work). `AiUsage::SiteDailySpend` adds known general AI, spoken interview and
 embedding costs from rows created this UTC day, across all users except those with a paid subscription:
-paid users' spend does not count toward the total and paid users are never refused by it. Once the total reaches the
+paid users' spend does not count toward the total and paid users are never refused by it. When an account is deleted, its spend is first added to anonymous daily totals (`DeletedAccountAiSpend`) that the total also counts, so deleting an account does not reset it. Once the total reaches the
 budget, the allowance check refuses general AI and spoken interview work for trial users, including the next
 step of an interview already running, until midnight UTC. Embedding jobs count toward the total
 because they are billed, but they are not refused: they have no admission step and nobody waits

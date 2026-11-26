@@ -46,6 +46,10 @@ RSpec.configure do |config|
   # instead of true.
   config.use_transactional_fixtures = true
 
+  # Specs that do not run in a transaction delete their users for real, and deleting an account
+  # keeps its AI spend as a daily total. Clear those totals so they can't leak into later examples.
+  config.after { DeletedAccountAiSpend.delete_all unless self.class.use_transactional_tests }
+
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
 

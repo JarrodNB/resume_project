@@ -23,7 +23,8 @@ test support. See docs/architecture/interview-sessions.md.
   does not create a second scheduling or accounting lifecycle. `/internal/executions`
   receipts acknowledge a nudge only; Rails owns durable delivery and watchdog jobs.
 - Streaming is an opt-in output sink on that runner, never another lifecycle.
-  Interviews remain final-only. `execution/stream_runtime.py` creates no Redis client
+  Interviews stream only answer turns' provisional spoken text (`interviews/spoken_stream.py`).
+  `execution/stream_runtime.py` creates no Redis client
   when only final-only adapters are registered; observer sockets never start work.
   See docs/architecture/ai-streaming.md for capability, replay and latency contracts.
 

@@ -3,13 +3,15 @@
 Interactive work has one execution system: Rails commits the operation and durable
 fallback, FastAPI starts immediately, and the shared execution runner manages capacity,
 leases and shutdown. Feature adapters retain Rails acceptance, screening and accounting.
-An optional output sink adds incremental public text. Interviews keep final-result
-execution and their existing GraphQL subscription updates.
+An optional output sink adds incremental public text.
 
 Chat opts into incremental output using the same runner as interviews. Its AI adapter
 sets `stream_output = True`; its Rails adapter supplies ownership/current-attempt checks
-and canonical acceptance. Interviews retain final-result execution. Enabling streaming
-configuration alone does not turn interviews into token streams.
+and canonical acceptance. Interviews also opt in, for answer turns only: the turn streams
+its provisional spoken text (acknowledgement, a blank line, then a follow-up) so browser
+speech can start early, while saved results still arrive through the GraphQL subscription.
+Rails authorizes interview observers only for the owner's current turn operation.
+Preparation, transcription and speech operations never stream.
 
 A streaming feature needs both an opted-in AI adapter and its Rails authority in
 the `stream_authority` field of `AiExecutions::Features::REGISTRY`. Each fixed
@@ -75,7 +77,7 @@ receive a saved-state reset rather than waiting indefinitely for an absent event
 ## Runtime
 
 Streaming is always on; there is no feature switch. Final-only execution (a runner with no
-server-registered streaming feature, such as interviews) neither constructs a Redis client nor
+server-registered streaming feature) neither constructs a Redis client nor
 adds Redis to readiness. A streaming feature needs `AI_STREAM_REDIS_URL` on FastAPI (without it
 the stream stays unconfigured and delivery falls back to saved results) and exact
 `AI_BROWSER_ORIGINS` (which defaults to the existing interview browser origins).

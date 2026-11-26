@@ -2,8 +2,8 @@
 
 Normal interview work starts through the shared HTTP executor immediately after Rails
 commits the operation and its fallback job. No discovery interval precedes execution.
-Interviews keep final-result delivery; future chat can use optional streamed output on
-the same runner. Measurements are engineering evidence, not model-quality scores.
+Interview answer turns publish optional streamed spoken text on the same runner as chat;
+saved results still arrive as final results. Measurements are engineering evidence, not model-quality scores.
 
 ## Separate the clock domains
 

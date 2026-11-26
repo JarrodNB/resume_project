@@ -124,7 +124,10 @@ Rails owns all records and progression. The approved transport exception is a se
 FastAPI process inside `services/ai`: it claims durable operations through authenticated
 internal Rails HTTP, runs asynchronously, and submits results for Rails acceptance. It does
 not write the database. Browser requests never wait for the interviewer. Existing queue
-features continue to use SQS and `ai_results` without changes.
+features continue to use SQS and `ai_results` without changes. Leases, fencing, retry budgets,
+failure handling and recovery are the shared `AiExecutions::OperationLifecycle` (also used by
+chat); `Interviews::OperationPolicy` holds the interview differences (expiry, checkpoints,
+recording expiry after a final failure).
 
 The integrated feature includes library-informed preparation, persistence, private HTTP claims/recovery,
 accounting and validated private media. The AI HTTP app executes the canonical claims;

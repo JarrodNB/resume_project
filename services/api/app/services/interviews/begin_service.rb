@@ -20,7 +20,7 @@ module Interviews
           semantic_key: "question:#{question.id}:opening", content: question.content)
         if SpeechPlayback.provider?(@interview)
           operation = @interview.operations.create!(kind: "speech", question: question, message: message)
-          ScheduleOperationService.call(operation: operation)
+          AiExecutions::ScheduleOperationService.call(operation: operation)
         end
         @interview.update!(status: "active", revision: @interview.revision + 1)
         success(@interview)

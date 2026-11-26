@@ -24,7 +24,7 @@ module Internal
     end
 
     def heartbeat
-      respond Interviews::RenewClaimService.call(operation: @operation, **claim_identity, checkpoint: params[:checkpoint])
+      respond AiExecutions::RenewClaimService.call(operation: @operation, **claim_identity, checkpoint: params[:checkpoint])
     end
 
     def recording
@@ -62,7 +62,7 @@ module Internal
     end
 
     def fail
-      respond Interviews::FailOperationService.call(operation: @operation, **claim_identity,
+      respond AiExecutions::FailOperationService.call(operation: @operation, **claim_identity,
         code: params.require(:code), retryable: params[:retryable])
     end
 

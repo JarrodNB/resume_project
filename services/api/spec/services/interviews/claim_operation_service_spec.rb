@@ -32,29 +32,29 @@ RSpec.describe "Interview execution recovery" do
     travel_to(deadline - 5.seconds) do
       # Keep lease alive to exercise the absolute cap.
       operation.update!(lease_expires_at: deadline)
-      result = Interviews::RenewClaimService.call(**identity, checkpoint: "transcribed")
+      result = AiExecutions::RenewClaimService.call(**identity, checkpoint: "transcribed")
       expect(result).to be_success
       expect(operation.reload.lease_expires_at).to eq(deadline)
-      expect(Interviews::RenewClaimService.call(**identity, checkpoint: "raw sensitive text")).not_to be_success
+      expect(AiExecutions::RenewClaimService.call(**identity, checkpoint: "raw sensitive text")).not_to be_success
     end
-    travel_to(deadline + 1.second) { expect(Interviews::RenewClaimService.call(**identity)).not_to be_success }
+    travel_to(deadline + 1.second) { expect(AiExecutions::RenewClaimService.call(**identity)).not_to be_success }
   end
 
   [ true, false ].each do |retryable|
     it "acknowledges finished failure accounting with retryable=#{retryable} without reviving the claim" do
       expect(claim).to be_success
       original = identity
-      expect(Interviews::FailOperationService.call(**original, code: "dependency_unavailable", retryable: retryable)).to be_success
+      expect(AiExecutions::FailOperationService.call(**original, code: "dependency_unavailable", retryable: retryable)).to be_success
       saved = operation.reload.attributes
-      result = Interviews::RenewClaimService.call(**original)
+      result = AiExecutions::RenewClaimService.call(**original)
       expect(result).to be_success
       expect(result.value).to eq({ execution_finished: true })
       expect(operation.reload.attributes).to eq(saved)
-      expect(Interviews::RenewClaimService.call(**original.merge(claim_generation: 0))).not_to be_success
+      expect(AiExecutions::RenewClaimService.call(**original.merge(claim_generation: 0))).not_to be_success
       expect(Interviews::StartProviderAttemptService.call(**original, observation_id: SecureRandom.uuid,
         stage: "speech", provider: "fake", model: "scripted-v1")).not_to be_success
       interview.update!(status: "abandoned")
-      expect(Interviews::RenewClaimService.call(**original)).not_to be_success
+      expect(AiExecutions::RenewClaimService.call(**original)).not_to be_success
     end
   end
 
@@ -66,12 +66,12 @@ RSpec.describe "Interview execution recovery" do
     travel 31.seconds
     expect(claim).not_to be_success
     expect(operation.reload).to have_attributes(status: "pending", failure_code: "lease_expired")
-    expect(Interviews::RenewClaimService.call(**old)).not_to be_success
+    expect(AiExecutions::RenewClaimService.call(**old)).not_to be_success
     expect(claim).not_to be_success
     travel 2.seconds
     expect(claim).to be_success
     expect(operation.reload.claim_generation).to eq(2)
-    expect(Interviews::RenewClaimService.call(**old)).not_to be_success
+    expect(AiExecutions::RenewClaimService.call(**old)).not_to be_success
     report = { operation: operation, attempt_id: old[:attempt_id], observation_id: observation_id, usage: [ { "cost_microdollars" => 123 } ] }
     2.times { expect(Interviews::RecordUsageService.call(**report)).to be_success }
     expect(operation.ai_task.reload.cost_microdollars).to eq(123)
@@ -83,7 +83,7 @@ RSpec.describe "Interview execution recovery" do
     2.times do |cycle|
       3.times do |index|
         expect(claim).to be_success
-        expect(Interviews::FailOperationService.call(**identity, code: "dependency_unavailable", retryable: true)).to be_success
+        expect(AiExecutions::FailOperationService.call(**identity, code: "dependency_unavailable", retryable: true)).to be_success
         if index < 2
           expect(operation.reload.retry_at).to eq(Time.current + [ 2, 5 ][index].seconds)
           expect(operation.ai_task.ai_task_outcomes.count).to eq(cycle)
@@ -171,7 +171,7 @@ RSpec.describe "Interview admission", type: :service do
     stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
     operation = interview.operations.first
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
-    Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+    AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation, code: "execution_failed", retryable: true)
     travel 3.seconds
     operation.ai_task.update!(cost_microdollars: 1)
@@ -198,7 +198,7 @@ RSpec.describe "Invalid interview input recovery", type: :service do
         recording_id: recording.id, expected_revision: 0, submission_key: "oversized").value
       expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
 
-      result = Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+      result = AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
         claim_generation: operation.claim_generation, code: failure_code, retryable: true)
 
       expect(result).to be_success
@@ -218,7 +218,7 @@ RSpec.describe "Interview storage recovery", type: :service do
     operation = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
       recording_id: recording.id, expected_revision: 0, submission_key: "storage").value
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
-    result = Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+    result = AiExecutions::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation, code: "storage_unavailable", retryable: true)
     expect(result).to be_success
     expect(operation.reload).to have_attributes(status: "pending", failure_code: "storage_unavailable")

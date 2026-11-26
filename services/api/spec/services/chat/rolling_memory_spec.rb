@@ -104,7 +104,7 @@ RSpec.describe "Chat rolling memory" do
     expect(accept(operation, saved, summary_update: { "text" => "x" * 8001, "expected_version" => 0, "through_position" => 30 })).not_to be_success
     expect(chat.reload.summary_version).to eq(0)
     expect(chat.messages.count).to eq(38)
-    expect(Chat::FailOperationService.call(operation: operation, **saved.slice(:attempt_id, :claim_generation), code: "execution_failed", retryable: false)).to be_success
+    expect(AiExecutions::FailOperationService.call(operation: operation, **saved.slice(:attempt_id, :claim_generation), code: "execution_failed", retryable: false)).to be_success
     expect(Chat::RetryOperationService.call(operation: operation)).to be_success
     retry_result = Chat::ClaimOperationService.call(operation: operation)
     expect(retry_result.value.dig(:payload, :summary_plan)).to eq(through_position: 30, scheduled: true)

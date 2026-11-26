@@ -34,7 +34,7 @@ RSpec.describe "Interview execution modes", type: :service do
     claim = Interviews::ClaimOperationService.call(operation: turn, execution_mode: "real")
     expect(claim).to be_success
     expect(claim.value[:execution_config]).to eq(real.execution_config)
-    Interviews::FailOperationService.call(operation: turn, attempt_id: turn.attempt_id,
+    AiExecutions::FailOperationService.call(operation: turn, attempt_id: turn.attempt_id,
       claim_generation: turn.claim_generation, code: "dependency_unavailable", retryable: true)
     travel 3.seconds
     expect(Interviews::ClaimOperationService.call(operation: turn)).not_to be_success

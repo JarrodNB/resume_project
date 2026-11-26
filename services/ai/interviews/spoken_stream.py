@@ -2,6 +2,8 @@
 
 Only real answer turns stream. The text mirrors what Rails will save and speak: the
 acknowledgement, a blank line, then the follow-up when the decision is to continue.
+The blank line is sent as soon as the acknowledgement is whole; when the interviewer
+moves on, Rails puts the next question or closing after it instead.
 It is provisional: a validation retry or failure can leave it unfinished, and only
 Rails acceptance makes it canonical. Contact placeholders are held back until whole
 and restored before publishing. A lost output buffer never affects the turn itself.
@@ -97,11 +99,20 @@ def _arguments(value):
 
 
 def _partial_spoken_text(arguments):
-    """Read spoken text from incomplete structured-output JSON; unreadable input is empty."""
+    """Read spoken text from incomplete structured-output JSON; unreadable input is empty.
+
+    Once the acknowledgement string is closed, it is followed by the blank line that Rails
+    puts before the next text, so listeners know it is whole and can speak it straight away,
+    even when the interviewer moves on and nothing else is streamed.
+    """
     try:
         values = from_json(arguments, allow_partial="trailing-strings")
+        closed = from_json(arguments, allow_partial=True)
     except ValueError:
         return ""
     if not isinstance(values, dict):
         return ""
-    return spoken_text(values.get("acknowledgement"), values.get("decision"), values.get("reply"))
+    text = spoken_text(values.get("acknowledgement"), values.get("decision"), values.get("reply"))
+    if text and isinstance(closed, dict) and text == closed.get("acknowledgement"):
+        text += "\n\n"
+    return text

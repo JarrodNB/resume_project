@@ -282,3 +282,13 @@ it('speaks growing text sentence by sentence, holding the unfinished one, withou
   expect(speak).toHaveBeenCalledTimes(2)
   expect(changed).toHaveBeenLastCalledWith(false, 'stream')
 })
+
+it('speaks streamed text followed by a blank line without waiting for more', async () => {
+  const props = { messageId: 'stream', automatic: true, streaming: true }
+  const view = render(<BrowserInterviewSpeech {...props} text={'You checked the schedule.\n\n'} />)
+  await act(() => new Promise((resolve) => setTimeout(resolve, 5)))
+  expect(speak.mock.calls.map(([utterance]) => utterance.text)).toEqual(['You checked the schedule.'])
+  act(() => speak.mock.calls[0][0].onend())
+  view.rerender(<BrowserInterviewSpeech {...props} streaming={false} text={'You checked the schedule.\n\nTell me about a conflict.'} />)
+  expect(speak.mock.calls.map(([utterance]) => utterance.text)).toEqual(['You checked the schedule.', 'Tell me about a conflict.'])
+})

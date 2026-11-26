@@ -1890,6 +1890,20 @@ describe('streamed interviewer speech', () => {
     for (const stage of ['submit-to-reply', 'reply-to-audio', 'submit-to-audio'] as const) cancelInterviewTiming(stage)
   })
 
+  it('speaks a streamed acknowledgement straight away, then the next question from the saved reply', async () => {
+    await streamTurn('You cut the wait.\n\n')
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
+    act(() => speak.mock.calls[0][0].onstart())
+    const next = { id: 'question-2', content: 'Tell me about a conflict.', position: 2, acceptedAnswerCount: 0 }
+    const opening = { id: 'opening-2', questionId: 'question-2', kind: 'opening', position: 3, content: 'Tell me about a conflict.', acknowledgement: 'You cut the wait.', spokenContent: 'You cut the wait.\n\nTell me about a conflict.' }
+    saveTurn({ ...interviewWith('accepted', 2, [opening]), currentQuestionPosition: 2, questions: [...snapshot.questions, next] })
+    act(() => speak.mock.calls[0][0].onend())
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.', 'Tell me about a conflict.']))
+    act(() => speak.mock.calls[1][0].onend())
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    expect(spoken()).toEqual(['You cut the wait.', 'Tell me about a conflict.'])
+  })
+
   it('stops the voice and leaves the saved reply to read when it differs from speech already heard', async () => {
     await streamTurn('You cut the wait.\n\nHow')
     await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))

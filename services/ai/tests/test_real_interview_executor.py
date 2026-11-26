@@ -561,7 +561,7 @@ def test_follow_up_streams_spoken_text_in_order_and_completes_after_acceptance()
     assert not client.failed and len(client.accepted) == 1
     saved = client.accepted[0]
     assert [payload["text"] for kind, payload, _ in sink.events if kind == "delta"] == [
-        "You cut the wait", " by fifteen minutes.", "\n\nHow did you", " measure it? Who", " checked it?"]
+        "You cut the wait", " by fifteen minutes.\n\n", "How did you", " measure it? Who", " checked it?"]
     assert saved["reply"] == "How did you measure it? Who checked it?"
     assert saved["acknowledgement"] == "You cut the wait by fifteen minutes."
     assert sink.text() == saved["acknowledgement"] + "\n\n" + saved["reply"]
@@ -599,6 +599,16 @@ def test_advance_streams_only_the_acknowledgement():
     stream_run(client, StreamingModels(chunks), sink)
     assert client.accepted[0]["decision"] == "advance"
     assert sink.text() == "You checked the schedule."
+    assert sink.kinds()[-1] == "completed"
+
+
+def test_finished_acknowledgement_streams_with_a_blank_line_before_the_decision_is_known():
+    # The blank line tells listeners the acknowledgement is whole, so it can be spoken at once.
+    client, sink = Client(), Sink()
+    chunks = ['{"acknowledgement": "You checked the schedule.", ', '"decision": "advance", "reply": null}']
+    stream_run(client, StreamingModels(chunks, pause=0.06), sink)
+    assert client.accepted[0]["decision"] == "advance"
+    assert [payload["text"] for kind, payload, _ in sink.events if kind == "delta"] == ["You checked the schedule.\n\n"]
     assert sink.kinds()[-1] == "completed"
 
 

@@ -3,6 +3,7 @@
  * release its disposable playback.
  * While `streaming` is set, the text is still being written: only finished sentences are spoken, and playback
  * waits (still counted as playing, so recording stays off) until more text arrives or streaming ends.
+ * Text that ends with a blank line (a finished acknowledgement) is spoken without waiting.
  * Browser voices may use device or network services; this never requests provider audio.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -13,7 +14,7 @@ import { finishInterviewTiming } from './interviewLatency'
 type Props = {
   messageId: string
   text: string
-  /** The text may still grow; earlier text never changes while this is set. */
+  /** The text may still grow; earlier text never changes while this is set. A trailing blank line marks it finished so far. */
   streaming?: boolean
   automatic?: boolean
   muted?: boolean
@@ -98,8 +99,9 @@ function BrowserSpeech({ messageId, text, streaming = false, automatic = false, 
       if (!live()) return
       if (current.timer) clearTimeout(current.timer)
       const chunks = interviewSpeechChunks(latest.current.text)
-      // The last chunk of growing text may be an unfinished sentence.
-      if (position >= chunks.length - (latest.current.streaming ? 1 : 0)) {
+      // The last chunk of growing text may be an unfinished sentence, unless a blank line follows it.
+      const held = latest.current.streaming && !/\n\s*\n\s*$/.test(latest.current.text) ? 1 : 0
+      if (position >= chunks.length - held) {
         if (latest.current.streaming) { current.resume = speakNext; return }
         stop(); setEnded(true); return
       }

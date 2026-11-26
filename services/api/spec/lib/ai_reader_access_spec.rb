@@ -112,6 +112,9 @@ RSpec.describe AiReaderAccess do
     expect(select_as_ai_reader("SELECT id, preparation_kind FROM interview_sessions")).to eq([])
     expect(select_as_ai_reader("SELECT attempt_id, claim_generation FROM interview_session_operations")).to eq([])
     expect(select_as_ai_reader("SELECT content, created_at FROM interview_session_questions")).to eq([])
+    # Turns check whether this is the question's final allowed answer.
+    expect(select_as_ai_reader("SELECT answer_cap FROM interview_sessions")).to eq([])
+    expect(select_as_ai_reader("SELECT accepted_answer_count FROM interview_session_questions")).to eq([])
     { "interview_session_operations" => %w[accepted_result result_fingerprint],
       "interview_session_media" => %w[staging_key sealed_key] }.each do |table, columns|
       columns.each do |column|

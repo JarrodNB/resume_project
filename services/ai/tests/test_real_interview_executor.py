@@ -644,3 +644,15 @@ def test_speech_operation_emits_nothing():
                claim(kind="speech", text="Exactly the saved reply."), audio_provider=SpeechAudio())
     assert ("complete", "speech") in client.calls
     assert sink.events == []
+
+
+def test_continue_on_the_final_allowed_answer_streams_only_the_acknowledgement():
+    # Rails moves on after the final allowed answer, so a follow-up would never be saved or shown.
+    client = Client()
+    sink = Sink(client)
+    request = claim()
+    request = request.model_copy(update={"payload": request.payload.model_copy(update={"final_answer": True})})
+    stream_run(client, StreamingModels(FOLLOW_UP_CHUNKS, pause=0.06), sink, request)
+    assert client.accepted[0]["decision"] == "continue"
+    assert sink.text() == "You cut the wait by fifteen minutes.\n\n"
+    assert sink.kinds()[-1] == "completed"

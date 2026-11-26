@@ -3,7 +3,8 @@
 Only real answer turns stream. The text mirrors what Rails will save and speak: the
 acknowledgement, a blank line, then the follow-up when the decision is to continue.
 The blank line is sent as soon as the acknowledgement is whole; when the interviewer
-moves on, Rails puts the next question or closing after it instead.
+moves on, Rails puts the next question or closing after it instead. On the final allowed
+answer Rails always moves on, so a follow-up the model writes then is never streamed.
 It is provisional: a validation retry or failure can leave it unfinished, and only
 Rails acceptance makes it canonical. Contact placeholders are held back until whole
 and restored before publishing. A lost output buffer never affects the turn itself.
@@ -41,8 +42,12 @@ class SpokenTextStream:
         self.published = ""
         self.last_publish = None
         self.finished = False
+        self.final_answer = False
 
-    async def start(self):
+    async def start(self, *, final_answer=False):
+        """Begin the turn. On the final allowed answer Rails always moves on, so only the
+        acknowledgement is spoken text; any follow-up the model writes is never saved."""
+        self.final_answer = final_answer
         await self.output.emit("started")
 
     async def handle_events(self, ctx, events):
@@ -58,12 +63,13 @@ class SpokenTextStream:
             else:
                 continue
             if self.last_publish is None or loop.time() - self.last_publish >= PUBLISH_INTERVAL_SECONDS:
-                await self._publish(_partial_spoken_text(arguments))
+                await self._publish(_partial_spoken_text(arguments, final_answer=self.final_answer))
                 self.last_publish = loop.time()
 
     async def finish(self, reply):
         """Publish whatever is left of the validated reply before acceptance."""
-        final = spoken_text(reply.acknowledgement, reply.decision, reply.reply)
+        decision = "advance" if self.final_answer else reply.decision
+        final = spoken_text(reply.acknowledgement, decision, reply.reply)
         if final.startswith(self.published):
             await self._deltas(final[len(self.published):])
             self.published = final
@@ -102,7 +108,7 @@ def _arguments(value):
     return value if isinstance(value, str) else ""
 
 
-def _partial_spoken_text(arguments):
+def _partial_spoken_text(arguments, *, final_answer=False):
     """Read spoken text from incomplete structured-output JSON; unreadable input is empty.
 
     Once the acknowledgement string is closed, it is followed by the blank line that Rails
@@ -116,7 +122,8 @@ def _partial_spoken_text(arguments):
         return ""
     if not isinstance(values, dict):
         return ""
-    text = spoken_text(values.get("acknowledgement"), values.get("decision"), values.get("reply"))
+    decision = "advance" if final_answer else values.get("decision")
+    text = spoken_text(values.get("acknowledgement"), decision, values.get("reply"))
     if text and isinstance(closed, dict) and text == closed.get("acknowledgement"):
         text += "\n\n"
     return text

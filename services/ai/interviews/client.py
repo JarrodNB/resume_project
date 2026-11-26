@@ -77,6 +77,8 @@ class TurnPayload(BaseModel):
     recording_id: str | None
     expected_revision: int
     question: str
+    # This answer uses the question's last allowed answer, so Rails will move on whatever the model decides.
+    final_answer: bool = False
     earlier_dialogue: EarlierDialogue | None = None
     current_dialogue: list[PublicMessage] | None = Field(default=None, max_length=7)
     fixture_context: dict[str, Any] | None = None

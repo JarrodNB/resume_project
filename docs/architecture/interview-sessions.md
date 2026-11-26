@@ -804,8 +804,10 @@ Streamed interviewer speech lets the browser voice start before a turn is saved.
 answer turn runs in browser playback, the page observes the turn's provisional spoken text
 through [AI output streaming](ai-streaming.md) and speaks each finished sentence, holding an
 unfinished last one. A finished acknowledgement arrives followed by a blank line, so it is
-spoken straight away even when the interviewer moves on and nothing else streams. The
-recording interlock stays held while it waits for more text. When the saved reply arrives:
+spoken straight away even when the interviewer moves on and nothing else streams. On a
+question's final allowed answer Rails always moves on, so Python reads the answer cap and
+count during its read-only turn load and streams only the acknowledgement then; a follow-up
+the model writes is never spoken. The recording interlock stays held while it waits for more text. When the saved reply arrives:
 
 - If its spoken text begins with everything streamed, the same playback carries on with the
   saved text. A follow-up finishes without repeats; after an advance, the next question is

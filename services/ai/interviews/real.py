@@ -197,7 +197,7 @@ class RealInterviewExecutor(InterviewExecutor):
         agent, options = self._interviewer(claim, guard, system_prompt=formatted)
         if output:
             # The same structured run, streamed so observers can hear the reply early.
-            await output.start()
+            await output.start(final_answer=claim.payload.final_answer)
             options = {**options, "event_stream_handler": output.handle_events}
         result = await agent.run(prompt, message_history=history,
             usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)

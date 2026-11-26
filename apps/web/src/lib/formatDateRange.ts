@@ -12,7 +12,10 @@ const MONTH_YEAR = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeri
 export function formatMonthYear(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})/.exec(isoDate)
   if (!match) return isoDate
-  return MONTH_YEAR.format(new Date(`${match[1]}-${match[2]}-01T00:00:00Z`))
+  const date = new Date(`${match[1]}-${match[2]}-01T00:00:00Z`)
+  // A typed month like "2021-13" matches the pattern but is not a real date; show it as typed.
+  if (Number.isNaN(date.getTime())) return isoDate
+  return MONTH_YEAR.format(date)
 }
 
 /**

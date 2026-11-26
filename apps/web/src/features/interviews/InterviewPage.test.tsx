@@ -52,7 +52,15 @@ function playbackMock(messageId = 'opening') {
   } } }
 }
 beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; recorder.liveFailed = false; recorder.limitReached = false; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(async () => {
+  cleanup()
+  // Unmounting stops the mocked Apollo client and rejects requests still in flight (for example the
+  // career examples request). Let those settle now, while the test environment still exists, so a late
+  // state update cannot run after the last test has torn down the window.
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 describe('InterviewPage', () => {
   it('pauses automatic microphone capture while reviewing a Career context copy', async () => {
     vi.useFakeTimers()

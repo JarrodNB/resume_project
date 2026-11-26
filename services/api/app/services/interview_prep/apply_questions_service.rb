@@ -60,11 +60,11 @@ module InterviewPrep
     # Keeps an answered question as a retired, slotless copy before its slot is replaced.
     # The copy keeps the same revisions, so its feedback stays current and its vector moves with it.
     def retain_answered_copy(record)
-      return false unless AnswerFormats.answered?(record)
+      return false unless ActiveAnswer.answered?(record)
 
       copy = record.interview_question_set.retired_questions.create!(
         retired_at: Time.current, position: nil, question_text: record.question_text,
-        answer_format_revision: record.answer_format_revision, answer_format: record.answer_format, answer_drafts: AnswerFormats.drafts(record),
+        answer_format_revision: record.answer_format_revision, answer_format: record.answer_format, answer_drafts: ActiveAnswer.drafts(record),
         answer_text: record.answer_text, memory_anchor: record.memory_anchor, question_revision: record.question_revision,
         answer_revision: record.answer_revision, feedback: record.feedback,
         feedback_question_revision: record.feedback_question_revision,

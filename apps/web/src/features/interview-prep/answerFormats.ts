@@ -1,4 +1,10 @@
-/** Each answer format owns its own draft. Projection supplies existing answer consumers. */
+/**
+ * Each answer format owns its own draft. Projection supplies existing answer consumers.
+ *
+ * The server decides what is saved and answered (InterviewPrep::ActiveAnswer in Rails; the question's
+ * `answered`, `progress` and `feedbackOutdated` fields). This file only mirrors that rule for text the
+ * user is typing and has not saved yet. Shared cases: services/ai/tests/fixtures/active_answer_cases.json.
+ */
 export const answerFormats = {
   plain_text: { label: 'Plain text', explanation: 'Write a free-form answer in your own words.', fields: { text: 'Your answer' } },
   car: { label: 'CAR', explanation: 'Context, Action, Result: describe the background, what you did, and what happened.', fields: { context: 'Context', action: 'Action', result: 'Result' } },
@@ -25,7 +31,15 @@ export function normalizeAnswerDrafts(value: unknown, legacyText = ''): AnswerDr
     return [format, Object.fromEntries(Object.keys(definition.fields).map((field) => [field, typeof draft[field] === 'string' ? draft[field] : format === 'plain_text' ? legacyText : '']))]
   })) as AnswerDrafts
 }
+/** Blank means no character besides space, tab, newline, vertical tab, form feed or carriage return (same as Rails). */
+export function isBlankAnswer(text: string): boolean {
+  return !/[^ \t\n\v\f\r]/.test(text)
+}
+/** Collapses whitespace runs and capitalization so formatting-only edits compare equal (same as Rails' fingerprint input). */
+export function normalizeAnswerForComparison(text: string): string {
+  return text.replace(/[ \t\n\v\f\r]+/g, ' ').replace(/^ | $/g, '').toLowerCase()
+}
 export function projectAnswer(format: AnswerFormat, drafts: AnswerDrafts): string {
   if (format === 'plain_text') return drafts.plain_text.text
-  return Object.entries(answerFormats[format].fields).filter(([field]) => drafts[format][field].trim()).map(([field, label]) => `${label}: ${drafts[format][field]}`).join('\n\n')
+  return Object.entries(answerFormats[format].fields).filter(([field]) => !isBlankAnswer(drafts[format][field])).map(([field, label]) => `${label}: ${drafts[format][field]}`).join('\n\n')
 }

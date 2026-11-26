@@ -29,6 +29,26 @@ RSpec.describe "Interview practice queries" do
     ])
   end
 
+  it "exposes answered and progress from the active answer only" do
+    question_set = user.interview_question_sets.create!(number: 1)
+    question_set.questions.create!(position: 1, question_text: "Active?", answer_text: "Done")
+    question_set.questions.create!(position: 2, question_text: "Inactive only?", answer_format: "star", answer_text: "",
+      answer_drafts: { "plain_text" => { "text" => "Old words" } })
+    result = execute_graphql("query($id: ID!) { interviewQuestionSet(id: $id) { questions { questionText answered progress } } }",
+      user: user, variables: { id: question_set.id })
+    expect(result.dig("data", "interviewQuestionSet", "questions")).to eq([
+      { "questionText" => "Active?", "answered" => true, "progress" => "ANSWERED" },
+      { "questionText" => "Inactive only?", "answered" => false, "progress" => "UNANSWERED" }
+    ])
+  end
+
+  it "reports getting feedback while a review task is queued" do
+    question = user.interview_question_sets.create!(number: 1).questions.create!(position: 1, question_text: "Why?", answer_text: "Done")
+    user.ai_tasks.create!(task_type: "review_interview_answer", subject: question, status: "queued")
+    result = execute_graphql("{ interviewQuestions { progress } }", user: user)
+    expect(result.dig("data", "interviewQuestions")).to eq([ { "progress" => "REVIEWING" } ])
+  end
+
   it "lists the owned question bank newest set first, retired copies after active slots" do
     older = user.interview_question_sets.create!(number: 1, set_type: "technical", created_at: 1.day.ago)
     newer = user.interview_question_sets.create!(number: 2)

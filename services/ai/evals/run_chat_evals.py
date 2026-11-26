@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from pydantic_evals import Dataset
 
+from active_answer import has_answer_text
 from chat.client import ChatClaim, ChatSavedJob
 from chat.execution import ChatExecutionAdapter
 from chat.models import ChatModels
@@ -37,7 +38,7 @@ from settings import load_settings
 
 def practice_question_row(question):
     """Fill the flags the database reader computes from a synthetic answer and feedback."""
-    return {"answered": bool((question.get("answer_text") or "").strip()),
+    return {"answered": has_answer_text(question.get("answer_text")),
             "has_feedback": bool(question.get("feedback"))} | question
 
 

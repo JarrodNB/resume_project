@@ -21,10 +21,14 @@ module Types
     field :feedback_question_revision, Integer
     field :feedback_answer_revision, Integer
     field :feedback_outdated, Boolean, null: false
+    field :answered, Boolean, null: false,
+          description: "Whether the active answer has any text. Inactive format drafts do not count."
+    field :progress, Types::InterviewQuestionProgressEnum, null: false,
+          description: "Not answered, no feedback yet, getting feedback, feedback ready or out of date."
     field :latest_task, Types::AiTaskType
 
     def answer_drafts
-      ::InterviewPrep::AnswerFormats.drafts(object)
+      ::InterviewPrep::ActiveAnswer.drafts(object)
     end
 
     def avoided
@@ -38,7 +42,15 @@ module Types
 
     # Checks reviewed revisions and allows capitalization or whitespace changes.
     def feedback_outdated
-      ::InterviewPrep::FeedbackOutdatedService.call(question: object).value
+      ::InterviewPrep::ActiveAnswer.feedback_outdated?(object)
+    end
+
+    def answered
+      ::InterviewPrep::ActiveAnswer.answered?(object)
+    end
+
+    def progress
+      ::InterviewPrep::ActiveAnswer.progress(object, latest_task: latest_task).to_s
     end
   end
 end

@@ -7,6 +7,7 @@ One extra row (501 by default) lets the list detect a list over its 500-question
 The single-question read adds the saved answer (already rendered in its selected format),
 the format and the saved feedback; it never reads answer drafts. Rails owns every write.
 """
+from active_answer import ANSWERED_SQL
 from database.open_read_only_connection import open_read_only_connection
 
 
@@ -14,10 +15,10 @@ def read_interview_question_bank(connection, user_id, *, limit=501):
     """Read owned active questions with set labels and answer/feedback status fields."""
     if not 1 <= limit <= 501:
         raise ValueError("Interview question limit must be between 1 and 501")
-    return connection.execute(r"""
+    return connection.execute(rf"""
         SELECT q.id::text, s.number AS set_number, s.set_type, q.position, q.question_text,
                q.question_revision, q.answer_revision,
-               q.answer_text ~ '\S' AS answered, q.feedback <> '{}'::jsonb AS has_feedback,
+               {ANSWERED_SQL} AS answered, q.feedback <> '{{}}'::jsonb AS has_feedback,
                q.feedback_question_revision, q.feedback_answer_revision, q.screened_fields
         FROM interview_questions q
         JOIN interview_question_sets s ON s.id = q.interview_question_set_id

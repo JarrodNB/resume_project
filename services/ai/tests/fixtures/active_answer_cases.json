@@ -1,0 +1,25 @@
+{
+  "description": "Shared by RSpec (InterviewPrep::ActiveAnswer), pytest (the question reader's SQL) and the web tests. The active answer is the selected format's draft, projected as text. A question is answered only when that text has a character other than space, tab, newline, vertical tab, form feed or carriage return. Other Unicode spaces count as text. Inactive drafts never count.",
+  "answers": [
+    {"name": "plain text with words", "format": "plain_text", "drafts": {"plain_text": {"text": "I led a migration."}}, "text": "I led a migration.", "answered": true},
+    {"name": "empty plain text", "format": "plain_text", "drafts": {"plain_text": {"text": ""}}, "text": "", "answered": false},
+    {"name": "ASCII whitespace only", "format": "plain_text", "drafts": {"plain_text": {"text": " \t\n\u000b\u000c\r "}}, "text": " \t\n\u000b\u000c\r ", "answered": false},
+    {"name": "no-break space counts as text", "format": "plain_text", "drafts": {"plain_text": {"text": " "}}, "text": " ", "answered": true},
+    {"name": "ideographic space counts as text", "format": "plain_text", "drafts": {"plain_text": {"text": "　"}}, "text": "　", "answered": true},
+    {"name": "em space counts as text", "format": "plain_text", "drafts": {"plain_text": {"text": " "}}, "text": " ", "answered": true},
+    {"name": "CAR lists only filled fields", "format": "car", "drafts": {"car": {"context": "A delay", "action": "I planned", "result": ""}}, "text": "Context: A delay\n\nAction: I planned", "answered": true},
+    {"name": "CARL skips whitespace-only fields", "format": "carl", "drafts": {"carl": {"context": " ", "action": "Shipped", "result": "\n", "learning": "\t"}}, "text": "Action: Shipped", "answered": true},
+    {"name": "STAR with every field blank", "format": "star", "drafts": {"star": {"situation": "", "task": "  ", "action": "", "result": "\n"}}, "text": "", "answered": false},
+    {"name": "CAR field with only a no-break space is kept", "format": "car", "drafts": {"car": {"action": " "}}, "text": "Action:  ", "answered": true},
+    {"name": "text only in an inactive plain-text draft", "format": "car", "drafts": {"plain_text": {"text": "Old words"}, "car": {"context": "", "action": "", "result": ""}}, "text": "", "answered": false},
+    {"name": "text only in an inactive STAR draft", "format": "plain_text", "drafts": {"plain_text": {"text": ""}, "star": {"situation": "Then", "action": "I did it"}}, "text": "", "answered": false},
+    {"name": "active STAR beside a filled inactive draft", "format": "star", "drafts": {"plain_text": {"text": "Old words"}, "star": {"situation": "Then", "task": "", "action": "I did it", "result": ""}}, "text": "Situation: Then\n\nAction: I did it", "answered": true}
+  ],
+  "same_answer_pairs": [
+    {"name": "case and spacing", "a": "Hello   World\n", "b": " hello world", "same": true},
+    {"name": "tabs and newlines become one space", "a": "one\t\ntwo", "b": "one two", "same": true},
+    {"name": "different words", "a": "one two", "b": "one three", "same": false},
+    {"name": "joined words", "a": "one two", "b": "onetwo", "same": false},
+    {"name": "no-break space is not a space", "a": "one two", "b": "one two", "same": false}
+  ]
+}

@@ -15,7 +15,7 @@ import { GENERATE_INTERVIEW_MEMORY_ANCHOR, INTERVIEW_QUESTION_BANK_QUERY, INTERV
 
 /** Builds a saved question with grounded feedback. */
 function question(answerText = 'Saved answer', latestTask: unknown = null) {
-  return { __typename: 'InterviewQuestion', id: 'q1', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText), position: 1, avoided: false, questionText: 'Tell me about yourself', memoryAnchor: '', answerText, answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: 1, feedbackAnswerRevision: 0, feedback: { strengths: ['Clear opening'], improvements: ['Add a result'], example_answer: 'I helped [add your result].' }, feedbackOutdated: false, latestTask }
+  return { __typename: 'InterviewQuestion', id: 'q1', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, answerText), position: 1, avoided: false, questionText: 'Tell me about yourself', memoryAnchor: '', answerText, answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: 1, feedbackAnswerRevision: 0, feedback: { strengths: ['Clear opening'], improvements: ['Add a result'], example_answer: 'I helped [add your result].' }, feedbackOutdated: false, answered: answerText.trim() !== '', progress: latestTask ? 'REVIEWING' : 'REVIEWED', latestTask }
 }
 /** Provides a complete set-query response. */
 function detail(answerText = 'Saved answer', latestTask: unknown = null) {
@@ -63,7 +63,7 @@ it('marks feedback out of date for a changed draft and warns before navigating a
 })
 
 it('saves the submitted snapshot while preserving edits typed during saving', async () => {
-  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Submitted answer' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer') } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), answerRevision: 2, feedbackOutdated: true } } } } }, detail('Submitted answer')] })
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Submitted answer' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer') } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), answerRevision: 2, feedbackOutdated: true, answered: true, progress: 'OUTDATED' } } } } }, detail('Submitted answer')] })
   const textarea = await openAnswer()
   fireEvent.change(textarea, { target: { value: 'Submitted answer' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -89,7 +89,7 @@ it('keeps feedback current for formatting edits while still offering to save the
 })
 
 it('preserves a draft reverted to the previous saved text while saving', async () => {
-  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Submitted answer' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer') } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), answerRevision: 2, feedbackOutdated: true } } } } }, detail('Submitted answer')] })
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Submitted answer' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer') } }, delay: 100, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), answerRevision: 2, feedbackOutdated: true, answered: true, progress: 'OUTDATED' } } } } }, detail('Submitted answer')] })
   const textarea = await openAnswer()
   fireEvent.change(textarea, { target: { value: 'Submitted answer' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -184,6 +184,7 @@ it('clears the feedback progress indicator when the task finishes', async () => 
   completedDetail.result.data.interviewQuestionSet.questions[0].feedbackAnswerRevision = 1
   const outdatedDetail = detail('Saved answer', task)
   outdatedDetail.result.data.interviewQuestionSet.questions[0].feedbackOutdated = true
+  outdatedDetail.result.data.interviewQuestionSet.questions[0].progress = 'OUTDATED'
   renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [outdatedDetail, {
     request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: task.id } }, delay: 300,
     result: { data: { aiTaskUpdated: { ...completed, result: null, input: {}, pendingQuestions: [], acceptedAt: null, createdAt: '2026-10-11T00:00:00Z', job: null } } },
@@ -204,9 +205,10 @@ it('offers new feedback only once the answer changes, including after reload', a
   updated.result.data.interviewQuestionSet.questions[0].answerRevision = 2
   updated.result.data.interviewQuestionSet.questions[0].feedbackAnswerRevision = 1
   updated.result.data.interviewQuestionSet.questions[0].feedbackOutdated = true
+  updated.result.data.interviewQuestionSet.questions[0].progress = 'OUTDATED'
   renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [reviewed, {
     request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', memoryAnchor: '', answerText: 'Changed saved answer' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Changed saved answer') } },
-    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Changed saved answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Changed saved answer'), answerRevision: 2, feedbackOutdated: true } } } },
+    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', memoryAnchor: '', answerText: 'Changed saved answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Changed saved answer'), answerRevision: 2, feedbackOutdated: true, answered: true, progress: 'OUTDATED' } } } },
   }, updated] })
   const textarea = await openAnswer()
   expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
@@ -269,7 +271,7 @@ it('saves answer and cue together while preserving newer edits to both during sa
   saved.result.data.interviewQuestionSet.questions[0].memoryAnchor = 'Submitted cue'
   renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail(), {
     request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Submitted answer', memoryAnchor: 'Submitted cue' , answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer') } }, delay: 100,
-    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), memoryAnchor: 'Submitted cue', answerRevision: 2, feedbackOutdated: true } } } },
+    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Submitted answer', answerFormat: 'plain_text', answerDrafts: normalizeAnswerDrafts(undefined, 'Submitted answer'), memoryAnchor: 'Submitted cue', answerRevision: 2, feedbackOutdated: true, answered: true, progress: 'OUTDATED' } } } },
   }, saved] })
   const answer = await openAnswer()
   const cue = screen.getByRole('textbox', { name: 'Memory anchor' })
@@ -385,7 +387,7 @@ it('saves every format draft with the active selection and keeps inactive edits 
   Object.assign(saved.result.data.interviewQuestionSet.questions[0], { answerFormat: 'plain_text', answerDrafts: changed, feedbackAnswerRevision: 1 })
   renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [reviewed, {
     request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Saved answer', memoryAnchor: '', answerFormat: 'plain_text', answerDrafts: changed } },
-    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Saved answer', answerFormat: 'plain_text', answerDrafts: changed, memoryAnchor: '', answerRevision: 1, feedbackOutdated: false } } } },
+    result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Saved answer', answerFormat: 'plain_text', answerDrafts: changed, memoryAnchor: '', answerRevision: 1, feedbackOutdated: false, answered: true, progress: 'REVIEWED' } } } },
   }, saved] })
   await openAnswer()
   fireEvent.change(screen.getByRole('combobox', { name: 'Answer format' }), { target: { value: 'car' } })

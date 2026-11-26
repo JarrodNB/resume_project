@@ -812,11 +812,12 @@ the model writes is never spoken. The recording interlock stays held while it wa
 - If its spoken text begins with everything streamed, the same playback carries on with the
   saved text. A follow-up finishes without repeats; after an advance, the next question is
   spoken from the saved snapshot after the acknowledgement.
-- If it differs (rare), or the stream or the turn fails, the streamed voice stops. Once any
-  streamed sentence was heard, the saved reply is shown but not spoken again automatically;
-  Play interviewer audio still replays it, and a failed turn shows its usual failure and retry.
-- If the stream is unavailable, unauthorized or fails before anything was heard, the saved
-  reply plays automatically as usual.
+- If it differs (rare) or the turn fails, the streamed voice stops. Once any streamed sentence
+  was heard, the saved reply is shown but not spoken again automatically; Play interviewer
+  audio still replays it, and a failed turn shows its usual failure and retry.
+- A stream that ends early (failed, reset or unavailable) keeps the text it already streamed,
+  because the relay can end it just as the turn is accepted; the turn's saved result then
+  decides as above. If nothing was streamed, the saved reply plays automatically as usual.
 
 Observing never starts, retries or cancels the turn. The page skips observing in provider
 playback; the turn still publishes its text, which then expires unread.

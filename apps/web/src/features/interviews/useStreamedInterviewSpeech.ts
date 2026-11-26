@@ -2,7 +2,8 @@
  * Only browser playback observes the running answer turn's provisional text; provider audio never does.
  * When the saved reply arrives and begins with everything streamed, the same playback finishes with the
  * saved text, so nothing is said twice (this also covers an acknowledgement followed by the next question).
- * If the stream fails, the turn fails, or the saved reply differs, the streamed voice stops. Once any
+ * If the turn fails or the saved reply differs, the streamed voice stops; a stream that ends early keeps its
+ * text, because the relay can end it just as the turn is accepted. Once any
  * streamed sentence was heard, the saved reply is then shown but not spoken again automatically; if none
  * was heard, the saved reply plays as usual. Only the reply the turn saved is handled; any later reply,
  * such as the next question after Skip, plays normally. The last question never streams, because finishing
@@ -49,9 +50,13 @@ export function useStreamedInterviewSpeech(interview: InterviewSnapshotFragment 
         const payload = result.data?.authorizeAiExecutionStream
         return payload && !payload.errors.length ? payload.token : null
       },
-      // A failed or unavailable stream reports empty text, which stops the streamed voice.
-      onText: (text) => setStream((current) => ({ observation, operationId: runningTurnId, baseReplyId, text,
-        heard: current?.observation === observation && current.heard })),
+      // An ended stream (failed, reset or unavailable) reports empty text. Keep what was already streamed:
+      // the relay can reset just as the turn is accepted, and the turn's own status decides what happens next.
+      onText: (text) => setStream((current) => {
+        const same = current?.observation === observation
+        if (!text) return same ? current : null
+        return { observation, operationId: runningTurnId, baseReplyId, text, heard: same && current.heard }
+      }),
       // The interview snapshot subscription delivers the saved reply.
       onReconcile: () => {},
     })

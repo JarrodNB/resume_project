@@ -1927,16 +1927,17 @@ describe('streamed interviewer speech', () => {
     await waitFor(() => expect(spoken()).toEqual(['You cut the wait.', 'You reduced the wait.']))
   })
 
-  it('does not replay the saved reply after the stream fails part way through speech', async () => {
+  it('carries on with the rest of the saved reply when the stream ends early, without repeating what was said', async () => {
     const socket = await streamTurn('You cut the wait.\n\nHow')
     await waitFor(() => expect(spoken()).toEqual(['You cut the wait.']))
     act(() => speak.mock.calls[0][0].onstart())
-    socket.receive({ type: 'failed', cursor: '2-0' })
-    expect(cancel).toHaveBeenCalled()
+    // The relay can end the stream just as the turn is accepted.
+    socket.receive({ type: 'reset', code: 'saved_state_required' })
+    expect(cancel).not.toHaveBeenCalled()
     saveTurn(interviewWith('accepted', 2, [followUp('How did you measure it?', 'You cut the wait.')]))
     expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('How did you measure it?')).toBeVisible()
-    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
-    expect(spoken()).toEqual(['You cut the wait.'])
+    act(() => speak.mock.calls[0][0].onend())
+    await waitFor(() => expect(spoken()).toEqual(['You cut the wait.', 'How did you measure it?']))
   })
 
   it('stops the voice and shows the answer failure when the turn fails after speech began', async () => {

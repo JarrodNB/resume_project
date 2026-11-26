@@ -91,11 +91,13 @@ it('stops and does not autoplay a saved reply that differs from streamed speech 
   expect(consume).toHaveBeenCalledWith('follow-up')
 })
 
-it('stops streamed speech when the stream fails', async () => {
+it('keeps streamed text when the stream ends early, and stops once the turn fails', async () => {
   const view = mount(snapshot('running'))
   const socket = await attachedSocket()
   socket.receive(event('delta', { text: 'You cut the wait.', cursor: '1-0' }))
   socket.receive(event('failed', { cursor: '2-0' }))
+  expect(view.result.current.speech).toEqual({ key: 'stream:turn', text: 'You cut the wait.', streaming: true })
+  view.rerender({ interview: snapshot('failed') })
   expect(view.result.current.speech).toBeNull()
 })
 
@@ -139,4 +141,18 @@ it('does not stream speech on the last question, where completing the interview 
   await act(() => new Promise((resolve) => setTimeout(resolve, 200)))
   expect(Socket.instances).toHaveLength(0)
   expect(view.result.current.speech).toBeNull()
+})
+
+it('carries on with the saved reply when the stream resets just as the turn is accepted', async () => {
+  const consume = vi.fn()
+  const view = mount(snapshot('running'), consume)
+  const socket = await attachedSocket()
+  socket.receive(event('delta', { text: 'You cut the wait.\n\n', cursor: '1-0' }))
+  act(() => view.result.current.speechStarted('stream:turn'))
+  // The relay can see the accepted turn before the final completed event and ask for saved state.
+  socket.receive({ type: 'reset', code: 'saved_state_required' })
+  const saved = message('follow-up', 'follow_up', 'How did you measure it?', 'You cut the wait.')
+  view.rerender({ interview: snapshot('accepted', [opening, message('answer', 'answer', 'I shortened it.'), saved]) })
+  expect(view.result.current.speech).toEqual({ key: 'stream:turn', text: 'You cut the wait.\n\nHow did you measure it?', streaming: false })
+  expect(consume).toHaveBeenCalledWith('follow-up')
 })

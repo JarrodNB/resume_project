@@ -97,7 +97,8 @@ Run the offline local transport probe from the AI project with
 `python -m scripts.execution_latency_probe --samples 50 --concurrency 4`.
 It measures actual loopback HTTP receipt/execution-start overhead with a synthetic
 adapter and no queue/model calls; it excludes Rails commits, screening and provider
-latency. Final-only interview execution constructs no Redis or streaming client.
+latency. A runner builds a Redis client only when an opted-in adapter (chat, or interview answer
+turns) is present and `AI_STREAM_REDIS_URL` is set; see [AI output streaming](ai-streaming.md).
 
 ## Moving an existing production queue safely
 

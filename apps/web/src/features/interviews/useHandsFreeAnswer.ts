@@ -19,6 +19,8 @@ interface Options {
     transcript: string
     candidateTranscript: string | null
     effectiveMode: TranscriptionMode
+    /** Capture paused itself at the recording limit and cannot continue. */
+    limitReached: boolean
     microphoneStream: () => MediaStream | null
   }
   /** The normal "Pause recording" action. */
@@ -31,12 +33,18 @@ type Phase = 'listening' | 'finishing' | 'countdown' | 'resuming'
 
 export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop, resume }: Options) {
   const [phase, setPhase] = useState<Phase>('listening')
-  const { status, effectiveMode, microphoneStream } = recorder
+  const { status, effectiveMode, limitReached, microphoneStream } = recorder
+  // Reaching the recording limit pauses capture by itself; treat it like the end of speech.
+  const [limitSeen, setLimitSeen] = useState(limitReached)
+  if (limitSeen !== limitReached) {
+    setLimitSeen(limitReached)
+    if (limitReached && enabled && phase === 'listening') setPhase('finishing')
+  }
   // Settle the phase from the recorder during render, so a stale countdown never shows.
   if (phase === 'finishing' && status !== 'recording' && status !== 'finalizing') {
     const liveReview = status === 'ready' && effectiveMode !== 'recorded'
     // Silence that produced no words was not an answer, so keep listening.
-    setPhase(!liveReview ? 'listening' : recorder.candidateTranscript?.trim() ? 'countdown' : 'resuming')
+    setPhase(!liveReview ? 'listening' : recorder.candidateTranscript?.trim() ? 'countdown' : limitReached ? 'listening' : 'resuming')
   }
   if ((phase === 'countdown' || phase === 'resuming') && status !== 'ready') setPhase('listening')
 
@@ -62,14 +70,15 @@ export function useHandsFreeAnswer({ enabled, silenceSeconds, recorder, stop, re
 
   // Speaking during the countdown cancels it and continues recording into the same answer.
   const countingDown = enabled && phase === 'countdown'
+  const canContinue = !limitReached
   useEffect(() => {
-    if (!countingDown) return
+    if (!countingDown || !canContinue) return
     const stream = microphoneStream()
     const microphone = stream && openMicrophoneLevel(stream)
     if (!microphone) return
     const stopWatching = watchForSpeech({ readLevel: microphone.readLevel, onSpeech() { setPhase('resuming') } })
     return () => { stopWatching(); microphone.close() }
-  }, [countingDown, microphoneStream])
+  }, [countingDown, canContinue, microphoneStream])
 
   return {
     /** The final transcript is ready to send automatically after a countdown. */

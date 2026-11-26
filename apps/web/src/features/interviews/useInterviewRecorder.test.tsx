@@ -106,6 +106,29 @@ describe('useInterviewRecorder', () => {
     expect(result.current.error).toMatch(/10 MiB/)
   })
 
+  it('pauses at the time and size limits for hands-free answers, keeping the audio and words', async () => {
+    vi.stubGlobal('SpeechRecognition', class { onend?: () => void; start() {} stop() { this.onend?.() } abort() {} })
+    const { result } = renderHook(() => useInterviewRecorder({ mode: 'streaming', pauseAtLimit: true, startStreaming: () => ({ finish: async () => 'spoken words', cancel: vi.fn() }) }))
+    await act(() => result.current.start())
+    act(() => { FakeRecorder.latest.chunk(new Blob(['answer'])) })
+    await act(async () => { vi.advanceTimersByTime(120_000) })
+    expect(result.current.error).toBeNull()
+    expect(result.current.limitReached).toBe(true)
+    expect(result.current.status).toBe('ready')
+    expect(result.current.recording?.size).toBe(6)
+    expect(result.current.candidateTranscript).toBe('spoken words')
+    expect(stopTrack).not.toHaveBeenCalled()
+    act(() => result.current.resume())
+    expect(result.current.status).toBe('ready')
+    await act(() => result.current.start())
+    expect(result.current.limitReached).toBe(false)
+    act(() => FakeRecorder.latest.chunk(new Blob(['first'])))
+    await act(async () => FakeRecorder.latest.chunk(new Blob([new Uint8Array(10 * 1024 * 1024)])))
+    expect(result.current.error).toBeNull()
+    expect(result.current.limitReached).toBe(true)
+    expect(result.current.recording?.size).toBe(5)
+  })
+
   it('releases a pending microphone permission result after unmount', async () => {
     let resolve!: (value: MediaStream) => void
     vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValue(new Promise((done) => { resolve = done }))

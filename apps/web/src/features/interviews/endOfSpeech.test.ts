@@ -58,7 +58,7 @@ it('reads loudness from its own live copy of the microphone, even while recordin
   const disconnect = vi.fn()
   let amplitude = 0.5
   let measured: MediaStream | undefined
-  vi.stubGlobal('MediaStream', class { constructor(public tracks: MediaStreamTrack[]) {} getAudioTracks() { return this.tracks } })
+  vi.stubGlobal('MediaStream', class { tracks: MediaStreamTrack[]; constructor(tracks: MediaStreamTrack[]) { this.tracks = tracks } getAudioTracks() { return this.tracks } })
   vi.stubGlobal('AudioContext', class {
     state = 'running'
     close = close

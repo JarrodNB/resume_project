@@ -12,13 +12,13 @@ import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAY
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null as string | null, errorCode: null as string | null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
-  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, liveFailed: false, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), microphoneStream: (() => null) as () => unknown, refresh: (() => {}) as () => void },
+  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, liveFailed: false, limitReached: false, options: {} as { pauseAtLimit?: boolean }, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), microphoneStream: (() => null) as () => unknown, refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
 vi.mock('./useInterviewRecorder', async () => {
   const { useState } = await import('react')
-  return { useInterviewRecorder: () => { const [, setTick] = useState(0); recorder.refresh = () => setTick((value) => value + 1); return recorder } }
+  return { useInterviewRecorder: (options: { pauseAtLimit?: boolean }) => { const [, setTick] = useState(0); recorder.refresh = () => setTick((value) => value + 1); recorder.options = options; return recorder } }
 })
 vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved interviews</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
@@ -50,7 +50,7 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; recorder.liveFailed = false; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
+beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; recorder.liveFailed = false; recorder.limitReached = false; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewPage', () => {
   it('pauses automatic microphone capture while reviewing a Career context copy', async () => {
@@ -1582,7 +1582,7 @@ describe('hands-free answers', () => {
     vi.useFakeTimers()
     microphone.level = 0
     recorder.microphoneStream = () => ({ getAudioTracks: () => [] })
-    vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[]) {} })
+    vi.stubGlobal('MediaStream', class {})
     vi.stubGlobal('AudioContext', class {
       state = 'running'
       resume() { return Promise.resolve() }
@@ -1699,6 +1699,23 @@ describe('hands-free answers', () => {
     expect(recorder.stop).toHaveBeenCalledTimes(2)
   })
 
+  it('starts the countdown when the recording limit pauses a hands-free answer, without offering to continue', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    expect(recorder.options.pauseAtLimit).toBe(true)
+    microphone.level = 0.2
+    recorder.limitReached = true
+    finishTranscript('I led the migration.')
+    expect(recorder.stop).not.toHaveBeenCalled()
+    expect(screen.getByText('Sending in 3…')).toBeVisible()
+    expect(screen.getByText(/reached the 2-minute recording limit/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Continue recording' })).toBeDisabled()
+    await advance(1000)
+    expect(recorder.resume).not.toHaveBeenCalled()
+    for (const _second of [2, 1]) await advance(1000)
+    expect(state.answerText).toHaveBeenCalledExactlyOnceWith('I led the migration.')
+  })
+
   it('starts no countdown and keeps listening when the final transcript is blank', async () => {
     rememberMicrophone({ handsFree: true })
     await speakThenGoQuiet('um')
@@ -1732,6 +1749,7 @@ describe('hands-free answers', () => {
     await advance(10_000)
     expect(recorder.stop).not.toHaveBeenCalled()
     expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+    expect(recorder.options.pauseAtLimit).toBe(false)
   })
 })
 
@@ -1741,7 +1759,7 @@ describe('hands-free setting', () => {
     try {
       localStorage.setItem('Careerdrafter:interview-transcription:owner', 'browser')
       recorder.microphoneStream = () => ({ getAudioTracks: () => [] })
-      vi.stubGlobal('MediaStream', class { constructor(public tracks: unknown[]) {} })
+      vi.stubGlobal('MediaStream', class {})
       let level = 0
       vi.stubGlobal('AudioContext', class {
         state = 'running'

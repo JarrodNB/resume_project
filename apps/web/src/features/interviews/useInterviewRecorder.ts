@@ -4,17 +4,27 @@
  * Recording and recognition finish independently; review waits for both. Tracks are released
  * on every exit, including a permission prompt that resolves after the page has gone away.
  * Speech processing and mono capture are preferences; the browser negotiates device support.
+ * Reaching the 2-minute or 10 MiB limit normally discards the recording. Hands-free answers ask to
+ * pause there instead, keeping the audio and words for review; that capture cannot be continued.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { startBrowserTranscription, type TranscriptionCallbacks, type TranscriptionCapture, type TranscriptionMode } from './transcriptionCapture'
 
 type Status = 'idle' | 'requesting' | 'recording' | 'finalizing' | 'ready'
-type Capture = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; bytes: number; discard: boolean; remaining: number; started: number; checkpoint?: () => void; listen?: () => void; timer?: ReturnType<typeof setTimeout> }
+type Capture = { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[]; bytes: number; discard: boolean; remaining: number; started: number; checkpoint?: () => void; listen?: () => void; timer?: ReturnType<typeof setTimeout>; atTimeLimit?: () => void; limitReached?: boolean }
 const MAX_BYTES = 10 * 1024 * 1024
 const FORMATS = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
 const release = (stream: MediaStream) => stream.getTracks().forEach((track) => track.stop())
+const TIME_LIMIT_MESSAGE = 'Answers can be up to 2 minutes. That recording was stopped and not saved, so please record a shorter one.'
 
-export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mode?: TranscriptionMode; startStreaming?: (stream: MediaStream, callbacks: TranscriptionCallbacks) => TranscriptionCapture } = {}) {
+interface RecorderOptions {
+  mode?: TranscriptionMode
+  startStreaming?: (stream: MediaStream, callbacks: TranscriptionCallbacks) => TranscriptionCapture
+  /** Pause instead of discarding when the recording reaches its time or size limit (hands-free answers). */
+  pauseAtLimit?: boolean
+}
+
+export function useInterviewRecorder({ mode = 'recorded', startStreaming, pauseAtLimit = false }: RecorderOptions = {}) {
   const [status, setStatus] = useState<Status>('idle')
   const [recording, setRecording] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -24,6 +34,9 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
   const [fallbackReason, setFallbackReason] = useState<string | null>(null)
   // Stays true after a live failure even if a later segment succeeds, since earlier words may be missing.
   const [liveFailed, setLiveFailed] = useState(false)
+  const [limitReached, setLimitReached] = useState(false)
+  const pauseAtLimitRef = useRef(pauseAtLimit)
+  useEffect(() => { pauseAtLimitRef.current = pauseAtLimit }, [pauseAtLimit])
   const transcription = useRef<TranscriptionCapture | null>(null)
   const finalized = useRef<Promise<string | null> | null>(null)
   const generation = useRef(0)
@@ -48,7 +61,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
   const reset = useCallback(() => {
     discard()
     setStatus('idle'); setRecording(null); setError(null)
-    setTranscript(''); setCandidateTranscript(null); setFallbackReason(null); setEffectiveMode(mode); setLiveFailed(false)
+    setTranscript(''); setCandidateTranscript(null); setFallbackReason(null); setEffectiveMode(mode); setLiveFailed(false); setLimitReached(false)
   }, [discard, mode])
 
   const stop = useCallback(() => {
@@ -89,14 +102,25 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
         if (capture.current !== current) return
         discard(); setRecording(null); setError(message); setStatus('idle')
       }
+      const pauseAtLimitInstead = () => {
+        if (!pauseAtLimitRef.current) return false
+        current.limitReached = true
+        setLimitReached(true)
+        stop()
+        return true
+      }
+      current.atTimeLimit = () => { if (!pauseAtLimitInstead()) fail(TIME_LIMIT_MESSAGE) }
       stream.getTracks().forEach((track) => track.addEventListener('ended', () => {
         fail('The microphone disconnected. Please reconnect it and record again.')
       }, { once: true }))
       recorder.ondataavailable = ({ data }) => {
         if (current.discard || capture.current !== current) return
         current.bytes += data.size
-        if (current.bytes >= MAX_BYTES) { fail('That recording went over 10 MiB and was not saved. Please record a shorter answer.'); return }
-        if (data.size > 0) current.chunks.push(data)
+        if (current.bytes >= MAX_BYTES) {
+          // Leave the piece that went over out, so the kept recording stays under the limit.
+          current.bytes -= data.size
+          if (!pauseAtLimitInstead()) { fail('That recording went over 10 MiB and was not saved. Please record a shorter answer.'); return }
+        } else if (data.size > 0) current.chunks.push(data)
         current.checkpoint?.(); current.checkpoint = undefined
       }
       recorder.onerror = () => fail('Recording failed. Please check your microphone and try again.')
@@ -147,7 +171,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
         current.checkpoint = () => { void review() }
         current.recorder.requestData()
       })
-      current.timer = setTimeout(() => fail('Answers can be up to 2 minutes. That recording was stopped and not saved, so please record a shorter one.'), 120_000)
+      current.timer = setTimeout(() => current.atTimeLimit?.(), 120_000)
       setStatus('recording')
     } catch (cause) {
       if (stream) release(stream)
@@ -160,18 +184,16 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
 
   const resume = useCallback(() => {
     const current = capture.current
-    if (!current || current.recorder.state !== 'paused') return
+    if (!current || current.recorder.state !== 'paused' || current.limitReached) return
     setRecording(null)
     current.stream.getAudioTracks().forEach((track) => { track.enabled = true })
     current.listen?.()
     current.recorder.resume()
     current.started = Date.now()
-    current.timer = setTimeout(() => {
-      discard(); setRecording(null); setError('Answers can be up to 2 minutes. That recording was stopped and not saved, so please record a shorter one.'); setStatus('idle')
-    }, Math.max(0, current.remaining))
+    current.timer = setTimeout(() => current.atTimeLimit?.(), Math.max(0, current.remaining))
     setStatus('recording')
-  }, [discard])
+  }, [])
   /** The open microphone stream, so hands-free mode can listen for silence without a second permission prompt. */
   const microphoneStream = useCallback(() => capture.current?.stream ?? null, [])
-  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, liveFailed, start, stop, resume, reset, microphoneStream }
+  return { status, recording, error, transcript, candidateTranscript, effectiveMode, fallbackReason, liveFailed, limitReached, start, stop, resume, reset, microphoneStream }
 }

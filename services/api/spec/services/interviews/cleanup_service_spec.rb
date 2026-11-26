@@ -126,7 +126,7 @@ RSpec.describe Interviews::CleanupService do
     original_question = question.content
     answer = interview.messages.create!(question: question, kind: "answer", position: 1,
       semantic_key: "saved-career-answer", content: "Migrated the release pipeline and reduced delays.")
-    saved = CareerContexts::CreateCareerContextService.call(user: interview.user,
+    saved = CareerLibrary::SaveLibraryEntryService.call(user: interview.user, kind: :career_context,
       attributes: { requirement: question.content, response: answer.content })
     expect(saved).to be_success
     context = saved.value

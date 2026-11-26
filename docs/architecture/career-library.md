@@ -31,6 +31,14 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   texts (reciprocal rank fusion, k=60). Complete-draft tailoring does not call this search;
   it already has the library snapshot and avoids per-section query embeddings.
 
+- **Saving entries (Rails):** experiences, projects, education, skills, certifications and
+  career context entries are created and edited only through
+  `CareerLibrary::SaveLibraryEntryService`. It locks the owner (user) row, then the entry row,
+  so the per-kind size limit (`LibrarySizeLimit`) and skill positions hold under concurrent
+  requests; normalizes values per kind; drops screening marks only for changed fields; and
+  queues the embedding sync after a successful save. Merge, import and clear lock the owner
+  first as well, but have their own paths.
+
 ## Decisions
 
 - **Ranking receives complete candidate records.** Database search and the retrieval

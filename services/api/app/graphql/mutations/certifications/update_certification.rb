@@ -10,10 +10,10 @@ module Mutations
 
       field :certification, Types::CertificationType
 
-      # Calls Certifications::UpdateCertificationService.
+      # Calls CareerLibrary::SaveLibraryEntryService.
       def resolve(id:, attributes:)
         certification = current_user.certifications.find(id)
-        payload_from(::Certifications::UpdateCertificationService.call(certification: certification, attributes: attributes.to_h), :certification)
+        payload_from(::CareerLibrary::SaveLibraryEntryService.call(user: current_user, kind: :certification, entry: certification, attributes: attributes.to_h), :certification)
       end
     end
   end

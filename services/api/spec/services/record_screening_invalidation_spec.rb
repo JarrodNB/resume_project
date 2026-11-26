@@ -4,27 +4,27 @@ require "rails_helper"
 RSpec.describe "Career library screening state" do
   let(:user) { create(:user) }
 
-  it "forgets only changed fields through each text update service" do
+  it "forgets only changed fields through the shared library save" do
     [
-      [ :experience, Experiences::UpdateExperienceService, :experience, :title, :company ],
-      [ :project, Projects::UpdateProjectService, :project, :name, :description ],
-      [ :education, Educations::UpdateEducationService, :education, :institution, :degree ],
-      [ :certification, Certifications::UpdateCertificationService, :certification, :name, :issuer ],
-      [ :skill, Skills::UpdateSkillService, :skill, :name, :category ],
-      [ :career_context, CareerContexts::UpdateCareerContextService, :career_context, :response, :requirement ]
-    ].each do |factory, service, argument, changed, retained|
-      record = create(factory, user: user, screened_fields: [ changed.to_s, retained.to_s ])
-      result = service.call(**{ argument => record }, attributes: { changed => "New text" })
-      expect(result).to be_success
+      [ :experience, :title, :company ],
+      [ :project, :name, :description ],
+      [ :education, :institution, :degree ],
+      [ :certification, :name, :issuer ],
+      [ :skill, :name, :category ],
+      [ :career_context, :response, :requirement ]
+    ].each do |kind, changed, retained|
+      record = create(kind, user: user, screened_fields: [ changed.to_s, retained.to_s ])
+      save = -> { CareerLibrary::SaveLibraryEntryService.call(user: user, kind: kind, entry: record, attributes: { changed => "New text" }) }
+      expect(save.call).to be_success
       expect(record.reload.screened_fields).to eq([ retained.to_s ])
-      service.call(**{ argument => record }, attributes: { changed => "New text" })
+      save.call
       expect(record.reload.screened_fields).to eq([ retained.to_s ])
     end
   end
 
   it "keeps approvals on unchanged text and ordering updates" do
     project = create(:project, user: user, screened_fields: %w[name description])
-    Projects::UpdateProjectService.call(project: project, attributes: { name: project.name, position: 3 })
+    CareerLibrary::SaveLibraryEntryService.call(user: user, kind: :project, entry: project, attributes: { name: project.name, position: 3 })
     expect(project.reload.screened_fields).to eq(%w[name description])
   end
 
@@ -47,7 +47,7 @@ RSpec.describe "Career library screening state" do
   it "makes replacement highlights unchecked" do
     experience = create(:experience, user: user)
     experience.highlights.create!(content: "Old", position: 0, screened_fields: [ "content" ])
-    Experiences::UpdateExperienceService.call(experience: experience, attributes: {}, highlights: [ "New" ])
+    CareerLibrary::SaveLibraryEntryService.call(user: experience.user, kind: :experience, entry: experience, attributes: {}, highlights: [ "New" ])
     expect(experience.reload.highlights.first.screened_fields).to eq([])
   end
 

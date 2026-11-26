@@ -9,10 +9,10 @@ module Mutations
 
       field :education, Types::EducationType
 
-      # Calls Educations::UpdateEducationService.
+      # Calls CareerLibrary::SaveLibraryEntryService.
       def resolve(id:, attributes:)
         education = current_user.educations.find(id)
-        payload_from(::Educations::UpdateEducationService.call(education: education, attributes: attributes.to_h), :education)
+        payload_from(::CareerLibrary::SaveLibraryEntryService.call(user: current_user, kind: :education, entry: education, attributes: attributes.to_h), :education)
       end
     end
   end

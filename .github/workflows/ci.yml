@@ -82,7 +82,7 @@ jobs:
         working-directory: services/api
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpq-dev libvips
+      # The runner image already has libpq-dev for the pg gem, so no apt step is needed.
       # Same init script as the local database, so the ai_reader role exists for grant specs.
       - run: psql -h localhost -U postgres -f ../../infra/postgres/init/01_create_ai_reader_role.sql
         env:

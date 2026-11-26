@@ -20,7 +20,7 @@ RSpec.describe "Interview memory anchors" do
     expect(question.embedding.id).to eq(embedding_id)
     expect(question.screened_fields).to eq(%w[question_text answer_text])
     expect(question.feedback).to eq({ "strengths" => [ "Clear" ] })
-    expect(InterviewPrep::FeedbackOutdatedService.call(question: question).value).to be(false)
+    expect(InterviewPrep::ActiveAnswer.feedback_outdated?(question)).to be(false)
   end
 
   it "accepts 600 characters, rejects oversized cues atomically, and allows clearing" do

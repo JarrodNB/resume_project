@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 import text_limits
+from active_answer import has_answer_text
 from agents.interview_feedback_agent import generate_interview_feedback
 from llm.run_generative_agent import GenerativeOutputInvalid
 from model_inputs.interview import format_feedback_prompt
@@ -55,7 +56,7 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         """Preserves billed screening and generation usage on expected failures."""
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=message, usage=usage)
 
-    if not saved.answer_text.strip():
+    if not has_answer_text(saved.answer_text):
         return fail("Write an answer before asking for feedback.")
     source = saved.model_dump(mode="json")
     source["screened_fields"] = saved.screened_fields

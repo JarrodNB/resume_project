@@ -21,10 +21,14 @@ module Types
     field :feedback_question_revision, Integer
     field :feedback_answer_revision, Integer
     field :feedback_outdated, Boolean, null: false
+    field :answered, Boolean, null: false,
+          description: "Whether the active answer has any text. Inactive format drafts do not count."
+    field :progress, Types::InterviewQuestionProgressEnum, null: false,
+          description: "Not answered, no feedback yet, getting feedback, feedback ready or out of date."
     field :latest_task, Types::AiTaskType
 
     def answer_drafts
-      ::InterviewPrep::AnswerFormats.drafts(object)
+      ::InterviewPrep::ActiveAnswer.drafts(object)
     end
 
     def avoided
@@ -32,13 +36,26 @@ module Types
     end
 
     # Returns the latest question operation, including failures.
+    # Remembered on this type instance (one per question per request) so `progress` reuses it.
     def latest_task
-      object.ai_tasks.order(created_at: :desc, id: :desc).first
+      return @latest_task if defined?(@latest_task)
+
+      @latest_task = object.ai_tasks.order(created_at: :desc, id: :desc).first
     end
 
     # Checks reviewed revisions and allows capitalization or whitespace changes.
     def feedback_outdated
-      ::InterviewPrep::FeedbackOutdatedService.call(question: object).value
+      return @feedback_outdated if defined?(@feedback_outdated)
+
+      @feedback_outdated = ::InterviewPrep::ActiveAnswer.feedback_outdated?(object)
+    end
+
+    def answered
+      ::InterviewPrep::ActiveAnswer.answered?(object)
+    end
+
+    def progress
+      ::InterviewPrep::ActiveAnswer.progress(object, latest_task: latest_task, outdated: -> { feedback_outdated }).to_s
     end
   end
 end

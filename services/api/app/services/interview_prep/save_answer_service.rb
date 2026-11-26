@@ -23,21 +23,21 @@ module InterviewPrep
         next failure([ "Retired questions cannot be edited." ]) if @question.retired?
         format = @answer_format || "plain_text"
         drafts = if @answer_drafts.is_a?(Hash)
-          AnswerFormats.drafts(@question).merge(@answer_drafts)
+          ActiveAnswer.drafts(@question).merge(@answer_drafts)
         elsif @answer_drafts.nil?
-          AnswerFormats.drafts(@question).merge("plain_text" => { "text" => @answer_text })
+          ActiveAnswer.drafts(@question).merge("plain_text" => { "text" => @answer_text })
         else
           @answer_drafts
         end
-        unless AnswerFormats.valid?(format, drafts)
+        unless ActiveAnswer.valid?(format, drafts)
           next failure([ "Choose a supported answer format with valid, bounded draft fields." ])
         end
-        text = AnswerFormats.render(format, drafts)
+        text = ActiveAnswer.render(format, drafts)
         changed = @question.answer_text != text
         format_changed = @question.answer_format != format
         active_changed = format_changed ||
-          AnswerFormats.drafts(@question).fetch(format, {}) != drafts.fetch(format, {})
-        inactive_only_changed = !active_changed && AnswerFormats.drafts(@question) != drafts
+          ActiveAnswer.drafts(@question).fetch(format, {}) != drafts.fetch(format, {})
+        inactive_only_changed = !active_changed && ActiveAnswer.drafts(@question) != drafts
         @question.answer_format, @question.answer_drafts = format, drafts
         anchor_changed = !@memory_anchor.nil? && @question.memory_anchor != @memory_anchor
         @question.memory_anchor = @memory_anchor unless @memory_anchor.nil?
@@ -48,7 +48,7 @@ module InterviewPrep
         if @question.save
           @question.embedding&.destroy! if changed
           @question.embedding&.update!(answer_revision: @question.answer_revision) if active_changed && !changed
-          SyncQuestionEmbeddingJob.perform_later(@question.interview_question_set.user_id, @question.id) if @question.answer_text.present? && !inactive_only_changed && (changed || !anchor_changed)
+          SyncQuestionEmbeddingJob.perform_later(@question.interview_question_set.user_id, @question.id) if ActiveAnswer.answered?(@question) && !inactive_only_changed && (changed || !anchor_changed)
           success(@question)
         else
           failure(@question.errors)

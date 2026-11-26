@@ -18,13 +18,13 @@ module InterviewPrep
     def call
       return failure([ "Unknown interview operation" ]) unless TASK_TYPES.include?(@task_type)
       if %w[review_interview_answer generate_interview_memory_anchor].include?(@task_type)
-        if @answer_drafts.nil? && @answer_text.blank?
+        if @answer_drafts.nil? && ActiveAnswer.blank?(@answer_text)
           return failure([ @task_type == "review_interview_answer" ? "Write an answer before asking for feedback." : "Write an answer before generating a memory anchor." ])
         end
         saved = SaveAnswerService.call(question: @question, answer_text: @answer_text, memory_anchor: @memory_anchor,
           answer_format: @answer_format, answer_drafts: @answer_drafts)
         return saved unless saved.success?
-        if @question.answer_text.blank?
+        unless ActiveAnswer.answered?(@question)
           return failure([ @task_type == "review_interview_answer" ? "Write an answer before asking for feedback." : "Write an answer before generating a memory anchor." ])
         end
 
@@ -46,7 +46,7 @@ module InterviewPrep
       if @question.ai_tasks.where(task_type: TASK_TYPES, status: "queued").exists?
         return failure([ "An AI operation is already running for this question." ])
       end
-      if @task_type == "regenerate_interview_question" && AnswerFormats.answered?(@question) && !@confirmed
+      if @task_type == "regenerate_interview_question" && ActiveAnswer.answered?(@question) && !@confirmed
         return failure([ "Confirm replacement of this question and its answer." ])
       end
       if %w[review_interview_answer generate_interview_memory_anchor].include?(@task_type) &&

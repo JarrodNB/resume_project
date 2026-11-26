@@ -29,6 +29,43 @@ RSpec.describe "Interview practice queries" do
     ])
   end
 
+  it "exposes answered and progress from the active answer only" do
+    question_set = user.interview_question_sets.create!(number: 1)
+    question_set.questions.create!(position: 1, question_text: "Active?", answer_text: "Done")
+    question_set.questions.create!(position: 2, question_text: "Inactive only?", answer_format: "star", answer_text: "",
+      answer_drafts: { "plain_text" => { "text" => "Old words" } })
+    result = execute_graphql("query($id: ID!) { interviewQuestionSet(id: $id) { questions { questionText answered progress } } }",
+      user: user, variables: { id: question_set.id })
+    expect(result.dig("data", "interviewQuestionSet", "questions")).to eq([
+      { "questionText" => "Active?", "answered" => true, "progress" => "ANSWERED" },
+      { "questionText" => "Inactive only?", "answered" => false, "progress" => "UNANSWERED" }
+    ])
+  end
+
+  it "asks for progress without re-running the latest task or freshness queries" do
+    set = user.interview_question_sets.create!(number: 1)
+    question = set.questions.create!(position: 1, question_text: "Why?", answer_text: "Done", answer_revision: 2,
+      feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
+    user.ai_tasks.create!(task_type: "review_interview_answer", subject: question, status: "completed")
+    count = lambda do |fields|
+      queries = 0
+      counter = ->(*, payload) { queries += 1 unless payload[:name] == "SCHEMA" || payload[:sql].match?(/\A\s*(BEGIN|COMMIT|SAVEPOINT|RELEASE)/) }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        execute_graphql("{ interviewQuestions { #{fields} } }", user: user)
+      end
+      queries
+    end
+    count.call("id latestTask { id } feedbackOutdated") # warm up
+    expect(count.call("id latestTask { id } feedbackOutdated progress")).to eq(count.call("id latestTask { id } feedbackOutdated"))
+  end
+
+  it "reports getting feedback while a review task is queued" do
+    question = user.interview_question_sets.create!(number: 1).questions.create!(position: 1, question_text: "Why?", answer_text: "Done")
+    user.ai_tasks.create!(task_type: "review_interview_answer", subject: question, status: "queued")
+    result = execute_graphql("{ interviewQuestions { progress } }", user: user)
+    expect(result.dig("data", "interviewQuestions")).to eq([ { "progress" => "REVIEWING" } ])
+  end
+
   it "lists the owned question bank newest set first, retired copies after active slots" do
     older = user.interview_question_sets.create!(number: 1, set_type: "technical", created_at: 1.day.ago)
     newer = user.interview_question_sets.create!(number: 2)

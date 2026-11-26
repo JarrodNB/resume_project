@@ -40,7 +40,9 @@ jobs:
             files=$(git diff --name-only "$BASE_SHA"...HEAD)
           fi
           echo "$files"
-          for pair in api:services/api/ ai:services/ai/ web:apps/web/; do
+          # Rails and web specs also read the shared fixtures in services/ai/tests/fixtures/.
+          shared=services/ai/tests/fixtures/
+          for pair in "api:services/api/|$shared" ai:services/ai/ "web:apps/web/|$shared"; do
             name=${pair%%:*}
             if grep -qE "^(${pair#*:}|\.github/workflows/ci\.yml$)" <<<"$files"; then
               echo "$name=true" >> "$GITHUB_OUTPUT"

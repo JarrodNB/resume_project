@@ -1748,6 +1748,11 @@ type InterviewQuestion {
   answerFormat: String!
   answerRevision: Int!
   answerText: String!
+
+  """
+  Whether the active answer has any text. Inactive format drafts do not count.
+  """
+  answered: Boolean!
   avoided: Boolean!
   feedback: JSON!
   feedbackAnswerRevision: Int
@@ -1761,6 +1766,11 @@ type InterviewQuestion {
   Slot 1–5 for active questions; null for retired copies.
   """
   position: Int
+
+  """
+  Not answered, no feedback yet, getting feedback, feedback ready or out of date.
+  """
+  progress: InterviewQuestionProgressEnum!
   questionRevision: Int!
   questionSet: InterviewQuestionSet!
   questionText: String!
@@ -1769,6 +1779,14 @@ type InterviewQuestion {
   When an answered question was replaced and kept as a read-only copy.
   """
   retiredAt: ISO8601DateTime
+}
+
+enum InterviewQuestionProgressEnum {
+  ANSWERED
+  OUTDATED
+  REVIEWED
+  REVIEWING
+  UNANSWERED
 }
 
 type InterviewQuestionSet {

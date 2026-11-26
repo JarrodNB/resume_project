@@ -9,7 +9,7 @@ Written interview practice (the Practice section's Questions tab): the question 
 
 - `interviewPrepOperations.ts` — bank, set list/detail queries and generation/deletion/answer/feedback/replacement/avoidance mutations.
 - `useInterviewPrep.ts` — data fetching (bank split into active and retired questions), newest-first sets, and mutation errors.
-- `questionProgress.ts` — the shared progress steps and labels, derived from saved state.
+- `questionProgress.ts` — the shared progress labels and `hasFeedback`; the step itself comes from the server's `progress`.
 - `QuestionProgressMark.tsx` — the stop/signal mark for a progress step.
 - `InterviewPrepPage.tsx` — the bank page: generation, pending requests, bank list, and replaced answers.
 - `AddCustomQuestion.tsx` — typed candidate question creation with an optional answer and no library prerequisite.
@@ -45,7 +45,7 @@ Written interview practice (the Practice section's Questions tab): the question 
 - Disable feedback after success for the current question/answer revisions; a substantive change enables another request. Failed requests remain retryable.
 - Feedback never fills the answer field; examples remain separate and visibly mark missing facts.
 - Allow answer edits during feedback. During replacement, keep editing and conflicting actions locked until the refreshed question revision arrives, including after reload.
-- Replacing an answered question asks first and says the saved answer moves to the replaced-answers section; retired copies are read-only.
+- Replace asks first when the saved question is answered (the dialog says the answer moves to the replaced-answers section), or when unsaved edits would be lost (the dialog then says nothing is kept). A question whose only text is in an inactive format draft replaces at once, like the server: only the active answer counts. Retired copies are read-only.
 - Pending generation remains persistent and dismissible while it has no questions; subscribe to tasks, never poll.
 - Generation stays on the question bank page: refresh pending requests after enqueueing and show all new questions there on completion.
 - “Don't show this again” saves a shared preference without skipping or regenerating; restore `avoided` from server state and retain local drafts.

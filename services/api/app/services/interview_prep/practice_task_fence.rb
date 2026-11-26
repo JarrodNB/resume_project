@@ -70,7 +70,7 @@ module InterviewPrep
         command["peer_revisions"] = peer_revisions(question)
       else
         command["answer_format"] = question.answer_format
-        command["normalized_answer_sha256"] = FeedbackOutdatedService.answer_fingerprint(question.answer_text)
+        command["normalized_answer_sha256"] = ActiveAnswer.fingerprint(question.answer_text)
       end
       command["memory_anchor_sha256"] = memory_anchor_sha256(question) if task_type == "generate_interview_memory_anchor"
       command

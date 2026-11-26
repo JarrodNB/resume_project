@@ -246,6 +246,7 @@ def read_interview_input(connection, claim):
                     recording_id=row["recording_id"],
                     expected_revision=row["expected_revision"],
                     question=question["content"],
+                    # Mirrors Interviews::AcceptTurnService#save_response; keep the two in step.
                     final_answer=question["accepted_answer_count"] + 1 >= row["answer_cap"],
                     current_dialogue=current,
                     earlier_dialogue=EarlierDialogue(

@@ -69,6 +69,8 @@ module Interviews
     private
 
     def save_response(interview, question, position)
+      # The final-answer rule is mirrored in services/ai/database/interview_inputs.py (`final_answer`),
+      # which stops streamed speech from voicing a follow-up this method would discard. Keep them in step.
       if @decision == "advance" || question.accepted_answer_count + 1 >= interview.answer_cap
         next_question = @questions.find { |candidate| candidate.position == question.position + 1 }
         if next_question

@@ -670,6 +670,12 @@ still prevent conflicting new answers.
 Provider playback obtains a fresh grant for the same saved message; it never retries reasoning or
 speech generation. Expired grants can be renewed while the artifact itself remains retained.
 
+Optional hands-free mode is browser-only: it ends a live-transcribed answer after the chosen
+silence, then submits the reviewed text after a short auto-send countdown that the candidate
+can stop, skip or cancel by speaking. It uses the same typed-answer submission, so no server
+contract changes. The microphone stays off while the interviewer speaks. See
+[interview transcription](../interview-transcription.md#hands-free-mode).
+
 For browser-reachable local storage, Compose defaults `INTERVIEW_BROWSER_STORAGE_ORIGIN` to
 `http://localhost:9090`; override it when QA uses a different published storage port. The direct
 PUT uses exactly the signed headers and never sends account cookies. The isolated stack checks

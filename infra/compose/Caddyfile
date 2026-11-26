@@ -23,5 +23,12 @@ app.{$DOMAIN:localhost} {
 
 api.{$DOMAIN:localhost} {
 	encode zstd gzip
+
+	# /internal/* holds the AI service's callbacks. They are guarded only by a shared secret and
+	# the AI service reaches them on the private network (http://api:3000), so they are not
+	# served to the internet.
+	@internal path /internal /internal/*
+	respond @internal 404
+
 	reverse_proxy api:3000
 }

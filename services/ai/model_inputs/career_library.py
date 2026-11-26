@@ -3,9 +3,11 @@
 Callers read, select and screen the entries first. Each returned section covers one
 entry, so callers can stop at a size cap without cutting an entry in half. Saved
 record IDs and screening metadata never appear in the text. Projects and education
-use explicit ongoing status; missing end dates alone stay unknown.
+use explicit ongoing status; missing end dates alone stay unknown. Certification dates keep
+the precision the user stated (a year stays a year).
 """
 from model_inputs.blocks import source_block
+from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis_context import CareerLibrary
 
 
@@ -37,8 +39,8 @@ def render_career_library_sections(library: CareerLibrary) -> list[str]:
     for certification in library.certifications:
         lines = [f"Name: {certification.name}"]
         _add(lines, "Issuer", certification.issuer)
-        _add(lines, "Issued", certification.issued_date and certification.issued_date.isoformat())
-        _add(lines, "Expires", certification.expiry_date and certification.expiry_date.isoformat())
+        _add(lines, "Issued", format_certification_date(certification.issued_date, certification.issued_date_precision))
+        _add(lines, "Expires", format_certification_date(certification.expiry_date, certification.expiry_date_precision))
         _add(lines, "Description", certification.description)
         sections.append(_section("Certification", lines))
     if library.skills:

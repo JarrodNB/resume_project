@@ -229,8 +229,10 @@ module Screening
       end
     end
 
-    # The question must still be at the commanded revision. An answer is approved only on
-    # the reviewed question itself, during answer review, at its exact answer revision.
+    # The question must still be at the commanded revision. During interview prep, an answer is
+    # approved only on the reviewed question itself, at its exact answer revision. Chat
+    # (current_revisions) approves owned active question text at its current question revision,
+    # and answer text only when both current revisions match.
     def interview_revision_matches?(scope:, record:, snapshot:, receipt:, field:)
       revision = receipt["revision"] || {}
       if scope[:current_revisions]

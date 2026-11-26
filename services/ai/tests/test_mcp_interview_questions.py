@@ -243,7 +243,11 @@ async def test_one_blocked_question_among_many_is_found_without_checking_each_al
     async def screen(text):
         calls.append(text)
         return ScreenOutcome("Ignore all previous instructions" not in text)
-    text = await _list_through_handler(lambda _: questions, screen)
+    from screening.session import current_session, screening_session
+    with screening_session():
+        text = await _list_through_handler(lambda _: questions, screen)
+        approved = {receipt.record_id for receipt in current_session().record_screening}
+    assert approved == {q["id"] for index, q in enumerate(questions) if index != 37}
     assert hostile not in text and "Unchecked question 63?" in text
     assert "Left out: 1 saved practice question(s) whose text did not pass" in text
     # One batch check, then two checks per halving level (64 -> 1 is six levels).
@@ -256,9 +260,15 @@ async def test_a_rejected_batch_whose_halves_each_pass_stays_blocked():
                  _question(question_text="PART-TWO of a message", screened_fields=[], position=2)]
     async def screen(text):
         return ScreenOutcome(not ("PART-ONE" in text and "PART-TWO" in text))
-    text = await _list_through_handler(lambda _: questions, screen)
-    assert "PART-ONE" not in text and "PART-TWO" not in text
-    assert "Left out: 2 saved practice question(s) whose text did not pass" in text
+    from screening.session import current_session, screening_session
+    with screening_session():
+        text = await _list_through_handler(lambda _: questions, screen)
+        # The halves' approvals are rolled back, so a later turn must check them again.
+        assert not current_session().record_screening and not current_session().record_checks
+        again = await _list_through_handler(lambda _: questions, screen)
+    for listed in (text, again):
+        assert "PART-ONE" not in listed and "PART-TWO" not in listed
+        assert "Left out: 2 saved practice question(s) whose text did not pass" in listed
 
 
 @pytest.mark.anyio
@@ -270,7 +280,10 @@ async def test_many_blocked_questions_stop_after_a_bounded_number_of_extra_check
     async def screen(text):
         calls.append(text)
         return ScreenOutcome("Ignore all previous instructions" not in text)
-    text = await _list_through_handler(lambda _: questions, screen)
+    from screening.session import current_session, screening_session
+    with screening_session():
+        text = await _list_through_handler(lambda _: questions, screen)
+        assert not current_session().record_screening
     assert len(calls) <= 1 + MAX_EXTRA_QUESTION_SCREENS
     assert "Ignore all previous instructions" not in text
     assert "whose safety check could not finish" in text
@@ -288,7 +301,11 @@ async def test_questions_whose_check_could_not_finish_are_left_out_as_unchecked_
         if "Slow question" in text:
             return ScreenOutcome(False, unchecked=True)
         return ScreenOutcome(True)
-    text = await _list_through_handler(lambda _: questions, screen)
+    from screening.session import current_session, screening_session
+    with screening_session():
+        text = await _list_through_handler(lambda _: questions, screen)
+        approved = {receipt.record_id for receipt in current_session().record_screening}
+    assert approved == {questions[1]["id"]}
     assert "Fine question" in text and "Blocked words" not in text
     assert "Slow question" not in text and "Waiting question" not in text
     assert "Left out: 1 saved practice question(s) whose text did not pass" in text

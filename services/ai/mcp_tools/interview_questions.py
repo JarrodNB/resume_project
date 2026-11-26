@@ -26,6 +26,7 @@ from model_inputs.interview_question_bank import (
 )
 from screening.library_inputs import LibraryScreeningError, raise_unless_screening_allowed
 from screening.records import ScreenableRecord, screen_records
+from screening.session import current_session
 
 LIST_INTERVIEW_QUESTIONS = "list_interview_questions"
 LIST_INTERVIEW_QUESTIONS_VERSION = "list_interview_questions-v1"
@@ -133,7 +134,8 @@ async def _screen_keeping_allowed(questions, records, screen, outcome, budget):
     one-item list of extra checks left for the whole list; when it runs out, the rest are left
     out as unfinished. A sub-batch whose check could not finish is left out whole rather than
     split again. If a rejected batch's halves all pass alone, the batch stays blocked: the
-    classifier rejected that exact combined text.
+    classifier rejected that exact combined text. The halves' approvals are then rolled back
+    so a later turn cannot show the combination without checking it again.
     """
     if outcome.allowed:
         return questions, 0, 0
@@ -142,6 +144,9 @@ async def _screen_keeping_allowed(questions, records, screen, outcome, budget):
     if len(questions) == 1:
         return [], 1, 0
     middle = len(questions) // 2
+    session = current_session()
+    saved = None if session is None else (
+        [(receipt, dict(receipt.fingerprints)) for receipt in session.record_screening], set(session.record_checks))
     halves = []
     for part, part_records in ((questions[:middle], records[:middle]), (questions[middle:], records[middle:])):
         if budget[0] <= 0:
@@ -152,6 +157,14 @@ async def _screen_keeping_allowed(questions, records, screen, outcome, budget):
                                                     await screen_records(part_records, screen=screen), budget))
     (first, first_blocked, first_unchecked), (second, second_blocked, second_unchecked) = halves
     if not (first_blocked or first_unchecked or second_blocked or second_unchecked):
+        if saved is not None:
+            receipts, checks = saved
+            for receipt, fingerprints in receipts:
+                receipt.fingerprints.clear()
+                receipt.fingerprints.update(fingerprints)
+            session.record_screening[:] = [receipt for receipt, _ in receipts]
+            session.record_checks.clear()
+            session.record_checks.update(checks)
         return [], len(questions), 0
     return first + second, first_blocked + second_blocked, first_unchecked + second_unchecked
 

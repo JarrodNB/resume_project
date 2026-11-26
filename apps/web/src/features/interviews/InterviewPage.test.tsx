@@ -12,7 +12,7 @@ import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAY
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null as string | null, errorCode: null as string | null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
-  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, liveFailed: false, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
+  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, liveFailed: false, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), resume: vi.fn(), reset: vi.fn(), microphoneStream: (() => null) as () => unknown, refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
@@ -1574,4 +1574,181 @@ it.each(['active', 'preparing'])('links a %s interview mutation refusal to billi
   state.errorCode = 'PLAN_ENDED'
   renderInterview()
   expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
+})
+
+describe('hands-free answers', () => {
+  const microphone = { level: 0 }
+  beforeEach(() => {
+    vi.useFakeTimers()
+    microphone.level = 0
+    recorder.microphoneStream = () => ({})
+    vi.stubGlobal('AudioContext', class {
+      state = 'running'
+      resume() { return Promise.resolve() }
+      close() { return Promise.resolve() }
+      createMediaStreamSource() { return { connect() {}, disconnect() {} } }
+      createAnalyser() { return { fftSize: 32, getFloatTimeDomainData(target: Float32Array) { target.fill(microphone.level) } } }
+    })
+  })
+  afterEach(() => { vi.useRealTimers(); recorder.microphoneStream = () => null })
+  const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+  function rememberMicrophone(settings: object, transcription = 'browser') {
+    localStorage.setItem('Careerdrafter:interview-microphone:owner', JSON.stringify({ automatic: true, seconds: 0, ...settings }))
+    localStorage.setItem('Careerdrafter:interview-transcription:owner', transcription)
+  }
+  /** The automatic mic opens, the candidate says some words, then goes quiet long enough to end the answer. */
+  async function speakThenGoQuiet(words = 'I led the migration.') {
+    renderInterview()
+    await advance(1000)
+    expect(recorder.start).toHaveBeenCalledOnce()
+    recorder.status = 'recording'
+    act(() => recorder.refresh())
+    await advance(5000)
+    expect(recorder.stop).not.toHaveBeenCalled()
+    microphone.level = 0.2
+    recorder.transcript = words
+    act(() => recorder.refresh())
+    await advance(1000)
+    microphone.level = 0
+  }
+  function finishTranscript(words: string) {
+    recorder.status = 'finalizing'
+    act(() => recorder.refresh())
+    recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.candidateTranscript = words
+    act(() => recorder.refresh())
+  }
+
+  it('stops capture after 2.5 s of silence, counts down politely, and sends the final transcript', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    await advance(2300)
+    expect(recorder.stop).not.toHaveBeenCalled()
+    await advance(300)
+    expect(recorder.stop).toHaveBeenCalledOnce()
+    finishTranscript('I led the migration.')
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('I led the migration.')
+    const countdown = screen.getByText('Sending in 3…')
+    expect(countdown.closest('[aria-live="polite"]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Keep editing' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Send now' })).toBeEnabled()
+    await advance(1000)
+    expect(screen.getByText('Sending in 2…')).toBeVisible()
+    await advance(1000)
+    expect(screen.getByText('Sending in 1…')).toBeVisible()
+    expect(state.answerText).not.toHaveBeenCalled()
+    await advance(1000)
+    expect(state.answerText).toHaveBeenCalledExactlyOnceWith('I led the migration.')
+  })
+
+  it('sends at once with Send now', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    await advance(2600)
+    finishTranscript('I led the migration.')
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }))
+    await advance(0)
+    expect(state.answerText).toHaveBeenCalledExactlyOnceWith('I led the migration.')
+  })
+
+  it('keeps the text and leaves manual Submit when the candidate chooses Keep editing', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    await advance(2600)
+    finishTranscript('I led the migration.')
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    await advance(10_000)
+    expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+    expect(state.answerText).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('I led the migration.')
+    fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
+    await advance(0)
+    expect(state.answerText).toHaveBeenCalledExactlyOnceWith('I led the migration.')
+  })
+
+  it('cancels the countdown when the candidate edits the answer', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    await advance(2600)
+    finishTranscript('I led the migration.')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'I led the database migration.' } })
+    await advance(10_000)
+    expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+    expect(state.answerText).not.toHaveBeenCalled()
+  })
+
+  it('starts no countdown when the final transcript is blank', async () => {
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet('um')
+    await advance(2600)
+    expect(recorder.stop).toHaveBeenCalledOnce()
+    finishTranscript('')
+    await advance(10_000)
+    expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+    expect(state.answerText).not.toHaveBeenCalled()
+  })
+
+  it('keeps the text after a failed automatic send and does not retry', async () => {
+    state.answerText.mockResolvedValue(false)
+    rememberMicrophone({ handsFree: true })
+    await speakThenGoQuiet()
+    await advance(2600)
+    finishTranscript('I led the migration.')
+    for (const _second of [3, 2, 1]) await advance(1000)
+    expect(state.answerText).toHaveBeenCalledOnce()
+    await advance(10_000)
+    expect(state.answerText).toHaveBeenCalledOnce()
+    expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('I led the migration.')
+  })
+
+  it.each([['off', { handsFree: false }, 'browser'], ['in recorded mode', { handsFree: true }, 'recorded']])('never ends an answer on silence when hands-free is %s', async (_label, settings, transcription) => {
+    rememberMicrophone(settings, transcription)
+    await speakThenGoQuiet()
+    await advance(10_000)
+    expect(recorder.stop).not.toHaveBeenCalled()
+    expect(screen.queryByText(/Sending in/)).not.toBeInTheDocument()
+  })
+})
+
+describe('hands-free setting', () => {
+  it('turns automatic capture on with hands-free in the room, and hands-free off with automatic capture', async () => {
+    renderInterview()
+    await userEvent.click(screen.getByRole('button', { name: 'Interview settings' }))
+    const handsFree = screen.getByRole('switch', { name: 'Hands-free mode' })
+    const automatic = screen.getByRole('switch', { name: 'Turn the microphone on automatically' })
+    expect(handsFree).not.toBeChecked()
+    await userEvent.click(handsFree)
+    expect(handsFree).toBeChecked()
+    expect(automatic).toBeChecked()
+    await userEvent.click(automatic)
+    expect(automatic).not.toBeChecked()
+    expect(handsFree).not.toBeChecked()
+  })
+
+  it('disables hands-free with a reason in recorded mode and keeps the saved choice', async () => {
+    localStorage.setItem('Careerdrafter:interview-microphone:owner', JSON.stringify({ automatic: true, seconds: 0, handsFree: true }))
+    localStorage.setItem('Careerdrafter:interview-transcription:owner', 'recorded')
+    renderInterview()
+    await userEvent.click(screen.getByRole('button', { name: 'Interview settings' }))
+    expect(screen.getByRole('switch', { name: 'Hands-free mode' })).toBeDisabled()
+    expect(screen.getByText(/Hands-free mode needs live transcription/)).toBeVisible()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Answer transcription' }), 'browser')
+    expect(screen.getByRole('switch', { name: 'Hands-free mode' })).toBeEnabled()
+    expect(screen.getByRole('switch', { name: 'Hands-free mode' })).toBeChecked()
+  })
+
+  it('offers hands-free in setup, turning on automatic capture, and disables it for recorded transcription', async () => {
+    stubMicrophoneSupport()
+    await renderPracticeRoleSetup()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
+    const handsFree = within(screen.getByRole('radiogroup', { name: 'Hands-free' }))
+    expect(handsFree.getByRole('radio', { name: 'Off' })).toBeChecked()
+    await userEvent.click(handsFree.getByRole('radio', { name: 'On' }))
+    expect(screen.getByRole('radio', { name: 'Automatic' })).toBeChecked()
+    await userEvent.click(screen.getByRole('radio', { name: 'Tap to start' }))
+    expect(handsFree.getByRole('radio', { name: 'Off' })).toBeChecked()
+    await userEvent.click(screen.getByRole('radio', { name: 'Recorded' }))
+    expect(handsFree.getByRole('radio', { name: 'On' })).toBeDisabled()
+    expect(screen.getByText(/Hands-free mode needs live transcription/)).toBeVisible()
+  })
 })

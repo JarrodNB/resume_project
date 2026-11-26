@@ -3,7 +3,8 @@
  * and briefly announces "Next question ready" when the next reply lands; reloads announce nothing.
  * While the interview is active the workspace enters focus mode: its navigation steps aside.
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
- * Saved server state controls progression; recording, review and submission remain explicit.
+ * Saved server state controls progression; recording, review and submission remain explicit, except that
+ * optional hands-free mode pauses on silence and sends after a countdown the candidate can stop.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
@@ -39,6 +40,7 @@ import { BrowserInterviewSpeech } from './BrowserInterviewSpeech'
 import { InterviewAudio } from './InterviewAudio'
 import { useAutomaticMicrophone } from './useAutomaticMicrophone'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
+import { useHandsFreeAnswer } from './useHandsFreeAnswer'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { finishInterviewTiming, keyInterviewTiming, startInterviewTiming } from './interviewLatency'
 import type { TranscriptionMode } from './transcriptionCapture'
@@ -94,6 +96,8 @@ function OwnedInterview({ id }: { id: string }) {
   const [pendingTranscriptionMode, setPendingTranscriptionMode] = useState<TranscriptionMode | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
   const microphone = useInterviewMicSettings(user?.id ?? '')
+  // The saved hands-free choice is kept but inactive while recorded transcription is chosen.
+  const handsFree = useHandsFreeAnswer({ enabled: microphone.handsFree && transcriptionMode !== 'recorded', silenceSeconds: microphone.silenceSeconds, recorder, stop: answer.stop })
   const [pageVisible, setPageVisible] = useState(!document.hidden)
   useEffect(() => {
     const changed = () => setPageVisible(!document.hidden)
@@ -254,8 +258,9 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p><PlanEndedHint failureCode={currentTurn.failureCode} />{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
-      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
+      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={(text) => { handsFree.endCountdown(); answer.edit(text) }}
         capturing={answer.capturing}
+        autoSend={handsFree.countingDown} onAutoSendEnd={handsFree.endCountdown}
         disabled={!canRecord}
         onSubmit={async (text) => { const saved = await answer.submit(text); if (saved) setAnswerSubmitted(true); return saved }} />
       {recorder.recording && <div className="flex flex-wrap gap-3 [&_button]:min-h-11">

@@ -133,6 +133,15 @@ RSpec.describe InterviewPrep::ActiveAnswer do
     end
   end
 
+  fixture.fetch("feedback_cases").each do |example|
+    it "decides whether feedback has anything to show: #{example['name']}" do
+      expect(described_class.feedback_present?(example["feedback"])).to be(example["present"])
+      question = set.questions.create!(position: 1, question_text: "Q?", answer_text: "Done", feedback: example["feedback"],
+        feedback_question_revision: 1, feedback_answer_revision: 0)
+      expect(described_class.progress(question)).to eq(example["present"] ? :reviewed : :answered)
+    end
+  end
+
   # Review digests already saved in production were made with squish.downcase; they must keep matching.
   it "normalizes exactly like the old squish.downcase digest input" do
     inputs = fixture.fetch("answers").map { |example| example["text"] } +

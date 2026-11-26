@@ -4,7 +4,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { normalizeAnswerDrafts } from './answerFormats'
 import { renderPage as renderRoutedPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
@@ -125,6 +125,44 @@ it('requires answered replacement confirmation and preserves content on queue fa
   fireEvent.click(screen.getByRole('button', { name: 'Replace question' }))
   expect(await screen.findAllByText('Queue unavailable')).toHaveLength(2)
   expect(screen.getByLabelText('Your answer')).toHaveValue('Saved answer')
+})
+
+/** Mocks a replacement that queues successfully. */
+function replaceSuccess(onCalled: () => void = () => {}) {
+  const task = { __typename: 'AiTask', id: 'tr', status: 'QUEUED', taskType: 'REGENERATE_INTERVIEW_QUESTION', errorMessage: null }
+  return { request: { query: REGENERATE_INTERVIEW_QUESTION, variables: { questionSetId: 's1', questionId: 'q1', confirmed: true } }, result: () => { onCalled(); return { data: { regenerateInterviewQuestion: { __typename: 'RegenerateInterviewQuestionPayload', errors: [], aiTask: task } } } } }
+}
+
+// Only the active answer counts, like the server: text in an inactive format draft earns no dialog.
+it('replaces without a dialog when only an inactive format draft has text', async () => {
+  const replaced = vi.fn()
+  const inactiveOnly = detail('')
+  const saved = inactiveOnly.result.data.interviewQuestionSet.questions[0]
+  saved.answerFormat = 'star'
+  saved.answerDrafts = { ...normalizeAnswerDrafts(undefined, ''), plain_text: { text: 'Old draft words' } }
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [inactiveOnly, replaceSuccess(replaced), inactiveOnly] })
+  await screen.findByLabelText('Answer format')
+  await chooseAction('Replace question')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await waitFor(() => expect(replaced).toHaveBeenCalledTimes(1))
+})
+
+it('promises a kept copy only when the saved question is answered', async () => {
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail()] })
+  await openAnswer()
+  await chooseAction('Replace question')
+  expect(screen.getByRole('dialog')).toHaveTextContent('are kept under “Answers from replaced questions”')
+  expect(screen.getByRole('dialog')).not.toHaveTextContent('Unsaved changes will be lost')
+})
+
+it('asks before discarding unsaved edits on an unanswered question, without promising a kept copy', async () => {
+  renderPage({ path: ROUTE, url: '/practice/questions', element: <AnswerBank />, mocks: [detail('')] })
+  fireEvent.change(await openAnswer(), { target: { value: 'Half-written thought' } })
+  await chooseAction('Replace question')
+  const dialog = screen.getByRole('dialog')
+  expect(dialog).toHaveTextContent('Unsaved changes will be lost')
+  expect(dialog).toHaveTextContent('nothing is kept')
+  expect(dialog).not.toHaveTextContent('Answers from replaced questions')
 })
 
 it('restores replacement progress and disables editing and conflicting controls', async () => {

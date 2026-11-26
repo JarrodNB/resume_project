@@ -64,12 +64,21 @@ module InterviewPrep
       Digest::SHA256.hexdigest(normalize(text))
     end
 
+    # Whether saved coaching has anything to show. Same rule as the web's hasFeedback() in
+    # apps/web/src/features/interview-prep/questionProgress.ts; the saved shape is validated on apply.
+    def self.feedback_present?(feedback)
+      return false unless feedback.is_a?(Hash)
+
+      %w[strengths improvements].any? { |key| feedback[key].is_a?(Array) && feedback[key].any? } ||
+        feedback["example_answer"].is_a?(String)
+    end
+
     # True when saved feedback no longer matches the question and active answer.
     # Exact revisions are authoritative; a formatting-only edit in the same format reuses the feedback
     # when the completed review task's saved fingerprint still matches. Chat's practice tools use a
     # stricter exact-revision copy (practice_feedback_status in services/ai/mcp_tools/interview_questions.py).
     def self.feedback_outdated?(question)
-      return false if question.feedback.blank?
+      return false unless feedback_present?(question.feedback)
       return true if question.feedback_question_revision != question.question_revision
       return true if question.feedback_answer_revision.to_i < question.answer_format_revision
       return false if question.feedback_answer_revision == question.answer_revision
@@ -88,12 +97,12 @@ module InterviewPrep
 
     # Where the question sits on its answer → feedback line, from saved state and the latest task.
     # Returns :unanswered, :answered (no feedback yet), :reviewing, :reviewed or :outdated.
-    def self.progress(question, latest_task: nil)
+    def self.progress(question, latest_task: nil, outdated: -> { feedback_outdated?(question) })
       return :reviewing if latest_task&.task_type == "review_interview_answer" && latest_task.status == "queued"
       return :unanswered unless answered?(question)
-      return :answered if question.feedback.blank?
+      return :answered unless feedback_present?(question.feedback)
 
-      feedback_outdated?(question) ? :outdated : :reviewed
+      outdated.call ? :outdated : :reviewed
     end
   end
 end

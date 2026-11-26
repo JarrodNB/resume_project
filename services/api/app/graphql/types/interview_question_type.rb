@@ -36,13 +36,18 @@ module Types
     end
 
     # Returns the latest question operation, including failures.
+    # Remembered on this type instance (one per question per request) so `progress` reuses it.
     def latest_task
-      object.ai_tasks.order(created_at: :desc, id: :desc).first
+      return @latest_task if defined?(@latest_task)
+
+      @latest_task = object.ai_tasks.order(created_at: :desc, id: :desc).first
     end
 
     # Checks reviewed revisions and allows capitalization or whitespace changes.
     def feedback_outdated
-      ::InterviewPrep::ActiveAnswer.feedback_outdated?(object)
+      return @feedback_outdated if defined?(@feedback_outdated)
+
+      @feedback_outdated = ::InterviewPrep::ActiveAnswer.feedback_outdated?(object)
     end
 
     def answered
@@ -50,7 +55,7 @@ module Types
     end
 
     def progress
-      ::InterviewPrep::ActiveAnswer.progress(object, latest_task: latest_task).to_s
+      ::InterviewPrep::ActiveAnswer.progress(object, latest_task: latest_task, outdated: -> { feedback_outdated }).to_s
     end
   end
 end

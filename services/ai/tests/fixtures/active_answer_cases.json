@@ -267,5 +267,14 @@
       "b": "one two",
       "same": false
     }
+  ],
+  "feedback_cases": [
+    {"name": "empty feedback", "feedback": {}, "present": false},
+    {"name": "empty strengths and improvements", "feedback": {"strengths": [], "improvements": []}, "present": false},
+    {"name": "strengths only", "feedback": {"strengths": ["Clear"], "improvements": []}, "present": true},
+    {"name": "improvements only", "feedback": {"strengths": [], "improvements": ["Add a result"]}, "present": true},
+    {"name": "example answer only", "feedback": {"strengths": [], "improvements": [], "example_answer": "I did it."}, "present": true},
+    {"name": "empty example answer still counts", "feedback": {"example_answer": ""}, "present": true},
+    {"name": "wrong types do not count", "feedback": {"example_answer": null, "strengths": "Clear"}, "present": false}
   ]
 }

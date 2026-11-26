@@ -52,6 +52,9 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
   const anchoring = task?.status === 'QUEUED' && task.taskType === 'GENERATE_INTERVIEW_MEMORY_ANCHOR'
   const reviewing = task?.status === 'QUEUED' && task.taskType === 'REVIEW_INTERVIEW_ANSWER'
   const feedbackForVersion = !question.feedbackOutdated && question.feedbackQuestionRevision === question.questionRevision && question.feedbackAnswerRevision === question.answerRevision
+  // Same rule as the server (only an answered question keeps a retired copy; inactive format drafts do not count).
+  // Also ask when typed text or other unsaved edits would be lost.
+  const needsReplaceConfirmation = question.answered || !isBlankAnswer(answer) || dirty
   useEffect(() => { onDirty(question.id, dirty) }, [question.id, dirty, onDirty])
   // Reconcile external saved revisions without replacing a locally edited draft.
   if (question.questionRevision !== revision) {
@@ -106,7 +109,7 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
           <Button variant="ghost" size="icon-sm" aria-label="Question actions"><Ellipsis /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {!manual && <DropdownMenuItem disabled={!!busy || replacing || reviewing || anchoring} onSelect={() => { if (Object.values(draft.drafts).some((fields) => Object.values(fields).some((text) => text.trim())) || Object.values(saved.drafts).some((fields) => Object.values(fields).some((text) => text.trim()))) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>}
+          {!manual && <DropdownMenuItem disabled={!!busy || replacing || reviewing || anchoring} onSelect={() => { if (needsReplaceConfirmation) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>}
           <DropdownMenuItem disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onSelect={() => void avoidance.save()}>
             {avoidance.saved ? 'Hidden from new questions' : "Don't show this again"}
           </DropdownMenuItem>
@@ -159,7 +162,7 @@ export function InterviewQuestionCard({ question, setId, manual, refetch, onDirt
       </div>
       <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated || feedbackDraftChanged} unsavedChanges={feedbackDraftChanged} />
     </div>
-    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer, memory anchor, and feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><MutationErrorAlert title="Couldn't replace question" errors={errors} errorCode={errorCode} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>{question.answered ? 'Your saved answer, memory anchor, and feedback are kept under “Answers from replaced questions” on the practice page.' : 'This question has no saved answer, so nothing is kept.'}{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><MutationErrorAlert title="Couldn't replace question" errors={errors} errorCode={errorCode} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
     <DeleteQuestionDialog setId={setId} questionId={question.id} questionText={question.questionText} dirty={dirty} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onDeleted} />
   </article>
 }

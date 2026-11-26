@@ -94,7 +94,7 @@ screening, budget, or queue failure therefore preserves a valid submitted answer
 Enqueue preparation, answer saving, deletion, and result application serialize on the owner
 lock. Result application takes the owner lock before the task lock. Only one queued replacement
 or feedback operation may run per question; replacement blocks answer saving, while pending
-feedback permits edits. Replacing an answered question requires `confirmed: true`.
+feedback permits edits. Replacing an answered question requires `confirmed: true`. The web asks only when the saved question is answered or unsaved edits would be lost, and its dialog promises a kept copy only in the answered case.
 
 Result services ask `InterviewPrep::PracticeTaskFence` whether the task is still current; the
 fence also builds the commands that Start queues. It checks ownership, subject/set/question

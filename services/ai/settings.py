@@ -72,8 +72,9 @@ class AISettings(BaseSettings):
     user_text_screen_llm_model: str = DEFAULT_SCREEN_LLM_MODEL
     user_text_screen_timeout_seconds: float = Field(default=30, gt=0)
     # Live synthetic comparison: same decisions as 2000, with fewer requests and lower latency.
-    # Keep both sizes available for repeat evaluation; overlap is 300 characters.
-    user_text_screen_chunk_size: int = 6000
+    # Keep both sizes available for repeat evaluation; overlap is 300 characters, so a chunk must
+    # be longer than that or the screening loop would never advance (and would allow all text).
+    user_text_screen_chunk_size: int = Field(default=6000, gt=300)
 
     @field_validator("user_text_screen_model", "user_text_screen_fallback_model")
     @classmethod

@@ -5,6 +5,7 @@ import type { MockLink } from '@apollo/client/testing'
 import type { InterviewSetupInput } from '@/graphql/generated/graphql'
 import { JOB_QUERY } from '@/features/jobs/jobsOperations'
 import { renderPage } from '@/test/renderPage'
+import { PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
 import { InterviewSetup } from './InterviewSetup'
 import { JobWorkspaceLayout } from '@/features/jobs/JobWorkspaceLayout'
 import { JobInterviewTab } from './JobInterviewTab'
@@ -72,6 +73,6 @@ it('links to Plan & billing when starting is refused because the trial ended', a
   mount([startMock(defaultSetup, refuse)])
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Trial over.')
+  expect(await screen.findByRole('alert')).toHaveTextContent(PLAN_ENDED_MESSAGE)
   expect(screen.getByRole('link', { name: 'Plan & billing' })).toHaveAttribute('href', '/account/billing')
 })

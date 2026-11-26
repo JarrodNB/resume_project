@@ -301,7 +301,8 @@ it('refreshes both saved drafts after feedback failure while preserving newer cu
   fireEvent.change(cue, { target: { value: 'Newer cue' } })
   expect(await screen.findByText('Monthly allowance exhausted')).toBeInTheDocument()
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled())
-  expect(answer).toHaveValue('Submitted answer')
+  // The saved-detail refetch can land after the button re-enables when tests run in parallel.
+  await waitFor(() => expect(answer).toHaveValue('Submitted answer'))
   expect(cue).toHaveValue('Newer cue')
   expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 })

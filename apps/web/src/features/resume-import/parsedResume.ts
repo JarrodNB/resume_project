@@ -92,8 +92,8 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
 }
 
 /** Reads structured or legacy string-only links and makes bare web addresses valid URLs.
- * Links with a scheme other than http or https (such as javascript:) are dropped, because the
- * text comes from an uploaded file and the URL is later opened or put into exported files. */
+ * Only http and https links are kept (anything else, such as javascript:, is dropped), because
+ * the text comes from an uploaded file and the URL is later opened or put into exported files. */
 export function parsedLinks(value: unknown): ParsedLink[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((link) => {
@@ -107,7 +107,7 @@ export function parsedLinks(value: unknown): ParsedLink[] {
 }
 
 function withSafeUrl(link: ParsedLink): ParsedLink[] {
-  return hasUrlScheme(link.url) && !isWebUrl(link.url) ? [] : [link]
+  return isWebUrl(link.url) ? [link] : []
 }
 
 /** Adds the conventional secure scheme when an extracted link is a bare domain address. */

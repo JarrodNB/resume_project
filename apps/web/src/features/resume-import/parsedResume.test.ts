@@ -40,6 +40,10 @@ it('drops imported links whose scheme is not http or https', () => {
     { label: 'Click me', url: 'javascript:alert(1)' },
     { label: 'Data', url: 'data:text/html,<b>x</b>' },
     'JavaScript:alert(1)',
+    'java\tscript:alert(1)',
+    { label: 'Newline', url: 'java\nscript:alert(1)' },
+    { label: 'Control', url: '\u0001javascript:alert(1)' },
+    'mailto:jane@example.com',
     { label: 'Site', url: 'https://example.com/me' },
   ])).toEqual([{ label: 'Site', url: 'https://example.com/me' }])
 })

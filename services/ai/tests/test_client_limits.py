@@ -62,18 +62,65 @@ def test_signed_in_sockets_are_never_counted_as_failures():
 
 def test_idle_clients_are_forgotten():
     limits = ClientLimits(max_pending=1, max_failures=1)
-    limits.admit("a").close()
     limits.admit("b").authorized()
     limits.admit("c")  # still pending
 
-    assert "a" in limits._failures and "b" not in limits._pending
-    assert "c" in limits._pending
+    assert "b" not in limits._pending and "c" in limits._pending
+
+
+def test_quiet_addresses_are_dropped_by_the_sweep_so_the_table_cannot_grow_forever(monkeypatch):
+    monkeypatch.setattr("routes.client_limits.SWEEP_EVERY_ADMITS", 4)
+    clock = FakeClock()
+    limits = ClientLimits(window_seconds=60, clock=clock)
+    for number in range(10):
+        limits.admit(f"198.51.100.{number}").close()
+    assert len(limits._failures) == 10
+    clock.now += 61
+
+    for _ in range(4):
+        limits.admit("203.0.113.1").authorized()
+
+    assert not limits._failures
+
+
+def test_past_the_tracking_limit_new_addresses_share_one_budget():
+    limits = ClientLimits(max_failures=2, max_tracked=3)
+    for number in range(3):
+        limits.admit(f"198.51.100.{number}").close()  # three tracked addresses
+
+    limits.admit("203.0.113.1").close()
+    limits.admit("203.0.113.2").close()  # different new addresses, one shared budget now used up
+
+    assert limits.admit("203.0.113.3") is None
+    assert limits.admit("198.51.100.0") is not None  # an already tracked address keeps its own budget
+
+
+def test_ticket_calls_are_safe_to_repeat():
+    limits = ClientLimits(max_pending=1)
+    ticket = limits.admit("a")
+    ticket.authorized()
+    ticket.authorized()
+    ticket.close()
+    ticket.close()
+
+    assert limits._pending.get("a", 0) == 0
+    assert limits.admit("a") is not None
 
 
 def test_client_key_prefers_the_first_forwarded_address():
     assert client_key(FakeSocket({"x-forwarded-for": "203.0.113.7, 10.0.0.2"})) == "203.0.113.7"
     assert client_key(FakeSocket({})) == "10.0.0.9"
-    assert client_key(FakeSocket({}, host=None)) == "unknown"
+    assert client_key(FakeSocket({}, host=None)) == "invalid"
+
+
+def test_ipv6_addresses_count_as_their_whole_64_and_garbage_shares_one_bucket():
+    first = client_key(FakeSocket({"x-forwarded-for": "2001:db8:1:2::1"}))
+    other = client_key(FakeSocket({"x-forwarded-for": "2001:db8:1:2:ffff:ffff:ffff:ffff"}))
+    assert first == other == "2001:db8:1:2::/64"
+    assert client_key(FakeSocket({"x-forwarded-for": "2001:db8:1:3::1"})) != first
+    assert client_key(FakeSocket({"x-forwarded-for": "::ffff:203.0.113.7"})) == "203.0.113.7"
+    for garbage in ["not an address", "a" * 5000, "<script>"]:
+        assert client_key(FakeSocket({"x-forwarded-for": garbage})) == "invalid"
 
 
 class RefusingOwner:
@@ -113,3 +160,17 @@ def test_wrong_tokens_stop_reaching_rails_after_the_failure_limit(path):
 
     assert refused.value.code == REFUSED_CLOSE_CODE
     assert owner.calls == calls_before == 3  # the refused socket never reached Rails
+
+
+def test_a_socket_that_disconnects_before_sending_a_token_releases_its_slot():
+    owner = RefusingOwner()
+    app = FastAPI()
+    app.state.capture_owner = owner
+    limits = ClientLimits(max_pending=1)
+    install_streaming(app, allowed_origins={"http://allowed"}, api_key="not-sent", limits=limits)
+
+    with TestClient(app) as client:
+        with connect(client, "/interview-transcription/stream"):
+            pass  # disconnects without sending a token
+
+    assert limits._pending.get("203.0.113.7", 0) == 0

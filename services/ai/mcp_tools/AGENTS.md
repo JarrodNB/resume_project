@@ -42,4 +42,11 @@ call it. See docs/architecture/chat.md#tools-mcp for the design.
 - Tests run the real HTTP app through `local_server.py`; never call a running `ai-mcp`.
 
 - `saved_jobs.py` — active saved-job list server/client halves and compact signed owner/operation-bound references; references expire with the issuing token and require no replica-local state.
+- `interview_questions.py` — `list_interview_questions`: active practice-question list with
+  set labels, answer and feedback status, and signed `Q-` question references; blocked
+  questions are left out with a note. Also `read_interview_question`: one referenced owned
+  active question with its formatted answer and feedback only while current; question and
+  answer are screened, stored feedback is not, and any failure shows none of the entry.
+- `references.py` — shared signer for operation-bound, expiring record references; each
+  record kind has its own prefix and scope, so references never cross kinds.
 - `saved_jobs.py` also implements `read_job_summary`, validating selection references before independently owned active reads and caller screening. `select_screened_saved_jobs` screens chat's recent-job context per job.

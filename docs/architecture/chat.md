@@ -2,7 +2,9 @@
 
 Chat is a career-focused text conversation. Users can create and reopen multiple
 private conversations from the Chat page. It uses the dialogue the user provides and
-read-only tools for the career library and active saved-job postings. A chat-local
+read-only tools for the career library, active saved-job postings and saved interview
+practice questions (a list, and one selected question with its answer and current
+feedback). A chat-local
 `save_career_context` tool stages user-requested new career contexts. Attachments
 and other app actions are not available.
 
@@ -193,8 +195,9 @@ JSON string values per field. Chat returns these in `record_screening` on final
 acceptance.
 Rails accepts them only under the current operation fence and owner lock, then
 `Screening::RecordApprovalsService` compares each fingerprint with the owned record
-under its row lock. Chat acceptance explicitly enables owned active-job approvals after
-its locked claim fences; other taskless callers can approve only career-library records. A stale
+under its row lock. Chat acceptance explicitly enables owned active-job and owned
+active interview-question approvals after its locked claim fences; other taskless callers
+can approve only career-library records. A stale
 value earns no approval. Receipts participate in acceptance replay identity. Failed
 or stale operations save no approvals; ordinary edits still clear changed checks.
 
@@ -255,6 +258,70 @@ Chat acceptance sends at most 500 optional approval receipts across all tools. A
 used fields are screened before the model sees them, including fields whose receipts
 do not fit. Excess receipts are omitted from persistence only; those fields may need
 screening again on a later turn. The reply and its source facts remain complete.
+
+### Saved practice-question list
+
+`list_interview_questions-v1` (`mcp_tools/interview_questions.py`) lists the token
+owner's active interview practice questions: retired copies of replaced slots are left
+out in SQL (`database/interview_question_bank.py`, joined to the owner's sets). Order is
+newest practice set first (set created time, then ID), then slot. Each entry shows the set
+number and readable set type (for example "Fit and motivation"), slot, question text,
+whether an answer is saved, the feedback status and a question reference. Answers,
+feedback text and raw IDs are not returned.
+
+Feedback is "current" only when saved feedback is non-empty and its question and answer
+revisions equal the question's current ones (a format change always bumps the answer
+revision, so this also covers the answer-format revision). Otherwise saved feedback is "out of date"; no feedback is "none".
+This is stricter than the app's `FeedbackOutdatedService`, which also accepts
+formatting-only answer edits by reading the review task; chat says "out of date" there.
+
+The list keeps the newest whole questions that fit 40,000 rendered characters (about 150
+questions) and at most 500, and says how many older ones are not shown; only screening
+those kept. One question too large to show on its own produces a limit sentence. An empty
+bank is stated plainly. Database failures return only
+the short `interview_questions_unavailable` error, which the model sees as a plain sentence.
+Saved `question_text` approvals are reused; unchecked questions are screened together with
+the operation's accounted screen. If that batch is blocked, already approved questions stay
+listed, and only the unchecked ones are split in halves to find
+the blocked questions (about two checks per halving level, not one per question, and at most
+24 extra checks per list); blocked ones are left out with a note and the rest are still
+listed. If a rejected batch's halves each pass alone, the batch stays blocked, since the
+classifier rejected that combined text, and the halves' approvals are rolled back (`checkpoint_record_approvals` in
+`screening/records.py`) so a later turn checks them again. A sub-batch whose check could not finish, or that
+the extra-check limit did not reach, is left out whole with a separate "could not finish" note. Unavailable screening
+for the first batch shows none of the list. Receipts carry the question revision; Rails approves
+them only for the owner's active questions whose current text and revisions still match.
+
+Question references use the shared signer in `mcp_tools/references.py`, like job
+references, but with their own `Q-` prefix and scope string, so a job reference never
+resolves as a question. The chat eval runner serves synthetic questions from the local
+tool server and records which tools' readers ran for its `tool_use_policy` check.
+
+### Selected saved practice question
+
+`read_interview_question(question_reference)` (`read_interview_question-v1`, same file as
+the list) resolves a `Q-` reference from `list_interview_questions` in this operation, bound
+to the owner, operation and expiry. Job references, malformed or expired references and
+references from another user or operation are refused with the short
+`interview_question_unavailable` error before any read; database failures return the same
+code. It then independently reads the owner's active question
+(`database/interview_question_bank.py`); a missing, retired or other-owner question is
+"no longer available". It never reads answer drafts.
+
+The labeled text shows the set number and type, slot, question, answer format (Plain text,
+STAR, CAR or CARL) and the saved answer, which is already stored in its selected format
+with labeled parts such as "Situation: ...", or "No answer saved yet". Saved feedback
+(strengths, improvements and example answer; evidence quotes are left out) is shown only
+when it is current by the list's rule. Otherwise a sentence says the feedback is out of date
+and not shown, or that there is none. The whole result must fit 40,000 characters.
+
+Saved `question_text` and `answer_text` approvals are reused; unchecked ones are screened
+together with the operation's accounted screen. Feedback is model-generated text Rails stored
+after review, so it is not screened again. A blocked or unavailable check shows none of the
+entry. The question's receipt carries its question revision (so a check made by the list
+is reused); the answer's receipt carries both question and answer revisions, and Rails
+approves `answer_text` from chat only when both still match. Chat is told to read a
+question before critiquing its saved answer and to ask which one when several could match.
 
 ### Saving career context
 

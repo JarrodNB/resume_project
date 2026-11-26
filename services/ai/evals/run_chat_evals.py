@@ -26,12 +26,19 @@ from evals.chat_evaluators import (
 from evals.telemetry import evaluate_dataset
 from mcp_tools.career_library import READ_CAREER_LIBRARY
 from mcp_tools.client import ToolServerConnection
+from mcp_tools.interview_questions import LIST_INTERVIEW_QUESTIONS, READ_INTERVIEW_QUESTION
 from mcp_tools.local_server import serve_in_background
 from mcp_tools.saved_jobs import LIST_SAVED_JOBS, READ_JOB_SUMMARY
 from mcp_tools.server import create_mcp_server
 from prompts.chat_instructions import CHAT_PROMPT_VERSION
 from prompts.chat_summary_instructions import CHAT_SUMMARY_PROMPT_VERSION
 from settings import load_settings
+
+
+def practice_question_row(question):
+    """Fill the flags the database reader computes from a synthetic answer and feedback."""
+    return {"answered": bool((question.get("answer_text") or "").strip()),
+            "has_feedback": bool(question.get("feedback"))} | question
 
 
 def load_chat_dataset():
@@ -91,13 +98,18 @@ async def execute_chat_case(case, *, models=None):
         return read_and_record
 
     async def execute(model_pool):
-        # Evals never read the database: a local tool server serves the case's synthetic library.
+        # Evals never read the database: a local tool server serves the case's synthetic data.
         secret = secrets.token_urlsafe(48)
         server = create_mcp_server(secret=secret,
             read_library=recorded(READ_CAREER_LIBRARY, lambda user_id: case.career_library),
             read_jobs=recorded(LIST_SAVED_JOBS, lambda user_id: case.saved_jobs),
             read_job_summary=recorded(READ_JOB_SUMMARY,
-                lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None)))
+                lambda user_id, job_id: next((job for job in case.saved_jobs if job["id"] == job_id), None)),
+            read_interview_questions=recorded(LIST_INTERVIEW_QUESTIONS,
+                lambda user_id: [practice_question_row(question) for question in case.interview_questions]),
+            read_interview_question=recorded(READ_INTERVIEW_QUESTION,
+                lambda user_id, question_id: next((practice_question_row(question)
+                    for question in case.interview_questions if question["id"] == question_id), None)))
         with serve_in_background(server.http_app(path="/mcp", stateless_http=True)) as url:
             await ChatExecutionAdapter(owner, model_pool,
                 tool_server=ToolServerConnection(url=url, secret=secret), context_save_check=check_context).execute(current, None)

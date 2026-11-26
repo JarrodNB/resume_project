@@ -223,6 +223,47 @@ RSpec.describe Screening::RecordApprovalsService do
       end
     end
 
+    describe "chat acceptance" do
+      def record_for_chat(reports, owner: user)
+        described_class.call(user: owner, reports: reports, context: :chat)
+      end
+
+      it "approves the owner's active question text and answer at their current revisions" do
+        expect(record_for_chat([ question_receipt ])).to be_success
+        expect(question.reload.screened_fields).to match_array(%w[question_text answer_text])
+      end
+
+      it "ignores another user's question" do
+        expect(record_for_chat([ question_receipt ], owner: create(:user))).to be_success
+        expect(question.reload.screened_fields).to eq([])
+      end
+
+      it "ignores a retired question" do
+        report = question_receipt
+        question.update!(retired_at: Time.current, position: nil)
+        expect(record_for_chat([ report ])).to be_success
+        expect(question.reload.screened_fields).to eq([])
+      end
+
+      it "gives stale text or revisions no approval" do
+        edited = question_receipt(question, [ "question_text" ])
+        question.update!(question_text: "Describe a different challenge?")
+        wrong_question = question_receipt.merge("revision" => { "question_revision" => question.question_revision + 1,
+                                                                "answer_revision" => question.answer_revision })
+        wrong_answer = question_receipt.merge("revision" => { "question_revision" => question.question_revision,
+                                                              "answer_revision" => question.answer_revision + 1 })
+        expect(record_for_chat([ edited, wrong_question, question_receipt.except("revision") ])).to be_success
+        expect(question.reload.screened_fields).to eq([])
+        expect(record_for_chat([ wrong_answer ])).to be_success
+        expect(question.reload.screened_fields).to eq([ "question_text" ])
+      end
+
+      it "needs the chat context" do
+        expect(record([ question_receipt ])).to be_success
+        expect(question.reload.screened_fields).to eq([])
+      end
+    end
+
     it "ignores questions outside the task's set" do
       other_set = user.interview_question_sets.create!(number: 2)
       other = other_set.questions.create!(position: 1, question_text: question.question_text)

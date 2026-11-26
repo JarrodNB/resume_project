@@ -10,8 +10,8 @@ module AiUsage
 
     def call
       totals = Hash.new { |hash, key| hash[key] = { cost: 0, requests: 0 } }
-      add_rows(totals, @user.ai_tasks)
-      add_rows(totals, @user.ai_embedding_requests)
+      add_task_rows(totals)
+      add_embedding_rows(totals)
       # Always write in the same order, so two accounts deleted at once can't wait on each other's rows.
       totals.sort_by { |(spend_date, counts_toward_trial_budget), _| [ spend_date, counts_toward_trial_budget ? 1 : 0 ] }.each do |(spend_date, counts_toward_trial_budget), amount|
         DeletedAccountAiSpend.add(spend_date: spend_date, counts_toward_trial_budget: counts_toward_trial_budget,
@@ -22,14 +22,24 @@ module AiUsage
 
     private
 
+    # Task charges are only written under the user's lock, which the deletion already holds.
     # Unknown costs are not counted, the same as in the daily caps.
-    def add_rows(totals, relation)
-      relation.group(Arel.sql("created_at::date"), :counts_toward_trial_budget)
-              .pluck(Arel.sql("created_at::date"), :counts_toward_trial_budget, Arel.sql("COALESCE(SUM(cost_microdollars), 0)"), Arel.sql("COUNT(*)"))
-              .each do |spend_date, counts, cost, requests|
-        totals[[ spend_date, counts ]][:cost] += cost
-        totals[[ spend_date, counts ]][:requests] += requests
-      end
+    def add_task_rows(totals)
+      @user.ai_tasks.group(Arel.sql("created_at::date"), :counts_toward_trial_budget)
+           .pluck(Arel.sql("created_at::date"), :counts_toward_trial_budget, Arel.sql("COALESCE(SUM(cost_microdollars), 0)"), Arel.sql("COUNT(*)"))
+           .each { |spend_date, counts, cost, requests| add_to(totals, spend_date, counts, cost, requests) }
+    end
+
+    # Embedding charges are finalized on another connection that locks only the receipt, so lock the
+    # receipts first: a charge being finalized then lands before this read, or finds nothing after the delete.
+    def add_embedding_rows(totals)
+      @user.ai_embedding_requests.order(:id).lock.pluck(:created_at, :counts_toward_trial_budget, :cost_microdollars)
+           .each { |created_at, counts, cost| add_to(totals, created_at.utc.to_date, counts, cost.to_i, 1) }
+    end
+
+    def add_to(totals, spend_date, counts, cost, requests)
+      totals[[ spend_date, counts ]][:cost] += cost
+      totals[[ spend_date, counts ]][:requests] += requests
     end
   end
 end

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import SparkMD5 from 'spark-md5'
 import { PLAN_ENDED_ERROR_CODE, PlanEndedError } from '@/lib/planEnded'
-import type { InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
+import type { ConversationModeEnum, InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION, SKIP_QUESTION } from './interviewOperations'
 import type { TranscriptionMode } from './transcriptionCapture'
@@ -25,8 +25,8 @@ export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
   const [error, setError] = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<string | null>(null)
-  /** Starts preparation; `conversationMode` is `turn_based` (default) or `live`. */
-  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string, conversationMode = 'turn_based') {
+  /** Starts preparation; `conversationMode` is `TURN_BASED` (default) or `LIVE`. */
+  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string, conversationMode: ConversationModeEnum = 'TURN_BASED') {
     setError(null)
     setErrorCode(null)
     try {

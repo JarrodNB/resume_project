@@ -30,7 +30,7 @@ const turn = (status: string) => ({ __typename: 'InterviewSessionOperation' as c
   failureCode: null, checkpoint: null, submissionKey: 'key', canRetry: false, reviewTranscript: null, expectedRevision: 0 })
 const opening = message('opening', 'opening', 'Describe a project.')
 function snapshot(status: string, messages = [opening], speechPlaybackMode = 'browser', currentQuestionPosition = 0) {
-  return { __typename: 'InterviewSession', id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'real', speechPlaybackMode,
+  return { __typename: 'InterviewSession', id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'TURN_BASED', executionMode: 'real', speechPlaybackMode,
     preparedRole: {}, revision: 1, answerCap: 2, currentQuestionPosition, expiresAt: '2026-12-01T00:00:00Z', feedback: null, jobContext: null,
     setup: null, questions: [question, lastQuestion], messages, operations: [turn(status)] } as unknown as InterviewSnapshotFragment
 }

@@ -10,7 +10,7 @@ import { RETRY_OPERATION, ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIE
 const snapshot = {
   feedback: null, jobContext: null,
   setup: { __typename: 'InterviewSetup' as const, questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
+  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'TURN_BASED', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
   questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false, liveFeedback: null }],
   messages: [], operations: [],
 }
@@ -23,14 +23,14 @@ function mount(mocks: MockLink.MockedResponse[]) {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 it('sends only the selected job id and setup when starting job-specific preparation', async () => {
   const setup = { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }
-  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, conversationMode: 'turn_based', jobId: 'job-1' } },
+  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, conversationMode: 'TURN_BASED', jobId: 'job-1' } },
     result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], interview: { ...snapshot, status: 'preparing' } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   await act(async () => { expect(await result.current.start('', setup, 'job-1')).toBe('session') })
   expect(result.current.error).toBeNull()
 })
 it('starts preparation with the selected length and trimmed career focus', async () => {
-  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: 'Laboratory', setup: { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, conversationMode: 'turn_based' } },
+  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: 'Laboratory', setup: { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, conversationMode: 'TURN_BASED' } },
     result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [],
       interview: { ...snapshot, status: 'preparing', setup: { __typename: 'InterviewSetup', questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] } } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })

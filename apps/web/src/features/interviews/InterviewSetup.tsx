@@ -18,7 +18,7 @@ import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewAnswerSettings } from './InterviewAnswerSettings'
 import { SetupRow, Switch } from './InterviewSetupControls'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
-import { conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_MIN_START_SECONDS, LIVE_QUESTION_COUNTS, typeOptions } from './interviewSetupOptions'
+import { conversationModeChoice, conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_MIN_START_SECONDS, LIVE_QUESTION_COUNTS, typeOptions } from './interviewSetupOptions'
 import { LIVE_INTERVIEW_ALLOWANCE } from './interviewOperations'
 import type { InterviewJob } from './InterviewJobContext'
 
@@ -40,18 +40,19 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
   const [difficulty, setDifficulty] = useState(choice(saved.difficulty, difficultyOptions, 'realistic'))
   const [interviewer, setInterviewer] = useState(choice(saved.interviewer, interviewerOptions, 'daniel'))
   const [focusAreas, setFocusAreas] = useState<string[]>(Array.isArray(saved.focusAreas) ? [...new Set(saved.focusAreas.filter((value): value is string => typeof value === 'string' && Object.hasOwn(focusOptions, value)))] : [])
-  const [conversationMode, setConversationMode] = useState(choice(saved.conversationMode, conversationModeOptions, 'turn_based'))
+  const [conversationMode, setConversationMode] = useState(conversationModeChoice(saved.conversationMode))
   const focusId = useId()
   const liveMinutesId = useId()
-  const live = conversationMode === 'live'
+  const live = conversationMode === 'LIVE'
   const allowance = useQuery(LIVE_INTERVIEW_ALLOWANCE, { skip: !live, fetchPolicy: 'network-only' })
   const liveSeconds = live ? allowance.data?.me.liveInterviewSecondsLeft ?? null : null
   const liveMinutes = liveSeconds === null ? null : Math.floor(liveSeconds / 60)
   const liveBlocked = liveSeconds !== null && liveSeconds < LIVE_MIN_START_SECONDS
   const lengthChoices = live ? lengthOptions.filter((option) => LIVE_QUESTION_COUNTS.includes(Number(option.value))) : lengthOptions
   function changeConversationMode(value: string) {
-    setConversationMode(value)
-    if (value === 'live' && !LIVE_QUESTION_COUNTS.includes(questionCount)) setQuestionCount(8)
+    const mode = conversationModeChoice(value)
+    setConversationMode(mode)
+    if (mode === 'LIVE' && !LIVE_QUESTION_COUNTS.includes(questionCount)) setQuestionCount(8)
   }
   const selected = {
     type: typeOptions.find((item) => item.value === questionFormat) ?? typeOptions[0],

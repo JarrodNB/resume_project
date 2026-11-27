@@ -28,7 +28,7 @@ vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner
 
 const setup = { __typename: 'InterviewSetup', questionCount: 5, questionFormat: 'behavioral', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }
 const snapshot = {
-  __typename: 'InterviewSession', id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'live', executionMode: 'real', speechPlaybackMode: 'browser',
+  __typename: 'InterviewSession', id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'LIVE', executionMode: 'real', speechPlaybackMode: 'browser',
   preparedRole: { title: 'Laboratory technician', responsibilities: [], requirements: [] }, revision: 1, answerCap: 3, currentQuestionPosition: 0, expiresAt: '2099-10-27',
   feedback: null, setup, jobContext: null, questions: [{ id: 'question', content: 'Describe a project.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false, liveFeedback: null }], messages: [], operations: [],
 }
@@ -84,7 +84,7 @@ it('offers a turn-based interview with the same setup when no interviewer joins 
   vi.useRealTimers()
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(router.state.location.pathname).toBe('/practice/interviews/turn-based-session'))
-  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'behavioral', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, undefined, 'turn_based')
+  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'behavioral', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, undefined, 'TURN_BASED')
   expect(live.value.leaveForTurnBased).toHaveBeenCalledOnce() // the abandoned live room never stays active
 })
 
@@ -122,7 +122,7 @@ it('offers the fallback at once when joining fails, keeping a saved job', async 
   renderInterview()
   expect(screen.getByRole('alert')).toHaveTextContent('Live interviews are not configured.')
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
-  await vi.waitFor(() => expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'turn_based'))
+  await vi.waitFor(() => expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'TURN_BASED'))
 })
 
 it('does not offer the fallback once the interviewer has joined', () => {

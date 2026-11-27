@@ -23,7 +23,7 @@ it('offers Turn-based by default and sends it with a practice-role start', () =>
   expect(screen.getByRole('radio', { name: 'Turn-based' })).toBeChecked()
   expect(screen.getByRole('radio', { name: /Full loop/ })).toBeInTheDocument()
   startFromSettings()
-  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8 }), undefined, 'turn_based')
+  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8 }), undefined, 'TURN_BASED')
 })
 
 it('hides the twelve-question length for Live and moves a full loop to eight questions', () => {
@@ -33,7 +33,7 @@ it('hides the twelve-question length for Live and moves a full loop to eight que
   expect(screen.queryByRole('radio', { name: /Full loop/ })).not.toBeInTheDocument()
   expect(screen.getByRole('radio', { name: /Standard/ })).toBeChecked()
   startFromSettings()
-  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8 }), undefined, 'live')
+  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8 }), undefined, 'LIVE')
 })
 
 it('sends a Live choice with a saved-job start', () => {
@@ -41,7 +41,7 @@ it('sends a Live choice with a saved-job start', () => {
   fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
   startFromSettings()
-  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'live')
+  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'LIVE')
 })
 
 function allowance(seconds: number) {
@@ -66,5 +66,5 @@ it('disables starting a Live interview with the reason when fewer than 5 minutes
   fireEvent.click(screen.getByRole('radio', { name: 'Turn-based' }))
   expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled()
   startFromSettings()
-  expect(start).toHaveBeenCalledWith('', expect.anything(), undefined, 'turn_based')
+  expect(start).toHaveBeenCalledWith('', expect.anything(), undefined, 'TURN_BASED')
 })

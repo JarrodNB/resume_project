@@ -147,7 +147,7 @@ function TurnBasedFallback({ interview, room, reason }: { interview: InterviewSn
     setPending(true)
     try {
       const { questionCount, questionFormat, difficulty, interviewer, focusAreas } = interview.setup
-      const id = await start('', { questionCount, questionFormat, difficulty, interviewer, focusAreas }, interview.jobContext?.id ?? undefined, 'turn_based')
+      const id = await start('', { questionCount, questionFormat, difficulty, interviewer, focusAreas }, interview.jobContext?.id ?? undefined, 'TURN_BASED')
       if (!id) return
       void room.leaveForTurnBased()
       await navigate(`/practice/interviews/${id}`)

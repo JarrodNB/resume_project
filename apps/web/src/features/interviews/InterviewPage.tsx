@@ -88,7 +88,7 @@ function OwnedInterview({ id }: { id: string }) {
   const state = useInterviewSession(id, user?.id ?? '')
   const [liveEntered, setLiveEntered] = useState(false)
   const interview = state.interview
-  const live = interview?.conversationMode === 'live'
+  const live = interview?.conversationMode === 'LIVE'
   if (interview && live && !state.loadError && (interview.status === 'active' || (interview.status === 'ready' && liveEntered))) return <LiveInterviewRoom interview={interview} />
   return <TurnBasedInterview id={id} state={state} begin={live ? async () => setLiveEntered(true) : state.beginInterview} />
 }

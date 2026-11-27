@@ -13,7 +13,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); localStorage.clear() })
 it('hides saved coaching and its controls at session expiry even without a network update', () => {
   vi.useFakeTimers()
   const interview: InterviewSnapshotFragment = {
-    id: 'session', status: 'completed', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'real', speechPlaybackMode: 'browser',
+    id: 'session', status: 'completed', interviewType: 'basic', conversationMode: 'TURN_BASED', executionMode: 'real', speechPlaybackMode: 'browser',
     revision: 1, answerCap: 2, currentQuestionPosition: 0, expiresAt: new Date(Date.now() + 1000).toISOString(), preparedRole: {}, jobContext: null,
     setup: { questionCount: 1, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
     questions: [{ id: 'question', content: 'How did you help?', questionType: 'behavioral', position: 0, acceptedAnswerCount: 1, skipped: false, liveFeedback: null }], messages: [], operations: [],
@@ -32,7 +32,7 @@ function reviewSnapshot(): InterviewSnapshotFragment {
   const message = (id: string, position: number, kind: string, content: string) => ({ id, position, kind, content,
     questionId: 'question', acknowledgement: null, spokenContent: '', avoided: false, careerReferences: null, clarification: null })
   return {
-    id: 'session', status: 'completed', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'real', speechPlaybackMode: 'browser',
+    id: 'session', status: 'completed', interviewType: 'basic', conversationMode: 'TURN_BASED', executionMode: 'real', speechPlaybackMode: 'browser',
     revision: 1, answerCap: 2, currentQuestionPosition: 0, expiresAt: new Date(Date.now() + 60_000).toISOString(), preparedRole: {}, jobContext: null,
     setup: { questionCount: 1, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
     questions: [{ id: 'question', content: 'Describe your migration.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 2, skipped: false, liveFeedback: null }],

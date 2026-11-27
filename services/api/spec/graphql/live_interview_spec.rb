@@ -8,12 +8,15 @@ RSpec.describe "Live interview GraphQL" do
 
   it "starts a live preparation and exposes the saved conversation mode" do
     query = 'mutation($input: StartInterviewInput!) { startInterview(input: $input) { interview { id conversationMode setup { questionCount } } errors } }'
-    result = execute_graphql(query, user: user, variables: { input: { conversationMode: "live", setup: { questionCount: 5 } } })
+    result = execute_graphql(query, user: user, variables: { input: { conversationMode: "LIVE", setup: { questionCount: 5 } } })
     expect(result["errors"]).to be_nil
-    expect(result.dig("data", "startInterview", "interview")).to include("conversationMode" => "live", "setup" => { "questionCount" => 5 })
+    expect(result.dig("data", "startInterview", "interview")).to include("conversationMode" => "LIVE", "setup" => { "questionCount" => 5 })
+    expect(user.interview_sessions.sole.conversation_mode).to eq("live")
     default = execute_graphql(query, user: user, variables: { input: {} })
-    expect(default.dig("data", "startInterview", "interview", "conversationMode")).to eq("turn_based")
-    refused = execute_graphql(query, user: user, variables: { input: { conversationMode: "live", setup: { questionCount: 12 } } })
+    expect(default.dig("data", "startInterview", "interview", "conversationMode")).to eq("TURN_BASED")
+    unknown = execute_graphql(query, user: user, variables: { input: { conversationMode: "video" } })
+    expect(unknown.dig("errors", 0, "message")).to include("conversationMode")
+    refused = execute_graphql(query, user: user, variables: { input: { conversationMode: "LIVE", setup: { questionCount: 12 } } })
     expect(refused.dig("data", "startInterview", "interview")).to be_nil
     expect(refused.dig("data", "startInterview", "errors")).to eq([ "Live interviews use 5 or 8 questions" ])
   end
@@ -68,7 +71,7 @@ RSpec.describe "Live interview GraphQL" do
     expect(execute_graphql(query, user: user).dig("data", "me", "liveInterviewSecondsLeft")).to eq(600)
     allow(Interviews::LiveAllowance).to receive(:remaining_seconds).and_return(240)
     start = 'mutation($input: StartInterviewInput!) { startInterview(input: $input) { interview { id } errors errorCode } }'
-    refused = execute_graphql(start, user: user, variables: { input: { conversationMode: "live", setup: { questionCount: 5 } } })
+    refused = execute_graphql(start, user: user, variables: { input: { conversationMode: "LIVE", setup: { questionCount: 5 } } })
     expect(refused.dig("data", "startInterview")).to include("interview" => nil, "errorCode" => "LIVE_ALLOWANCE_LOW",
       "errors" => [ "You need at least 5 live minutes to start a live interview. You have 4 minutes left." ])
     turn_based = execute_graphql(start, user: user, variables: { input: { setup: { questionCount: 5 } } })

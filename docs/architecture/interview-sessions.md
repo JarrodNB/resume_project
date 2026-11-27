@@ -257,7 +257,9 @@ are safe to repeat, and are refused with 409 once the connection or session is o
 #### Joining a room
 
 Each session saves a readonly `conversation_mode` column: `turn_based` (the default, and every
-older session) or `live`, chosen by `startInterview(conversationMode:)`. Live preparations accept
+older session) or `live`, chosen by `startInterview(conversationMode:)` and shown as
+`InterviewSession.conversationMode`, both the GraphQL `ConversationModeEnum` (`TURN_BASED` or
+`LIVE`, built from `InterviewSession::CONVERSATION_MODES`). Live preparations accept
 only 5 or 8 questions; preparation itself is unchanged. `BeginService` refuses live sessions, so
 no turn-based opening is saved for them. The other turn-based actions (submitting or skipping a
 turn, reserving a recording, starting a recorded transcription, authorizing streaming

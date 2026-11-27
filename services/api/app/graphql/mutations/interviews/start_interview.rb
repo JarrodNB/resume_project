@@ -6,8 +6,8 @@ module Mutations
       argument :career_focus, String, required: false
       argument :setup, Types::InterviewSetupInput, required: false
       argument :job_id, ID, required: false
-      argument :conversation_mode, String, required: false, default_value: "turn_based",
-        description: "turn_based (default) or live; live allows 5 or 8 questions"
+      argument :conversation_mode, Types::ConversationModeEnum, required: false, default_value: "turn_based",
+        description: "TURN_BASED (default) or LIVE; live allows 5 or 8 questions"
 
       field :interview, Types::InterviewSessionType, null: true
 

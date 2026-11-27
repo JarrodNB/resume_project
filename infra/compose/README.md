@@ -25,7 +25,10 @@ So a deploy never leaves new live interviews without an interviewer and never cu
 one. While an old `ai-live` is draining, the two workers use more memory than one (it shows in
 `docker compose ps` as a second `ai-live`). Do not run a plain `docker compose up -d`, `restart`
 or `down` that includes `ai-live` during that time: compose would stop the draining container
-again, and a second stop signal makes the worker exit at once. AWS access is a role GitHub
+again, and a second stop signal makes the worker exit at once. `script/test_restart_changed_services.py`
+checks the script against a fake `docker` (`python3 -m unittest discover -s script -p
+test_restart_changed_services.py -v` from the repository root); run it and `shellcheck` after
+changing the script. AWS access is a role GitHub
 assumes for runs on master only (`../terraform/modules/github`), so no AWS keys are stored in
 GitHub.
 

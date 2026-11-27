@@ -1,90 +1,14 @@
 """Decide what the live interviewer does next, one event at a time.
 
 The controller is plain Python: it never imports LiveKit, OpenAI or HTTP code. The LiveKit
-adapter feeds it events (the interviewer or the candidate finished speaking, the model called a
-tool, the candidate pressed a room button, Rails saved a prompt, the clock ticked) and carries
-out the actions it returns (speak, tell Rails what happened, update the room's state, leave).
-Rails still owns every saved record and refuses anything stale; the controller only keeps the
-live conversation's place.
+adapter (live_interviews.agent) feeds it events (someone finished speaking, the model called a
+tool, a room button, a Rails receipt, the clock) and carries out the actions it returns (speak,
+report to Rails, update the room, leave). Rails owns every saved record and refuses anything
+stale; the controller only keeps the conversation's place. Every tool call gets exactly one
+`ToolResult`, its last action, and question positions are zero-based like Rails'.
 
-The flow per question: the interviewer asks the opening, the candidate answers (their final
-transcripts may arrive in several pieces and are joined), and the interviewer may ask
-follow-ups until the question has `answer_cap` answers. Moving on saves the pending answer for
-the current prompt; more words for an already saved prompt replace its answer. Rails keeps at
-most `ANSWER_LIMIT` characters of an answer, so a longer one is reported cut at a word boundary
-(its beginning is kept), rather than being refused on every resend.
-
-Tool decisions see the whole answer: the realtime provider may send the candidate's final
-transcript after the reply (and tool call) it prompted has started, so the adapter holds a tool
-call until the candidate's ended turns are transcribed, for a few seconds at most. A transcript
-that still arrives after a tool event is one the adapter stopped waiting for: it joins the
-answer that is open, and is dropped while a new prompt is being asked, so it is never saved as
-the answer to the next prompt.
-
-The coaching loop: when the question is done (the interviewer would move on, or no follow-up
-is left), the interviewer steps out of role with "Quick feedback:" (one strength, one fix). The
-next interviewer turn is that feedback, and its spoken words are what Rails saves. Then the
-menu is offered: try again, hear the question again, get a hint, or move on. From the menu
-nothing moves on without the candidate's choice, by voice (a tool call) or by button
-(`MenuChoice`, mapped to the same steps). "Hear the question again" repeats the question and
-re-offers the menu. Try again restarts the whole question (at most two retries; Rails removes
-the earlier attempt). Hints point to an approach, never an answer, and save nothing. "How was
-that?" while answering gives feedback on the answer so far and returns to the answer.
-
-Clock ticks drive one polite nudge after about three minutes of answering a prompt, and close
-the interview (`idle`) when the menu waits three minutes. After the last question the
-interviewer closes warmly, and once that closing turn is spoken the interview finishes.
-
-The session clock: Rails says how many counted seconds the session has left when the agent
-claims it (25 minutes for a new session). Time counts between ticks in every phase except the
-menu waiting for a choice, which is free. The counted seconds left go to the room with each
-phase change and about every 5 seconds. With 2 minutes left the interviewer says so once and the
-room shows a warning; a heartbeat reply of `warn` (2 minutes of live allowance left) gives the
-same warning, still only once. At zero, or on a heartbeat reply of `wrap_up`, the interview
-wraps up: nothing new is asked, the current turn of whoever is speaking finishes first, the
-pending answer is saved, the interviewer says a short closing, and once that closing has played
-the interview finishes with `time_limit` or `allowance`. Heartbeats (asked for about every 30
-seconds) carry the counted seconds since the last one, so Rails bills only counted time; the
-finish first sends a final heartbeat and names its sequence.
-
-Dropped connections: when the candidate leaves the room (`CandidateLeft`) the interview pauses.
-Nothing new is said, the session clock stops counting, the nudge and menu waits stand still and
-heartbeats carry on, so Rails knows the agent is alive. A wrap-up that arrives meanwhile finishes
-straight away, with no closing. If the candidate is back (`CandidateJoined`) within 2 minutes,
-the interviewer welcomes them back and carries on from the same place: it repeats the current
-prompt, or offers the menu choices again. After 2 minutes away the pending answer is saved and
-the interview finishes with `disconnected`.
-
-Rails' answers to reports: the adapter sends reports in order and resends one whose answer was
-lost before anything newer. A prompt is known by its Rails message only once its receipt
-(`PromptRecorded`, naming the opening or the follow-up's key) arrives; an answer to a prompt
-without one waits and is reported when the receipt comes. An answer counts as saved when it is
-reported; if Rails refuses it outright (`AnswerNotSaved`) it is not saved, so it is reported
-again at the next save.
-
-When Rails says the connection or its interview is over (`ConnectionEnded`: recovery or the owner
-ended it while this agent was still running), the agent leaves at once. Rails has already finished
-the interview, so nothing is saved, reported or finished again.
-
-A fresh agent that takes over a running connection gets the current question's state from the
-claim (`Started`): it continues the heartbeat sequence, repeats an opening that was already
-asked (answers still go to the saved prompt), or offers the menu when feedback was given or a
-follow-up it never heard is current. Follow-ups are keyed by question, retry and answers so far,
-so the same follow-up is never saved twice. Its realtime session never heard the question's
-earlier answers, so it gives no feedback on them (it would be invented): asked for feedback, it
-says it can't comment on that part after the reconnect and offers the menu, and the saved
-feedback is left alone. Answers it hears itself (new words for the resumed opening, or a retried
-question) can be coached as usual.
-
-Turns after a tool call: the model may speak a short preamble and call a tool in one response.
-The preamble finishes after the tool has run, so the adapter marks it (`preamble`) and only the
-reply to the tool's result counts as the follow-up, feedback or closing the result asked for.
-
-Tool calls always get exactly one `ToolResult`, the last action. The realtime model speaks in
-reply to it, so the result says what to say next, or why the call was refused. Button choices
-have no tool call, so they end with a `GenerateReply` carrying the same words instead.
-
-Question positions are zero-based, matching Rails.
+The behaviour it implements (answers, coaching menu, clock and allowance, dropped connections,
+takeovers) is described in docs/architecture/interview-sessions.md, "Live conversation mode".
 """
 
 import math

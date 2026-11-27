@@ -1,48 +1,14 @@
 """Connect one live interview's LiveKit room to the controller, the realtime model and Rails.
 
-This is the LiveKit adapter: interview decisions live in the controller and delivery to Rails
-lives in live_interviews.reporter; this module wires them to LiveKit. It reads the dispatch
-metadata (only the session and connection IDs), claims the connection with Rails, loads the
-interview's inputs read-only, builds the instructions, and only then joins the room and starts a
-LiveKit `AgentSession` on the OpenAI realtime model; a failure after the claim finishes the
-connection as `failed`. From then on it turns LiveKit callbacks into controller events: final
-transcripts of both sides, the model's interview tools (`ask_follow_up`, `finish_answer`,
-`repeat_question`, `next_question`, `give_feedback`, `offer_menu`, `give_hint`,
-`retry_question`), a clock tick about once a second and the room's `interview.choose` RPC
-(`{"option": ...}` with `retry`, `repeat`, `hint`, `next`, `feedback` or `end`; a button
-interrupts whatever the interviewer is saying), whether either side is speaking (so a time
-warning or wrap-up never talks over a turn) and a heartbeat about every 30 seconds.
+This is the LiveKit adapter: interview decisions live in live_interviews.controller and delivery
+to Rails in live_interviews.reporter. It claims the connection and reads the inputs before it
+joins the room, turns LiveKit callbacks (transcripts, tool calls, the `interview.choose` RPC,
+speaking state, participants, the session closing) into controller events, and carries out the
+controller's actions. It never records audio and never logs spoken text.
 
-It also owns two timing rules that need LiveKit's view of the conversation. A tool call waits (up
-to 3 seconds) for the final transcript of each candidate turn that has ended (`user_state_changed`
-from `speaking`) but not yet been transcribed: with the realtime model the provider may send it
-after the reply it prompted has started generating, and LiveKit runs tools during generation
-(livekit-agents `voice/agent_activity.py`, `_on_input_audio_transcription_completed` and
-`_realtime_generation_task_impl`), so the controller decides on the answer the candidate actually
-gave. An interviewer message spoken in the same model response as a tool call (a preamble such
-as "Sure, let's move on.") finishes after the tool has run; it is passed on marked as a preamble,
-so only the reply to the tool's result counts as the follow-up, feedback or closing.
-
-It carries out the controller's actions: speak, hand reports, heartbeats and the finish to the
-reporter (which keeps them in order, resends lost ones and adds provider usage from LiveKit's
-running `AgentSession.usage`), publish progress and the clock as agent participant attributes and
-leave. Rails' answers that matter to the controller (a prompt's receipt, a refused answer) come
-back from the reporter as controller events. When Rails refuses a call with `connection_ended`
-(recovery or the owner already finished the interview), the interviewer is cut off and the
-agent leaves without reporting or finishing anything else. Nothing here is recorded
-(`record=False`) and spoken text is never logged.
-
-Dropped connections: the session is started with `close_on_disconnect=False`, so the agent stays
-in the room when the candidate's participant leaves, and LiveKit's RoomIO links the candidate
-again when the same identity rejoins (livekit-agents `voice/room_io/room_io.py`,
-`_on_participant_disconnected` / `_on_participant_connected`). The room's participant events
-become `CandidateLeft` / `CandidateJoined` for the controller, which pauses and waits up to 2
-minutes. A fresh agent that claims a running connection passes the claim's current-question
-state to the controller so it carries on from there.
-
-Each job is one trace: a root `live_interview.session` span with only the two IDs, ended at
-shutdown with the session's known provider cost. LiveKit's own spans join it (the worker routes
-them to our tracer provider and drops their content, see live_interviews.telemetry).
+The LiveKit behaviour it relies on (late transcripts, preambles, rejoining participants, a
+session LiveKit closes on its own) is described with source references in
+docs/architecture/interview-sessions.md, "Live conversation mode".
 """
 
 import asyncio

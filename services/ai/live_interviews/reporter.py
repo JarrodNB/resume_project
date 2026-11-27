@@ -1,26 +1,12 @@
 """Deliver one live connection's reports and heartbeats to Rails, in order and at most once in effect.
 
-The controller decides what happened; this module decides how it reaches Rails. It knows nothing
-about LiveKit. Every Rails call is idempotent, but an answer can be lost in the network, so:
-
-- Interview reports (prompt, answer, advance, feedback, retry) go in order. One whose answer was
-  lost stays first and is resent unchanged before any newer report, and again before each
-  heartbeat and the finish. A report Rails refused outright was stale and is dropped.
-- Rails' answer to a report can matter to the controller: a prompt's receipt (`PromptRecorded`)
-  and a refused answer (`AnswerNotSaved`). They go to the `on_event` callback, which returns the
-  reports they raise (an answer waiting for that prompt); those are sent next, ahead of anything
-  queued later, so Rails still sees an answer before the follow-up that needs it.
-- A heartbeat carries the billed seconds plus the provider usage that is new since Rails last
-  acknowledged one. A heartbeat whose answer is lost may still have been applied, so it stays
-  pending and is resent unchanged (same sequence, same counts) before any newer one; seconds
-  counted meanwhile wait for the next new heartbeat. A heartbeat Rails refused outright was not
-  applied, so its seconds and usage go with the next one.
-- A refusal with `unknown_usage_model` or `invalid_request` (a malformed request) is a definite
-  no like any other, but logged as an error because it would repeat every time.
-- A refusal with `connection_ended` means recovery or the owner already finished the interview:
-  `ended` turns on, `on_event` gets `ConnectionEnded` once, and nothing else is sent.
-
-Only counts and the controller's report fields are sent; spoken text is never logged.
+The controller decides what happened; this module decides how it reaches Rails, and knows nothing
+about LiveKit. Reports go in order and one whose answer was lost is resent unchanged before
+anything newer; a lost heartbeat is resent unchanged before the next one; Rails' answers that
+matter to the controller (a prompt's receipt, a refused answer, the connection ending) go back
+to it as events. Only counts and the controller's report fields are sent, and spoken text is
+never logged. The rules are in docs/architecture/interview-sessions.md, "Questions, answers and
+coaching" and "Time, live minutes and heartbeats".
 """
 
 import logging

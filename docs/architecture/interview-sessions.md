@@ -308,15 +308,16 @@ each dispatched job it:
 3. builds prose instructions (`live_interviews/instructions.py`, framing in
    `prompts/live_interviewer_instructions.py`): practice-interviewer framing that marks coaching
    with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question
-   plan, all inside escaped data sections with contact masked. These instructions, including the saved job
-   text read here, are deliberately not screened: the live interviewer has no tools with side
-   effects (its tools only steer the interview through the controller), so injected text can only
-   change what this candidate hears. Contact masking, owner scoping and the input bounds still
-   apply.
+   plan, all inside escaped data sections with contact masked. These instructions, including
+   the saved job text read here, are deliberately not screened: the live interviewer has no
+   tools with side effects (its tools only steer the interview through the controller), so
+   injected text can only change what this candidate hears. Contact masking, owner scoping and
+   the input bounds still apply.
 4. starts an `AgentSession` on the OpenAI realtime model `gpt-realtime-2.1-mini` with the
    persona's fixed voice (maya `marin`, daniel `cedar`, priya `shimmer`), server VAD and input
-   transcription with `gpt-live-transcribe`, with LiveKit recording off. Both model names are
-   fixed constants (`live_interviews/settings.py`), not settings: Rails bills only these two
+   transcription with `gpt-live-transcribe`, with LiveKit recording off (`record=False`). Spoken
+   text is never logged; logs name only events, error types and refusal codes. Both model names
+   are fixed constants (`live_interviews/settings.py`), not settings: Rails bills only these two
    (`Interviews::LiveConversationBill::MODELS`) and refuses a heartbeat naming another model
    with the code `unknown_usage_model`, which both sides log as an error. Tests on each side
    check the same names.
@@ -357,12 +358,13 @@ provider may send the candidate's final transcript after the reply it prompted h
 LiveKit runs tools while that reply is generating. So the adapter holds a tool call until every
 candidate turn that has ended (`user_state_changed` from `speaking`) has its final transcript, for
 at most 3 seconds; the decision (save, follow up, move on) then sees the answer the candidate
-gave. A transcript that arrives later joins the open answer, or is dropped while the next prompt
+gave (livekit-agents `voice/agent_activity.py`, `_on_input_audio_transcription_completed` and
+`_realtime_generation_task_impl`). A transcript that arrives later joins the open answer, or is dropped while the next prompt
 is being asked, never saved to it. The model may also speak a short preamble ("Sure, let's move
 on.") in the same response as a tool call; LiveKit adds that message only after it has played,
 after the tool ran, and speaks the reply to the tool's result on the same `SpeechHandle` one step
 later. The adapter marks a message recorded on a tool call's speech at the tool call's step as a
-preamble, and the controller ignores it, so only the reply counts as the follow-up, feedback or
+preamble (same LiveKit source, `_realtime_generation_task_impl`), and the controller ignores it, so only the reply counts as the follow-up, feedback or
 closing the result asked for. On start it publishes room state and asks the model to greet
 and ask the current question. Each question then runs like this:
 
@@ -453,7 +455,8 @@ connection is unclaimed or ended, the session is not a live, active, unexpired o
 question or prompt is no longer current. Because prompts and answers are normal messages, the
 career references panel, the completed review and session feedback work exactly as for
 turn-based interviews. Live speech is saved as spoken, without a screen, by design: neither
-the interviewer nor the feedback agent has tools or side effects. Room state reaches the browser as the agent participant's attributes
+the interviewer nor the feedback agent has tools or side effects. Room state reaches the
+browser as the agent participant's attributes
 `cd.question_position` (zero-based), `cd.question_total`, `cd.phase` (`asking`, `answering`,
 `feedback`, `menu`, `closing`, `ended`) and `cd.menu_offered` (`true` only in `menu`). The claim
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for

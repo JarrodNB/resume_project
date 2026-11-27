@@ -66,6 +66,20 @@ RSpec.describe Interviews::JoinLiveService do
     expect(InterviewLiveConnection.count).to eq(0)
   end
 
+  it "refuses a new room for a saved-job interview whose job was deleted, but lets the open room be rejoined" do
+    # A saved-job interview whose job was deleted (deletion detaches it).
+    InterviewSession.where(id: interview.id).update_all(preparation_kind: "saved_job", job_id: nil)
+    result = described_class.call(interview: interview.reload)
+    expect(result).not_to be_success
+    expect(result.errors.first).to start_with("The saved job for this interview was deleted")
+    expect(interview.reload.live_connections).to be_empty
+    expect(interview.status).to eq("ready")
+
+    interview.update_columns(status: "active")
+    interview.live_connections.create!(room_name: "interview-#{interview.id}-open")
+    expect(described_class.call(interview: interview.reload)).to be_success
+  end
+
   it "fails clearly when LiveKit is not configured, leaving the interview ready" do
     with_livekit_env("LIVEKIT_URL" => nil, "LIVEKIT_API_KEY" => "test-key", "LIVEKIT_API_SECRET" => "") do
       result = described_class.call(interview: interview)

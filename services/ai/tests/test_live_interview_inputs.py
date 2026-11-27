@@ -18,12 +18,12 @@ pytestmark = pytest.mark.db
 ROLE = {"title": "Laboratory technician", "responsibilities": ["Maintain instruments"], "requirements": []}
 
 
-def seed(connection, *, saved_job=False, connection_status="connected", session_status="active"):
+def seed(connection, *, saved_job=False, job_deleted=False, connection_status="connected", session_status="active"):
     owner = _insert(connection, "users", email=f"{uuid4()}@example.com", name="Jordan Rivera",
                     contact_email="jordan@example.com", phone="555-123-4567")
     job = _insert(connection, "jobs", user_id=owner, title="Senior lab analyst", company="Acme Labs",
                   description="Run assays.", requirements=Jsonb(["GLP"]), responsibilities=Jsonb([]),
-                  nice_to_haves=Jsonb([])) if saved_job else None
+                  nice_to_haves=Jsonb([])) if saved_job and not job_deleted else None
     session = _insert(
         connection, "interview_sessions", user_id=owner, status=session_status, execution_mode="real",
         execution_config=Jsonb(REAL_CONFIGURATION.model_dump()), conversation_mode="live",
@@ -60,6 +60,12 @@ def test_reads_the_current_saved_job_for_a_job_interview(admin_connection):
     inputs = read_as_reader(admin_connection, seed(admin_connection, saved_job=True))
     assert inputs.role is None
     assert inputs.job["title"] == "Senior lab analyst" and inputs.job["requirements"] == ["GLP"]
+
+
+def test_a_deleted_saved_job_is_read_as_unavailable_so_a_running_interview_carries_on(admin_connection):
+    inputs = read_as_reader(admin_connection, seed(admin_connection, saved_job=True, job_deleted=True))
+    assert inputs.job is None and inputs.role is None and inputs.job_deleted
+    assert inputs.questions == ("First question?", "Second question?")
 
 
 @pytest.mark.parametrize("wrong", ["owner", "connection", "unclaimed", "ended", "finished"])

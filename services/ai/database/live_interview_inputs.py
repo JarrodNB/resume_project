@@ -4,7 +4,9 @@ The live agent knows only the interview, user and live connection IDs from its d
 read is scoped to that owner, and only while the connection is claimed (connected) and the
 session is a live, active, unexpired interview. It reads the saved setup, the prepared
 questions, the fictional role or current saved job, and the user's contact details (only so
-they can be masked). It never reads career references, the career library or dialogue.
+they can be masked). It never reads career references, the career library or dialogue. A saved
+job deleted while its interview runs is reported as unavailable rather than failing: Rails
+refuses a new room for such an interview, so only a running one (a takeover) gets here.
 """
 
 from psycopg import IsolationLevel
@@ -48,8 +50,6 @@ def read_live_interview_inputs(connection, *, interview_id, user_id, connection_
                 nice_to_haves FROM jobs WHERE id = %(job_id)s AND user_id = %(user_id)s""",
                 {**params, "job_id": session["job_id"]},
             ).fetchone()
-            if job is None:
-                raise ValueError("Live interview is not available: its saved job was deleted")
         contact = cursor.execute(
             "SELECT name, contact_email, phone FROM users WHERE id = %(user_id)s", params
         ).fetchone()
@@ -58,6 +58,7 @@ def read_live_interview_inputs(connection, *, interview_id, user_id, connection_
         questions=tuple(row["content"] for row in questions),
         role=None if job is not None else (session["prepared_role"] or None),
         job=dict(job) if job is not None else None,
+        job_deleted=session["preparation_kind"] == "saved_job" and job is None,
         contact=KnownContact.from_values(names=[contact["name"]], emails=[contact["contact_email"]],
                                          phones=[contact["phone"]]),
     )

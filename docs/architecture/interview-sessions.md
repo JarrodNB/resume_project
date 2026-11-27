@@ -272,7 +272,9 @@ feedback, `endLiveInterview` and abandoning still work. Instead, the owned `join
 (`Interviews::JoinLiveService`) accepts a `ready` or `active` live session, moves ready to active
 without saving an opening (the live agent saves it when spoken), and creates or reuses the
 session's one open `InterviewLiveConnection` (a partial unique index allows one row that is not
-`ended`). The room name is `interview-<session id>-<random>`. It returns `LIVEKIT_URL` and a
+`ended`). A new room (no open connection yet) for a saved-job session whose job was deleted is
+refused with "The saved job for this interview was deleted…", because the interviewer reads the
+job when it starts; an open room can still be rejoined. The room name is `interview-<session id>-<random>`. It returns `LIVEKIT_URL` and a
 ten-minute LiveKit token signed with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`: identity
 `user-<id>`, room join for that room only, and a room configuration that dispatches the
 `careerdrafter-live-interviewer` agent with metadata holding only `interview_session_id` and
@@ -304,7 +306,9 @@ each dispatched job it:
 2. loads its inputs as `ai_reader` (`database/live_interview_inputs.py`), only while that
    connection is `connected`: saved setup, prepared questions in order, the fictional role or
    current saved job, and contact details used only for masking. It never reads career
-   references, the career library or dialogue.
+   references, the career library or dialogue. If the saved job was deleted while the interview
+   runs (an agent taking over), it carries on without the job text: the instructions say the job
+   details are no longer available instead of failing the start.
 3. builds prose instructions (`live_interviews/instructions.py`, framing in
    `prompts/live_interviewer_instructions.py`): practice-interviewer framing that marks coaching
    with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question

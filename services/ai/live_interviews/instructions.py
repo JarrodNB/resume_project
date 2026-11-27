@@ -19,19 +19,26 @@ from schemas.interview_setup import InterviewSetup
 from text_limits import MAX_PROMPT_TEXT
 
 
+JOB_UNAVAILABLE = ("# Saved job\n"
+                   "This interview was prepared for one of the candidate's saved jobs, but the job details are no "
+                   "longer available. Carry on with the question plan and do not invent details about the job.")
+
+
 @dataclass(frozen=True)
 class LiveInterviewInputs:
     """What the live interviewer may know about one interview, loaded read-only from Rails data.
 
     `questions` are the prepared question texts in plan order. At most one of `role` (the
-    prepared fictional role) and `job` (the saved job's current fields) is set. `contact` holds
-    the user's known contact details, used only to mask them.
+    prepared fictional role) and `job` (the saved job's current fields) is set; `job_deleted`
+    marks a saved-job interview whose job was deleted while it ran. `contact` holds the user's
+    known contact details, used only to mask them.
     """
 
     setup: InterviewSetup
     questions: tuple[str, ...]
     role: dict | None = None
     job: dict | None = None
+    job_deleted: bool = False
     contact: KnownContact = field(default_factory=KnownContact)
 
 
@@ -51,6 +58,8 @@ def build_live_instructions(inputs: LiveInterviewInputs) -> str:
         sections = [LIVE_INTERVIEWER_INSTRUCTIONS, live_style(inputs.setup)]
         if inputs.job is not None:
             sections.append(format_saved_job({"job": inputs.job}))
+        elif inputs.job_deleted:
+            sections.append(JOB_UNAVAILABLE)
         elif inputs.role:
             sections.append(format_role(inputs.role))
         sections.append(_question_plan(inputs.questions))

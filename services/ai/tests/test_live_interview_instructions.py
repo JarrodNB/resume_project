@@ -76,3 +76,9 @@ def test_describes_the_coaching_loop_in_prose():
     assert "never move on from the choices" in lower
     assert "never a finished answer" in lower
     assert "do not time the candidate yourself" in lower
+
+
+def test_says_the_saved_job_details_are_unavailable_once_the_job_was_deleted():
+    text = build_live_instructions(inputs(role=None, job=None, job_deleted=True))
+    assert "job details are no longer available" in text
+    assert "Senior lab analyst" not in text and "Tell me about a hard calibration." in text

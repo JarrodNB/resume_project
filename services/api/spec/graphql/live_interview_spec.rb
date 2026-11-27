@@ -43,4 +43,34 @@ RSpec.describe "Live interview GraphQL" do
       expect(result.dig("data", "joinLiveInterview")).to include("token" => nil, "interview" => nil, "errors" => [ "This interview is not a live interview" ])
     end
   end
+
+  describe "endLiveInterview" do
+    let(:end_live) { 'mutation($input: EndLiveInterviewInput!) { endLiveInterview(input: $input) { interview { id status } errors } }' }
+
+    around { |example| with_livekit_env { example.run } }
+
+    it "finishes the owner's live interview when the agent is gone: completed with an answer, the same on repeat" do
+      interview = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: interview)
+      question = interview.questions.first
+      interview.messages.create!(question: question, kind: "opening", position: 0, semantic_key: "question:#{question.id}:opening", content: question.content)
+      interview.messages.create!(question: question, kind: "answer", position: 1, semantic_key: "live_answer:x", content: "My answer.")
+      variables = { input: { interviewId: interview.id } }
+      expect(execute_graphql(end_live, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+      result = execute_graphql(end_live, user: user, variables: variables)
+      expect(result.dig("data", "endLiveInterview")).to eq("interview" => { "id" => interview.id, "status" => "completed" }, "errors" => [])
+      expect(interview.live_connections.sole).to have_attributes(status: "ended", end_reason: "ended_by_candidate")
+      again = execute_graphql(end_live, user: user, variables: variables)
+      expect(again.dig("data", "endLiveInterview", "interview", "status")).to eq("completed")
+    end
+
+    it "abandons a live interview with no answers and refuses one that never opened a room" do
+      interview = ready_live_interview(user)
+      variables = { input: { interviewId: interview.id } }
+      expect(execute_graphql(end_live, user: user, variables: variables).dig("data", "endLiveInterview", "errors")).to eq([ "This interview has no live room" ])
+      Interviews::JoinLiveService.call(interview: interview)
+      result = execute_graphql(end_live, user: user, variables: variables)
+      expect(result.dig("data", "endLiveInterview", "interview", "status")).to eq("abandoned")
+    end
+  end
 end

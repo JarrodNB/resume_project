@@ -27,6 +27,10 @@ module Internal
         question_position: params.require(:question_position))
     end
 
+    def finish
+      respond Interviews::FinishLiveService.call(connection: @connection, reason: params.require(:reason))
+    end
+
     private
 
     def service_busy_message

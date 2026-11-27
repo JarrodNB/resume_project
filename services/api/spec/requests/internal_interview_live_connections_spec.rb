@@ -1,5 +1,6 @@
-# The live agent's private Rails callbacks: claiming its dispatched connection and saving each
-# question opening as it is spoken. Both are safe to repeat; stale or foreign calls are refused.
+# The live agent's private Rails callbacks: claiming its dispatched connection, saving prompts and
+# answers as they are spoken, moving between questions and finishing. All are safe to repeat;
+# stale or foreign calls are refused with 409 and change nothing.
 require "rails_helper"
 
 RSpec.describe "Internal live interview connections", type: :request do
@@ -55,7 +56,7 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.headers["Cache-Control"]).to eq("no-store")
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
-          "question_total" => 8, "current_question_position" => 0
+          "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap
         )
         expect(connection.reload).to have_attributes(status: "connected", connected_at: Time.current, last_heartbeat_at: Time.current)
       end
@@ -305,5 +306,72 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(response).to have_http_status(:conflict)
       expect(interview.reload.current_question_position).to eq(0)
     end
+  end
+
+  describe "finish" do
+    def finish(reason)
+      post "#{base}/finish", params: { reason: reason }, headers: headers, as: :json
+    end
+
+    it "ends the connection and completes an interview that has an answer, once" do
+      answer_finished(prompt_message_id: asked_opening)
+      freeze_time do
+        finish("completed")
+        expect(response).to have_http_status(:ok)
+        expect(connection.reload).to have_attributes(status: "ended", ended_at: Time.current, end_reason: "completed")
+        expect(interview.reload).to have_attributes(status: "completed", completed_at: Time.current)
+        expect(response.parsed_body).to eq("status" => "completed", "end_reason" => "completed", "revision" => interview.revision)
+      end
+      receipt = response.parsed_body
+      finish("ended_by_candidate")
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq(receipt)
+      expect(connection.reload.end_reason).to eq("completed")
+    end
+
+    it "abandons an interview that has no saved answer" do
+      claim
+      prompt_asked
+      finish("ended_by_candidate")
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to include("status" => "abandoned", "end_reason" => "ended_by_candidate")
+      expect(interview.reload.status).to eq("abandoned")
+      expect(connection.reload.status).to eq("ended")
+    end
+
+    it "refuses reasons that are not used yet and an ended connection of a still-active interview" do
+      claim
+      %w[time_limit disconnected nonsense].each do |reason|
+        finish(reason)
+        expect(response).to have_http_status(:conflict)
+      end
+      expect(connection.reload.status).to eq("connected")
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
+      finish("completed")
+      expect(response).to have_http_status(:conflict)
+      expect(interview.reload.status).to eq("active")
+    end
+  end
+
+  it "runs a whole live interview whose completed session gets session feedback like a turn-based one" do
+    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+    interview.update_columns(answer_cap: 2)
+    answer_finished(prompt_message_id: asked_opening, transcript: "I rebuilt the calibration schedule.")
+    prompt_asked(kind: "follow_up", text: "What changed for the team?", prompt_key: "q0-f1")
+    answer_finished(prompt_message_id: response.parsed_body["message_id"], transcript: "Fewer failed runs.")
+    post "#{base}/question_advanced", params: { question_position: 0 }, headers: headers, as: :json
+    post "#{base}/finish", params: { reason: "completed" }, headers: headers, as: :json
+    expect(response.parsed_body["status"]).to eq("completed")
+
+    first = interview.reload.questions.find_by!(position: 0)
+    expect(interview.messages.where(question: first).order(:position).pluck(:kind, :content)).to eq([
+      [ "opening", first.content ], [ "answer", "I rebuilt the calibration schedule." ],
+      [ "follow_up", "What changed for the team?" ], [ "answer", "Fewer failed runs." ]
+    ])
+    expect(interview.questions.find_by!(position: 1).skipped_at).to be_nil
+    feedback = Interviews::SessionFeedback.new
+    record = feedback.request(interview: interview).value
+    expect(record).to be_persisted
+    expect(feedback.claim(ai_task: record.ai_task).value).to include(allowed: true, interview_id: interview.id)
   end
 end

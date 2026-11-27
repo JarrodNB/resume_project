@@ -32,6 +32,7 @@ module Types
     field :start_interview, mutation: Mutations::Interviews::StartInterview
     field :begin_interview, mutation: Mutations::Interviews::BeginInterview
     field :join_live_interview, mutation: Mutations::Interviews::JoinLiveInterview
+    field :end_live_interview, mutation: Mutations::Interviews::EndLiveInterview
     field :abandon_interview, mutation: Mutations::Interviews::AbandonInterview
     field :authorize_interview_recording, mutation: Mutations::Interviews::AuthorizeInterviewRecording
     field :authorize_interview_transcription, mutation: Mutations::Interviews::AuthorizeInterviewTranscription

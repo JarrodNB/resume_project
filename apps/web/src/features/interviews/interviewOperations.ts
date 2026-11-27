@@ -60,6 +60,12 @@ export const JOIN_LIVE_INTERVIEW = graphql(`
   }
 `)
 
+export const END_LIVE_INTERVIEW = graphql(`
+  mutation EndLiveInterview($interviewId: ID!) {
+    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }
+  }
+`)
+
 export const ABANDON_INTERVIEW = graphql(`
   mutation AbandonInterview($interviewId: ID!) {
     abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }

@@ -93,6 +93,7 @@ type Documents = {
     "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": typeof types.InterviewPlaybackDocument,
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.BeginInterviewDocument,
     "\n  mutation JoinLiveInterview($interviewId: ID!) {\n    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.JoinLiveInterviewDocument,
+    "\n  mutation EndLiveInterview($interviewId: ID!) {\n    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.EndLiveInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": typeof types.RecentInterviewSessionsDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.StartRecordedTranscriptionDocument,
@@ -216,6 +217,7 @@ const documents: Documents = {
     "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": types.InterviewPlaybackDocument,
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.BeginInterviewDocument,
     "\n  mutation JoinLiveInterview($interviewId: ID!) {\n    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.JoinLiveInterviewDocument,
+    "\n  mutation EndLiveInterview($interviewId: ID!) {\n    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.EndLiveInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": types.RecentInterviewSessionsDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.StartRecordedTranscriptionDocument,
@@ -590,6 +592,10 @@ export function graphql(source: "\n  mutation BeginInterview($interviewId: ID!) 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation JoinLiveInterview($interviewId: ID!) {\n    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }\n  }\n"): (typeof documents)["\n  mutation JoinLiveInterview($interviewId: ID!) {\n    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation EndLiveInterview($interviewId: ID!) {\n    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n"): (typeof documents)["\n  mutation EndLiveInterview($interviewId: ID!) {\n    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

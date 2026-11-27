@@ -61,6 +61,34 @@ def test_livekit_spans_join_the_session_trace_without_content_attributes_or_even
     assert "something private" not in str(events.get("exception", {}))
 
 
+def test_livekit_spans_keep_only_allowlisted_keys_so_an_unknown_attribute_is_dropped(exported):
+    safe = {
+        "lk.speech_id": "speech-1", "lk.generation_id": "gen-1", "lk.interrupted": False,
+        "lk.function_tool.name": "next_question", "lk.function_tool.is_error": False, "lk.response.ttft": 0.4,
+        "lk.e2e_latency": 0.9, "gen_ai.request.model": "gpt-realtime-2.1-mini", "gen_ai.provider.name": "openai",
+        "gen_ai.usage.audio.input_tokens": 300, "gen_ai.tool.name": "next_question", "error.type": "TimeoutError",
+        "live_connection_id": "c-1",
+    }
+    unknown = {"lk.brand_new_text": "I rebuilt the scheduler.", "gen_ai.new.content": "private", "notes": "private"}
+    ids = {"interview_session_id": "s-1"}  # kept, though Logfire's default scrubbing masks its value ("session")
+    with livekit_tracer.start_as_current_span("agent_turn", attributes={**safe, **ids, **unknown}) as span:
+        span.add_event("new_livekit_event", {"lk.speech_id": "speech-1", "text": "I rebuilt the scheduler."})
+    (turn,) = [span for span in exported.get_finished_spans() if span.name == "agent_turn"]
+    kept = dict(turn.attributes)
+    assert safe.items() <= kept.items()
+    assert "interview_session_id" in kept and not set(unknown) & set(kept)
+    assert [dict(event.attributes) for event in turn.events] == [{"lk.speech_id": "speech-1"}]
+    assert "scheduler" not in str(dict(turn.attributes))
+
+
+def test_our_own_spans_keep_their_attributes_except_content(exported):
+    with trace.get_tracer("live_interviews").start_as_current_span("live_interview.step",
+                                                                   attributes={"step": "claim", "lk.pii.x": "y"}):
+        pass
+    (span,) = exported.get_finished_spans()
+    assert span.attributes["step"] == "claim" and "lk.pii.x" not in span.attributes
+
+
 def test_the_session_root_keeps_its_recorded_cost(exported):
     root = trace.get_tracer("live_interviews").start_span("live_interview.session")
     root.set_attributes({"provider_cost_microdollars": 31_000, "operation.cost": 0.031})

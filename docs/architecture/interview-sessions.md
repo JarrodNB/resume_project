@@ -672,7 +672,13 @@ identity), the GenAI content attributes (`gen_ai.input.messages`, `gen_ai.output
 `gen_ai.system_instructions`, tool call arguments/results, prompt variables and similar), the
 GenAI message events, and exception messages and stack traces. LiveKit's own PII switch does
 nothing here because Logfire's tracer provider is a proxy, so this processor is what keeps
-content out. At shutdown the root records the session's known provider cost
+content out. Spans from LiveKit's own tracer (scope `livekit*`) are cleaned by an allowlist
+instead: they keep only known-safe keys (counts, durations and timings, model and provider names,
+tool names, LiveKit and our IDs, states, error types; `LIVEKIT_SAFE_ATTRIBUTES` and
+`LIVEKIT_SAFE_PREFIXES`) on the span and its events, so a content key a LiveKit upgrade adds is
+dropped by default. Our own spans keep the blocklist behaviour above. Logfire's default scrubbing
+also masks values whose key mentions `session` (such as `interview_session_id`); the connection ID
+is unaffected. At shutdown the root records the session's known provider cost
 (`provider_cost_microdollars`, and `operation.cost` in US dollars) and the worker flushes.
 
 ### Begin and active-turn interfaces

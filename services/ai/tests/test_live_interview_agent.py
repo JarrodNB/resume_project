@@ -645,7 +645,31 @@ def test_a_failure_after_the_claim_finishes_the_connection_as_failed_before_leav
         rails, ctx = FakeRails(), FakeContext()
         asyncio.run(run_live_interview(ctx, rails=rails, read_inputs=read_inputs, make_session=make_session))
         assert ctx.connected is joined and ctx.shutdown_reason
-        assert rails.calls == [("claim", "live", "interview-session-room"), ("finish", "live", {"reason": "failed"})]
+        assert rails.calls == [("claim", "live", "interview-session-room"),
+                               ("finish", "live", {"reason": "failed", "final_sequence": None})]  # no heartbeat was sent
+
+
+def test_a_failed_start_finish_rails_answers_with_a_503_is_sent_again(monkeypatch):
+    """Rails' 503 means "rolled back, send it again"; a lost finish would leave a silent room until recovery."""
+    monkeypatch.setattr("live_interviews.agent.SERVER_ERROR_DELAYS", (0, 0))
+    rails, ctx = FakeRails(), FakeContext()
+    busy = [2]
+    real_finish = rails.finish
+
+    async def finish(connection_id, **values):
+        if busy[0]:
+            busy[0] -= 1
+            rails.calls.append(("finish", connection_id, values))
+            raise RailsClientError(503, None)
+        return await real_finish(connection_id, **values)
+
+    rails.finish = finish
+
+    def unreadable(**ids):
+        raise ValueError("inputs changed")
+
+    asyncio.run(run_live_interview(ctx, rails=rails, read_inputs=unreadable, make_session=lambda persona: FakeSession()))
+    assert rails.calls == [("claim", "live", "interview-session-room")] + [("finish", "live", {"reason": "failed", "final_sequence": None})] * 3
 
 
 def test_dispatch_metadata_holds_only_the_two_ids():

@@ -1,7 +1,8 @@
 """Send fixed-origin Rails execution callbacks with bounded requests and retries.
 
 Chat and interview adapters own their claim and acceptance contracts. This module
-owns credentials, byte limits, deadlines and the shared lease/accounting callbacks.
+owns credentials, byte limits, deadlines (RailsCallbackTransport) and the shared
+lease/accounting callbacks for claimed operations (RailsExecutionClient).
 """
 import asyncio
 import json
@@ -36,8 +37,11 @@ class RailsTransportError(RuntimeError):
     """No trustworthy receipt arrived; reconcile status before further work."""
 
 
-class RailsExecutionClient:
-    """Share transport and execution callbacks without domain-specific operations."""
+class RailsCallbackTransport:
+    """Send bounded, bearer-authenticated callbacks to one fixed Rails origin.
+
+    Holds only the transport (origin, secret, size limits, deadline, retries), so a client
+    that is not for claimed operations, such as the live interview agent's, exposes only its own calls."""
 
     def __init__(self, origin: str, secret: str, *, transport=None, max_body_bytes=512_000,
                  namespace="interviews"):
@@ -131,6 +135,9 @@ class RailsExecutionClient:
             except (ValueError, UnicodeError):
                 raise RailsTransportError("Invalid Rails receipt") from None
         raise RailsTransportError("Rails receipt unavailable")
+
+class RailsExecutionClient(RailsCallbackTransport):
+    """Share transport and execution callbacks without domain-specific operations."""
 
     @staticmethod
     def _path(operation_id, action=""):

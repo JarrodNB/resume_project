@@ -1,7 +1,7 @@
 """Call Rails for the live interview agent over the private internal HTTP boundary.
 
 Uses the same fixed-origin, bearer-authenticated and size-bounded transport as the other
-interview callbacks. Requests carry only IDs, positions and retry numbers, the interviewer's
+interview callbacks (RailsCallbackTransport), without their operation callbacks. Requests carry only IDs, positions and retry numbers, the interviewer's
 spoken follow-ups and feedback, the candidate's answers, and heartbeat counts (billed seconds
 and priced token/audio usage, never text); Rails decides whether each one still applies. Every
 call is idempotent on the Rails side (a follow-up through its `prompt_key`, a retry
@@ -18,10 +18,10 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from execution.rails_client import RailsCallbackTransport
 from execution.rails_client import (
     RailsClientError as RailsClientError,  # noqa: PLC0414 - one import point for callers
 )
-from execution.rails_client import RailsExecutionClient
 from execution.rails_client import (
     RailsTransportError as RailsTransportError,  # noqa: PLC0414 - one import point for callers
 )
@@ -68,8 +68,11 @@ class HeartbeatReply(BaseModel):
     session_seconds_left: int = Field(ge=0)
 
 
-class RailsLiveInterviewClient(RailsExecutionClient):
-    """The live agent's Rails callbacks, all under /internal/interviews/live_connections/."""
+class RailsLiveInterviewClient(RailsCallbackTransport):
+    """The live agent's Rails callbacks, all under /internal/interviews/live_connections/.
+
+    It shares the other interview clients' transport but none of their operation callbacks: a
+    live connection is not a claimed operation."""
 
     def __init__(self, origin: str, secret: str, *, transport=None):
         super().__init__(origin, secret, transport=transport, max_body_bytes=64_000, namespace="interviews")

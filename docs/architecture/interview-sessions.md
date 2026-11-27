@@ -342,7 +342,9 @@ uses the dispatched room's name from the job), so the browser never sees an inte
 cannot start. A refused claim ends the job without joining. If anything fails after a
 successful claim (the input read, joining or starting the session), the agent calls `finish`
 with `failed` before it shuts down, so Rails completes or abandons the interview instead of
-leaving the candidate waiting. Later, LiveKit can close the `AgentSession` on its own: an
+leaving the candidate waiting. That finish goes through the reporter, so a 5xx (such as Rails' 503,
+"rolled back, send it again") is sent again twice after a short wait; if it still fails, recovery
+finishes the connection once its heartbeat is overdue. Later, LiveKit can close the `AgentSession` on its own: an
 unrecoverable realtime model error closes it (livekit-agents `voice/agent_session.py`,
 `AgentSession._on_error`) while the room stays open, and later speech calls would raise. The
 adapter listens for the session's `close` event (ignoring the close its own leaving causes).

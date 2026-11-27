@@ -34,10 +34,6 @@ from openai.types.realtime.realtime_audio_input_turn_detection import ServerVad
 from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict
 
-from live_interviews.client import (
-    RailsClientError,
-    RailsTransportError,
-)
 from live_interviews.controller import (
     AskFollowUp,
     CandidateJoined,
@@ -76,7 +72,7 @@ from live_interviews.controller import (
     ToolResult,
 )
 from live_interviews.instructions import build_live_instructions
-from live_interviews.reporter import InterviewReport, LiveReporter
+from live_interviews.reporter import SERVER_ERROR_DELAYS, InterviewReport, LiveReporter
 from live_interviews.settings import PERSONA_VOICES, REALTIME_MODEL, TRANSCRIPTION_MODEL
 from live_interviews.usage import LiveUsageTotals
 from prompts.live_interviewer_instructions import LIVE_INTERVIEWER_PROMPT_VERSION
@@ -451,11 +447,18 @@ class LiveInterviewRunner:
 
 
 async def _finish_failed_start(rails, connection_id: str) -> None:
-    """Tell Rails a claimed connection could not start, so it finishes the interview now."""
-    try:
-        await rails.finish(connection_id, reason="failed")
-    except (RailsClientError, RailsTransportError) as error:
-        logger.warning("Live interview failed start was not recorded: %s", type(error).__name__)
+    """Tell Rails a claimed connection could not start, so it finishes the interview now.
+
+    It goes through the reporter, so it gets the same server-error retries as every finish: a 5xx
+    is sent again twice after a short wait (Rails' 503 means "rolled back, send it again"). If it
+    still fails, Rails' recovery finishes the connection once its heartbeat is overdue."""
+    async def nothing_to_tell(_event) -> list:
+        return []
+
+    reporter = LiveReporter(rails, connection_id, usage_totals=LiveUsageTotals, on_event=nothing_to_tell,
+                            server_error_delays=SERVER_ERROR_DELAYS)
+    if not await reporter.finish(ReportFinish("failed")) and not reporter.ended:
+        logger.warning("Live interview failed start was not recorded")
 
 
 class LiveInterviewerAgent(Agent):

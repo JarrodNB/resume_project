@@ -311,3 +311,9 @@ def test_a_busy_rails_is_not_retried_here_for_reports_but_a_claim_retries_once()
 
     run(check())
     assert seen == ["question_advanced", "question_advanced", "question_advanced", "claim", "claim"]
+
+
+def test_the_live_client_offers_only_its_own_callbacks():
+    """Operation callbacks (`operations/...`) belong to claimed AI operations, not to live connections."""
+    for name in ("fail", "start_provider", "usage"):
+        assert not hasattr(RailsLiveInterviewClient, name)

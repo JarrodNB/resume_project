@@ -14,7 +14,7 @@ from live_interviews.client import (
 )
 
 CLAIM = {"interview_session_id": "session", "live_connection_id": "live", "user_id": "owner",
-         "question_total": 5, "current_question_position": 0}
+         "question_total": 5, "current_question_position": 0, "answer_cap": 2}
 
 
 def run(coro):
@@ -81,3 +81,65 @@ def test_prompt_asked_retries_the_identical_request_once_after_a_lost_reply():
     assert [str(r.url) for r in seen] == ["http://api:3000/internal/interviews/live_connections/live/prompt_asked"] * 2
     assert seen[0].content == seen[1].content
     assert json.loads(seen[0].content) == {"question_position": 0, "kind": "opening", "text": "First question?"}
+
+
+def recorded_calls(responses):
+    seen = []
+
+    def respond(request):
+        seen.append(request)
+        return httpx.Response(200, json=responses[len(seen) - 1])
+
+    return seen, respond
+
+
+def test_claim_carries_the_answer_cap():
+    async def check():
+        async with client_for(lambda _request: httpx.Response(200, json=CLAIM)) as client:
+            return await client.claim("live", room_name="room")
+
+    assert run(check()).answer_cap == 2
+
+
+def test_a_follow_up_carries_a_fresh_prompt_key_that_a_retry_reuses():
+    seen = []
+
+    def respond(request):
+        seen.append(request)
+        if len(seen) == 1:
+            raise httpx.ReadTimeout("lost")
+        return httpx.Response(200, json={"message_id": "follow", "question_position": 0, "revision": 4})
+
+    async def check():
+        async with client_for(respond) as client:
+            await client.prompt_asked("live", question_position=0, kind="follow_up", text="What changed?")
+            await client.prompt_asked("live", question_position=0, kind="follow_up", text="What changed?")
+
+    run(check())
+    bodies = [json.loads(request.content) for request in seen]
+    assert bodies[0] == bodies[1]
+    assert bodies[0]["kind"] == "follow_up" and bodies[0]["text"] == "What changed?"
+    assert len(bodies[0]["prompt_key"]) >= 32
+    assert bodies[2]["prompt_key"] != bodies[0]["prompt_key"]
+
+
+def test_answer_advance_and_finish_post_only_ids_positions_and_text():
+    seen, respond = recorded_calls([
+        {"message_id": "answer", "question_position": 0, "accepted_answer_count": 1, "revision": 3},
+        {"current_question_position": 1, "revision": 4},
+        {"status": "completed", "end_reason": "completed", "revision": 5},
+    ])
+
+    async def check():
+        async with client_for(respond) as client:
+            await client.answer_finished("live", prompt_message_id="opening", transcript="I rebuilt it.")
+            await client.question_advanced("live", question_position=0)
+            return await client.finish("live", reason="completed")
+
+    assert run(check()) == {"status": "completed", "end_reason": "completed", "revision": 5}
+    base = "http://api:3000/internal/interviews/live_connections/live/"
+    assert [(str(r.url), json.loads(r.content)) for r in seen] == [
+        (base + "answer_finished", {"prompt_message_id": "opening", "transcript": "I rebuilt it."}),
+        (base + "question_advanced", {"question_position": 0}),
+        (base + "finish", {"reason": "completed"}),
+    ]

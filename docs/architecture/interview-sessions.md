@@ -296,7 +296,8 @@ each dispatched job it:
    `ClaimLiveConnectionService`
    requires the same room, an open connection and a live, active, unexpired session; it marks
    the connection `connected` (the first `connected_at` is kept, `last_heartbeat_at` moves) and
-   returns the session, connection and user IDs, `question_total`,
+   returns the session, connection and user IDs, the bill task's `ai_task_id` (used only to tag
+   the trace), `question_total`,
    `current_question_position` and `current_question_retry_count` (so a restarted agent keeps
    the retry limit), plus what a fresh agent needs to take over a running connection:
    `heartbeat_sequence` (the last one applied), the current question's latest saved prompt
@@ -686,7 +687,9 @@ never blocks the user's other AI work: the allowance is live mode's only limit.
 #### Tracing
 
 Each job is one Logfire trace: the adapter starts a root `live_interview.session`
-span (only `interview_id` and `live_connection_id`) and runs the session inside it, and
+span (IDs only: `interview_id` and `live_connection_id`, then `user_id` and `ai_task_id`, the
+connection's live conversation bill task, once the claim returns them, plus `prompt_version`) and
+runs the session inside it, and
 the worker routes LiveKit Agents' own OpenTelemetry spans to the same tracer provider
 (`livekit.agents.telemetry.set_tracer_provider(..., allow_pii=False)`). `live_interviews/telemetry.py`
 drops content before any exporter: every `lk.pii.*` attribute (transcripts, chat context,

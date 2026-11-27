@@ -38,7 +38,7 @@ from schemas.interview_setup import InterviewSetup
 from telemetry.privacy import ContactSpanProcessor
 
 METADATA = '{"interview_session_id": "session", "live_connection_id": "live"}'
-CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner",
+CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner", ai_task_id="task",
                             question_total=2, current_question_position=0, answer_cap=2, session_seconds_left=1_500,
                             allowance_seconds_left=600)
 
@@ -660,7 +660,8 @@ def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
     (root,) = exporter.get_finished_spans()
     assert root.name == "live_interview.session" and root.parent is None
     assert dict(root.attributes) == {"interview_id": "session", "live_connection_id": "live",
-                                     "prompt_version": LIVE_INTERVIEWER_PROMPT_VERSION,
+                                     "prompt_version": LIVE_INTERVIEWER_PROMPT_VERSION, "user_id": "owner",
+                                     "ai_task_id": "task",
                                      "provider_cost_microdollars": 20_000, "operation.cost": 0.02}
 
 

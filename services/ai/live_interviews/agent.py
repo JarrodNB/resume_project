@@ -497,6 +497,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             claim = await rails.claim(dispatch.live_connection_id, room_name=ctx.job.room.name)
             if claim.interview_session_id != dispatch.interview_session_id:
                 raise ValueError("Live claim belongs to another interview")
+            span.set_attributes({"user_id": claim.user_id, **({"ai_task_id": claim.ai_task_id} if claim.ai_task_id else {})})
             inputs = await asyncio.to_thread(read_inputs, interview_id=claim.interview_session_id,
                                              user_id=claim.user_id, connection_id=claim.live_connection_id)
             instructions = build_live_instructions(inputs)

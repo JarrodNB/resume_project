@@ -15,7 +15,7 @@ from live_interviews.client import (
     RailsTransportError,
 )
 
-CLAIM = {"interview_session_id": "session", "live_connection_id": "live", "user_id": "owner",
+CLAIM = {"interview_session_id": "session", "live_connection_id": "live", "user_id": "owner", "ai_task_id": "task",
          "question_total": 5, "current_question_position": 0, "answer_cap": 2, "session_seconds_left": 1_500,
          "allowance_seconds_left": 600}
 
@@ -41,6 +41,7 @@ def test_claim_posts_the_room_with_service_auth_and_validates_the_receipt():
 
     claim = run(check())
     assert claim == LiveConnectionClaim(**CLAIM)
+    assert claim.ai_task_id == "task"
     request = seen[0]
     assert str(request.url) == "http://api:3000/internal/interviews/live_connections/live/claim"
     assert request.headers["Authorization"] == "Bearer service-only"

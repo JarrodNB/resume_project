@@ -41,6 +41,7 @@ class LiveConnectionClaim(BaseModel):
     interview_session_id: str
     live_connection_id: str
     user_id: str
+    ai_task_id: str | None = None  # the connection's live conversation bill task, for trace tags only
     question_total: int = Field(ge=1)
     current_question_position: int = Field(ge=0)
     answer_cap: int = Field(ge=1, le=3)

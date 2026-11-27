@@ -57,7 +57,7 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.headers["Cache-Control"]).to eq("no-store")
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
-          "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
+          "ai_task_id" => connection.reload.ai_task_id, "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
           "current_question_retry_count" => 0, "session_seconds_left" => 1_500, "allowance_seconds_left" => 600,
           "heartbeat_sequence" => 0, "current_prompt_message_id" => nil, "current_prompt_kind" => nil,
           "current_prompt_answered" => false, "current_question_answer_count" => 0, "current_question_feedback_given" => false
@@ -104,6 +104,7 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(task).to have_attributes(user_id: user.id, task_type: "interview_live_conversation", subject: interview,
         hourly_admission_task: interview.operations.preparation.first.ai_task, cost_microdollars: 0)
       expect(user.ai_tasks.where(task_type: "interview_live_conversation").count).to eq(1)
+      expect(response.parsed_body["ai_task_id"]).to eq(task.id) # the repeat names the same bill task
       expect(InterviewVerificationReservation.find_by!(observation_id: connection.observation_id))
         .to have_attributes(reserved_microdollars: 2_000_000, actual_microdollars: nil)
       expect(task.ai_usage_attempts.sole).to have_attributes(attempt_id: connection.observation_id, finalized: false, incomplete: true)

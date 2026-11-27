@@ -4,6 +4,7 @@
 # Index:
 #   - id, email (sign-in), name
 #   - billing: plan and dates from Billing::ResolvePlanService
+#   - live_interview_seconds_left: the live allowance (Interviews::LiveAllowance)
 #   - profile: contact_email, phone, location, links, summary; derived job search suggestions
 module Types
   class UserType < Types::BaseObject
@@ -22,7 +23,12 @@ module Types
 
     field :billing, Types::BillingType, null: false, description: "Plan and dates only; never limits or spend."
 
+    field :live_interview_seconds_left, Integer, null: false,
+          description: "Live interview seconds left today (paid) or for the trial; a new live interview needs at least 300."
+
     def billing = Billing::ResolvePlanService.call(user: object).value
+
+    def live_interview_seconds_left = Interviews::LiveAllowance.remaining_seconds(object)
 
     # Returns structured links while keeping legacy string rows readable.
     def links

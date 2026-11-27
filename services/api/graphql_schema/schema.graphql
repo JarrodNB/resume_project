@@ -3030,6 +3030,7 @@ type Mutation {
 }
 
 enum MutationErrorCodeEnum {
+  LIVE_ALLOWANCE_LOW
   PLAN_ENDED
 }
 
@@ -4563,6 +4564,11 @@ type User {
   includeSummary: Boolean!
   jobTitleSuggestions: [String!]!
   links: [ProfileLink!]!
+
+  """
+  Live interview seconds left today (paid) or for the trial; a new live interview needs at least 300.
+  """
+  liveInterviewSecondsLeft: Int!
   location: String
   name: String
   phone: String

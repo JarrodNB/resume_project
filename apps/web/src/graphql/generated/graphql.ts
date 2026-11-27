@@ -214,6 +214,7 @@ export type LibraryReviewAnswerInput = {
 };
 
 export type MutationErrorCodeEnum =
+  | 'LIVE_ALLOWANCE_LOW'
   | 'PLAN_ENDED';
 
 export type ProfileAttributesInput = {

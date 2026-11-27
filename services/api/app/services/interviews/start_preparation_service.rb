@@ -11,6 +11,7 @@ module Interviews
     end
 
     # @param conversation_mode [String] "turn_based" or "live"; live allows only 5 or 8 questions
+    #   and needs at least 5 live minutes left
     # @return [ServiceResult<InterviewSession>] preparing session with source IDs and bounded choices
     def call
       return failure("Choose supported interview settings and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
@@ -21,6 +22,8 @@ module Interviews
       @user.with_lock do
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user, interview: true)
         next allowance unless allowance.success?
+        live_refusal = @conversation_mode == "live" && LiveAllowance.start_refusal(@user)
+        next failure(live_refusal, code: :live_allowance_low) if live_refusal
         interview = @user.interview_sessions.create!(job: @job, status: "preparing", answer_cap: SetupConfiguration.answer_cap(@setup), execution_mode: "real",
           execution_config: ExecutionConfiguration::PRESETS.fetch("real"), setup_config: @setup, conversation_mode: @conversation_mode, career_focus: @career_focus, preparation_kind: @job ? "saved_job" : "fictional_role", expires_at: 7.days.from_now)
         operation = interview.operations.create!(kind: "preparation")

@@ -131,6 +131,28 @@ RSpec.describe Interviews::RecoverLiveConnectionsJob do
     expect(interview.reload.status).to eq("completed")
   end
 
+  it "keeps recovering the other connections when one finish raises, and reports the failure" do
+    other_interview = ready_live_interview(create(:user, summary: "I repair bicycles."))
+    with_livekit_env { Interviews::JoinLiveService.call(interview: other_interview) }
+    other = other_interview.live_connections.sole
+    connection
+    other.update_columns(created_at: 1.second.from_now) # recovery works oldest first, so `connection` goes first
+    original = Interviews::FinishLiveService.method(:call)
+    allow(Interviews::FinishLiveService).to receive(:call) do |**arguments|
+      raise ActiveRecord::Deadlocked, "deadlock" if arguments[:connection].id == connection.id
+
+      original.call(**arguments)
+    end
+    allow(Rails.error).to receive(:report)
+    travel 11.minutes do
+      expect { described_class.perform_now }.not_to raise_error
+      expect(other.reload).to have_attributes(status: "ended", end_reason: "failed")
+      expect(connection.reload.status).to eq("authorized")
+    end
+    expect(Rails.error).to have_received(:report)
+      .with(an_instance_of(ActiveRecord::Deadlocked), hash_including(handled: true, context: { live_connection_id: connection.id }))
+  end
+
   it "is scheduled about every minute in recurring.yml for development and production" do
     config = YAML.safe_load_file(Rails.root.join("config/recurring.yml"), aliases: true)
     %w[development production].each do |env|

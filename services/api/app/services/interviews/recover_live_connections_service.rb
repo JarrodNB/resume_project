@@ -12,7 +12,8 @@
 #
 # Safe to run twice and to race a late agent call: the finish re-checks under row locks that the
 # connection is still open and still quiet (a heartbeat or claim that got in first wins), and a
-# finished connection is skipped. Works in bounded batches, oldest first.
+# finished connection is skipped. Works in bounded batches, oldest first. A finish that raises is
+# logged and reported, and the rest of the batch still runs; that connection is tried again next run.
 module Interviews
   class RecoverLiveConnectionsService < ApplicationService
     HEARTBEAT_TIMEOUT = 150.seconds
@@ -31,20 +32,28 @@ module Interviews
         "(status = 'authorized' AND COALESCE(authorized_at, created_at) <= :unclaimed)", quiet: now - HEARTBEAT_TIMEOUT, unclaimed: now - CLAIM_TIMEOUT)
       ended = quiet.order(:created_at, :id).limit(@limit).to_a.count do |connection|
         claimed = connection.status == "connected"
-        FinishLiveService.call(connection: connection, reason: claimed ? "disconnected" : "failed",
-          stale_before: now - (claimed ? HEARTBEAT_TIMEOUT : CLAIM_TIMEOUT)).success?
+        finish(connection, reason: claimed ? "disconnected" : "failed", stale_before: now - (claimed ? HEARTBEAT_TIMEOUT : CLAIM_TIMEOUT))
       end
       success(ended + end_over_wall_clock(now))
     end
 
     private
 
+    # One connection whose finish raises must not stop the rest: it is reported and tried again next run.
+    def finish(connection, **options)
+      FinishLiveService.call(connection: connection, **options).success?
+    rescue StandardError => error
+      Rails.logger.error("Live connection recovery failed for #{connection.id}: #{error.class.name}")
+      Rails.error.report(error, handled: true, context: { live_connection_id: connection.id })
+      false
+    end
+
     # Connections whose agent kept talking past the wall-clock cap and its margin.
     def end_over_wall_clock(now)
       over = InterviewLiveConnection.open.where(status: "connected")
         .where(connected_at: ..(now - LiveAllowance::CONNECTION_WALL_CLOCK - WALL_CLOCK_MARGIN))
       over.order(:connected_at, :id).limit(@limit).to_a.count do |connection|
-        FinishLiveService.call(connection: connection, reason: "time_limit").success?
+        finish(connection, reason: "time_limit")
       end
     end
   end

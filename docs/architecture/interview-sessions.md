@@ -655,7 +655,9 @@ older than 150 seconds lost its agent and ends as `disconnected`; an `authorized
 agent never claimed within the latest join token's 10 minutes ends as `failed` (a rejoin reuses
 the connection with a fresh token and records `authorized_at`, so the wait starts again). Both go through
 `FinishLiveService` without `final_sequence`, so the provider bill stays unknown, and the
-session is completed or abandoned by the usual rule. The finish re-checks under the user,
+session is completed or abandoned by the usual rule. A finish that raises is logged and
+reported (`Rails.error`) and the rest of the batch still runs; that connection is tried again
+on the next run. The finish re-checks under the user,
 interview and connection locks that the connection is still open and still quiet, so a late
 heartbeat or claim wins and a repeat run changes nothing. A quiet connection whose session
 already finished or expired is only closed. Abandoning a live session and its expiry cleanup close an open

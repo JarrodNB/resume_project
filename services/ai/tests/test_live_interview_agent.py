@@ -106,6 +106,14 @@ class FakeRails:
         self.calls.append(("question_advanced", connection_id, values))
         return {"current_question_position": values["question_position"] + 1, "revision": 4}
 
+    async def feedback_given(self, connection_id, **values):
+        self.calls.append(("feedback_given", connection_id, values))
+        return {"question_position": values["question_position"], "revision": 6}
+
+    async def question_retried(self, connection_id, **values):
+        self.calls.append(("question_retried", connection_id, values))
+        return {"question_position": values["question_position"], "retry_count": values["retry_number"], "revision": 7}
+
     async def finish(self, connection_id, **values):
         self.calls.append(("finish", connection_id, values))
         if self.refuse_finish:
@@ -127,7 +135,7 @@ async def settle():
         await asyncio.sleep(0)
 
 
-def run_interview(rails, sessions):
+def run_interview(rails, sessions, **options):
     ctx = FakeContext()
 
     def make_session(persona):
@@ -136,7 +144,7 @@ def run_interview(rails, sessions):
         return session
 
     async def go():
-        await run_live_interview(ctx, rails=rails, read_inputs=fake_inputs, make_session=make_session)
+        await run_live_interview(ctx, rails=rails, read_inputs=fake_inputs, make_session=make_session, **options)
         await settle()
         return ctx
 
@@ -155,7 +163,7 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "First question?" in session.started["instructions"]
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
-            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.menu_offered": "false"}
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -186,7 +194,8 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         session = sessions[0][1]
         agent = session.agent
         assert {tool.info.name for tool in agent.tools} == {"ask_follow_up", "finish_answer", "repeat_question",
-                                                            "next_question"}
+                                                            "next_question", "give_feedback", "offer_menu",
+                                                            "give_hint", "retry_question"}
         session.emit_item("assistant", "Tell me about a project.")
         await settle()
         session.emit_item("user", "I rebuilt the scheduler.")
@@ -196,8 +205,22 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         await settle()
         session.emit_item("user", "Fewer failed runs.")
         await settle()
-        assert "next_question" in await agent.ask_follow_up("Anything else?")
+        assert "Quick feedback:" in await agent.ask_follow_up("Anything else?")  # the cap is reached
+        session.emit_item("assistant", "Quick feedback: clear story. Lead with the result.")
+        await settle()
+        assert ctx.room.local_participant.attributes[-1] == {
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.menu_offered": "true"}
+        assert "hint" in session.replies[-1].lower()  # the menu is offered
+        assert "finished answer" in (await agent.give_hint()).lower()
         assert "repeat" in (await agent.repeat_question()).lower()
+        assert "question 1" in (await agent.retry_question()).lower()
+        session.emit_item("assistant", "Let's try again: tell me about a project.")
+        await settle()
+        session.emit_item("user", "A sharper answer.")
+        await settle()
+        assert "Quick feedback:" in await agent.offer_menu()
+        session.emit_item("assistant", "Quick feedback: much sharper.")
+        await settle()
         assert "question 2" in (await agent.next_question()).lower()
         session.emit_item("assistant", "Next question: how do you handle conflict?")
         await settle()
@@ -211,6 +234,12 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
         ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?"}),
         ("answer_finished", "live", {"prompt_message_id": "follow_up-0", "transcript": "Fewer failed runs."}),
+        ("feedback_given", "live", {"question_position": 0, "text": "Quick feedback: clear story. Lead with the result."}),
+        ("question_retried", "live", {"question_position": 0, "retry_number": 1}),
+        ("prompt_asked", "live", {"question_position": 0, "kind": "opening",
+                                  "text": "Let's try again: tell me about a project."}),
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "A sharper answer."}),
+        ("feedback_given", "live", {"question_position": 0, "text": "Quick feedback: much sharper."}),
         ("question_advanced", "live", {"question_position": 0}),
         ("prompt_asked", "live", {"question_position": 1, "kind": "opening",
                                   "text": "Next question: how do you handle conflict?"}),
@@ -219,6 +248,52 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
     ]
     assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "ended"
     assert ctx.shutdown_reason
+
+
+def test_menu_buttons_interrupt_and_have_the_interviewer_speak_the_choice():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        assert await choose(rpc("feedback")) == "accepted"
+        assert session.interrupted == 1 and "answer so far" in session.replies[-1]
+        session.emit_item("assistant", "Quick feedback: good start.")
+        await settle()
+        await session.agent.next_question()
+        session.emit_item("assistant", "Quick feedback: clear.")
+        await settle()
+        assert await choose(rpc("hint")) == "accepted"
+        assert "finished answer" in session.replies[-1]
+        assert await choose(rpc("next")) == "accepted"
+        assert "question 2" in session.replies[-1].lower()
+
+    asyncio.run(scenario())
+    assert ("question_advanced", "live", {"question_position": 0}) in rails.calls
+
+
+def test_the_clock_nudges_a_long_answer_once():
+    rails, sessions = FakeRails(), []
+    now = [0.0]
+    _ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        replies = len(session.replies)
+        now[0] = 500.0
+        await settle()
+        assert len(session.replies) == replies + 1 and "wrap" in session.replies[-1].lower()
+
+    asyncio.run(scenario())
 
 
 def test_the_end_option_finishes_for_the_candidate_and_unknown_options_are_errors():
@@ -230,6 +305,8 @@ def test_the_end_option_finishes_for_the_candidate_and_unknown_options_are_error
         choose = ctx.room.local_participant.rpc_methods["interview.choose"]
         with pytest.raises(rtc.RpcError):
             await choose(rpc("dance"))
+        with pytest.raises(rtc.RpcError):
+            await choose(rpc(["retry"]))
         with pytest.raises(rtc.RpcError):
             await choose(SimpleNamespace(payload="not json"))
         assert await choose(rpc("end")) == "ended"

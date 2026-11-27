@@ -4,16 +4,19 @@ This adapter stays thin on purpose. It reads the dispatch metadata (only the ses
 connection IDs), claims the connection with Rails, loads the interview's inputs read-only,
 builds the instructions and starts a LiveKit `AgentSession` on the OpenAI realtime model. From
 then on it forwards events into the controller: final transcripts of both sides, the model's
-interview tools (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`) and the
-room's `interview.choose` RPC (the End interview button sends `{"option": "end"}`). It carries
-out the actions the controller returns: speak, report to Rails, publish progress as agent
-participant attributes and leave. All interview decisions live in the controller; nothing here
-is recorded (`record=False`) and spoken text is never logged.
+interview tools (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`,
+`give_feedback`, `offer_menu`, `give_hint`, `retry_question`), a clock tick about once a second
+and the room's `interview.choose` RPC (`{"option": ...}` with `retry`, `repeat`, `hint`, `next`,
+`feedback` or `end`; a button interrupts whatever the interviewer is saying). It carries out the
+actions the controller returns: speak, report to Rails, publish progress as agent participant
+attributes and leave. All interview decisions live in the controller; nothing here is recorded
+(`record=False`) and spoken text is never logged.
 """
 
 import asyncio
 import json
 import logging
+import time
 
 from livekit import rtc
 from livekit.agents import Agent, ConversationItemAddedEvent, function_tool, llm
@@ -31,19 +34,27 @@ from live_interviews.controller import (
     EndSession,
     FinishAnswer,
     GenerateReply,
+    GiveFeedback,
+    GiveHint,
     InterviewerTurnFinished,
     LiveAction,
     LiveEvent,
     LiveInterviewController,
+    MenuChoice,
     NextQuestion,
+    OfferMenu,
     PromptRecorded,
     PublishRoomState,
     RepeatQuestion,
     ReportAnswerFinished,
+    ReportFeedbackGiven,
     ReportFinish,
     ReportPromptAsked,
     ReportQuestionAdvanced,
+    ReportQuestionRetried,
+    RetryQuestion,
     Started,
+    Tick,
     ToolResult,
 )
 from live_interviews.instructions import build_live_instructions
@@ -71,16 +82,20 @@ def realtime_model_options(settings: LiveInterviewSettings, persona: str) -> dic
     }
 
 
+MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
+
+
 class LiveInterviewRunner:
     """Feed one session's events to the controller and carry out its actions in order."""
 
-    def __init__(self, *, session, rails, connection_id: str, room, leave):
+    def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic):
         self._session, self._rails, self._connection_id, self._room = session, rails, connection_id, room
-        self._leave = leave
+        self._leave, self._clock = leave, clock
         self._controller = LiveInterviewController()
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
-        self.finished = False
+        self.finished = False  # Rails accepted the finish
+        self._left = False
 
     def on_conversation_item_added(self, event: ConversationItemAddedEvent) -> None:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
@@ -97,15 +112,24 @@ class LiveInterviewRunner:
         async with self._lock:
             return await self._dispatch(event)
 
+    async def tick_forever(self, seconds: float = 1.0) -> None:
+        """Send the controller the clock about once a second until the interview finishes."""
+        while not self._left:
+            await asyncio.sleep(seconds)
+            await self.handle(Tick(self._clock()))
+
     async def choose(self, data: rtc.RpcInvocationData) -> str:
-        """The room's `interview.choose` RPC. Only `end` exists for now."""
+        """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview."""
         try:
             option = json.loads(data.payload).get("option")
         except (ValueError, AttributeError):
             option = None
-        if option != "end":
+        if not isinstance(option, str) or option not in MENU_OPTIONS | {"end"}:
             raise rtc.RpcError(2001, "Unknown interview option")
         self._session.interrupt()
+        if option in MENU_OPTIONS:
+            await self.handle(MenuChoice(option))
+            return "accepted"
         await self.handle(EndRequested())
         if not self.finished:
             raise rtc.RpcError(2002, "The interview could not be finished")
@@ -141,6 +165,11 @@ class LiveInterviewRunner:
                                transcript=action.transcript)
         elif isinstance(action, ReportQuestionAdvanced):
             await self._report(self._rails.question_advanced, question_position=action.question_position)
+        elif isinstance(action, ReportFeedbackGiven):
+            await self._report(self._rails.feedback_given, question_position=action.question_position, text=action.text)
+        elif isinstance(action, ReportQuestionRetried):
+            await self._report(self._rails.question_retried, question_position=action.question_position,
+                               retry_number=action.retry_number)
         elif isinstance(action, ReportFinish):
             self.finished = await self._report(self._rails.finish, reason=action.reason) is not None
         elif isinstance(action, PublishRoomState):
@@ -148,8 +177,10 @@ class LiveInterviewRunner:
                 "cd.question_position": str(action.question_position),
                 "cd.question_total": str(action.question_total),
                 "cd.phase": action.phase,
+                "cd.menu_offered": "true" if action.menu_offered else "false",
             })
         elif isinstance(action, EndSession):
+            self._left = True
             self._leave()
 
 
@@ -186,12 +217,37 @@ class LiveInterviewerAgent(Agent):
         which question to ask next, or how to close the interview after the last one."""
         return await self._runner.handle(NextQuestion()) or ""
 
+    @function_tool
+    async def give_feedback(self) -> str:
+        """Use when the candidate asks how they did ("How was that?"). The result says how to give the
+        quick feedback; the words you then speak are saved as the feedback."""
+        return await self._runner.handle(GiveFeedback()) or ""
 
-async def run_live_interview(ctx, *, rails, read_inputs, make_session) -> None:
+    @function_tool
+    async def offer_menu(self) -> str:
+        """Use when the candidate is done with the current question or asks what they can do next. The
+        result says whether to give feedback first or which choices to offer."""
+        return await self._runner.handle(OfferMenu()) or ""
+
+    @function_tool
+    async def give_hint(self) -> str:
+        """Use when the candidate asks for a hint. The result says how to hint without giving an answer."""
+        return await self._runner.handle(GiveHint()) or ""
+
+    @function_tool
+    async def retry_question(self) -> str:
+        """Use when the candidate wants to try the whole question again. The result says whether a retry
+        is left and what to ask."""
+        return await self._runner.handle(RetryQuestion()) or ""
+
+
+async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=time.monotonic,
+                             tick_seconds: float = 1.0) -> None:
     """Run one dispatched live interview job.
 
     `rails` is a RailsLiveInterviewClient, `read_inputs(interview_id=, user_id=, connection_id=)`
-    loads LiveInterviewInputs, and `make_session(persona)` builds the AgentSession.
+    loads LiveInterviewInputs, and `make_session(persona)` builds the AgentSession. `clock` and
+    `tick_seconds` drive the controller's clock (tests pass a fake clock).
     A refused or unreadable start ends the job without starting the model.
     """
     ctx.add_shutdown_callback(rails.aclose)
@@ -210,9 +266,16 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session) -> None:
         return
     session = make_session(inputs.setup.interviewer)
     runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id, room=ctx.room,
-                                 leave=lambda: ctx.shutdown(reason="live interview finished"))
+                                 leave=lambda: ctx.shutdown(reason="live interview finished"), clock=clock)
     session.on("conversation_item_added", runner.on_conversation_item_added)
     ctx.room.local_participant.register_rpc_method("interview.choose", runner.choose)
     await session.start(LiveInterviewerAgent(instructions=instructions, runner=runner), room=ctx.room, record=False)
     await runner.handle(Started(question_position=claim.current_question_position,
-                                question_total=claim.question_total, answer_cap=claim.answer_cap))
+                                question_total=claim.question_total, answer_cap=claim.answer_cap,
+                                retry_count=claim.current_question_retry_count))
+    ticker = asyncio.create_task(runner.tick_forever(tick_seconds))
+
+    async def stop_ticking() -> None:
+        ticker.cancel()
+
+    ctx.add_shutdown_callback(stop_ticking)

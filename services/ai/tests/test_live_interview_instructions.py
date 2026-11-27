@@ -64,3 +64,15 @@ def test_explains_when_to_use_each_interview_tool_in_prose():
     for tool in ("ask_follow_up", "finish_answer", "repeat_question", "next_question"):
         assert tool in text
     assert "never invent new core questions" in text.lower()
+
+
+def test_describes_the_coaching_loop_in_prose():
+    text = build_live_instructions(inputs())
+    lower = " ".join(text.split()).lower()
+    for tool in ("give_feedback", "offer_menu", "give_hint", "retry_question"):
+        assert tool in text
+    assert "one strength and one fix" in lower
+    assert "try the question again, hear the question again, get a hint, or move on" in lower
+    assert "never move on from the choices" in lower
+    assert "never a finished answer" in lower
+    assert "do not time the candidate yourself" in lower

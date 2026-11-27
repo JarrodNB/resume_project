@@ -1,5 +1,6 @@
-# One row per live room join. Billing seconds and the end reason stay with the session;
-# the partial unique index keeps at most one open connection per session.
+# One row per live room join. Each connection keeps its own billed seconds and end reason (a
+# session's counted time is the sum over its connections); the partial unique index keeps at most
+# one open connection per session.
 class CreateInterviewLiveConnections < ActiveRecord::Migration[8.1]
   def change
     create_table :interview_live_connections, id: :uuid do |t|

@@ -11,9 +11,9 @@ variable "name" {
 }
 
 variable "instance_type" {
-  description = "EC2 size. 2 GiB of RAM is tight for Postgres, Rails and the AI workers together; raise it if the server swaps."
+  description = "EC2 size. 4 GiB of RAM holds Postgres, Rails, the AI workers and the live interview agent (ai-live); raise it if the server swaps."
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 }
 
 variable "postgres_volume_gb" {

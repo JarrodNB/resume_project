@@ -550,6 +550,9 @@ class LiveInterviewController:
             if self._away_since is None and self._phase != "ended":
                 self._away_since, self._candidate_speaking = event.now, False
             return []
+        if isinstance(event, CandidateJoined) and self._question_position is None:
+            self._away_since = None  # back before the start: the opening greets them as usual
+            return []
         if isinstance(event, ConnectionEnded):  # Rails already finished it: nothing to save, report or say
             if self._phase == "ended":
                 return []

@@ -919,6 +919,15 @@ def test_an_agent_that_starts_in_an_empty_room_waits_for_the_candidate_before_as
         question_position=0, kind="opening", text="Welcome back. Tell me about a project.")
 
 
+def test_a_candidate_who_joins_before_the_start_is_greeted_and_never_timed_out():
+    controller = LiveInterviewController()
+    controller.handle(CandidateLeft(now=0.0))  # the room looked empty when the agent started
+    assert controller.handle(CandidateJoined(now=1.0)) == []  # ...but the candidate arrived before Started
+    actions = controller.handle(Started(question_position=0, question_total=5, answer_cap=2, session_seconds_left=1_500))
+    assert isinstance(actions[-1], GenerateReply) and "greet" in actions[-1].instructions.lower()
+    assert not any(isinstance(action, ReportFinish) for action in controller.handle(Tick(now=500.0)))
+
+
 def preamble(text):
     """Words the model spoke in the same response as a tool call, before the tool's result."""
     return InterviewerTurnFinished(text=text, preamble=True)

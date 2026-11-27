@@ -522,7 +522,8 @@ without a closing. Back within 2 minutes, the interviewer welcomes them back in 
 carries on from the same place: it repeats the current prompt (the answer so far is kept), or
 offers the menu choices again. After 2 minutes away the agent saves the pending answer, finishes
 with `disconnected` (completed with an answer, abandoned without) and leaves. A fresh agent
-that starts in an empty room waits the same way.
+that starts in an empty room waits the same way; a candidate whose join arrives while the agent
+is still starting is greeted as usual.
 
 **Rejoin.** `joinLiveInterview` reuses the open connection: the same room with a fresh
 ten-minute token, and no 5-minute allowance check. In the browser, `useLiveInterviewRoom` reports

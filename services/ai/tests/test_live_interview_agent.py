@@ -933,3 +933,22 @@ def test_the_clock_keeps_ticking_when_one_action_fails(caplog):
     asyncio.run(scenario())
     assert rails.calls[-1] == ("finish", "live", {"reason": "disconnected", "final_sequence": 1})
     assert "RuntimeError" in caplog.text and "ConnectionError" in caplog.text and "Tell me" not in caplog.text
+
+
+def test_a_candidate_join_delivered_before_the_start_is_not_lost():
+    """LiveKit can deliver the candidate's join while the agent is still starting, after it found
+    the room empty: the interview must greet them rather than wait out the away timer."""
+    from live_interviews.agent import LiveInterviewRunner
+    from live_interviews.controller import CandidateJoined, CandidateLeft, Started, Tick
+    rails, session, room = FakeRails(), FakeSession(), FakeRoom()
+    runner = LiveInterviewRunner(session=session, rails=rails, connection_id="live", room=room, leave=lambda: None)
+
+    async def scenario():
+        await runner.handle(CandidateLeft(0.0))
+        await runner.handle(CandidateJoined(1.0))
+        await runner.handle(Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500))
+        await runner.handle(Tick(500.0))
+
+    asyncio.run(scenario())
+    assert session.replies and "question 1" in session.replies[0].lower()
+    assert not [call for call in rails.calls if call[0] == "finish"]

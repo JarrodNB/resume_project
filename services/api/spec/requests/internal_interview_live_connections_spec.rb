@@ -30,6 +30,17 @@ RSpec.describe "Internal live interview connections", type: :request do
       headers: headers, as: :json
   end
 
+  def answer_finished(prompt_message_id:, transcript: "I rebuilt the calibration schedule.")
+    post "#{base}/answer_finished", params: { prompt_message_id: prompt_message_id, transcript: transcript },
+      headers: headers, as: :json
+  end
+
+  def asked_opening
+    claim
+    prompt_asked
+    response.parsed_body.fetch("message_id")
+  end
+
   describe "claim" do
     it "requires the service secret" do
       post "#{base}/claim", params: { room_name: connection.room_name }, as: :json
@@ -80,7 +91,7 @@ RSpec.describe "Internal live interview connections", type: :request do
   end
 
   describe "prompt_asked" do
-    it "saves the spoken opening for the current question once and publishes the snapshot" do
+    it "saves the current question's prepared opening once (not the spoken words) and publishes the snapshot" do
       claim
       revision = interview.reload.revision
       expect(Interviews::PublishSnapshotService).to receive(:call).with(interview_id: interview.id).at_least(:once).and_call_original
@@ -89,14 +100,14 @@ RSpec.describe "Internal live interview connections", type: :request do
       message = interview.messages.sole
       question = interview.questions.find_by!(position: 0)
       expect(message).to have_attributes(kind: "opening", question_id: question.id, position: 0,
-        semantic_key: "question:#{question.id}:opening", content: opening_text, acknowledgement: nil)
+        semantic_key: "question:#{question.id}:opening", content: question.content, acknowledgement: nil)
       expect(response.parsed_body).to eq("message_id" => message.id, "question_position" => 0, "revision" => revision + 1)
       expect(interview.reload.revision).to eq(revision + 1)
 
       prompt_asked(text: "A different retelling of the question.")
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body).to eq("message_id" => message.id, "question_position" => 0, "revision" => revision + 1)
-      expect(interview.messages.sole.content).to eq(opening_text)
+      expect(interview.messages.sole.content).to eq("Laboratory question 0?")
       expect(interview.reload.revision).to eq(revision + 1)
     end
 
@@ -117,17 +128,123 @@ RSpec.describe "Internal live interview connections", type: :request do
       claim
       prompt_asked(question_position: 1)
       expect(response).to have_http_status(:conflict)
-      prompt_asked(kind: "follow_up")
-      expect(response).to have_http_status(:conflict)
-      prompt_asked(text: "   ")
-      expect(response).to have_http_status(:conflict)
-      prompt_asked(text: "x" * (TextLimits::PROSE + 1))
+      prompt_asked(kind: "closing")
       expect(response).to have_http_status(:conflict)
 
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       prompt_asked
       expect(response).to have_http_status(:conflict)
       expect(interview.messages).to be_empty
+    end
+  end
+
+  describe "prompt_asked follow-ups" do
+    def follow_up(text: "What did you change first?", prompt_key: SecureRandom.uuid)
+      prompt_asked(kind: "follow_up", text: text, prompt_key: prompt_key)
+    end
+
+    before { interview.update_columns(answer_cap: 2) }
+
+    it "saves the spoken follow-up after the latest answer, once per prompt key" do
+      opening_id = asked_opening
+      answer_finished(prompt_message_id: opening_id)
+      revision = interview.reload.revision
+      follow_up(text: "  What did you change first?  ", prompt_key: "key-1")
+      expect(response).to have_http_status(:ok)
+      message = interview.messages.follow_up.sole
+      expect(message).to have_attributes(question_id: interview.questions.find_by!(position: 0).id, position: 2,
+        content: "What did you change first?", semantic_key: "live_prompt:key-1")
+      expect(response.parsed_body).to eq("message_id" => message.id, "question_position" => 0, "revision" => revision + 1)
+      follow_up(text: "A retold follow-up.", prompt_key: "key-1")
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["message_id"]).to eq(message.id)
+      expect(interview.messages.follow_up.sole.content).to eq("What did you change first?")
+      expect(interview.reload.revision).to eq(revision + 1)
+    end
+
+    it "refuses a follow-up before the latest prompt is answered or once the answer cap is reached" do
+      opening_id = asked_opening
+      follow_up
+      expect(response).to have_http_status(:conflict)
+      answer_finished(prompt_message_id: opening_id)
+      follow_up(prompt_key: "first")
+      follow_up_id = response.parsed_body.fetch("message_id")
+      follow_up(prompt_key: "second")
+      expect(response).to have_http_status(:conflict) # the follow-up has no answer yet
+      answer_finished(prompt_message_id: follow_up_id)
+      expect(interview.questions.find_by!(position: 0).accepted_answer_count).to eq(2)
+      follow_up(prompt_key: "third")
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body["errors"]).to eq([ "No more follow-ups for this question" ])
+      expect(interview.messages.follow_up.count).to eq(1)
+    end
+
+    it "refuses a blank, oversized or keyless follow-up" do
+      answer_finished(prompt_message_id: asked_opening)
+      follow_up(text: "   ")
+      expect(response).to have_http_status(:conflict)
+      follow_up(text: "x" * (TextLimits::PROSE + 1))
+      expect(response).to have_http_status(:conflict)
+      follow_up(prompt_key: "")
+      expect(response).to have_http_status(:conflict)
+      follow_up(prompt_key: "k" * 101)
+      expect(response).to have_http_status(:conflict)
+      expect(interview.messages.follow_up).to be_empty
+    end
+  end
+
+  describe "answer_finished" do
+    it "saves the answer to the prompt once, counts it and publishes the snapshot" do
+      opening_id = asked_opening
+      revision = interview.reload.revision
+      expect(Interviews::PublishSnapshotService).to receive(:call).with(interview_id: interview.id).at_least(:once).and_call_original
+      answer_finished(prompt_message_id: opening_id, transcript: "  I rebuilt the calibration schedule.  ")
+      expect(response).to have_http_status(:ok)
+      answer = interview.messages.answer.sole
+      question = interview.questions.find_by!(position: 0)
+      expect(answer).to have_attributes(question_id: question.id, position: 1, content: "I rebuilt the calibration schedule.",
+        semantic_key: "live_answer:#{opening_id}")
+      expect(response.parsed_body).to eq("message_id" => answer.id, "question_position" => 0,
+        "accepted_answer_count" => 1, "revision" => revision + 1)
+      expect(question.reload.accepted_answer_count).to eq(1)
+    end
+
+    it "replaces the saved answer to the same prompt without counting it again (latest wins)" do
+      opening_id = asked_opening
+      answer_finished(prompt_message_id: opening_id, transcript: "First try.")
+      first = interview.messages.answer.sole
+      answer_finished(prompt_message_id: opening_id, transcript: "A better second try.")
+      expect(response).to have_http_status(:ok)
+      expect(interview.messages.answer.sole).to have_attributes(id: first.id, position: first.position, content: "A better second try.")
+      expect(interview.questions.find_by!(position: 0).accepted_answer_count).to eq(1)
+      revision = interview.reload.revision
+      answer_finished(prompt_message_id: opening_id, transcript: "A better second try.")
+      expect(response).to have_http_status(:ok)
+      expect(interview.reload.revision).to eq(revision)
+    end
+
+    it "refuses blank, oversized, unknown or non-current prompts and ended connections without saving" do
+      opening_id = asked_opening
+      answer_finished(prompt_message_id: opening_id, transcript: "   ")
+      expect(response).to have_http_status(:conflict)
+      answer_finished(prompt_message_id: opening_id, transcript: "x" * (TextLimits::PROSE + 1))
+      expect(response).to have_http_status(:conflict)
+      answer_finished(prompt_message_id: SecureRandom.uuid)
+      expect(response).to have_http_status(:conflict)
+      other = ready_live_interview(user)
+      foreign = other.messages.create!(question: other.questions.first, kind: "opening", position: 0,
+        semantic_key: "question:#{other.questions.first.id}:opening", content: "Other?")
+      answer_finished(prompt_message_id: foreign.id)
+      expect(response).to have_http_status(:conflict)
+      interview.update_columns(current_question_position: 1)
+      answer_finished(prompt_message_id: opening_id)
+      expect(response).to have_http_status(:conflict)
+      interview.update_columns(current_question_position: 0)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
+      answer_finished(prompt_message_id: opening_id)
+      expect(response).to have_http_status(:conflict)
+      expect(interview.messages.answer).to be_empty
+      expect(interview.questions.find_by!(position: 0).accepted_answer_count).to eq(0)
     end
   end
 end

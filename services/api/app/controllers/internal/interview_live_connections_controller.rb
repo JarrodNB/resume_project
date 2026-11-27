@@ -14,7 +14,12 @@ module Internal
 
     def prompt_asked
       respond Interviews::RecordLivePromptService.call(connection: @connection,
-        question_position: params.require(:question_position), kind: params.require(:kind), text: params[:text])
+        question_position: params.require(:question_position), kind: params.require(:kind), text: params[:text], prompt_key: params[:prompt_key])
+    end
+
+    def answer_finished
+      respond Interviews::RecordLiveAnswerService.call(connection: @connection,
+        prompt_message_id: params.require(:prompt_message_id), transcript: params[:transcript])
     end
 
     private

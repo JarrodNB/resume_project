@@ -6,8 +6,9 @@
  * `lk.transcription` text streams), the interview progress and counted time left (with the
  * two-minute warning flag) the agent publishes as participant attributes, and lets the candidate mute. Leaving the page disconnects the room.
  * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
- * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`); the agent then
- * speaks the choice. `end()` asks the agent to end the interview (`{"option":"end"}`), then calls
+ * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`), with the
+ * question position and phase the room showed for it; the agent then speaks the choice. A click
+ * that landed after the interview moved on by voice answers `ignored`, which is not an error. `end()` asks the agent to end the interview (`{"option":"end"}`), then calls
  * Rails' `endLiveInterview`. With no agent in the room, or when the RPC fails with an error, that
  * call comes at once; otherwise it waits for the agent's own finish (at most 35 seconds, while
  * the page shows "Ending…"). `endLiveInterview` finishes the interview itself when the agent is
@@ -38,7 +39,8 @@ export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
 interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; agentLeft: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
 export interface LiveInterviewRoom extends LiveRoomState {
   mute: (on: boolean) => Promise<void>
-  /** Sends a menu choice to the interviewer; resolves true once the agent accepted it. */
+  /** Sends a menu choice to the interviewer; resolves true once the agent answered (accepted, or
+   * ignored because the interview had already moved on). */
   choose: (option: LiveMenuOption) => Promise<boolean>
   /** Ends the interview; resolves true once Rails has finished it (completed or abandoned). */
   end: () => Promise<boolean>
@@ -92,6 +94,9 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const connectRef = useRef<(() => Promise<boolean>) | null>(null)
   /** The candidate's mute choice, kept across a rejoin so the microphone matches the button. */
   const mutedRef = useRef(false)
+  /** The progress the room last showed, which a choice names so the agent can ignore a stale click. */
+  const shownProgressRef = useRef(NO_PROGRESS)
+  useEffect(() => { shownProgressRef.current = room.progress }, [room.progress])
   useEffect(() => {
     let cancelled = false
     const livekit = new Room()
@@ -182,9 +187,11 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     const livekit = livekitRef.current
     const agent = agentIn(livekit)
     let sent = false
+    const { questionPosition, phase } = shownProgressRef.current
     if (livekit && agent) {
       try {
-        await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload: JSON.stringify({ option }) }), LIVE_CHOICE_TIMEOUT_MS)
+        const payload = JSON.stringify({ option, question_position: questionPosition, phase })
+        await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload }), LIVE_CHOICE_TIMEOUT_MS)
         sent = true
       } catch { /* Reported below; the candidate can retry or say the choice. */ }
     }

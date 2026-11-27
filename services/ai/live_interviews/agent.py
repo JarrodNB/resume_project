@@ -43,6 +43,7 @@ from live_interviews.controller import (
     CandidateJoined,
     CandidateLeft,
     CandidateTurnFinished,
+    ChoiceIgnored,
     ClosingSpoken,
     ConnectionEnded,
     EndRequested,
@@ -78,7 +79,7 @@ from live_interviews.reporter import InterviewReport, LiveReporter
 from live_interviews.settings import PERSONA_VOICES, REALTIME_MODEL, TRANSCRIPTION_MODEL
 from live_interviews.usage import LiveUsageTotals
 from prompts.live_interviewer_instructions import LIVE_INTERVIEWER_PROMPT_VERSION
-from prompts.live_interviewer_turns import ENDED
+from prompts.live_interviewer_turns import CHOSEN_IN_ROOM, ENDED
 from telemetry.tracing import record_prompt_version
 
 logger = logging.getLogger(__name__)
@@ -246,7 +247,10 @@ class LiveInterviewRunner:
             self._tool_speeches = [(handle, step) for handle, step in self._tool_speeches if not handle.done()]
             self._tool_speeches.append((speech, speech.num_steps))
         await self._wait_for_candidate_transcripts()
-        return await self.handle(event) or ""
+        async with self._lock:
+            if any(speech is cut_off for cut_off in self._cut_off_speeches):
+                return CHOSEN_IN_ROOM  # a room choice already replaced what this response was doing
+            return await self._dispatch(event) or ""
 
     async def _wait_for_candidate_transcripts(self) -> None:
         deadline = asyncio.get_running_loop().time() + self._transcript_wait_seconds
@@ -307,32 +311,53 @@ class LiveInterviewRunner:
     async def choose(self, data: rtc.RpcInvocationData) -> str:
         """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview.
 
-        It cuts off the interviewer; whatever that speech had said is never taken as a turn."""
+        A button names the question position and phase the room showed for it. One that no longer
+        matches (the interview moved on by voice while the click was on its way) answers "ignored"
+        and changes nothing: the interviewer keeps talking. Otherwise the choice cuts off the
+        interviewer: whatever that speech had said is never taken as a turn, and a tool call its
+        response made does nothing once it finishes."""
         try:
-            option = json.loads(data.payload).get("option")
+            choice = json.loads(data.payload)
+            option = choice.get("option")
         except (ValueError, AttributeError):
-            option = None
+            option = choice = None
         if not isinstance(option, str) or option not in MENU_OPTIONS | {"end"}:
             raise rtc.RpcError(2001, "Unknown interview option")
-        speech = self._session.current_speech
-        self._cut_off_speeches = [handle for handle in self._cut_off_speeches if not handle.done()]
-        if speech is not None:
-            self._cut_off_speeches.append(speech)
-        self._interrupt()
         if option in MENU_OPTIONS:
-            await self.handle(MenuChoice(option))
+            position, phase = choice.get("question_position"), choice.get("phase")
+            if not isinstance(position, int) or isinstance(position, bool) or not isinstance(phase, str):
+                raise rtc.RpcError(2001, "Unknown interview option")
+            async with self._lock:  # decided before anything is cut off, and in order with tool calls
+                actions = self._controller.handle(MenuChoice(option, position, phase))
+                if any(isinstance(action, ChoiceIgnored) for action in actions):
+                    return "ignored"
+                self._cut_off_the_interviewer()
+                await self._carry_out_all(actions)
             return "accepted"
+        self._cut_off_the_interviewer()
         await self.handle(EndRequested())
         await self.delivered()  # the finish answers this choice
         if not self.finished and not self._reporter.ended:
             raise rtc.RpcError(2002, "The interview could not be finished")
         return "ended"
 
+    def _cut_off_the_interviewer(self) -> None:
+        """Stop the interviewer for a room choice. `session.interrupt()` stops the speech playing and
+        any response whose tool call is still running (LiveKit's background speeches,
+        `AgentActivity.interrupt`); both are remembered so nothing they still produce counts."""
+        self._cut_off_speeches = [handle for handle in self._cut_off_speeches if not handle.done()]
+        speeches = [self._session.current_speech, *(handle for handle, _step in self._tool_speeches)]
+        self._cut_off_speeches += [speech for speech in speeches if speech is not None and not speech.done()]
+        self._interrupt()
+
     async def _dispatch(self, event: LiveEvent, *, held_reports: list | None = None) -> str | None:
         """Carry out the controller's actions for `event`. With `held_reports`, interview reports are
         collected there for the reporter to send next instead of being sent now."""
+        return await self._carry_out_all(self._controller.handle(event), held_reports=held_reports)
+
+    async def _carry_out_all(self, actions: list[LiveAction], *, held_reports: list | None = None) -> str | None:
         result = None
-        for action in self._controller.handle(event):
+        for action in actions:
             if isinstance(action, ToolResult):
                 result = action.text
             elif held_reports is not None and isinstance(action, InterviewReport):

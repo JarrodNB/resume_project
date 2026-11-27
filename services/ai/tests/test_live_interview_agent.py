@@ -315,8 +315,12 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
     assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "answering"
 
 
-def rpc(option):
-    return SimpleNamespace(request_id="r", caller_identity="user-owner", payload=json.dumps({"option": option}),
+def rpc(option, question_position=None, phase=None):
+    """An `interview.choose` call; a button names the question position and phase the room showed."""
+    payload = {"option": option}
+    if question_position is not None:
+        payload |= {"question_position": question_position, "phase": phase}
+    return SimpleNamespace(request_id="r", caller_identity="user-owner", payload=json.dumps(payload),
                            response_timeout=5.0, method="interview.choose")
 
 
@@ -400,16 +404,16 @@ def test_menu_buttons_interrupt_and_have_the_interviewer_speak_the_choice():
         await settle()
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
-        assert await choose(rpc("feedback")) == "accepted"
+        assert await choose(rpc("feedback", 0, "answering")) == "accepted"
         assert session.interrupted == 1 and "answer so far" in session.replies[-1]
         session.emit_item("assistant", "Quick feedback: good start.")
         await settle()
         await session.agent.next_question(tool_call())
         session.emit_item("assistant", "Quick feedback: clear.")
         await settle()
-        assert await choose(rpc("hint")) == "accepted"
+        assert await choose(rpc("hint", 0, "menu")) == "accepted"
         assert "finished answer" in session.replies[-1]
-        assert await choose(rpc("next")) == "accepted"
+        assert await choose(rpc("next", 0, "menu")) == "accepted"
         assert "question 2" in session.replies[-1].lower()
 
     asyncio.run(scenario())
@@ -429,7 +433,7 @@ def test_words_cut_off_by_a_room_choice_never_count_as_the_turn_the_choice_asked
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
         chatter = session.current_speech = FakeToolSpeech()  # the interviewer is mid-sentence
-        assert await choose(rpc("feedback")) == "accepted"
+        assert await choose(rpc("feedback", 0, "answering")) == "accepted"
         session.current_speech = None
         # LiveKit adds the cut-off message only after its playout task ends, after the choice ran.
         session.emit_item("assistant", "Mm, and what happened", speech=chatter)
@@ -440,6 +444,71 @@ def test_words_cut_off_by_a_room_choice_never_count_as_the_turn_the_choice_asked
     asyncio.run(scenario())
     assert [call for call in rails.calls if call[0] == "feedback_given"] == [
         ("feedback_given", "live", {"question_position": 0, "text": "Quick feedback: good start."})]
+
+
+def test_a_stale_room_button_neither_moves_the_interview_nor_cuts_off_the_interviewer():
+    """The candidate said "move on" and clicked Move on: the voice got there first. The click,
+    for question 1's menu, is ignored without skipping question 2 or silencing its asking."""
+    rails, sessions = FakeRails(claim=CLAIM.model_copy(update={"question_total": 3})), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await session.agent.next_question(tool_call())
+        session.emit_item("assistant", "Quick feedback: clear.")
+        await settle()
+        await session.agent.next_question(tool_call())  # "move on", said out loud
+        asking = session.current_speech = FakeToolSpeech()  # question 2 is being asked
+        replies = len(session.replies)
+        assert await choose(rpc("next", 0, "menu")) == "ignored"
+        assert session.interrupted == 0 and len(session.replies) == replies
+        session.current_speech = None
+        session.emit_item("assistant", "Tell me about a conflict.", speech=asking)
+        await settle()
+
+    asyncio.run(scenario())
+    assert [call for call in rails.calls if call[0] == "question_advanced"] == [
+        ("question_advanced", "live", {"question_position": 0})]
+    assert ("prompt_asked", "live", {"question_position": 1, "kind": "opening",
+                                     "text": "Tell me about a conflict."}) in rails.calls
+
+
+def test_a_tool_call_from_a_response_a_room_button_cut_off_is_not_carried_out():
+    """At the menu the model calls next_question for "move on" while the candidate clicks Try again.
+    The click cut that response off, so its tool call, finishing afterwards, changes nothing."""
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions, transcript_wait_seconds=5)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await session.agent.next_question(tool_call())
+        session.emit_item("assistant", "Quick feedback: clear.")
+        await settle()
+        session.candidate_stops_speaking()  # "let's move on"; its transcript is still on its way
+        moving_on = FakeToolSpeech()
+        tool = asyncio.create_task(session.agent.next_question(tool_call(moving_on)))
+        await settle()
+        assert await choose(rpc("retry", 0, "menu")) == "accepted"  # the preamble already played
+        session.emit_item("user", "Let's move on.")
+        assert "not done" in (await tool).lower()
+        session.emit_item("assistant", "Tell me about a project, again.")
+        await settle()
+
+    asyncio.run(scenario())
+    assert not any(call[0] == "question_advanced" for call in rails.calls)
+    assert ("question_retried", "live", {"question_position": 0, "retry_number": 1}) in rails.calls
 
 
 def test_move_on_while_the_menu_is_spoken_on_the_last_question_still_says_goodbye():
@@ -458,7 +527,7 @@ def test_move_on_while_the_menu_is_spoken_on_the_last_question_still_says_goodby
         session.emit_item("assistant", "Quick feedback: clear story.")
         await settle()
         menu = session.current_speech = FakeToolSpeech()  # the menu sentence is playing
-        assert await choose(rpc("next")) == "accepted"
+        assert await choose(rpc("next", 0, "menu")) == "accepted"
         session.current_speech = None
         session.emit_item("assistant", "You can retry, hear", speech=menu)
         await settle()
@@ -503,6 +572,8 @@ def test_the_end_option_finishes_for_the_candidate_and_unknown_options_are_error
             await choose(rpc(["retry"]))
         with pytest.raises(rtc.RpcError):
             await choose(SimpleNamespace(payload="not json"))
+        with pytest.raises(rtc.RpcError):  # a button names where it was shown
+            await choose(rpc("retry"))
         assert await choose(rpc("end")) == "ended"
         assert sessions[0][1].interrupted == 1
 
@@ -940,8 +1011,10 @@ def test_a_rails_call_that_never_answers_does_not_hold_up_tools_room_choices_or_
         assert "follow-up" in result.lower()
         session.emit_item("assistant", "What changed for the team?")
         await settle()
-        assert await asyncio.wait_for(ctx.room.local_participant.rpc_methods["interview.choose"](rpc("hint")), 1) \
-            == "accepted"
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        assert await asyncio.wait_for(choose(rpc("feedback", 0, "answering")), 1) == "accepted"
+        session.emit_item("assistant", "Quick feedback: good start.")
+        await settle()
         replies = len(session.replies)
         now[0] = 500.0  # the clock still runs: the long answer is nudged
         await settle()
@@ -1025,7 +1098,7 @@ def test_an_unrecoverable_model_error_mid_interview_saves_the_answer_finishes_as
         await settle()
         session.close(CloseReason.ERROR)
         await settle()
-        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next")) == "accepted"
+        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next", 0, "menu")) == "ignored"
         now[0] = 500.0  # the clock goes on; nothing raises and nothing is said
         await settle()
 

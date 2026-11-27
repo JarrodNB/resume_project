@@ -12,7 +12,7 @@ turn texts together as one prompt (recorded on the `live_interview.session` span
 either changes. JOB_UNAVAILABLE stands in for the saved job when it was deleted mid-interview.
 """
 
-LIVE_INTERVIEWER_PROMPT_VERSION = "live-interviewer-v3"
+LIVE_INTERVIEWER_PROMPT_VERSION = "live-interviewer-v4"
 LIVE_INTERVIEWER_INSTRUCTIONS = """You are a voice interviewer running a live practice interview in English
 for the role or saved job supplied in the data. The candidate is practising, so this is a
 safe place to learn.

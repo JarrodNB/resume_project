@@ -171,9 +171,15 @@ MenuOption = Literal["retry", "repeat", "hint", "next", "feedback"]
 
 @dataclass(frozen=True)
 class MenuChoice:
-    """The candidate pressed a room button (LiveKit RPC `interview.choose`)."""
+    """The candidate pressed a room button (LiveKit RPC `interview.choose`).
+
+    `question_position` and `phase` are what the room showed when the button was pressed. The
+    browser shows a button until the agent's next room update arrives, so a click can land after
+    the interview moved on by voice; a choice that no longer matches is ignored (`ChoiceIgnored`)."""
 
     option: MenuOption
+    question_position: int
+    phase: str
 
 
 @dataclass(frozen=True)
@@ -351,6 +357,12 @@ class EndSession:
 
 
 @dataclass(frozen=True)
+class ChoiceIgnored:
+    """The room choice no longer matches where the interview is, so nothing was done. The adapter
+    leaves the interviewer talking and tells the browser the choice was stale."""
+
+
+@dataclass(frozen=True)
 class ToolResult:
     """What a tool call returns to the model, which then speaks in reply to it."""
 
@@ -359,7 +371,7 @@ class ToolResult:
 
 LiveAction = (GenerateReply | ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdvanced | ReportFeedbackGiven
               | ReportQuestionRetried | ReportFinish | SendHeartbeat | SayClosing | PublishRoomState | EndSession
-              | ToolResult)
+              | ChoiceIgnored | ToolResult)
 
 
 FEEDBACK_LIMIT = 1_500  # characters Rails keeps for one question's feedback
@@ -447,6 +459,11 @@ class LiveInterviewController:
             return self._start(event)
         if isinstance(event, ToolEvent):
             return self._tool(event)
+        if isinstance(event, MenuChoice):  # also before the start or after the end, which ignore it
+            if not self._choice_applies(event):
+                return [ChoiceIgnored()]
+            *actions, result = self._tool(MENU_EVENTS[event.option]())
+            return [*actions, GenerateReply(result.text)]  # no tool call to reply to, so ask the model to speak
         if isinstance(event, PromptRecorded) and self._question_position is not None:
             # Also after the finish: an answer heard before it still waits for its prompt's receipt.
             return self._prompt_recorded(event)
@@ -472,11 +489,6 @@ class LiveInterviewController:
             return self._speak_when_quiet()
         if isinstance(event, ClosingSpoken):
             return self._finish(self._wrap_reason or self._closing_reason) if self._phase == "closing" else []
-        if isinstance(event, MenuChoice):
-            if self._wrap_reason:
-                return []
-            *actions, result = self._tool(MENU_EVENTS[event.option]())
-            return [*actions, GenerateReply(result.text)]  # no tool call to reply to, so ask the model to speak
         if isinstance(event, Tick):
             return self._tick(event.now)
         if isinstance(event, InterviewerTurnFinished):
@@ -492,6 +504,13 @@ class LiveInterviewController:
                     self._answered_prompts -= 1
             return []
         return [*self._save_answer(), *self._finish("ended_by_candidate")]
+
+    def _choice_applies(self, choice: MenuChoice) -> bool:
+        """A button counts only where the room offers it, and only if the room still shows what it
+        showed when it was pressed: menu buttons at the menu, "How was that?" while answering."""
+        offered_in = "answering" if choice.option == "feedback" else "menu"
+        return (not self._wrap_reason and choice.question_position == self._question_position
+                and choice.phase == self._phase == offered_in)
 
     def _start(self, event: Started) -> list[LiveAction]:
         if self._question_position is not None:

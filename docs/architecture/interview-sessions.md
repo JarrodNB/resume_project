@@ -396,10 +396,20 @@ on.") in the same response as a tool call; LiveKit adds that message only after 
 after the tool ran, and speaks the reply to the tool's result on the same `SpeechHandle` one step
 later. The adapter marks a message recorded on a tool call's speech at the tool call's step as a
 preamble (same LiveKit source, `_realtime_generation_task_impl`), and the controller ignores it, so only the reply counts as the follow-up, feedback or
-closing the result asked for. A room button interrupts the speech that is playing
-(`AgentSession.current_speech`), and LiveKit adds that speech's cut-off message only after the
-choice has moved the interview on; the adapter drops every message recorded on it, so cut-off
-words never count as the feedback, goodbye or next question the choice asked for. On start it publishes room state and asks the model to greet
+closing the result asked for. The browser shows a button until the agent's next attribute update
+arrives, so a click can land after the interview already moved on by voice (the candidate said
+"move on" and clicked Move on). Each button therefore names the question position and phase the
+room showed. The controller ignores a choice that no longer matches (menu buttons only at that
+question's `menu`, "How was that?" only while it is `answering`), and the adapter decides this
+before it interrupts anything: a stale click answers `ignored`, is not carried out a second time
+and leaves the interviewer talking. A choice that applies interrupts the speech that is playing
+(`AgentSession.current_speech`) and any response whose tool call is still running (LiveKit's
+background speeches, `AgentActivity.interrupt`). LiveKit adds a cut-off speech's message only
+after the choice has moved the interview on; the adapter drops every message recorded on it, so
+cut-off words never count as the feedback, goodbye or next question the choice asked for. LiveKit
+also lets a tool call that had already started finish after its response was interrupted
+(`voice/generation.py`, `_execute_tools_task`), so a tool call from a response a choice cut off
+does nothing and returns a result saying so. On start it publishes room state and asks the model to greet
 and ask the current question. Each question then runs like this:
 
 1. The first final interviewer turn after a question or accepted follow-up is reported through
@@ -523,13 +533,13 @@ dispatches the agent by name; `JoinLiveService` and the agent's settings are pin
 | `cd.menu_offered` | agent attribute → browser | `true` / `false` |
 | `cd.seconds_left` | agent attribute → browser | counted seconds left, integer as a string |
 | `cd.time_warning` | agent attribute → browser | `true` / `false` |
-| RPC `interview.choose` | browser → agent | `{"option": ...}` with `retry`, `repeat`, `hint`, `next`, `feedback` (answer `accepted`) or `end` (answers `ended`); anything else is an RPC error |
+| RPC `interview.choose` | browser → agent | `{"option", "question_position", "phase"}` for a button: `retry`, `repeat`, `hint`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.question_position` and `cd.phase` the room showed. Answers `accepted`, or `ignored` when the interview is no longer there. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
 
 #### Ending the interview
 
 The room's End interview button asks for confirmation, then calls the agent's LiveKit RPC method
-`interview.choose` with `{"option": "end"}` (the menu options above answer `accepted`; unknown
-options are RPC errors). The agent saves
+`interview.choose` with `{"option": "end"}` (the buttons above answer `accepted` or `ignored`;
+unknown options are RPC errors). The agent saves
 the pending answer, calls `finish` with `ended_by_candidate` and leaves; it answers `ended` only
 once Rails accepted the finish. Before answering, the agent may wait up to 30 seconds
 (`DELIVERY_WAIT_SECONDS`) for the last answer, heartbeat and finish to reach Rails, so the browser

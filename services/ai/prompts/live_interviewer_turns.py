@@ -99,6 +99,8 @@ WELCOME_BACK_TO = {
 TIME_WARNING = ("In one short sentence, tell the candidate there are about two minutes left, so they can start to "
                 "wrap up. Then carry on where you were.")
 TIME_UP = "Time is up and the interview is closing. Do not ask anything new."
+CHOSEN_IN_ROOM = ("The candidate pressed a button in the room while this call was running, so it was not done. "
+                  "Their choice is followed instead; do not mention this call.")
 WRAP_UP = {
     "time_limit": ("We are out of time for this practice interview. In one or two short sentences, say that time is "
                    "up, thank the candidate warmly and say goodbye. Do not ask anything else."),

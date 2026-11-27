@@ -10,6 +10,7 @@ from live_interviews.controller import (
     CandidateJoined,
     CandidateLeft,
     CandidateTurnFinished,
+    ChoiceIgnored,
     ClosingSpoken,
     ConnectionEnded,
     EndRequested,
@@ -575,9 +576,9 @@ def test_hints_and_retries_wait_until_the_question_has_been_asked_or_feedback_is
 
 def test_menu_buttons_map_to_the_same_steps_as_voice_but_ask_the_model_to_speak():
     for option, voice in (("retry", RetryQuestion()), ("repeat", RepeatQuestion()), ("hint", GiveHint()),
-                          ("next", NextQuestion()), ("feedback", GiveFeedback())):
+                          ("next", NextQuestion())):
         by_voice = menu_controller().handle(voice)
-        by_button = menu_controller().handle(MenuChoice(option))
+        by_button = menu_controller().handle(MenuChoice(option, question_position=0, phase="menu"))
         assert by_button[:-1] == by_voice[:-1]
         assert by_button[-1] == GenerateReply(tool_text(by_voice))
 
@@ -586,9 +587,30 @@ def test_how_was_that_button_while_answering_gives_feedback_on_the_answer_so_far
     controller, _ = started_controller()
     asked_and_recorded(controller)
     controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
-    actions = controller.handle(MenuChoice("feedback"))
+    actions = controller.handle(MenuChoice("feedback", question_position=0, phase="answering"))
     assert actions[0] == ReportAnswerFinished(prompt_message_id="opening-0", transcript="I rebuilt the scheduler.")
     assert isinstance(actions[-1], GenerateReply) and "answer so far" in actions[-1].instructions
+
+
+def test_a_room_button_that_no_longer_matches_the_interview_is_ignored():
+    """The browser shows a button until the agent's next room update arrives, so a click can land
+    after the interview moved on by voice. It names the question and phase it was shown for; a
+    choice that no longer matches changes nothing (no second advance, no feedback, no reply)."""
+    controller = menu_controller()
+    assert controller.handle(NextQuestion())[0] == ReportQuestionAdvanced(0)  # "move on", said out loud
+    assert controller.handle(MenuChoice("next", question_position=0, phase="menu")) == [ChoiceIgnored()]
+    controller.handle(InterviewerTurnFinished(text="Tell me about a conflict."))
+    controller.handle(PromptRecorded(question_position=1, message_id="opening-1"))
+    controller.handle(CandidateTurnFinished(text="We disagreed on scope."))
+    # Answering question 2: a menu button from question 2's menu-to-be, or one shown for answering, is stale.
+    assert controller.handle(MenuChoice("next", question_position=1, phase="menu")) == [ChoiceIgnored()]
+    assert controller.handle(MenuChoice("feedback", question_position=0, phase="answering")) == [ChoiceIgnored()]
+    assert controller.handle(MenuChoice("next", question_position=1, phase="answering")) == [ChoiceIgnored()]
+    assert "Quick feedback:" in tool_text(controller.handle(NextQuestion()))
+    # "How was that?" shown while answering lands after the model already started the feedback.
+    assert controller.handle(MenuChoice("feedback", question_position=1, phase="answering")) == [ChoiceIgnored()]
+    controller.handle(InterviewerTurnFinished(text="Quick feedback: clear."))
+    assert controller.handle(MenuChoice("next", question_position=1, phase="menu"))[0] == ReportQuestionAdvanced(1)
 
 
 def spoken(actions):
@@ -698,7 +720,7 @@ def test_at_the_menu_time_counts_while_the_interviewer_is_speaking_or_thinking()
     """Waiting for a choice is free, but a hint or repeat the model speaks at the menu is not."""
     controller = menu_controller()
     controller.handle(Tick(now=0.0))
-    controller.handle(MenuChoice("hint"))
+    controller.handle(MenuChoice("hint", question_position=0, phase="menu"))
     controller.handle(SpeakingChanged("interviewer", True))
     controller.handle(Tick(now=15.0))
     controller.handle(SpeakingChanged("interviewer", False))
@@ -738,7 +760,7 @@ def test_time_up_waits_for_the_current_turn_then_closes_and_finishes_with_time_l
     assert controller.handle(SpeakingChanged(who="candidate", speaking=True)) == []
     assert spoken(controller.handle(Tick(now=1_500.0))) == []  # the candidate is mid-sentence
     assert "time is up" in tool_text(controller.handle(AskFollowUp(question_text="Why?"))).lower()
-    assert controller.handle(MenuChoice(option="next")) == []
+    assert controller.handle(MenuChoice(option="feedback", question_position=0, phase="answering")) == [ChoiceIgnored()]
     controller.handle(CandidateTurnFinished(text="and that was the result."))
     actions = controller.handle(SpeakingChanged(who="candidate", speaking=False))
     assert actions[:2] == [
@@ -921,12 +943,11 @@ def test_a_resumed_agent_never_gives_or_saves_feedback_on_answers_it_did_not_hea
     for restore in ({"current_prompt_kind": "opening", "feedback_given": True},
                     {"current_prompt_kind": "follow_up", "current_prompt_answered": True}):
         controller, _ = resumed(current_prompt_message_id="prompt", answer_count=1, **restore)
-        for event in (GiveFeedback(), MenuChoice(option="feedback")):
-            actions = controller.handle(event)
-            text = actions[-1].text if isinstance(actions[-1], ToolResult) else actions[-1].instructions
-            assert text == NO_FEEDBACK_AFTER_RECONNECT
-            assert "reconnect" in text and "move on" in text
-            assert not any(isinstance(action, ReportFeedbackGiven) for action in actions)
+        actions = controller.handle(GiveFeedback())
+        text = tool_text(actions)
+        assert text == NO_FEEDBACK_AFTER_RECONNECT
+        assert "reconnect" in text and "move on" in text
+        assert not any(isinstance(action, ReportFeedbackGiven) for action in actions)
         assert controller.handle(InterviewerTurnFinished(text="Sorry, I can't comment on that part.")) == []
         assert controller.handle(RetryQuestion())[0] == ReportQuestionRetried(question_position=1, retry_number=1)
         controller.handle(InterviewerTurnFinished(text="Tell me about a conflict."))

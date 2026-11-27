@@ -241,6 +241,17 @@ it('rejoins the same room through Rails after the connection dropped', async () 
   expect(room.setMicrophoneEnabled).toHaveBeenLastCalledWith(true)
 })
 
+it('keeps a muted microphone muted after a rejoin', async () => {
+  const rejoin = joinMock({ url: 'wss://live.test', token: 'fresh-token', roomName: 'room', expiresAt: '2099-01-01T00:00:00Z' })
+  const { view, room } = await connectedRoom(rejoin)
+  await act(() => view.result.current.mute(true))
+  act(() => room.handlers.get('disconnected')!())
+  await act(async () => { await view.result.current.rejoin() })
+  await waitFor(() => expect(view.result.current.status).toBe('connected'))
+  expect(room.setMicrophoneEnabled).toHaveBeenLastCalledWith(false)
+  expect(view.result.current.muted).toBe(true)
+})
+
 it('stays disconnected with the reason when Rails refuses the rejoin', async () => {
   const { view, room } = await connectedRoom(joinMock({ errors: ['Interview has ended'] }))
   act(() => room.handlers.get('disconnected')!())

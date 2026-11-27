@@ -1,6 +1,6 @@
 /** The one adapter between a live interview and LiveKit; no other module imports `livekit-client`.
  * It asks Rails to join (which starts a ready interview), connects to the room with the
- * short-lived token, turns on the microphone and plays the interviewer's audio. It reports
+ * short-lived token, turns on the microphone (unless the candidate muted it before a rejoin) and plays the interviewer's audio. It reports
  * whether the interviewer agent has joined (and `agentLeft` once it left again, clearing its
  * progress until an agent rejoins), live captions for both sides (from LiveKit's
  * `lk.transcription` text streams), the interview progress and counted time left (with the
@@ -85,6 +85,8 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
   const livekitRef = useRef<Room | null>(null)
   const connectRef = useRef<(() => Promise<boolean>) | null>(null)
+  /** The candidate's mute choice, kept across a rejoin so the microphone matches the button. */
+  const mutedRef = useRef(false)
   useEffect(() => {
     let cancelled = false
     const livekit = new Room()
@@ -146,7 +148,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
         if (cancelled) return true
         update(() => ({ status: 'connected' }))
         livekit.remoteParticipants.forEach(noticeAgent)
-        await livekit.localParticipant.setMicrophoneEnabled(true)
+        await livekit.localParticipant.setMicrophoneEnabled(!mutedRef.current)
         return true
       } catch (cause) {
         update(() => ({ status: 'failed', error: requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not join the live interview.') }))
@@ -167,6 +169,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     const livekit = livekitRef.current
     if (!livekit) return
     await livekit.localParticipant.setMicrophoneEnabled(!on)
+    mutedRef.current = on
     setRoom((previous) => ({ ...previous, muted: on }))
   }, [])
   const choose = useCallback(async (option: LiveMenuOption) => {

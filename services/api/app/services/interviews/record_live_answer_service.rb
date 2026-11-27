@@ -5,6 +5,11 @@
 # latest attempt is kept) without counting again. Only prompts of the current question count.
 module Interviews
   class RecordLiveAnswerService < ApplicationService
+    # The answer message's key: one answer per live prompt (opening or follow-up message).
+    def self.semantic_key(prompt)
+      "live_answer:#{prompt.id}"
+    end
+
     def initialize(connection:, prompt_message_id:, transcript:)
       @connection, @prompt_message_id, @transcript = connection, prompt_message_id, transcript
     end
@@ -19,7 +24,7 @@ module Interviews
         question = prompt && interview.questions.lock.find(prompt.question_id)
         next failure("Prompt is no longer current") unless question && question.position == interview.current_question_position
         content = @transcript.strip
-        answer = interview.messages.find_by(semantic_key: "live_answer:#{prompt.id}")
+        answer = interview.messages.find_by(semantic_key: self.class.semantic_key(prompt))
         if answer
           next success(receipt(answer, question, interview)) if answer.content == content
           answer.update!(content: content)
@@ -27,7 +32,7 @@ module Interviews
           next failure("Prompt is no longer current") if interview.messages.where(question: question).where("position > ?", prompt.position).where.not(kind: "answer").exists?
           next failure("This question already has its answers") if question.accepted_answer_count >= interview.answer_cap
           answer = interview.messages.create!(question: question, kind: "answer", position: (interview.messages.maximum(:position) || -1) + 1,
-            semantic_key: "live_answer:#{prompt.id}", content: content)
+            semantic_key: self.class.semantic_key(prompt), content: content)
           question.update!(accepted_answer_count: question.accepted_answer_count + 1)
         end
         interview.update!(revision: interview.revision + 1)

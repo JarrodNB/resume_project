@@ -51,7 +51,7 @@ module Interviews
     def current_question_state(interview, question)
       prompt = question && interview.messages.where(question: question, kind: %w[opening follow_up]).order(:position).last
       { current_prompt_message_id: prompt&.id, current_prompt_kind: prompt&.kind,
-        current_prompt_answered: prompt.present? && interview.messages.exists?(semantic_key: "live_answer:#{prompt.id}"),
+        current_prompt_answered: prompt.present? && interview.messages.exists?(semantic_key: RecordLiveAnswerService.semantic_key(prompt)),
         current_question_answer_count: question&.accepted_answer_count || 0,
         current_question_feedback_given: question&.live_feedback.present? || false }
     end

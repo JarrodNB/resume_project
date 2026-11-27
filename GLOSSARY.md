@@ -90,12 +90,19 @@ How an interview session is conducted, chosen when preparation starts and never 
 Turn-based (hear a question, then record or type and send an answer) or Live.
 
 **Live interview**:
-An interview session in Live conversation mode: the candidate and an AI interviewer talk in
-real time in a LiveKit room. It allows 5 or 8 main questions.
+An interview session in Live conversation mode: the candidate and an AI interviewer talk out
+loud in real time, with quick coaching after each question. It allows 5 or 8 main questions
+and up to 25 minutes of counted time.
 
 **Live connection**:
-One candidate join of a live interview's room, with its room name, status, billed seconds and
-end reason. A session has at most one live connection that has not ended.
+One candidate join of a live interview's room, with its status, counted seconds and end reason.
+Rejoining while it is still open reuses it. A session has at most one live connection that
+has not ended.
+
+**Live allowance**:
+The live interview minutes a user has left: 10 minutes for the whole trial, or 60 minutes per
+UTC day on a paid plan. A new live interview needs at least 5 minutes left. It is live mode's
+only limit and is separate from the hidden daily spend cap.
 
 **Question format**:
 The kinds of questions chosen for a practice interview: Mixed, Behavioral, Technical / Role,

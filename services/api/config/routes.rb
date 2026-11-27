@@ -38,6 +38,8 @@ Rails.application.routes.draw do
     end
     post "execution_streams/:action_name", to: "execution_streams#update", constraints: { action_name: /redeem|check/ }
     post "interviews/transcriptions/:action_name", to: "interview_transcriptions#update", constraints: { action_name: /redeem|finish|fail/ }
+    post "interviews/live_connections/:id/claim", to: "interview_live_connections#claim"
+    post "interviews/live_connections/:id/prompt_asked", to: "interview_live_connections#prompt_asked"
     post "interviews/feedback/:id/claim", to: "interviews#claim_feedback"
     post "interviews/references/:id/claim", to: "interviews#claim_references"
     post "interviews/clarifications/:id/claim", to: "interviews#claim_clarification"

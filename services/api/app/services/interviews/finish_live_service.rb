@@ -25,12 +25,16 @@ module Interviews
     # the latest one) as `ended_by_candidate`, or as `failed` when the live room was unavailable
     # and the candidate is switching to a turn-based interview with the same setup.
     #
+    # The agent's refusal codes (`connection_ended`, `invalid_request`) are for the agent, so the
+    # owner's failure carries only the message.
+    #
     # @return [ServiceResult<Hash>] as `call`, or a failure when the interview never opened a room
     def self.for_owner(interview:, live_unavailable: false)
       connection = interview.live_connections.open.first || interview.live_connections.order(:created_at).last
       return ServiceResult.new(success: false, value: nil, errors: [ "This interview has no live room" ]) unless connection
 
-      call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate")
+      result = call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate")
+      result.success? ? result : result.with(code: nil)
     end
 
     # Closes the interview's open live connection, if any, with the bill unknown (no final heartbeat

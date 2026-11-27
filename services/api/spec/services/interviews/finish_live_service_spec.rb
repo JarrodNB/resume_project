@@ -22,6 +22,15 @@ RSpec.describe Interviews::FinishLiveService do
       expect(interview.live_connections.sole.end_reason).to eq("failed")
     end
 
+    it "refuses an interview that is no longer active with a message only, never the agent's internal code" do
+      interview = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: interview)
+      interview.update_columns(status: "completed") # finished another way while its room stayed open
+      result = described_class.for_owner(interview: interview)
+      expect(result).not_to be_success
+      expect(result).to have_attributes(errors: [ "Interview is not active" ], code: nil)
+    end
+
     it "refuses an interview that never opened a room" do
       result = described_class.for_owner(interview: ready_live_interview(user))
       expect(result).not_to be_success

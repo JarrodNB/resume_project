@@ -18,12 +18,12 @@ RSpec.describe Mutations::BaseMutation do
 
   def refusal(code) = ServiceResult.new(success: false, value: nil, errors: [ "Nope" ], code: code)
 
-  it "leaves out a known internal code that clients do not see" do
-    expect(payload(refusal(:connection_ended))).to eq(thing: nil, errors: [ "Nope" ], error_code: nil)
+  it "raises outside production for a code clients do not know" do
+    expect { payload(refusal(:surprise)) }.to raise_error(ArgumentError, /surprise/)
   end
 
-  it "raises outside production for a code that is neither a client code nor a known internal one" do
-    expect { payload(refusal(:surprise)) }.to raise_error(ArgumentError, /surprise/)
+  it "treats the live agent's internal codes like any other unknown code" do
+    expect { payload(refusal(:connection_ended)) }.to raise_error(ArgumentError, /connection_ended/)
   end
 
   it "logs a warning in production for such a code and still leaves it out" do

@@ -43,7 +43,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 
 - Private root query fields read through `current_user` associations. Job Board search reads the shared provider catalogue.
 - Mutations: find private records via `current_user` (shared Job Board listing IDs are the exception), call one service, return
-  `payload_from(result, :record_key)`. Payloads always include `errors: [String!]!` and a nullable `errorCode` (`Types::MutationErrorCodeEnum`, from `ServiceResult#code`); clients react to the code, never to message text. A service that wraps another service's refusal must pass its code on. A new code goes in `MutationErrorCodeEnum::CODES`, or in `BaseMutation::INTERNAL_ERROR_CODES` if clients never see it; any other code raises outside production.
+  `payload_from(result, :record_key)`. Payloads always include `errors: [String!]!` and a nullable `errorCode` (`Types::MutationErrorCodeEnum`, from `ServiceResult#code`); clients react to the code, never to message text. A service that wraps another service's refusal must pass its code on. A new code goes in `MutationErrorCodeEnum::CODES`; any other code raises outside production. A service shared with internal callers (such as `Interviews::FinishLiveService`) returns its owner-facing failures without internal codes (`for_owner` drops them).
 - Inputs are `<Noun>AttributesInput` with all-optional fields, shared by create and update.
 - Enum types mirror model constants with `extend EnumFromValues; values_from Model::CONSTANT`.
 - No Relay `node` / global-ID lookups: they bypass user scoping.

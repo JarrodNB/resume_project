@@ -447,6 +447,24 @@ never the interviewer's generated text) and fails the feedback if one is rejecte
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
 turn-based questions), and seven-day expiry clears it with the rest of the dialogue.
 
+#### Room contract
+
+These names cross the agent (`live_interviews/agent.py`) and the browser hook
+(`useLiveInterviewRoom.ts`) and are matched by literal tests on both sides
+(`services/ai/tests/test_live_interview_agent.py`, `useLiveInterviewRoom.test.tsx`). Rails
+dispatches the agent by name; `JoinLiveService` and the agent's settings are pinned the same way.
+
+| Name | Direction | Values |
+| ---- | --------- | ------ |
+| Agent name `careerdrafter-live-interviewer` | Rails token → LiveKit → `ai-live` | `JoinLiveService::AGENT_NAME`, `live_interviews.settings.AGENT_NAME` |
+| `cd.question_position` | agent attribute → browser | zero-based integer as a string |
+| `cd.question_total` | agent attribute → browser | integer as a string |
+| `cd.phase` | agent attribute → browser | `asking`, `answering`, `feedback`, `menu`, `closing`, `ended` |
+| `cd.menu_offered` | agent attribute → browser | `true` / `false` |
+| `cd.seconds_left` | agent attribute → browser | counted seconds left, integer as a string |
+| `cd.time_warning` | agent attribute → browser | `true` / `false` |
+| RPC `interview.choose` | browser → agent | `{"option": ...}` with `retry`, `repeat`, `hint`, `next`, `feedback` (answer `accepted`) or `end` (answers `ended`); anything else is an RPC error |
+
 #### Ending the interview
 
 The room's End interview button asks for confirmation, then calls the agent's LiveKit RPC method

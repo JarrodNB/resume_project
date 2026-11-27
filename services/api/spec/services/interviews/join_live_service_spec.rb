@@ -28,6 +28,9 @@ RSpec.describe Interviews::JoinLiveService do
     expect(claims["video"]).to eq("roomJoin" => true, "room" => connection.room_name)
     agents = claims.dig("roomConfig", "agents")
     expect(agents.map { |agent| agent["agentName"] }).to eq([ Interviews::JoinLiveService::AGENT_NAME ])
+    # The ai-live worker registers under this exact name (services/ai/tests/test_live_interview_agent.py
+    # pins the same literal); a rename on one side would leave every live room without an interviewer.
+    expect(Interviews::JoinLiveService::AGENT_NAME).to eq("careerdrafter-live-interviewer")
     expect(JSON.parse(agents.first["metadata"])).to eq("interview_session_id" => interview.id, "live_connection_id" => connection.id)
   end
 

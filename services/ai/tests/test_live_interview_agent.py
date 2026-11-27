@@ -1,4 +1,4 @@
-"""Smoke-test the thin LiveKit adapter with fake LiveKit, Rails and database stand-ins.
+"""Smoke-test the LiveKit adapter with fake LiveKit, Rails and database stand-ins.
 
 No LiveKit server, OpenAI or Rails is contacted: the session, room and clients are fakes.
 """
@@ -499,6 +499,7 @@ def test_realtime_options_use_the_persona_voice_server_vad_and_transcription():
     assert options["turn_detection"].type == "server_vad"
     assert options["input_audio_transcription"].model == "gpt-live-transcribe"
     assert PERSONA_VOICES == {"maya": "marin", "daniel": "cedar", "priya": "shimmer"}
+    # Rails dispatches this exact name (services/api/spec/services/interviews/join_live_service_spec.rb).
     assert AGENT_NAME == "careerdrafter-live-interviewer"
 
 
@@ -827,3 +828,20 @@ def test_a_lost_prompt_report_is_resent_and_its_answer_reported_once_rails_recor
 
 
 
+
+
+def test_room_attribute_names_and_choose_options_match_the_documented_contract():
+    """docs/architecture/interview-sessions.md ("Room contract") lists these literals; the web hook's
+    test (apps/web/src/features/interviews/useLiveInterviewRoom.test.tsx) checks the same ones."""
+    from live_interviews.agent import MENU_OPTIONS
+    from live_interviews.controller import MENU_EVENTS, Phase
+
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+    asyncio.run(go())
+    assert set(ctx.room.local_participant.attributes[0]) == {
+        "cd.question_position", "cd.question_total", "cd.phase", "cd.menu_offered", "cd.seconds_left", "cd.time_warning"}
+    assert list(ctx.room.local_participant.rpc_methods) == ["interview.choose"]
+    assert MENU_OPTIONS == {"retry", "repeat", "hint", "next", "feedback"}  # plus "end", handled on its own
+    assert set(MENU_EVENTS) == MENU_OPTIONS
+    assert set(Phase.__args__) == {"asking", "answering", "feedback", "menu", "closing", "ended"}

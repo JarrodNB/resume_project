@@ -256,3 +256,17 @@ it('ends the live room as failed through Rails, without the agent, when the cand
   expect(result).toHaveBeenCalledOnce()
   expect(room.performRpc).not.toHaveBeenCalled()
 })
+
+// docs/architecture/interview-sessions.md ("Room contract") lists these literals; the agent's test
+// (services/ai/tests/test_live_interview_agent.py) checks the same ones.
+it('reads the documented cd.* attributes and sends each documented interview.choose option', async () => {
+  const { view, room } = await connectedRoom()
+  act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '2', 'cd.question_total': '6', 'cd.phase': 'menu',
+    'cd.menu_offered': 'true', 'cd.seconds_left': '90', 'cd.time_warning': 'true' } }))
+  expect(view.result.current.progress).toEqual({ questionPosition: 2, questionTotal: 6, phase: 'menu', menuOffered: true, secondsLeft: 90, timeWarning: true })
+  room.remoteParticipants.set(agent.identity, agent)
+  for (const option of ['retry', 'repeat', 'hint', 'next', 'feedback'] as const) {
+    await act(async () => { await view.result.current.choose(option) })
+    expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'interview.choose', payload: JSON.stringify({ option }) }))
+  }
+})

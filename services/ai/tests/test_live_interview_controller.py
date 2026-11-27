@@ -871,6 +871,35 @@ def test_a_warning_due_while_a_follow_up_is_being_asked_waits_until_it_has_been_
     assert controller.handle(InterviewerTurnFinished(text="About two minutes left.")) == []  # not a prompt
 
 
+def test_a_warning_due_while_feedback_is_being_given_waits_until_the_feedback_has_been_heard():
+    """The next interviewer turn while giving feedback is saved as the feedback, so the warning must not be it."""
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    assert len(said(click(controller, "feedback"))) == 1  # the feedback is asked for
+    actions = controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110))
+    assert clock_states(actions) == [(1_500, True)] and said(actions) == []  # the model has not started yet
+    assert controller.handle(SpeakingChanged("interviewer", False)) == []
+    controller.handle(SpeakingChanged("interviewer", True))
+    actions = controller.handle(InterviewerTurnFinished(text="Quick feedback: good start. Say what changed."))
+    assert actions[0] == ReportFeedbackGiven(question_position=0, text="Quick feedback: good start. Say what changed.")
+    assert said(actions) == []  # the interviewer is still talking
+    warning = said(controller.handle(SpeakingChanged("interviewer", False)))
+    assert len(warning) == 1 and "two minutes" in warning[0].instructions.lower()
+    assert controller.handle(InterviewerTurnFinished(text="About two minutes left.")) == []  # not feedback
+
+
+def test_a_warning_held_through_feedback_is_said_as_soon_as_the_feedback_ends_in_quiet():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    controller.handle(GiveFeedback())
+    controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110))
+    actions = controller.handle(InterviewerTurnFinished(text="Quick feedback: good start."))
+    assert actions[0] == ReportFeedbackGiven(question_position=0, text="Quick feedback: good start.")
+    assert len(said(actions)) == 1 and "two minutes" in said(actions)[0].instructions.lower()
+
+
 def test_an_allowance_warning_while_the_opening_is_being_asked_is_said_once_it_has_been_heard():
     controller, _ = started_controller()
     actions = controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110))

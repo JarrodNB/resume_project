@@ -681,8 +681,11 @@ interviewer is busy (speaking or thinking of a reply, such as a hint or a repeat
 because the model is running then. The counted seconds left reach the room as
 `cd.seconds_left` with each phase change and about every 5 seconds. With 2 minutes left the
 controller sets `cd.time_warning` `true` and the interviewer says so once, at the next quiet
-moment. While a question or follow-up is still to be asked it waits until that prompt has been
-heard, because the next interviewer turn then is saved as the prompt. At zero it wraps up:
+moment. While a question or follow-up is still to be asked, or feedback is still to be given,
+it waits until that turn has been heard, because the next interviewer turn then is saved as the
+prompt or the feedback. The nudge is only said while answering and the menu prompt only at the
+menu, where nothing is saved; a welcome-back in those saved phases is itself the turn (it asks
+the question or gives the feedback), so it is saved as intended. At zero it wraps up:
 tools are refused ("time is up"), menu buttons are ignored, and once neither side is speaking
 (the adapter reports LiveKit's `agent_state_changed`, where `thinking` and `speaking` count as
 busy, and `user_state_changed`) it saves the pending answer, publishes `closing` and asks for a

@@ -622,6 +622,8 @@ class LiveInterviewController:
             self._answering_since += away
         if self._menu_since is not None:
             self._menu_since += away
+        # While the next turn is saved (asking, feedback), the welcome-back asks for that very
+        # turn (the question or the feedback), so it is saved as intended.
         welcome = WELCOME_BACK_TO.get(self._phase)
         return [GenerateReply(welcome)] if welcome else []
 
@@ -688,10 +690,15 @@ class LiveInterviewController:
         self._wrap_reason = reason
         return self._speak_when_quiet()
 
+    def _next_turn_is_saved(self) -> bool:
+        """While asking or giving feedback, Rails saves the next interviewer turn (as the prompt or
+        the feedback), so nothing unsolicited may be spoken in its place."""
+        return self._phase in ("asking", "feedback")
+
     def _speak_when_quiet(self) -> list[LiveAction]:
         """Say a pending warning or wrap-up closing, but never over a turn still being spoken. The
-        warning also waits while a prompt is being asked: the next interviewer turn then is saved
-        as the prompt, so it is said once the prompt has been heard."""
+        warning also waits while the next interviewer turn will be saved (a prompt being asked or
+        feedback being given), so it is said once that turn has been heard."""
         if self._interviewer_busy or self._candidate_speaking or self._phase in ("closing", "ended"):
             return []
         if self._away_since is not None:  # say nothing to an empty room; a wrap-up just finishes
@@ -700,7 +707,7 @@ class LiveInterviewController:
             actions = self._save_answer()
             self._phase = "closing"
             return [*actions, self._room_state(), SayClosing(WRAP_UP[self._wrap_reason])]
-        if self._warning_due and self._phase != "asking":  # the next turn while asking is saved as the prompt
+        if self._warning_due and not self._next_turn_is_saved():
             self._warning_due = False
             return [GenerateReply(TIME_WARNING)]
         return []
@@ -710,8 +717,8 @@ class LiveInterviewController:
         report = ReportFeedbackGiven(self._question_position, text[:FEEDBACK_LIMIT].rstrip())
         self._phase, self._menu_since = self._after_feedback, None
         if self._phase == "answering":
-            return [report, self._room_state()]
-        return [report, self._room_state(), GenerateReply(MENU)]
+            return [report, self._room_state(), *self._speak_when_quiet()]  # a warning held back during feedback
+        return [report, self._room_state(), GenerateReply(MENU)]  # a held warning follows once the menu is heard
 
     def _tool(self, event: ToolEvent) -> list[LiveAction]:
         if self._question_position is None:

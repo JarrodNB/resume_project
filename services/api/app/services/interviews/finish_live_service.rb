@@ -13,7 +13,8 @@
 # Recovery passes `stale_before`: the finish then goes ahead only while the connection's last
 # sign of life (heartbeat, claim or join) is still that old, so a late heartbeat wins the race.
 # For recovery only, a quiet connection whose interview already finished or expired is just
-# closed (bill unknown), leaving the interview as it is.
+# closed (bill unknown), leaving the interview as it is. `close_open` closes the same way the
+# open connection of an interview that ends another way (abandoned or expired).
 module Interviews
   class FinishLiveService < ApplicationService
     REASONS = %w[completed ended_by_candidate idle time_limit allowance disconnected failed].freeze
@@ -28,6 +29,19 @@ module Interviews
       return ServiceResult.new(success: false, value: nil, errors: [ "This interview has no live room" ]) unless connection
 
       call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate")
+    end
+
+    # Closes the interview's open live connection, if any, with the bill unknown (no final heartbeat
+    # was named), so the agent's next call is refused as `connection_ended` and it leaves. Callers
+    # hold the user and interview locks; the connection is locked next, as the live lock order says.
+    def self.close_open(interview, reason:)
+      interview.live_connections.open.order(:id).lock.each { |connection| close_only(connection, reason) }
+    end
+
+    # Ends one locked connection and closes its bill as unknown, leaving the interview as it is.
+    def self.close_only(connection, reason)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: reason)
+      LiveConversationBill.close(connection, known: false)
     end
 
     def initialize(connection:, reason:, final_sequence: nil, stale_before: nil)
@@ -70,8 +84,7 @@ module Interviews
     end
 
     def close_only
-      @connection.update!(status: "ended", ended_at: Time.current, end_reason: @reason)
-      LiveConversationBill.close(@connection, known: false)
+      self.class.close_only(@connection, @reason)
       success(receipt(@connection.interview_session))
     end
 

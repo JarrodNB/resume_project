@@ -563,7 +563,9 @@ agent never claimed within the token's 10 minutes ends as `failed`. Both go thro
 session is completed or abandoned by the usual rule. The finish re-checks under the user,
 interview and connection locks that the connection is still open and still quiet, so a late
 heartbeat or claim wins and a repeat run changes nothing. A quiet connection whose session
-already finished or expired is only closed. If a heartbeat merely failed while the agent kept
+already finished or expired is only closed. Abandoning a live session and its expiry cleanup close an open
+connection the same close-only way (`FinishLiveService.close_open`; bill unknown, end reason
+`ended_by_candidate` for abandon and `failed` for expiry), so the agent's next call is refused. If a heartbeat merely failed while the agent kept
 running, or the owner ended the room, the agent's later calls are refused with 409 and
 `code: "connection_ended"` (any refusal because the connection ended or the session is no longer
 a live, active, unexpired session; other refusals, such as a follow-up past the cap, carry no
@@ -690,8 +692,8 @@ including any next question it may introduce. New messages and speech work come 
 accounting and media code must preserve owner → interview → question → operation → linked
 usage records → message/recording order. Never perform provider or storage I/O under locks.
 
-Live callbacks (`LiveConnectionAccess.with_locked`) and `FinishLiveService` lock owner →
-interview → live connection, then questions and messages, then prompt-help records (career
+Live callbacks (`LiveConnectionAccess.with_locked`), `FinishLiveService`, and the open-room
+close in `AbandonService` and expiry cleanup lock owner → interview → live connection, then questions and messages, then prompt-help records (career
 references, clarifications) and tasks. `RetryLiveQuestionService` follows that order: it locks
 the question, the messages it removes, their reference and clarification records, and only then
 each unfinished task, the same record → task order the queued-result consumer uses

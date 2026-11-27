@@ -14,7 +14,10 @@ turn that has ended (`user_state_changed` from `speaking`) but not yet been tran
 realtime model the provider may send it after the reply it prompted has started generating, and
 LiveKit runs tools during generation (livekit-agents `voice/agent_activity.py`,
 `_on_input_audio_transcription_completed` and `_realtime_generation_task_impl`). The controller
-then decides on the answer the candidate actually gave. It carries out the actions the controller returns: speak, report to Rails,
+then decides on the answer the candidate actually gave. An interviewer message spoken in the
+same model response as a tool call (a preamble such as "Sure, let's move on.") finishes after
+the tool has run; it is passed on marked as a preamble, so only the reply to the tool's result
+counts as the follow-up, feedback or closing. It carries out the actions the controller returns: speak, report to Rails,
 publish progress and the clock as agent participant attributes and leave. When Rails refuses a
 call with `connection_ended` (recovery or the owner already finished the interview), the
 interviewer is cut off and the agent leaves without reporting or finishing anything else. A heartbeat adds the
@@ -160,6 +163,7 @@ class LiveInterviewRunner:
         self._leave, self._clock, self._transcript_wait_seconds = leave, clock, transcript_wait_seconds
         self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
         self._turn_heard = asyncio.Event()
+        self._tool_speeches: list[tuple] = []  # (speech handle, its step) of each tool call still speaking
         self._controller = LiveInterviewController()
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
@@ -205,7 +209,7 @@ class LiveInterviewRunner:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
         item = event.item
         if isinstance(item, llm.ChatMessage) and item.role == "assistant":
-            self._spawn(InterviewerTurnFinished(item.text_content or ""))
+            self._spawn(InterviewerTurnFinished(item.text_content or "", preamble=self._spoken_before_a_tool_result(item)))
         elif isinstance(item, llm.ChatMessage) and item.role == "user":
             task = asyncio.create_task(self._candidate_turn_heard(item.text_content or ""))
             self._tasks.add(task)
@@ -217,13 +221,31 @@ class LiveInterviewRunner:
         self._unheard_turns = max(self._unheard_turns - 1, 0)
         self._turn_heard.set()
 
-    async def tool(self, event: ToolEvent) -> str:
+    def _spoken_before_a_tool_result(self, item: llm.ChatMessage) -> bool:
+        """Whether this interviewer message came from a model response that also called a tool.
+
+        LiveKit runs a tool while its response is still generating and adds that response's
+        spoken message only after it has played, so the message ("Sure, let's move on.") arrives
+        after the tool event. The reply to the tool's result is spoken by the same SpeechHandle
+        one step later (`num_steps` grows once the tools are done), or by a new speech, so a
+        message recorded on the tool call's speech at the tool call's step is the preamble
+        (livekit-agents `voice/agent_activity.py`, `_realtime_generation_task_impl`)."""
+        return any(step == speech.num_steps and any(recorded is item for recorded in speech.chat_items)
+                   for speech, step in self._tool_speeches)
+
+    async def tool(self, event: ToolEvent, speech=None) -> str:
         """Run one tool call once the candidate's ended turns are transcribed (at most a few seconds).
 
         The tool's decision (save, follow up, move on) is about the answer the candidate just
         gave, so it waits for that answer's final transcript. If it does not come in time (the
         transcription failed), the call goes on with what was heard; words that arrive later still
-        join the current answer, or are dropped while the next prompt is being asked."""
+        join the current answer, or are dropped while the next prompt is being asked.
+
+        `speech` is the LiveKit SpeechHandle whose response called the tool; words it spoke at
+        this step are a preamble, never the turn the result asks for."""
+        if speech is not None:
+            self._tool_speeches = [(handle, step) for handle, step in self._tool_speeches if not handle.done()]
+            self._tool_speeches.append((speech, speech.num_steps))
         await self._wait_for_candidate_transcripts()
         return await self.handle(event) or ""
 
@@ -399,46 +421,46 @@ class LiveInterviewerAgent(Agent):
         Args:
             question_text: The follow-up question you want to ask, in a few words.
         """
-        return await self._runner.tool(AskFollowUp(question_text))
+        return await self._runner.tool(AskFollowUp(question_text), context.speech_handle)
 
     @function_tool
     async def finish_answer(self, context: RunContext) -> str:
         """Record that the candidate has finished answering the current question or follow-up."""
-        return await self._runner.tool(FinishAnswer())
+        return await self._runner.tool(FinishAnswer(), context.speech_handle)
 
     @function_tool
     async def repeat_question(self, context: RunContext) -> str:
         """Use when the candidate asks to hear the current question or follow-up again."""
-        return await self._runner.tool(RepeatQuestion())
+        return await self._runner.tool(RepeatQuestion(), context.speech_handle)
 
     @function_tool
     async def next_question(self, context: RunContext) -> str:
         """Move on from the current question when you have no more follow-ups for it. The result says
         which question to ask next, or how to close the interview after the last one."""
-        return await self._runner.tool(NextQuestion())
+        return await self._runner.tool(NextQuestion(), context.speech_handle)
 
     @function_tool
     async def give_feedback(self, context: RunContext) -> str:
         """Use when the candidate asks how they did ("How was that?"). The result says how to give the
         quick feedback; the words you then speak are saved as the feedback."""
-        return await self._runner.tool(GiveFeedback())
+        return await self._runner.tool(GiveFeedback(), context.speech_handle)
 
     @function_tool
     async def offer_menu(self, context: RunContext) -> str:
         """Use when the candidate is done with the current question or asks what they can do next. The
         result says whether to give feedback first or which choices to offer."""
-        return await self._runner.tool(OfferMenu())
+        return await self._runner.tool(OfferMenu(), context.speech_handle)
 
     @function_tool
     async def give_hint(self, context: RunContext) -> str:
         """Use when the candidate asks for a hint. The result says how to hint without giving an answer."""
-        return await self._runner.tool(GiveHint())
+        return await self._runner.tool(GiveHint(), context.speech_handle)
 
     @function_tool
     async def retry_question(self, context: RunContext) -> str:
         """Use when the candidate wants to try the whole question again. The result says whether a retry
         is left and what to ask."""
-        return await self._runner.tool(RetryQuestion())
+        return await self._runner.tool(RetryQuestion(), context.speech_handle)
 
 
 async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=time.monotonic,

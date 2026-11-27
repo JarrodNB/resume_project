@@ -799,3 +799,44 @@ def test_a_transcript_that_never_comes_stops_holding_tools_back_after_a_short_wa
     asyncio.run(scenario())
     assert rails.calls[-1] == ("answer_finished", "live", {"prompt_message_id": "opening-0",
                                                            "transcript": "A late answer."})
+
+
+def test_words_spoken_with_a_tool_call_are_a_preamble_and_the_reply_after_its_result_counts():
+    rails, sessions = FakeRails(claim=CLAIM.model_copy(update={"question_total": 1})), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        agent = session.agent
+
+        async def call_with_preamble(tool, *arguments, preamble, reply):
+            speech = FakeToolSpeech()  # LiveKit speaks the tool's reply in the same speech, one step later
+            result = await getattr(agent, tool)(tool_call(speech), *arguments)
+            session.emit_item("assistant", preamble, speech=speech)  # added after playout, after the tool ran
+            await settle()
+            speech.num_steps += 1
+            session.emit_item("assistant", reply, speech=speech)
+            await settle()
+            return result
+
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await call_with_preamble("ask_follow_up", "What changed?", preamble="Sure.", reply="What changed for the team?")
+        session.emit_item("user", "Fewer failed runs.")
+        await settle()
+        await call_with_preamble("next_question", preamble="Okay.", reply="Quick feedback: clear story.")
+        assert "hint" in session.replies[-1].lower()  # the menu follows the real feedback
+        await call_with_preamble("next_question", preamble="Sure, let's wrap up.", reply="Thank you. Goodbye!")
+
+    asyncio.run(scenario())
+    assert [call for call in rails.calls if call[0] in ("prompt_asked", "feedback_given", "finish")] == [
+        ("prompt_asked", "live", {"question_position": 0, "kind": "opening", "text": "Tell me about a project."}),
+        ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?",
+                                  "prompt_key": "q0-r0-f1"}),
+        ("feedback_given", "live", {"question_position": 0, "text": "Quick feedback: clear story."}),
+        ("finish", "live", {"reason": "completed", "final_sequence": 1}),
+    ]
+    assert ctx.shutdown_reason

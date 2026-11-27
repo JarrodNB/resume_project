@@ -330,7 +330,12 @@ LiveKit runs tools while that reply is generating. So the adapter holds a tool c
 candidate turn that has ended (`user_state_changed` from `speaking`) has its final transcript, for
 at most 3 seconds; the decision (save, follow up, move on) then sees the answer the candidate
 gave. A transcript that arrives later joins the open answer, or is dropped while the next prompt
-is being asked, never saved to it. On start it publishes room state and asks the model to greet
+is being asked, never saved to it. The model may also speak a short preamble ("Sure, let's move
+on.") in the same response as a tool call; LiveKit adds that message only after it has played,
+after the tool ran, and speaks the reply to the tool's result on the same `SpeechHandle` one step
+later. The adapter marks a message recorded on a tool call's speech at the tool call's step as a
+preamble, and the controller ignores it, so only the reply counts as the follow-up, feedback or
+closing the result asked for. On start it publishes room state and asks the model to greet
 and ask the current question. Each question then runs like this:
 
 1. The first final interviewer turn after a question or accepted follow-up is reported through

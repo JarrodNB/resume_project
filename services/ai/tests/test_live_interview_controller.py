@@ -857,3 +857,37 @@ def test_an_agent_that_starts_in_an_empty_room_waits_for_the_candidate_before_as
     assert "welcome" in actions[0].instructions.lower() and "ask the current question" in actions[0].instructions.lower()
     assert controller.handle(InterviewerTurnFinished(text="Welcome back. Tell me about a project."))[0] == ReportPromptAsked(
         question_position=0, kind="opening", text="Welcome back. Tell me about a project.")
+
+
+def preamble(text):
+    """Words the model spoke in the same response as a tool call, before the tool's result."""
+    return InterviewerTurnFinished(text=text, preamble=True)
+
+
+def test_a_preamble_before_the_last_next_question_does_not_cut_the_closing():
+    controller = menu_controller(position=4)
+    controller.handle(NextQuestion())
+    assert controller.handle(preamble("Sure, let's wrap up.")) == []
+    assert controller.handle(InterviewerTurnFinished(text="Thank you so much. Goodbye!"))[1] == ReportFinish(
+        reason="completed", final_sequence=1)
+
+
+def test_a_preamble_before_ask_follow_up_is_not_saved_as_the_follow_up():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    controller.handle(AskFollowUp(question_text="What changed?"))
+    assert controller.handle(preamble("Sure.")) == []
+    assert controller.handle(InterviewerTurnFinished(text="What changed for the team?"))[0] == ReportPromptAsked(
+        question_position=0, kind="follow_up", text="What changed for the team?", prompt_key="q0-r0-f1")
+
+
+def test_a_preamble_before_give_feedback_is_not_saved_as_the_feedback():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    controller.handle(NextQuestion())
+    assert controller.handle(preamble("Okay, let me think about that.")) == []
+    actions = controller.handle(InterviewerTurnFinished(text="Quick feedback: clear example."))
+    assert actions[0] == ReportFeedbackGiven(question_position=0, text="Quick feedback: clear example.")
+    assert isinstance(actions[-1], GenerateReply) and "hint" in actions[-1].instructions  # the menu follows it

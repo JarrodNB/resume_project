@@ -63,6 +63,10 @@ asked (answers still go to the saved prompt), or offers the menu when feedback w
 follow-up it never heard is current. Follow-ups are keyed by question, retry and answers so far,
 so the same follow-up is never saved twice.
 
+Turns after a tool call: the model may speak a short preamble and call a tool in one response.
+The preamble finishes after the tool has run, so the adapter marks it (`preamble`) and only the
+reply to the tool's result counts as the follow-up, feedback or closing the result asked for.
+
 Tool calls always get exactly one `ToolResult`, the last action. The realtime model speaks in
 reply to it, so the result says what to say next, or why the call was refused. Button choices
 have no tool call, so they end with a `GenerateReply` carrying the same words instead.
@@ -100,9 +104,14 @@ class Started:
 
 @dataclass(frozen=True)
 class InterviewerTurnFinished:
-    """The interviewer finished a spoken turn; `text` is its final transcript."""
+    """The interviewer finished a spoken turn; `text` is its final transcript.
+
+    `preamble` marks words spoken in the same model response as a tool call ("Sure, let's move
+    on."), before the tool's result was known. They are never the prompt, feedback or closing
+    that result asked for, which comes in the reply after it."""
 
     text: str
+    preamble: bool = False
 
 
 @dataclass(frozen=True)
@@ -558,7 +567,7 @@ class LiveInterviewController:
 
     def _interviewer_turn_finished(self, event: InterviewerTurnFinished) -> list[LiveAction]:
         text = event.text.strip()
-        if not text:
+        if not text or event.preamble:
             return []
         if self._phase == "closing":
             # A wrap-up finishes when its own closing has played (`ClosingSpoken`), not on a turn

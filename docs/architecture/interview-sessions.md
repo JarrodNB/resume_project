@@ -239,8 +239,9 @@ live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explic
    `INTERVIEW_SERVICE_SECRET` bearer like other interview callbacks. `ClaimLiveConnectionService`
    requires the same room, an open connection and a live, active, unexpired session; it marks
    the connection `connected` (the first `connected_at` is kept, `last_heartbeat_at` moves) and
-   returns the session, connection and user IDs, `question_total` and
-   `current_question_position`. Repeats are safe; anything stale is refused with 409.
+   returns the session, connection and user IDs, `question_total`,
+   `current_question_position` and `current_question_retry_count` (so a restarted agent keeps
+   the retry limit). Repeats are safe; anything stale is refused with 409.
 2. loads its inputs as `ai_reader` (`database/live_interview_inputs.py`), only while that
    connection is `connected`: saved setup, prepared questions in order, the fictional role or
    current saved job, and contact details used only for masking. It never reads career
@@ -257,11 +258,14 @@ live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explic
 The pure `LiveInterviewController` (`live_interviews/controller.py`) takes events and returns
 actions; the adapter (`live_interviews/agent.py`) only forwards and executes them. Events are the
 final transcripts of both sides (`conversation_item_added`), the model's interview tools
-(`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`, plain `@function_tool`
-methods on the agent), Rails' saved-prompt receipts and the candidate's End interview. Every tool
-call gets one tool result; LiveKit has the realtime model speak in reply to it, so the result
-says what to say next (ask the follow-up, repeat the prompt, ask question N, close) or why the
-call was refused. On start it publishes room state and asks the model to greet and ask the
+(`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`, `give_feedback`,
+`offer_menu`, `give_hint`, `retry_question`, plain `@function_tool` methods on the agent), the
+room's `interview.choose` RPC, a clock tick about once a second, Rails' saved-prompt receipts
+and the candidate's End interview. Every tool call gets one tool result; LiveKit has the
+realtime model speak in reply to it, so the result says what to say next (ask the follow-up,
+repeat the prompt, give quick feedback, offer the choices, ask question N, close) or why the
+call was refused. A room button has no tool call, so its choice ends with a `generate_reply`
+carrying the same words instead (after interrupting the interviewer). On start it publishes room state and asks the model to greet and ask the
 current question. Each question then runs like this:
 
 1. The first final interviewer turn after a question or accepted follow-up is reported through
@@ -280,16 +284,58 @@ current question. Each question then runs like this:
    `RecordLiveAnswerService` saves the prompt's answer (semantic key `live_answer:<prompt id>`)
    and increments `accepted_answer_count`; a later report for the same prompt replaces the text
    (only the latest is kept) without counting again. New answers go only to the latest prompt of
-   the current question. The controller also refuses `ask_follow_up` before an answer or at the
-   cap, telling the model to call `next_question`.
-3. `next_question` reports `question_advanced` (`question_position`). `AdvanceLiveQuestionService`
+   the current question. The controller also refuses `ask_follow_up` before an answer; at the
+   cap it goes to quick feedback instead (step 3).
+3. When a question with at least one answer is done (`next_question` or `offer_menu`, or no
+   follow-up is left at the cap), the controller does not advance. It runs the coaching loop:
+   - **Quick feedback.** The tool result asks the interviewer to step out of role with "Quick
+     feedback:" and give one strength and one fix in about 20 seconds, and nothing else. The
+     next final interviewer turn is that feedback: its spoken words (cut to 1,500 characters)
+     are reported through `feedback_given` (`question_position`, `text`).
+     `RecordLiveFeedbackService` saves them on the current question's nullable `live_feedback`
+     (check constraint 1–1,500 characters); later feedback replaces it and a repeat of the same
+     words changes nothing. Saving what was spoken, rather than a text the model passes to a
+     tool, keeps the review true to what the candidate heard.
+   - **The menu.** The controller then has the model offer Try again / Hear the question again /
+     Get a hint / Move on and publishes `cd.menu_offered` `true`. From the menu it never moves on
+     without a choice: by voice the model calls `retry_question`, `repeat_question`, `give_hint`
+     or `next_question`; the room buttons send the RPC options `retry`, `repeat`, `hint`, `next`,
+     which map to the same controller events. Other tools (follow-ups, `finish_answer`) are
+     refused with "wait for their choice".
+   - **Hear the question again** repeats (or lightly rephrases) the core question and offers the
+     menu again; it does not reopen answering, because Try again does that.
+   - **Get a hint** points to an approach (a structure, the kind of example), never a finished
+     answer or wording to recite. Hints are also allowed while answering. They save nothing.
+   - **Try again** restarts the whole question: the controller drops unsaved words, reports
+     `question_retried` (`question_position`, `retry_number`) and asks the question again, whose
+     spoken turn is reported as the opening again (Rails returns the saved opening).
+     `RetryLiveQuestionService` destroys the question's answers and follow-ups (their career
+     references and clarifications go with them; unfinished reference or clarification tasks
+     are failed first with `question_retried`), clears `live_feedback`, resets
+     `accepted_answer_count` and sets `live_retry_count` (0–2, check constraint). The opening
+     and its references stay. The repeat of the latest `retry_number` is a no-op replay, so a
+     retried request never clears the new attempt; a third retry or a skipped number is
+     refused, and the controller also refuses a third and has the interviewer say so and
+     re-offer the other choices.
+   - **"How was that?"** (`give_feedback`, or the room's `feedback` option) while answering
+     saves the answer so far, gives quick feedback on it (saved the same way) and returns to the
+     answer; from the menu it gives feedback again and re-offers the menu.
+   - **Clock.** The adapter sends `Tick(now)` (monotonic seconds) about once a second. Once per
+     prompt, after about three minutes of answering, the interviewer politely cuts in to ask
+     the candidate to wrap up. A menu that waits three minutes without any choice has the
+     interviewer say a short goodbye and then finishes with reason `idle`. Every choice at the
+     menu restarts that wait. The model is told not to time the candidate itself.
+   A question with no answer at all moves on directly, as before.
+4. Move on (`next`) from the menu reports `question_advanced` (`question_position`). `AdvanceLiveQuestionService`
    uses `Interviews::QuestionProgression`, shared with `AcceptTurnService` and
    `SkipQuestionService`: the next question becomes current and its opening is saved with the
    prepared text (the agent's later `prompt_asked` returns it). A question with no answer gets
    `skipped_at`. At the last question nothing moves and the interview stays active; a retry of
    the move just made returns the same receipt.
-4. After the last question the model closes warmly; once that turn is spoken the agent calls
-   `finish` (`reason`: `completed`, `ended_by_candidate` or `failed` for now) and leaves.
+5. After the last question the model closes warmly; once that turn is spoken the agent calls
+   `finish` (`reason`: `completed`, `ended_by_candidate`, `idle` or `failed` for now) and
+   leaves. `idle` was added to the connection's end-reason check constraint; it follows the
+   same completed/abandoned rule.
    `FinishLiveService` ends the connection (`ended_at`, `end_reason`) and completes the session
    (`completed_at`) when at least one answer is saved, otherwise runs `AbandonService`. No
    closing message is saved. A repeat after the session finished returns the first outcome.
@@ -299,11 +345,14 @@ connection is unclaimed or ended, the session is not a live, active, unexpired o
 question or prompt is no longer current. Because prompts and answers are normal messages, the
 career references panel, the completed review and session feedback work exactly as for
 turn-based interviews. Room state reaches the browser as the agent participant's attributes
-`cd.question_position` (zero-based), `cd.question_total` and `cd.phase` (`asking`, `answering`,
-`closing`, `ended`). The claim response also carries `answer_cap`.
+`cd.question_position` (zero-based), `cd.question_total`, `cd.phase` (`asking`, `answering`,
+`feedback`, `menu`, `closing`, `ended`) and `cd.menu_offered` (`true` only in `menu`). The claim
+response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
+turn-based questions), and seven-day expiry clears it with the rest of the dialogue.
 
 The room's End interview button asks for confirmation, then calls the agent's LiveKit RPC method
-`interview.choose` with `{"option": "end"}` (unknown options are RPC errors). The agent saves
+`interview.choose` with `{"option": "end"}` (the menu options above answer `accepted`; unknown
+options are RPC errors). The agent saves
 the pending answer, calls `finish` with `ended_by_candidate` and leaves; it answers `ended` only
 once Rails accepted the finish. The browser waits at most 5 seconds, then always calls the
 owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiveService` on the
@@ -315,9 +364,14 @@ Provider usage, heartbeats and the live allowance are not recorded yet.
 In the web app, an active live session (or a ready one after "Enter interview room") renders
 `LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
 `livekit-client`. The hook exposes captions from the `lk.transcription` text streams (both
-sides; a segment's interim text is replaced by its later text), the agent's progress attributes,
-`mute(on)` and `end()`. The room shows hideable captions, "Question N of M", a mute toggle, End interview and the
-references panel for the current saved prompt. If no agent joins within 15 seconds, or joining
+sides; a segment's interim text is replaced by its later text), the agent's progress attributes
+(including `menuOffered`), `mute(on)`, `choose(option)` and `end()`. The room shows hideable
+captions, "Question N of M", a mute toggle, End interview and the references panel for the
+current saved prompt. While the agent offers the menu it shows a labelled group of four buttons
+(Try again, Hear the question again, Get a hint, Move on); while the candidate answers it shows
+"How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
+choice the agent didn't get shows a short alert. The completed review shows a question's
+`liveFeedback` under its latest answer as "Interviewer feedback". If no agent joins within 15 seconds, or joining
 fails, the room offers a new turn-based preparation with the same setup.
 
 Public snapshots expose the prepared fictional role and safe preparation progress, never

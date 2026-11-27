@@ -137,6 +137,13 @@ exact-operation watchdogs. There is no Python discovery or cleanup timer.
 key-only tombstone reaping. Its interrupted queue jobs share the capped process-death
 recovery policy; after exhaustion, the next scheduled maintenance run remains available.
 
+`Interviews::RecoverLiveConnectionsJob` also runs every minute on the `maintenance` queue. It
+ends live interview connections whose agent went quiet (no heartbeat for 150 seconds, or a
+joined room never claimed within 10 minutes), finishing them as `disconnected` or `failed`
+through `Interviews::FinishLiveService`. It re-checks under row locks, so it is safe to run twice
+and to race a late agent heartbeat. See
+[live interview recovery](interview-sessions.md#dropped-connections-rejoin-and-recovery).
+
 After migrations and before retiring the old runtime, run
 `bin/rails interviews:adopt_delivery`. It adopts only legacy pending/running operations
 missing delivery/watchdog identities, preserves their attempts and ledger, and enqueues

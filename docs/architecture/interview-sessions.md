@@ -241,7 +241,11 @@ live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explic
    the connection `connected` (the first `connected_at` is kept, `last_heartbeat_at` moves) and
    returns the session, connection and user IDs, `question_total`,
    `current_question_position` and `current_question_retry_count` (so a restarted agent keeps
-   the retry limit). Repeats are safe; anything stale is refused with 409.
+   the retry limit), plus what a fresh agent needs to take over a running connection:
+   `heartbeat_sequence` (the last one applied), the current question's latest saved prompt
+   (`current_prompt_message_id`, `current_prompt_kind`), `current_prompt_answered`,
+   `current_question_answer_count` and `current_question_feedback_given`. These are IDs, flags
+   and counts only, never text. Repeats are safe; anything stale is refused with 409.
 2. loads its inputs as `ai_reader` (`database/live_interview_inputs.py`), only while that
    connection is `connected`: saved setup, prepared questions in order, the fictional role or
    current saved job, and contact details used only for masking. It never reads career
@@ -274,8 +278,10 @@ current question. Each question then runs like this:
    (semantic key `question:<id>:opening`, as `BeginService` does), never the spoken words, so a
    cut-off opening cannot shorten the saved question and references match turn-based; a repeat
    returns the saved opening. A `follow_up` saves the spoken text (bounded by
-   `TextLimits::PROSE`) under a `prompt_key` the Rails client generates per call (semantic key
-   `live_prompt:<key>`), so only that call's retry returns the saved follow-up. It is refused
+   `TextLimits::PROSE`) under the controller's `prompt_key` (semantic key `live_prompt:<key>`).
+   The key is `q<position>-r<retries>-f<answers so far>`, so a retry of the request, or an agent
+   that took over after a crash and asks at the same point, returns the saved follow-up rather
+   than saving a second one. It is refused
    until the latest prompt of the current question has an answer and once the question has
    `answer_cap` answers. The receipt's `message_id` is fed back to the controller.
 2. The candidate's final transcripts for the current prompt are joined and reported through
@@ -333,8 +339,8 @@ current question. Each question then runs like this:
    `skipped_at`. At the last question nothing moves and the interview stays active; a retry of
    the move just made returns the same receipt.
 5. After the last question the model closes warmly; once that turn is spoken the agent calls
-   `finish` (`reason`: `completed`, `ended_by_candidate`, `idle`, `time_limit`, `allowance` or
-   `failed`) and leaves. `idle` was added to the connection's end-reason check constraint; it follows the
+   `finish` (`reason`: `completed`, `ended_by_candidate`, `idle`, `time_limit`, `allowance`,
+   `disconnected` or `failed`) and leaves. `idle` was added to the connection's end-reason check constraint; it follows the
    same completed/abandoned rule.
    `FinishLiveService` ends the connection (`ended_at`, `end_reason`) and completes the session
    (`completed_at`) when at least one answer is saved, otherwise runs `AbandonService`. No
@@ -359,6 +365,62 @@ owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiv
 session's open (or latest) connection: it finishes the session when the agent is gone or failed,
 and otherwise returns the finished snapshot. The page then shows the completed review, or the
 usual abandoned state.
+
+#### Dropped connections, rejoin and recovery
+
+**The candidate drops.** The agent starts its `AgentSession` with
+`RoomOptions(close_on_disconnect=False)`, so it stays in the room when the candidate's
+participant leaves. LiveKit's RoomIO links the candidate again when the same identity
+(`user-<id>`) rejoins (livekit-agents `voice/room_io/room_io.py`: `_on_participant_disconnected`
+resets the linked participant without closing the session, and `_on_participant_connected`
+links the next matching participant). The adapter turns the room's `participant_disconnected`
+and `participant_connected` events (any non-agent participant) into `CandidateLeft` /
+`CandidateJoined`. While the candidate is away the controller says nothing new, the session
+clock stops counting (so nothing is billed), the nudge and menu idle waits stand still, and
+heartbeats carry on so Rails knows the agent is alive. A wrap-up from a heartbeat finishes at once
+without a closing. Back within 2 minutes, the interviewer welcomes them back in a sentence and
+carries on from the same place: it repeats the current prompt (the answer so far is kept), or
+offers the menu choices again. After 2 minutes away the agent saves the pending answer, finishes
+with `disconnected` (completed with an answer, abandoned without) and leaves. A fresh agent
+that starts in an empty room waits the same way.
+
+**Rejoin.** `joinLiveInterview` reuses the open connection: the same room with a fresh
+ten-minute token, and no 5-minute allowance check. In the browser, `useLiveInterviewRoom` reports
+`reconnecting` while livekit-client retries on its own (`RoomEvent.Reconnecting` /
+`Reconnected`) and `disconnected` once it gives up (`RoomEvent.Disconnected` after connecting).
+The room then shows "Reconnecting…", or "You were disconnected" with a **Rejoin interview**
+button that joins through Rails again and connects with the new token. If Rails refuses because
+the interview finished meanwhile, the hook refetches the interview, so the page shows the review
+or the abandoned state.
+
+**A fresh agent.** The token's room configuration dispatches the agent when LiveKit creates the
+room. Rails makes no LiveKit API call, so there is no explicit re-dispatch: an agent that is still
+in the room carries on; if the agent left and the room closed, a rejoin creates the room again
+and the same token configuration dispatches a new agent. A fresh agent claims the same
+connection and the controller restores its place from the claim: it continues the heartbeat
+sequence, repeats the current question's opening if it was asked (answers go to the saved
+prompt; an answered one counts toward the cap and new words replace it), or, when feedback was
+given or a follow-up is current, greets and offers the menu (it never heard that follow-up, so
+it cannot repeat it). The re-dispatch on room re-creation and how long LiveKit keeps an emptied
+room are LiveKit server behaviour, not visible in the installed packages; they need checking
+against a real LiveKit server.
+
+**Recovery.** `Interviews::RecoverLiveConnectionsJob` runs every minute
+([background jobs](background-jobs.md#interview-cutover-and-maintenance)) and calls
+`RecoverLiveConnectionsService`. A `connected` connection whose last heartbeat (or claim) is
+older than 150 seconds lost its agent and ends as `disconnected`; an `authorized` connection the
+agent never claimed within the token's 10 minutes ends as `failed`. Both go through
+`FinishLiveService` without `final_sequence`, so the provider bill stays unknown, and the
+session is completed or abandoned by the usual rule. The finish re-checks under the user,
+interview and connection locks that the connection is still open and still quiet, so a late
+heartbeat or claim wins and a repeat run changes nothing. A quiet connection whose session
+already finished or expired is only closed. If a heartbeat merely failed while the agent kept
+running, the agent's later calls are refused and it closes at its own time limit.
+
+**Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same
+setup", the room first starts the new preparation, then calls
+`endLiveInterview(interviewId, liveUnavailable: true)`, which finishes the live room as `failed`
+by the same rule, so the abandoned live session never stays active.
 
 #### Time, live minutes and heartbeats
 

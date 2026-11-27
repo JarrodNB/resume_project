@@ -32,7 +32,7 @@ it('restores the saved round choices when repeating practice for the same job', 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'technical', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, 'job-1')
+  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'technical', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, 'job-1', 'turn_based')
 })
 
 it('says the interview ended when an abandoned job interview returns here', async () => {
@@ -51,7 +51,7 @@ it('loads selection from the route again on reload, then starts practice for tha
   await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8, questionFormat: 'mixed' }), 'job-1')
+  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8, questionFormat: 'mixed' }), 'job-1', 'turn_based')
   expect(await screen.findByText('Saved preparation')).toBeVisible()
 })
 

@@ -25,7 +25,7 @@ vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved i
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
   setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2099-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2099-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.', careerReferences: { id: 'saved-references', status: 'empty', canRetry: true, attemptCount: 1, aiTaskId: null, deadline: null, references: [] } }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
@@ -260,14 +260,14 @@ describe('InterviewPage', () => {
     await userEvent.keyboard('{Escape}')
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
     await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'priya', focusAreas: ['leadership'] })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'priya', focusAreas: ['leadership'] }, undefined, 'turn_based')
   })
   it('passes the selected question format with the requested length', async () => {
     await renderPracticeRoleSetup()
     await userEvent.click(screen.getByRole('radio', { name: /HR Screening/ }))
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
     await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'screening', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'screening', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, undefined, 'turn_based')
   })
   it('defaults to eight core questions and sends the selected interview length', async () => {
     await renderPracticeRoleSetup()
@@ -275,7 +275,7 @@ describe('InterviewPage', () => {
     await userEvent.click(screen.getByRole('radio', { name: /Full loop/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
     fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 12, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 12, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, undefined, 'turn_based')
   })
   it('clarifies the latest follow-up while preserving typed draft and progress', async () => {
     state.interview = { ...snapshot, messages: [...snapshot.messages,
@@ -718,7 +718,7 @@ describe('InterviewPage', () => {
     expect(screen.queryByText(/offline scripted/i)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
     await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, undefined, 'turn_based')
   })
   it('retires old scripted sessions without recording or retry controls', () => {
     state.interview = { ...snapshot, executionMode: 'fake' }
@@ -918,7 +918,7 @@ it('prepares without a career-focus field or library review link', async () => {
   expect(screen.queryByRole('link', { name: 'Review your career library' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-  expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
+  expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, undefined, 'turn_based')
 })
 
 
@@ -1411,7 +1411,7 @@ it('summarizes disjoint review outcomes and repeats through editable setup witho
   expect(state.beginInterview).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'daniel', focusAreas: ['leadership'] })
+  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'daniel', focusAreas: ['leadership'] }, undefined, 'turn_based')
 })
 
 it('restores core progress without inventing follow-ups after early advancement', () => {
@@ -1435,7 +1435,7 @@ it('uses supported defaults when repeating a legacy setup', async () => {
   expect(screen.getByRole('radio', { name: /Daniel/ })).toBeChecked()
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-  expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: ['leadership'] })
+  expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: ['leadership'] }, undefined, 'turn_based')
 })
 
 it('saves the visible follow-up after retry while preserving text and recording', async () => {

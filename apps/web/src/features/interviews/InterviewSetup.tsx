@@ -1,5 +1,6 @@
 /** Assemble a practice interview from career evidence and deliberate setup choices.
  * Round choices come first as a control panel (switches, interviewer tiles, a focus-area dropdown),
+ * including Turn-based or Live; Live offers only the 5 and 8 question lengths,
  * then a settings step for how answers are captured, with the round summary beside Start interview.
  * Preparation saves the round choices before review. Settings stay local to this account.
  */
@@ -15,7 +16,7 @@ import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewAnswerSettings } from './InterviewAnswerSettings'
 import { SetupRow, Switch } from './InterviewSetupControls'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
-import { difficultyOptions, focusOptions, interviewerOptions, lengthOptions, typeOptions } from './interviewSetupOptions'
+import { conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_QUESTION_COUNTS, typeOptions } from './interviewSetupOptions'
 import type { InterviewJob } from './InterviewJobContext'
 
 const focusChoices = Object.entries(focusOptions).map(([value, label]) => ({ value, label }))
@@ -36,12 +37,20 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
   const [difficulty, setDifficulty] = useState(choice(saved.difficulty, difficultyOptions, 'realistic'))
   const [interviewer, setInterviewer] = useState(choice(saved.interviewer, interviewerOptions, 'daniel'))
   const [focusAreas, setFocusAreas] = useState<string[]>(Array.isArray(saved.focusAreas) ? [...new Set(saved.focusAreas.filter((value): value is string => typeof value === 'string' && Object.hasOwn(focusOptions, value)))] : [])
+  const [conversationMode, setConversationMode] = useState(choice(saved.conversationMode, conversationModeOptions, 'turn_based'))
   const focusId = useId()
+  const live = conversationMode === 'live'
+  const lengthChoices = live ? lengthOptions.filter((option) => LIVE_QUESTION_COUNTS.includes(Number(option.value))) : lengthOptions
+  function changeConversationMode(value: string) {
+    setConversationMode(value)
+    if (value === 'live' && !LIVE_QUESTION_COUNTS.includes(questionCount)) setQuestionCount(8)
+  }
   const selected = {
     type: typeOptions.find((item) => item.value === questionFormat) ?? typeOptions[0],
     difficulty: difficultyOptions.find((item) => item.value === difficulty) ?? difficultyOptions[0],
     interviewer: interviewerOptions.find((item) => item.value === interviewer) ?? interviewerOptions[0],
     length: lengthOptions.find((item) => item.value === String(questionCount)) ?? lengthOptions[0],
+    conversationMode: conversationModeOptions.find((item) => item.value === conversationMode) ?? conversationModeOptions[0],
   }
   const minutes = selected.length.description.split(' · ')[1]
   const busy = loading || pending
@@ -50,7 +59,7 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
     submitting.current = true; setPending(true)
     try {
       const setup = { questionCount, questionFormat, difficulty, interviewer, focusAreas }
-      const id = job ? await start('', setup, job.id) : await start('', setup)
+      const id = await start('', setup, job?.id, conversationMode)
       if (id) await navigate(`/practice/interviews/${id}`)
     } finally { submitting.current = false; setPending(false) }
   }
@@ -64,6 +73,7 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
       : <h2 className="text-xl font-extrabold tracking-tight">How you’ll answer</h2>}
     <fieldset disabled={busy} className="interview-setup-fields">
       {step === 'round' ? <div className="interview-setup-panel">
+      <SetupRow title="Conversation"><Switch name="conversation" options={conversationModeOptions} value={conversationMode} change={changeConversationMode} /><p className="interview-setup-help">{selected.conversationMode.description}</p></SetupRow>
       <SetupRow title="Interview type"><Switch name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} /><p className="interview-setup-help">{selected.type.description}</p></SetupRow>
       <SetupRow title="Difficulty"><Switch name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} /><p className="interview-setup-help">{selected.difficulty.description}</p></SetupRow>
       <SetupRow title="Your interviewer"><div className="interview-setup-people">
@@ -77,7 +87,7 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
           </label>
         })}
       </div></SetupRow>
-      <SetupRow title="Interview length"><div className="interview-setup-length"><Switch name="length" options={lengthOptions} value={String(questionCount)} change={(value) => setQuestionCount(Number(value))} />
+      <SetupRow title="Interview length"><div className="interview-setup-length"><Switch name="length" options={lengthChoices} value={String(questionCount)} change={(value) => setQuestionCount(Number(value))} />
         <span className="interview-setup-stops" aria-hidden="true">{Array.from({ length: questionCount + 1 }, (_, index) => <i key={index} />)}</span></div>
         <p className="interview-setup-help">{selected.length.description}. Follow-up questions may extend it.</p></SetupRow>
       <SetupRow group={false} title={<label htmlFor={`${focusId}-trigger`} id={focusId}>Focus areas <span>(optional)</span></label>}><div className="interview-setup-focus">

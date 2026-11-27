@@ -17,6 +17,12 @@ export const interviewerOptions = [
   { value: 'daniel', label: 'Daniel — Professional Hiring Manager', description: 'Neutral and structured, like a real panel member.', sample: 'Walk me through how you handled your last big project.' },
   { value: 'priya', label: 'Priya — Tough Interviewer', description: 'Direct, presses for specifics and measurable impact. Probes after you submit your answer.', sample: 'What changed because of your work? Give me a number.' },
 ]
+export const conversationModeOptions = [
+  { value: 'turn_based', label: 'Turn-based', description: 'Hear a question, then record or type your answer and send it.' },
+  { value: 'live', label: 'Live', description: 'Talk with your interviewer in real time, like a video call without video.' },
+]
+/** Live interviews offer the short and standard lengths only. */
+export const LIVE_QUESTION_COUNTS = [5, 8]
 export const lengthOptions = [
   { value: '5', label: 'Short', description: '5 core questions · ~10 min' },
   { value: '8', label: 'Standard', description: '8 core questions · ~20 min' },

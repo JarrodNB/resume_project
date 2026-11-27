@@ -3,7 +3,7 @@ import { graphql } from '@/graphql/generated'
 
 export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
-    id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
+    id status interviewType conversationMode executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
     feedback { id status content attemptCount aiTaskId deadline }
     setup { questionCount questionFormat difficulty interviewer focusAreas }
     jobContext { id title company description requirements responsibilities niceToHaves }
@@ -19,7 +19,7 @@ export const INTERVIEW_UPDATED = graphql(`
   subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }
 `)
 export const START_INTERVIEW = graphql(`
-  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId}) { interview { ...InterviewSnapshot } errors errorCode } }
+  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: String) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }
 `)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {
@@ -50,6 +50,13 @@ export const INTERVIEW_PLAYBACK = graphql(`
 export const BEGIN_INTERVIEW = graphql(`
   mutation BeginInterview($interviewId: ID!) {
     beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }
+  }
+`)
+
+/** Live interviews only: a LiveKit address and short-lived join token; the first join starts the interview. */
+export const JOIN_LIVE_INTERVIEW = graphql(`
+  mutation JoinLiveInterview($interviewId: ID!) {
+    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 

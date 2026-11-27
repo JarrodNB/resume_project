@@ -27,7 +27,7 @@ it('starts the selected saved job with the chosen round settings', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch',
-    interviewer: 'daniel', focusAreas: [] }, 'job-1')
+    interviewer: 'daniel', focusAreas: [] }, 'job-1', 'turn_based')
   expect(await screen.findByText('Saved interview preparation')).toBeVisible()
   expect(router.state.location.pathname).toBe('/practice/interviews/session')
 })

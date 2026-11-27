@@ -25,11 +25,12 @@ export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
   const [error, setError] = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<string | null>(null)
-  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string) {
+  /** Starts preparation; `conversationMode` is `turn_based` (default) or `live`. */
+  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string, conversationMode = 'turn_based') {
     setError(null)
     setErrorCode(null)
     try {
-      const payload = (await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, ...(jobId ? { jobId } : {}) } })).data?.startInterview
+      const payload = (await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, conversationMode, ...(jobId ? { jobId } : {}) } })).data?.startInterview
       if (payload?.errors.length) setErrorCode(payload.errorCode ?? null)
       return requirePayload(payload).interview?.id ?? null
     }

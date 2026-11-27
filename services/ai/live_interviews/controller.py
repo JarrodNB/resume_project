@@ -70,7 +70,11 @@ A fresh agent that takes over a running connection gets the current question's s
 claim (`Started`): it continues the heartbeat sequence, repeats an opening that was already
 asked (answers still go to the saved prompt), or offers the menu when feedback was given or a
 follow-up it never heard is current. Follow-ups are keyed by question, retry and answers so far,
-so the same follow-up is never saved twice.
+so the same follow-up is never saved twice. Its realtime session never heard the question's
+earlier answers, so it gives no feedback on them (it would be invented): asked for feedback, it
+says it can't comment on that part after the reconnect and offers the menu, and the saved
+feedback is left alone. Answers it hears itself (new words for the resumed opening, or a retried
+question) can be coached as usual.
 
 Turns after a tool call: the model may speak a short preamble and call a tool in one response.
 The preamble finishes after the tool has run, so the adapter marks it (`preamble`) and only the
@@ -418,6 +422,10 @@ FEEDBACK_SO_FAR = ("Step out of the interviewer role now: start with \"Quick fee
 FEEDBACK_AGAIN = ("Start with \"Quick feedback:\" and, in about 20 seconds, give the candidate one specific strength "
                   "and one specific fix for their answers to this question. Give only the feedback in this turn.")
 NOTHING_TO_COACH = "The candidate has not answered yet, so there is nothing to give feedback on. Let them answer."
+NO_FEEDBACK_AFTER_RECONNECT = (
+    "You reconnected partway through this question and did not hear the candidate's earlier answers. Say briefly "
+    "that you can't give feedback on that part after the reconnect, then offer their choices in one short sentence: "
+    "try the question again, hear the question again, get a hint, or move on. Wait for their choice.")
 FEEDBACK_FIRST = "Give your quick feedback first. The candidate then chooses what to do next."
 MENU = ("Now offer the candidate their choices in one short, friendly sentence: try the question again, hear the "
         "question again, get a hint, or move on. Then stop and wait for their choice. Never move on until they "
@@ -519,6 +527,8 @@ class LiveInterviewController:
         self._wrap_reason: Literal["time_limit", "allowance"] | None = None
         self._interviewer_busy = self._candidate_speaking = False
         self._away_since: float | None = None  # when the candidate's connection dropped, while they are away
+        self._unheard_answers = False  # the current question has answers this agent never heard (a takeover)
+        self._unheard_is_current = False  # ...and the only one is the current prompt's, which new words replace
 
     def handle(self, event: LiveEvent) -> list[LiveAction]:
         """Return the actions for `event`, in the order the adapter should carry them out."""
@@ -597,12 +607,14 @@ class LiveInterviewController:
         # A fresh agent never heard the conversation so far. It can repeat a saved opening (the
         # question plan has it), but not a follow-up it never asked, so then it offers the menu.
         self._answered_prompts = event.answer_count
+        self._unheard_answers = event.answer_count > 0 or event.current_prompt_answered
         if event.feedback_given or event.current_prompt_kind == "follow_up":
             self._phase = "menu"
             return [self._room_state(), GenerateReply(RESUME_AT_MENU)]
         self._phase, self._prompt_message_id = "answering", event.current_prompt_message_id
         self._prompt = (event.question_position, None)
         self._saved_answer = "" if event.current_prompt_answered else None  # Rails has an answer; new words replace it
+        self._unheard_is_current = self._unheard_answers and event.answer_count <= 1
         return [self._room_state(), GenerateReply(_resume_instructions(event.question_position))]
 
     def _interviewer_turn_finished(self, event: InterviewerTurnFinished) -> list[LiveAction]:
@@ -795,6 +807,7 @@ class LiveInterviewController:
             return [ToolResult(refusal)]
         self._retries += 1
         self._answered_prompts = 0
+        self._unheard_answers = False  # Rails drops the earlier attempt's answers
         self._unrecorded_answers = {prompt: transcript for prompt, transcript in self._unrecorded_answers.items()
                                     if prompt[0] != self._question_position}
         self._new_prompt("opening")
@@ -803,6 +816,9 @@ class LiveInterviewController:
 
     def _feedback(self, instructions: str, *, then: Literal["answering", "menu"]) -> list[LiveAction]:
         actions = self._save_answer()
+        if self._unheard_answers:  # never invent (or save) feedback on answers this agent didn't hear
+            self._phase, self._menu_since = "menu", None
+            return [*actions, self._room_state(), ToolResult(NO_FEEDBACK_AFTER_RECONNECT)]
         self._phase, self._after_feedback = "feedback", then
         return [*actions, self._room_state(), ToolResult(instructions)]
 
@@ -813,7 +829,7 @@ class LiveInterviewController:
             self._phase = "closing"
             return [*actions, self._room_state(), ToolResult(CLOSING)]
         self._question_position = position + 1
-        self._answered_prompts, self._retries = 0, 0
+        self._answered_prompts, self._retries, self._unheard_answers = 0, 0, False
         self._new_prompt("opening")
         return [*actions, self._room_state(), ToolResult("Now ask " + _ask_question_instructions(position + 1))]
 
@@ -839,6 +855,8 @@ class LiveInterviewController:
         if self._saved_answer is None:
             self._answered_prompts += 1
         self._saved_before, self._saved_answer = self._saved_answer, transcript
+        if self._unheard_is_current:  # the candidate's new words replace the answer this agent never heard
+            self._unheard_answers = self._unheard_is_current = False
         if self._prompt_message_id is None:
             self._unrecorded_answers[self._prompt] = transcript
             return []
@@ -846,6 +864,7 @@ class LiveInterviewController:
 
     def _new_prompt(self, kind: Literal["opening", "follow_up"]) -> None:
         self._phase, self._reporting = "asking", kind
+        self._unheard_is_current = False
         self._prompt, self._prompt_message_id, self._answer_pieces, self._saved_answer = None, None, [], None
         self._answering_since, self._nudged = None, False
 

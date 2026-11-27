@@ -498,7 +498,12 @@ connection and the controller restores its place from the claim: it continues th
 sequence, repeats the current question's opening if it was asked (answers go to the saved
 prompt; an answered one counts toward the cap and new words replace it), or, when feedback was
 given or a follow-up is current, greets and offers the menu (it never heard that follow-up, so
-it cannot repeat it). A claim on an already `connected` connection sets its `usage_gap`, because
+it cannot repeat it). The fresh agent never heard the question's earlier answers, so it gives no
+feedback on them: asked for feedback (by voice, the room's "How was that?" or at a question's
+end), it says it can't give feedback on that part after the reconnect and offers the menu, and
+it never reports `feedback_given`, so saved `live_feedback` stays. Answers it hears itself (new
+words that replace the resumed opening's answer, or a retried question) are coached as usual.
+A claim on an already `connected` connection sets its `usage_gap`, because
 the earlier agent's usage since its last heartbeat is never reported; the bill then closes
 unknown even when the new agent's final heartbeat matches (a retried claim whose reply was lost
 is treated the same way). The re-dispatch on room re-creation and how long LiveKit keeps an emptied

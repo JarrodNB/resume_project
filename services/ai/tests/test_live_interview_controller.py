@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from live_interviews.controller import (
+    NO_FEEDBACK_AFTER_RECONNECT,
     AnswerNotSaved,
     AskFollowUp,
     CandidateJoined,
@@ -829,7 +830,8 @@ def test_a_resumed_answered_opening_counts_toward_the_cap_and_keys_its_follow_up
     controller.handle(CandidateTurnFinished(text="Deadlines."))
     actions = controller.handle(FinishAnswer())  # the second answer reaches the cap of 2
     assert actions[0] == ReportAnswerFinished(prompt_message_id="follow-1", transcript="Deadlines.")
-    assert "Quick feedback:" in tool_text(actions)
+    # This agent never heard the opening's answer, so it gives no feedback on the question.
+    assert tool_text(actions) == NO_FEEDBACK_AFTER_RECONNECT
 
 
 def test_a_resumed_agent_offers_the_menu_after_feedback_or_when_a_follow_up_it_never_heard_is_current():
@@ -840,6 +842,38 @@ def test_a_resumed_agent_offers_the_menu_after_feedback_or_when_a_follow_up_it_n
                                               menu_offered=True)
         assert "choices" in actions[1].instructions.lower()
         assert controller.handle(NextQuestion())[0] == ReportQuestionAdvanced(question_position=1)
+
+
+def test_a_resumed_agent_never_gives_or_saves_feedback_on_answers_it_did_not_hear():
+    """After a takeover the realtime session never heard the earlier answers, so feedback on them
+    would be invented: the agent says so, offers the menu and never replaces the saved feedback."""
+    for restore in ({"current_prompt_kind": "opening", "feedback_given": True},
+                    {"current_prompt_kind": "follow_up", "current_prompt_answered": True}):
+        controller, _ = resumed(current_prompt_message_id="prompt", answer_count=1, **restore)
+        for event in (GiveFeedback(), MenuChoice(option="feedback")):
+            actions = controller.handle(event)
+            text = actions[-1].text if isinstance(actions[-1], ToolResult) else actions[-1].instructions
+            assert text == NO_FEEDBACK_AFTER_RECONNECT
+            assert "reconnect" in text and "move on" in text
+            assert not any(isinstance(action, ReportFeedbackGiven) for action in actions)
+        assert controller.handle(InterviewerTurnFinished(text="Sorry, I can't comment on that part.")) == []
+        assert controller.handle(RetryQuestion())[0] == ReportQuestionRetried(question_position=1, retry_number=1)
+        controller.handle(InterviewerTurnFinished(text="Tell me about a conflict."))
+        controller.handle(PromptRecorded(question_position=1, message_id="opening-1"))
+        controller.handle(CandidateTurnFinished(text="We disagreed on scope."))
+        assert "Quick feedback:" in tool_text(controller.handle(NextQuestion()))  # a retried answer was heard
+
+
+def test_a_resumed_agent_coaches_an_inherited_opening_answer_once_the_candidate_answers_again():
+    controller, _ = resumed(current_prompt_message_id="opening-1", current_prompt_kind="opening",
+                            current_prompt_answered=True, answer_count=1)
+    assert tool_text(controller.handle(OfferMenu())) == NO_FEEDBACK_AFTER_RECONNECT
+    controller, _ = resumed(current_prompt_message_id="opening-1", current_prompt_kind="opening",
+                            current_prompt_answered=True, answer_count=1)
+    controller.handle(CandidateTurnFinished(text="We disagreed on scope."))  # new words replace the unheard answer
+    actions = controller.handle(OfferMenu())
+    assert actions[0] == ReportAnswerFinished(prompt_message_id="opening-1", transcript="We disagreed on scope.")
+    assert "Quick feedback:" in tool_text(actions)
 
 
 def test_a_resumed_agent_whose_opening_was_never_asked_asks_it_as_before():

@@ -1232,3 +1232,19 @@ def test_a_long_feedback_turn_is_cut_to_the_rails_limit():
     report = next(action for action in actions if isinstance(action, ReportFeedbackGiven))
     assert 1_400 < len(report.text) <= FEEDBACK_LIMIT
     assert spoken_feedback.startswith(report.text)
+
+
+def test_an_event_the_controller_does_not_know_changes_nothing_and_does_not_end_the_interview(caplog):
+    @dataclass(frozen=True)
+    class SomethingNew:
+        """An event a newer adapter might send."""
+
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    with caplog.at_level("WARNING", logger="live_interviews.controller"):
+        assert controller.handle(SomethingNew()) == []
+    assert "SomethingNew" in caplog.text
+    actions = controller.handle(EndRequested())  # still running: the answer is saved and it finishes now
+    assert actions[0] == ReportAnswerFinished(prompt_message_id="opening-0", transcript="I rebuilt the scheduler.")
+    assert ReportFinish("ended_by_candidate", final_sequence=1) in actions

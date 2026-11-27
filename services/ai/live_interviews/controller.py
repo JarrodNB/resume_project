@@ -12,6 +12,7 @@ The behaviour it implements (answers, coaching menu, clock and allowance, droppe
 takeovers) is described in docs/architecture/interview-sessions.md, "Live conversation mode".
 """
 
+import logging
 import math
 from dataclasses import dataclass
 from typing import Literal
@@ -52,6 +53,8 @@ from prompts.live_interviewer_turns import (
     resume_instructions,
 )
 from text_limits import MAX_PROSE_TEXT
+
+logger = logging.getLogger(__name__)
 
 Phase = Literal["asking", "answering", "feedback", "menu", "closing", "ended"]
 
@@ -510,7 +513,10 @@ class LiveInterviewController:
                 if self._saved_answer is None:
                     self._answered_prompts -= 1
             return []
-        return [*self._save_answer(), *self._finish("ended_by_candidate")]
+        if isinstance(event, EndRequested):
+            return [*self._save_answer(), *self._finish("ended_by_candidate")]
+        logger.warning("Live interview controller ignored an unknown event: %s", type(event).__name__)
+        return []
 
     def _choice_applies(self, choice: MenuChoice) -> bool:
         """A button counts only where the room offers it, and only if it was pressed in the room

@@ -229,10 +229,51 @@ ten-minute LiveKit token signed with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`: ide
 `live_connection_id`. Missing LiveKit settings fail the join with a configuration error. Rails
 makes no LiveKit request. Live connections are destroyed with their session.
 
+The `ai-live` Compose service (same `services/ai` image, `python -m livekit.agents start
+live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explicit dispatch as
+`careerdrafter-live-interviewer` (`live_interviews/settings.py`; it must match
+`JoinLiveService::AGENT_NAME`). It serves no HTTP. For each dispatched job it:
+
+1. reads the job metadata (the two IDs only) and calls
+   `POST /internal/interviews/live_connections/:id/claim` with the LiveKit room name, using the
+   `INTERVIEW_SERVICE_SECRET` bearer like other interview callbacks. `ClaimLiveConnectionService`
+   requires the same room, an open connection and a live, active, unexpired session; it marks
+   the connection `connected` (the first `connected_at` is kept, `last_heartbeat_at` moves) and
+   returns the session, connection and user IDs, `question_total` and
+   `current_question_position`. Repeats are safe; anything stale is refused with 409.
+2. loads its inputs as `ai_reader` (`database/live_interview_inputs.py`), only while that
+   connection is `connected`: saved setup, prepared questions in order, the fictional role or
+   current saved job, and contact details used only for masking. It never reads career
+   references, the career library or dialogue.
+3. builds prose instructions (`live_interviews/instructions.py`, framing in
+   `prompts/live_interviewer_instructions.py`): practice-interviewer framing that marks coaching
+   with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question
+   plan, all inside escaped data sections with contact masked.
+4. starts an `AgentSession` on the OpenAI realtime model (`LIVE_INTERVIEW_MODEL`, default
+   `gpt-realtime-2.1-mini`) with the persona's fixed voice (maya `marin`, daniel `cedar`, priya
+   `shimmer`), server VAD and input transcription (`LIVE_INTERVIEW_TRANSCRIPTION_MODEL`,
+   default `gpt-live-transcribe`), with LiveKit recording off.
+
+The pure `LiveInterviewController` (`live_interviews/controller.py`) takes events and returns
+actions; the adapter only forwards and executes them. On start it publishes room state and asks
+the model to greet and ask the current question. The first final interviewer message after that
+is reported once through `POST /internal/interviews/live_connections/:id/prompt_asked`
+(`question_position`, `kind: "opening"`, spoken text). `RecordLivePromptService` saves it as the
+question's normal opening message (semantic key `question:<id>:opening`, content bounded by
+`TextLimits::PROSE`), bumps the revision and so publishes the snapshot; a repeat returns the
+saved message unchanged. It refuses an unclaimed or ended connection, a question that is not
+current and other kinds for now. Because the opening is a normal message, career references are
+requested and shown exactly as in turn-based rooms. Room state reaches the browser as the agent
+participant's attributes `cd.question_position` (zero-based), `cd.question_total` and `cd.phase`.
+Provider usage, heartbeats and the live allowance are not recorded yet.
+
 In the web app, an active live session (or a ready one after "Enter interview room") renders
 `LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
-`livekit-client`. If no agent joins within 15 seconds, or joining fails, the room offers a new
-turn-based preparation with the same setup.
+`livekit-client`. The hook exposes captions from the `lk.transcription` text streams (both
+sides; a segment's interim text is replaced by its later text), the agent's progress attributes
+and `mute(on)`. The room shows hideable captions, "Question N of M", a mute toggle and the
+references panel for the current saved prompt. If no agent joins within 15 seconds, or joining
+fails, the room offers a new turn-based preparation with the same setup.
 
 Public snapshots expose the prepared fictional role and safe preparation progress, never
 raw personal source snapshots or execution credentials. Question type is persisted separately

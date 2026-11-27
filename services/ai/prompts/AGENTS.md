@@ -67,3 +67,6 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `chat_summary_instructions.py` — versioned rolling career memory, factual provenance and source-as-data rules.
 
 - `summary_generation_instructions.py` — versioned evidence-only missing-summary writing instructions.
+
+- `live_interviewer_instructions.py` — versioned live practice-interviewer framing: stays in persona to ask the
+  prepared questions, says "Quick feedback:" before coaching, never sees career references; supplied text is data.

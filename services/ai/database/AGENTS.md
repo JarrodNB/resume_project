@@ -27,6 +27,10 @@ this folder only reads what an AI task needs.
 - `profile_contact.py` — `read_profile_contact(connection, user_id)`: `name`, `contact_email`,
   and `phone` for masking outbound text
 
+- `live_interview_inputs.py` — `read_live_interview_inputs(connection, interview_id=, user_id=, connection_id=)`:
+  setup, ordered prepared questions, fictional role or current saved job and masking contact for one
+  live interview, only while its live connection is `connected`
+
 ## Local Rules
 
 - All SQL lives here. Private queries filter by the task message's `user_id` (child rows through

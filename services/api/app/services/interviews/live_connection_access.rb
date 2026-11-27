@@ -3,10 +3,23 @@
 # the user, interview and connection locks (in that order) while they check and write.
 # Every refusal here means the agent's work is over (recovery or the owner ended the connection, or
 # the session finished, expired or left live mode), so it carries the `connection_ended` code: the
-# agent then leaves the room instead of talking on until its own time limit.
+# agent then leaves the room instead of talking on until its own time limit. A malformed request
+# (wrong parameter types or unknown values) is refused up front with `invalid_request` instead,
+# which the controller answers with 422 so the agent logs it as a bug rather than a stale report.
 module Interviews
   module LiveConnectionAccess
     ENDED_CODE = :connection_ended
+    INVALID_CODE = :invalid_request
+
+    # @return [ServiceResult] a failure for a malformed agent request
+    def self.invalid_request(message)
+      ServiceResult.new(success: false, value: nil, errors: [ message ], code: INVALID_CODE)
+    end
+
+    # True for a question position or count sent as a JSON integer (never a string or float).
+    def self.count?(value)
+      value.is_a?(Integer) && value >= 0
+    end
 
     # @return [String, nil] why the agent may not act for this connection, or nil when it may
     def self.refusal(interview, connection)

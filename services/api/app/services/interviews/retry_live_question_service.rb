@@ -12,6 +12,9 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ question_position:, retry_count:, revision: }`
     def call
+      return LiveConnectionAccess.invalid_request("Invalid retry report") unless
+        LiveConnectionAccess.count?(@question_position) && LiveConnectionAccess.count?(@retry_number)
+
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
         question = interview.questions.lock.find_by(position: @question_position)

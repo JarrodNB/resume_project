@@ -252,7 +252,10 @@ dev LiveKit server. Setup and keys:
 | End quiet connections | Rails job | `Interviews::RecoverLiveConnectionsJob` (every minute) |
 
 All internal calls use the `INTERVIEW_SERVICE_SECRET` bearer like other interview callbacks,
-are safe to repeat, and are refused with 409 once the connection or session is over.
+are safe to repeat, and are refused with 409 once the connection or session is over. A malformed
+request (a missing or wrongly typed parameter, or an unknown kind or reason) is refused up front
+with 422 and `code: "invalid_request"`; the agent treats it as a definite refusal and logs it as
+an error, since it would fail the same way every time.
 
 #### Joining a room
 
@@ -599,7 +602,8 @@ agent finishes with `time_limit`. So the current sentence always finishes first.
 (priced provider usage deltas, below). `Interviews::RecordLiveHeartbeatService` applies each
 sequence once: it adds the billed seconds, moves `heartbeat_sequence` and `last_heartbeat_at`
 and adds the usage. Repeating the latest sequence replays the same answer without changes; an
-older one, an unclaimed or ended connection and invalid counts are refused with 409. The answer
+older one and an unclaimed or ended connection are refused with 409, invalid counts with 422
+`invalid_request`. The answer
 is `{action, allowance_seconds_left, session_seconds_left, reason?}`: `wrap_up` with reason
 `allowance` once the user's live allowance (counting this running connection) is used up, or
 `time_limit` once the session's 25 minutes are billed; `warn` at 2 minutes of allowance or

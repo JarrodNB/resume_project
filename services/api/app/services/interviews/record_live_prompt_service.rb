@@ -18,9 +18,10 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ message_id:, question_position:, revision: }`
     def call
+      return LiveConnectionAccess.invalid_request("Invalid prompt report") unless well_formed?
+
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
-        next failure("Unsupported prompt kind") unless KINDS.include?(@kind)
         question = interview.questions.lock.find_by(position: @question_position)
         next failure("Question is no longer current") unless question && question.position == interview.current_question_position
         @kind == "opening" ? save_opening(interview, question) : save_follow_up(interview, question)
@@ -57,6 +58,11 @@ module Interviews
         position: (interview.messages.maximum(:position) || -1) + 1, semantic_key: semantic_key, content: content)
       interview.update!(revision: interview.revision + 1)
       success(receipt(message, interview))
+    end
+
+    def well_formed?
+      LiveConnectionAccess.count?(@question_position) && KINDS.include?(@kind) &&
+        (@text.nil? || @text.is_a?(String)) && (@prompt_key.nil? || @prompt_key.is_a?(String))
     end
 
     def valid_prompt_key?

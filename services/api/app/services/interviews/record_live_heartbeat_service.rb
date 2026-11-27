@@ -21,7 +21,7 @@ module Interviews
         Rails.logger.error("Live heartbeat refused: unknown_usage_model (live connection #{@connection.id})")
         return failure("Heartbeat usage names a model that live interviews do not bill", code: :unknown_usage_model)
       end
-      return failure("Invalid heartbeat") unless valid?
+      return LiveConnectionAccess.invalid_request("Invalid heartbeat") unless valid?
 
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("Live connection has not been claimed") unless @connection.status == "connected" && @connection.ai_task

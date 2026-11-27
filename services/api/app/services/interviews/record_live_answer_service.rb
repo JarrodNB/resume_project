@@ -11,11 +11,12 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ message_id:, question_position:, accepted_answer_count:, revision: }`
     def call
+      return LiveConnectionAccess.invalid_request("Invalid answer report") unless @prompt_message_id.is_a?(String) && @transcript.is_a?(String)
       return failure("Enter the answer within #{TextLimits::PROSE} characters") unless valid_transcript?
 
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
-        prompt = interview.messages.where(kind: %w[opening follow_up]).find_by(id: @prompt_message_id.to_s)
+        prompt = interview.messages.where(kind: %w[opening follow_up]).find_by(id: @prompt_message_id)
         question = prompt && interview.questions.lock.find(prompt.question_id)
         next failure("Prompt is no longer current") unless question && question.position == interview.current_question_position
         content = @transcript.strip
@@ -40,7 +41,7 @@ module Interviews
     private
 
     def valid_transcript?
-      @transcript.is_a?(String) && @transcript.strip.present? && @transcript.strip.length <= TextLimits::PROSE
+      @transcript.strip.present? && @transcript.strip.length <= TextLimits::PROSE
     end
 
     def receipt(answer, question, interview)

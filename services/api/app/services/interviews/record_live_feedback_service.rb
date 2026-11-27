@@ -9,8 +9,9 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ question_position:, revision: }`
     def call
+      return LiveConnectionAccess.invalid_request("Invalid feedback report") unless LiveConnectionAccess.count?(@question_position) && @text.is_a?(String)
       limit = InterviewSessionQuestion::LIVE_FEEDBACK_LIMIT
-      return failure("Enter the feedback within #{limit} characters") unless @text.is_a?(String) && @text.strip.length.between?(1, limit)
+      return failure("Enter the feedback within #{limit} characters") unless @text.strip.length.between?(1, limit)
 
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("The live agent has not claimed this connection") unless @connection.status == "connected"

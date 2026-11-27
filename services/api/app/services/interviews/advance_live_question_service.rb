@@ -12,6 +12,8 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ current_question_position:, revision: }`
     def call
+      return LiveConnectionAccess.invalid_request("Invalid question position") unless LiveConnectionAccess.count?(@question_position)
+
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
         questions = interview.questions.lock.to_a

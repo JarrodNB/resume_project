@@ -15,6 +15,8 @@ about LiveKit. Every Rails call is idempotent, but an answer can be lost in the 
   pending and is resent unchanged (same sequence, same counts) before any newer one; seconds
   counted meanwhile wait for the next new heartbeat. A heartbeat Rails refused outright was not
   applied, so its seconds and usage go with the next one.
+- A refusal with `unknown_usage_model` or `invalid_request` (a malformed request) is a definite
+  no like any other, but logged as an error because it would repeat every time.
 - A refusal with `connection_ended` means recovery or the owner already finished the interview:
   `ended` turns on, `on_event` gets `ConnectionEnded` once, and nothing else is sent.
 
@@ -51,6 +53,7 @@ logger = logging.getLogger(__name__)
 InterviewReport = (ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdvanced | ReportFeedbackGiven
                    | ReportQuestionRetried)
 _LOST = object()  # a call sent without a trustworthy answer
+_BUG_CODES = frozenset({"unknown_usage_model", "invalid_request"})  # refusals that mean the agent and Rails disagree
 
 
 @dataclass(frozen=True)
@@ -141,9 +144,9 @@ class LiveReporter:
                 await self._on_event(ConnectionEnded())
             return None
         except RailsClientError as error:
-            # A heartbeat naming a model Rails does not bill is refused every time: the session
-            # would end in recovery, so it is an error, not a stale report.
-            log = logger.error if error.code == "unknown_usage_model" else logger.warning
+            # A heartbeat naming a model Rails does not bill, or any malformed request
+            # (`invalid_request`), is refused every time: a bug, so an error, not a stale report.
+            log = logger.error if error.code in _BUG_CODES else logger.warning
             log("Live report %s was refused: %s", call.__name__, error.code or type(error).__name__)
             return None
         except RailsTransportError as error:

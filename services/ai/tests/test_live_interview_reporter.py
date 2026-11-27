@@ -2,6 +2,8 @@
 
 import asyncio
 
+import pytest
+
 from live_interviews.client import HeartbeatReply, RailsClientError
 from live_interviews.controller import (
     AnswerNotSaved,
@@ -179,13 +181,18 @@ def test_a_heartbeat_waits_for_lost_reports_to_be_resent_first():
     assert [call[0] for call in harness.calls()] == ["prompt_asked", "prompt_asked", "heartbeat"]
 
 
-def test_a_heartbeat_refused_for_an_unbilled_model_is_logged_as_an_error_with_its_code(caplog):
+@pytest.mark.parametrize(("status", "code"), [(409, "unknown_usage_model"), (422, "invalid_request")])
+def test_a_heartbeat_refused_as_a_bug_is_logged_as_an_error_with_its_code_and_not_resent(caplog, status, code):
+    """An unbilled model or a malformed request is refused every time: a bug, not a stale report."""
     harness = Harness()
-    harness.rails.heartbeat_error = RailsClientError(409, "unknown_usage_model")
+    harness.rails.heartbeat_error = RailsClientError(status, code)
     with caplog.at_level("ERROR", logger="live_interviews.reporter"):
-        run(harness.reporter.heartbeat(SendHeartbeat(1, 30)))
+        assert run(harness.reporter.heartbeat(SendHeartbeat(1, 30))) is None
     errors = [record for record in caplog.records if record.levelname == "ERROR"]
-    assert len(errors) == 1 and "unknown_usage_model" in errors[0].getMessage()
+    assert len(errors) == 1 and code in errors[0].getMessage()
+    harness.rails.heartbeat_error = None
+    run(harness.reporter.heartbeat(SendHeartbeat(2, 30)))
+    assert [call["sequence"] for call in harness.calls("heartbeat")] == [1, 2]  # a definite no: never resent
 
 
 def test_a_reply_names_the_action_rails_wants():

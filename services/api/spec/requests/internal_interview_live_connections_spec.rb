@@ -1,6 +1,7 @@
 # The live agent's private Rails callbacks: claiming its dispatched connection, saving prompts,
 # answers and spoken feedback as they happen, restarting a question, moving between questions and
-# finishing. All are safe to repeat; stale or foreign calls are refused with 409 and change nothing.
+# finishing. All are safe to repeat; stale or foreign calls are refused with 409 and change nothing,
+# and malformed ones with 422 `invalid_request`.
 require "rails_helper"
 
 RSpec.describe "Internal live interview connections", type: :request do
@@ -178,7 +179,7 @@ RSpec.describe "Internal live interview connections", type: :request do
       prompt_asked(question_position: 1)
       expect(response).to have_http_status(:conflict)
       prompt_asked(kind: "closing")
-      expect(response).to have_http_status(:conflict)
+      expect(response).to have_http_status(:unprocessable_content)
 
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       prompt_asked
@@ -561,11 +562,14 @@ RSpec.describe "Internal live interview connections", type: :request do
       heartbeat(1)
       expect(response).to have_http_status(:conflict)
       claim
-      [ { sequence: 0 }, { billed_seconds_delta: -1 }, { billed_seconds_delta: 2_000 }, { usage: [ realtime_usage.merge(model: "gpt-6-luna") ] },
+      [ { sequence: 0 }, { billed_seconds_delta: -1 }, { billed_seconds_delta: 2_000 },
         { usage: [ realtime_usage.merge(input_tokens: -5) ] }, { usage: [ realtime_usage.merge(prompt: "text") ] }, { usage: "lots" } ].each do |invalid|
         post "#{base}/heartbeat", params: { sequence: 1, billed_seconds_delta: 30, usage: [ realtime_usage ] }.merge(invalid), headers: headers, as: :json
-        expect(response).to have_http_status(:conflict)
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body).to include("code" => "invalid_request")
       end
+      heartbeat(1, usage: [ realtime_usage.merge(model: "gpt-6-luna") ])
+      expect(response.parsed_body).to include("code" => "unknown_usage_model")
       expect(connection.reload).to have_attributes(billed_seconds: 0, heartbeat_sequence: 0)
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       heartbeat(1)
@@ -695,12 +699,49 @@ RSpec.describe "Internal live interview connections", type: :request do
     it "refuses unknown reasons and an ended connection of a still-active interview" do
       claim
       finish("nonsense")
-      expect(response).to have_http_status(:conflict)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(connection.reload.status).to eq("connected")
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       finish("completed")
       expect(response).to have_http_status(:conflict)
       expect(interview.reload.status).to eq("active")
+    end
+  end
+
+  describe "malformed requests" do
+    def expect_invalid_request
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body).to include("code" => "invalid_request")
+    end
+
+    it "refuses wrongly typed or missing parameters on every callback with invalid_request, without changes" do
+      claim(room_name: 42)
+      expect_invalid_request
+      opening_id = asked_opening
+      revision = interview.reload.revision
+      [
+        [ "prompt_asked", { question_position: "0", kind: "opening", text: "Hi." } ],
+        [ "prompt_asked", { question_position: 0, kind: "closing", text: "Hi." } ],
+        [ "prompt_asked", { question_position: 0, kind: "follow_up", text: [ "Why?" ], prompt_key: "k" } ],
+        [ "answer_finished", { prompt_message_id: [ opening_id ], transcript: "An answer." } ],
+        [ "answer_finished", { prompt_message_id: opening_id, transcript: { text: "An answer." } } ],
+        [ "question_advanced", { question_position: "0" } ],
+        [ "feedback_given", { question_position: 0.5, text: "Quick feedback: good." } ],
+        [ "feedback_given", { question_position: 0, text: 7 } ],
+        [ "question_retried", { question_position: 0, retry_number: "1" } ],
+        [ "question_retried", { question_position: "0", retry_number: 1 } ],
+        [ "heartbeat", { sequence: "1", billed_seconds_delta: 30, usage: [] } ],
+        [ "heartbeat", { sequence: 1, billed_seconds_delta: 30, usage: "lots" } ],
+        [ "finish", { reason: "nonsense" } ],
+        [ "finish", { reason: "completed", final_sequence: "1" } ],
+        [ "heartbeat", { billed_seconds_delta: 30, usage: [] } ]
+      ].each do |action, body|
+        post "#{base}/#{action}", params: body, headers: headers, as: :json
+        expect_invalid_request
+      end
+      expect(interview.reload.revision).to eq(revision)
+      expect(connection.reload).to have_attributes(status: "connected", heartbeat_sequence: 0)
+      expect(interview.messages.answer).to be_empty
     end
   end
 

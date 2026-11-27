@@ -3,12 +3,13 @@
 # Business rules live in the live connection services; this controller only maps HTTP.
 # A refusal is 409 with `errors`; when the connection or its session is over it also has
 # `code: "connection_ended"`, which tells the agent to leave (other refusals are just stale reports).
+# A malformed request (missing or wrongly typed parameters) is 422 with `code: "invalid_request"`.
 module Internal
   class InterviewLiveConnectionsController < ActionController::API
     include ServiceCallbacks
     before_action :find_connection
     rescue_from ActiveRecord::RecordNotFound, with: -> { render json: { errors: [ "Record not found" ] }, status: :not_found }
-    rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
+    rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ], code: "invalid_request" }, status: :unprocessable_content }
 
     def claim
       respond Interviews::ClaimLiveConnectionService.call(connection: @connection, room_name: params.require(:room_name))
@@ -62,7 +63,8 @@ module Internal
     def respond(result)
       return render json: result.value, status: :ok if result.success?
 
-      render json: { errors: result.errors, code: result.code&.to_s }.compact, status: :conflict
+      status = result.code == Interviews::LiveConnectionAccess::INVALID_CODE ? :unprocessable_content : :conflict
+      render json: { errors: result.errors, code: result.code&.to_s }.compact, status: status
     end
   end
 end

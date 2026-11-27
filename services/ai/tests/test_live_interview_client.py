@@ -90,6 +90,24 @@ def test_a_missing_connection_means_the_connection_ended():
     assert error.value.status_code == 404
 
 
+def test_a_malformed_request_is_a_definite_refusal_with_its_code():
+    body = {"errors": ["Invalid retry report"], "code": "invalid_request"}
+    seen = []
+
+    def respond(request):
+        seen.append(request)
+        return httpx.Response(422, json=body)
+
+    async def check():
+        async with client_for(respond) as client:
+            await client.question_retried("live", question_position=0, retry_number=1)
+
+    with pytest.raises(RailsClientError) as error:
+        run(check())
+    assert (error.value.status_code, error.value.code) == (422, "invalid_request")
+    assert not isinstance(error.value, LiveConnectionEnded) and len(seen) == 1  # never retried
+
+
 def test_other_refusal_codes_stay_ordinary_client_errors():
     body = {"errors": ["No more follow-ups for this question"], "code": "something_else"}
 

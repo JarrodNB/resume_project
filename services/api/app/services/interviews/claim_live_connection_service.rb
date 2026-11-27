@@ -20,8 +20,10 @@ module Interviews
     #   current_prompt_kind:, current_prompt_answered:, current_question_answer_count:,
     #   current_question_feedback_given: }`; only identities, limits and counts, never text
     def call
+      return LiveConnectionAccess.invalid_request("Room name must be text") unless @room_name.is_a?(String)
+
       LiveConnectionAccess.with_locked(@connection) do |interview|
-        next failure("Live connection does not match this room") unless @room_name.is_a?(String) &&
+        next failure("Live connection does not match this room") unless
           ActiveSupport::SecurityUtils.secure_compare(@room_name, @connection.room_name)
         now = Time.current
         # A claim on an already connected connection is a takeover (or a lost reply's retry): the

@@ -50,7 +50,8 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ status:, end_reason:, revision: }`
     def call
-      return failure("Unsupported finish reason") unless REASONS.include?(@reason)
+      return LiveConnectionAccess.invalid_request("Unsupported finish reason") unless REASONS.include?(@reason)
+      return LiveConnectionAccess.invalid_request("Invalid final heartbeat") unless @final_sequence.nil? || @final_sequence.is_a?(Integer)
 
       interview = @connection.interview_session
       interview.user.with_lock do

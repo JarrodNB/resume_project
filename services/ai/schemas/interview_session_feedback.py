@@ -2,6 +2,7 @@
 
 The owned reader supplies canonical dialogue; reject unusable inputs before paid work.
 Only accepted answers provide personal evidence, while role text describes a job.
+The conversation mode tells the handler whether those answers were screened when saved.
 """
 from typing import Annotated, Literal
 from uuid import UUID
@@ -42,6 +43,9 @@ class FeedbackRole(BaseModel):
 class FeedbackClaim(BaseModel):
     questions: list[SavedQuestion] = Field(min_length=1, max_length=20)
     role: FeedbackRole = Field(default_factory=FeedbackRole)
+    # Required: live answers were saved without screening, so a missing mode must not
+    # silently fall back to trusting them.
+    conversation_mode: Literal["turn_based", "live"]
 
     @model_validator(mode="after")
     def unique_questions(self):

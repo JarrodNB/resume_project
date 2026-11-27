@@ -101,7 +101,8 @@ def trust_rails_screened_source(source: str) -> None:
     """Cover immutable text Rails accepted after a successful screen, in this execution only.
 
     Use this only for text that passed screening when Rails accepted it and cannot change
-    afterward, such as completed interview dialogue, delivered through an authenticated,
+    afterward, such as completed turn-based interview dialogue (not live answers, which are
+    saved unscreened), delivered through an authenticated,
     owner-scoped Rails grant. It may include the user's own words, which is why it is
     separate from `trust_generated_source`. Never use it for editable records, text Rails
     stored without a successful screen, or anything from a browser or external site.

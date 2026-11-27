@@ -423,8 +423,10 @@ and ask the current question. Each question then runs like this:
 Every write bumps the revision (so the snapshot is published) and is refused with 409 when the
 connection is unclaimed or ended, the session is not a live, active, unexpired one, or the
 question or prompt is no longer current. Because prompts and answers are normal messages, the
-career references panel, the completed review and session feedback work exactly as for
-turn-based interviews. Room state reaches the browser as the agent participant's attributes
+career references panel, the completed review and session feedback work as for turn-based
+interviews. One difference: live speech is not screened during the conversation, so when
+session feedback is generated it screens each saved live answer (the candidate's words only,
+never the interviewer's generated text) and fails the feedback if one is rejected. Room state reaches the browser as the agent participant's attributes
 `cd.question_position` (zero-based), `cd.question_total`, `cd.phase` (`asking`, `answering`,
 `feedback`, `menu`, `closing`, `ended`) and `cd.menu_offered` (`true` only in `menu`). The claim
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
@@ -1461,8 +1463,12 @@ claim deadline and validated saved result. `interview_session_feedback` uses the
 worker/result path, independent of the active-turn HTTP executor. The queue input contains
 only the feedback record identity. The authenticated internal feedback claim returns retained
 session/feedback identities and the once-only claim timestamp. Python reads canonical accepted
-dialogue and generated fictional-role context through a scoped owned database query; duplicate claims perform no
-provider work. Preparation-backed sessions reuse their root hourly admission and all feedback
+dialogue, generated fictional-role context and the session's `conversation_mode` through a
+scoped owned database query; duplicate claims perform no provider work. Turn-based dialogue is
+trusted as accepted text. For a live session each distinct candidate answer goes through the
+configured user-text screen first (usage is reported with the result); interviewer text is
+trusted as generated output. A rejected or unavailable screen fails the attempt with the
+standard screening message, before the feedback model runs. Preparation-backed sessions reuse their root hourly admission and all feedback
 usage belongs to the independent interview allowance.
 
 The result envelope is `interview_session_feedback: {summary, questions}`; each question has

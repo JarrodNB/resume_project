@@ -390,6 +390,16 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(interview.reload.revision).to eq(revision + 2)
     end
 
+    it "accepts feedback of exactly 1,500 characters, the live agent's limit" do
+      # services/ai/tests/test_live_interview_controller.py pins the agent's FEEDBACK_LIMIT to the same number.
+      expect(InterviewSessionQuestion::LIVE_FEEDBACK_LIMIT).to eq(1_500)
+      claim
+      prompt_asked
+      feedback_given(text: "x" * 1_500)
+      expect(response).to have_http_status(:ok)
+      expect(interview.questions.find_by!(position: 0).live_feedback.length).to eq(1_500)
+    end
+
     it "refuses blank, oversized or non-current feedback and ended connections without saving" do
       feedback_given
       expect(response).to have_http_status(:conflict) # not yet claimed

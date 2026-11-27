@@ -412,7 +412,8 @@ and ask the current question. Each question then runs like this:
    follow-up is left at the cap), the controller does not advance. It runs the coaching loop:
    - **Quick feedback.** The tool result asks the interviewer to step out of role with "Quick
      feedback:" and give one strength and one fix in about 20 seconds, and nothing else. The
-     next final interviewer turn is that feedback: its spoken words (cut to 1,500 characters)
+     next final interviewer turn is that feedback: its spoken words (cut to 1,500 characters, the
+     controller's `FEEDBACK_LIMIT`; a test on each side pins it to `InterviewSessionQuestion::LIVE_FEEDBACK_LIMIT`)
      are reported through `feedback_given` (`question_position`, `text`).
      `RecordLiveFeedbackService` saves them on the current question's nullable `live_feedback`
      (check constraint 1–1,500 characters); later feedback replaces it and a repeat of the same

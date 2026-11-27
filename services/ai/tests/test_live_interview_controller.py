@@ -1067,3 +1067,22 @@ def test_a_long_answer_is_cut_at_a_word_to_the_rails_limit():
     assert len(report.transcript) > ANSWER_LIMIT - 20
     again = controller.handle(FinishAnswer())  # the same words: nothing is reported again
     assert not any(isinstance(action, ReportAnswerFinished) for action in again)
+
+
+def test_a_long_feedback_turn_is_cut_to_the_rails_limit():
+    """Rails keeps at most 1,500 characters of one question's feedback
+    (InterviewSessionQuestion::LIVE_FEEDBACK_LIMIT; the Rails spec
+    internal_interview_live_connections_spec.rb pins the same number), so a longer spoken
+    feedback turn is reported cut to that length instead of being refused."""
+    from live_interviews.controller import FEEDBACK_LIMIT
+
+    assert FEEDBACK_LIMIT == 1_500
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    controller.handle(NextQuestion())
+    spoken_feedback = "Quick feedback: " + "clear example and a strong result. " * 80  # about 2,800 characters
+    actions = controller.handle(InterviewerTurnFinished(text=spoken_feedback))
+    report = next(action for action in actions if isinstance(action, ReportFeedbackGiven))
+    assert 1_400 < len(report.text) <= FEEDBACK_LIMIT
+    assert spoken_feedback.startswith(report.text)

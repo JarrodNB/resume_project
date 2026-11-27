@@ -106,6 +106,14 @@ RSpec.describe "Live interview GraphQL" do
       expect(again.dig("data", "endLiveInterview", "interview", "status")).to eq("completed")
     end
 
+    it "ends a room the candidate leaves for the turn-based fallback as failed, so it never stays active" do
+      interview = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: interview)
+      result = execute_graphql(end_live, user: user, variables: { input: { interviewId: interview.id, liveUnavailable: true } })
+      expect(result.dig("data", "endLiveInterview", "interview", "status")).to eq("abandoned")
+      expect(interview.live_connections.sole).to have_attributes(status: "ended", end_reason: "failed")
+    end
+
     it "abandons a live interview with no answers and refuses one that never opened a room" do
       interview = ready_live_interview(user)
       variables = { input: { interviewId: interview.id } }

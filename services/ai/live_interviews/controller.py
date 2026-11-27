@@ -110,7 +110,8 @@ class PromptRecorded:
 @dataclass(frozen=True)
 class PromptNotSaved:
     """Rails refused the prompt reported for `question_position` (the opening, or the follow-up
-    named `prompt_key`) outright, for example a follow-up past the answer cap, so it was not saved."""
+    named `prompt_key`) outright, so it was not saved: for example a follow-up asked after Rails
+    refused the answer before it (`AnswerNotSaved`), or one for a question that is no longer current."""
 
     question_position: int
     prompt_key: str | None = None

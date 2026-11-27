@@ -432,7 +432,9 @@ and ask the current question. Each question then runs like this:
    openings, prompt keys and answer replacement make them idempotent. An answer to a prompt whose
    receipt has not arrived waits and is reported with it. A report Rails refuses outright (409 or 422) is
    stale and dropped; a refused answer is not counted as saved, so the next save reports it again.
-   A refused prompt (such as a follow-up past the cap) leaves its answer nothing to be saved to:
+   A refused prompt (such as a follow-up asked after Rails refused the answer before it, so the
+   latest prompt has no saved answer, or one for a question that is no longer current) leaves its
+   answer nothing to be saved to:
    an answer waiting for its receipt is dropped and no longer counted, and later words to it are
    still heard (feedback and the cap see them) but never reported, so the next follow-up is keyed
    from Rails' count of saved answers.

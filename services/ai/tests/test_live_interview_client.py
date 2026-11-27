@@ -103,7 +103,7 @@ def test_claim_carries_the_answer_cap():
     assert run(check()).answer_cap == 2
 
 
-def test_a_follow_up_carries_a_fresh_prompt_key_that_a_retry_reuses():
+def test_a_follow_up_carries_its_prompt_key_and_a_retry_sends_the_identical_request():
     seen = []
 
     def respond(request):
@@ -114,15 +114,27 @@ def test_a_follow_up_carries_a_fresh_prompt_key_that_a_retry_reuses():
 
     async def check():
         async with client_for(respond) as client:
-            await client.prompt_asked("live", question_position=0, kind="follow_up", text="What changed?")
-            await client.prompt_asked("live", question_position=0, kind="follow_up", text="What changed?")
+            await client.prompt_asked("live", question_position=0, kind="follow_up", text="What changed?",
+                                      prompt_key="q0-r0-f1")
 
     run(check())
     bodies = [json.loads(request.content) for request in seen]
-    assert bodies[0] == bodies[1]
-    assert bodies[0]["kind"] == "follow_up" and bodies[0]["text"] == "What changed?"
-    assert len(bodies[0]["prompt_key"]) >= 32
-    assert bodies[2]["prompt_key"] != bodies[0]["prompt_key"]
+    assert bodies[0] == bodies[1] == {"question_position": 0, "kind": "follow_up", "text": "What changed?",
+                                      "prompt_key": "q0-r0-f1"}
+
+
+def test_claim_carries_where_the_current_question_stands_for_a_fresh_agent():
+    restore = {"heartbeat_sequence": 7, "current_prompt_message_id": "follow", "current_prompt_kind": "follow_up",
+               "current_prompt_answered": True, "current_question_answer_count": 2, "current_question_feedback_given": True}
+
+    async def check():
+        async with client_for(lambda _request: httpx.Response(200, json={**CLAIM, **restore})) as client:
+            return await client.claim("live", room_name="room")
+
+    claim = run(check())
+    assert (claim.heartbeat_sequence, claim.current_prompt_message_id, claim.current_prompt_kind) == (7, "follow", "follow_up")
+    assert (claim.current_prompt_answered, claim.current_question_answer_count, claim.current_question_feedback_given) == (
+        True, 2, True)
 
 
 def test_answer_advance_and_finish_post_only_ids_positions_and_text():

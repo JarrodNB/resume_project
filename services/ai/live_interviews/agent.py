@@ -16,6 +16,14 @@ provider usage that is new since Rails last acknowledged one (from LiveKit's run
 with the next one. All interview decisions live in the controller; nothing here is recorded
 (`record=False`) and spoken text is never logged.
 
+Dropped connections: the session is started with `close_on_disconnect=False`, so the agent stays
+in the room when the candidate's participant leaves, and LiveKit's RoomIO links the candidate
+again when the same identity rejoins (livekit-agents `voice/room_io/room_io.py`,
+`_on_participant_disconnected` / `_on_participant_connected`). The room's participant events
+become `CandidateLeft` / `CandidateJoined` for the controller, which pauses and waits up to 2
+minutes. A fresh agent that claims a running connection passes the claim's current-question
+state to the controller so it carries on from there.
+
 Each job is one trace: a root `live_interview.session` span with only the two IDs, ended at
 shutdown with the session's known provider cost. LiveKit's own spans join it (the worker routes
 them to our tracer provider and drops their content, see live_interviews.telemetry).
@@ -34,6 +42,7 @@ from livekit.agents import (
     UserStateChangedEvent,
     function_tool,
     llm,
+    room_io,
 )
 from openai.types.realtime import AudioTranscription
 from openai.types.realtime.realtime_audio_input_turn_detection import ServerVad
@@ -45,6 +54,8 @@ from interviews.conversation import ContextLimitExceeded
 from live_interviews.client import RailsClientError, RailsTransportError
 from live_interviews.controller import (
     AskFollowUp,
+    CandidateJoined,
+    CandidateLeft,
     CandidateTurnFinished,
     ClosingSpoken,
     EndRequested,
@@ -143,6 +154,16 @@ class LiveInterviewRunner:
         """LiveKit callback: the candidate started or stopped speaking."""
         self._spawn(SpeakingChanged("candidate", event.new_state == "speaking"))
 
+    def on_participant_connected(self, participant: rtc.RemoteParticipant) -> None:
+        """Room callback: the candidate (any participant that is not an agent) joined or rejoined."""
+        if participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT:
+            self._spawn(CandidateJoined(self._clock()))
+
+    def on_participant_disconnected(self, participant: rtc.RemoteParticipant) -> None:
+        """Room callback: the candidate left; the controller waits for them to come back."""
+        if participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT:
+            self._spawn(CandidateLeft(self._clock()))
+
     def on_conversation_item_added(self, event: ConversationItemAddedEvent) -> None:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
         item = event.item
@@ -227,7 +248,8 @@ class LiveInterviewRunner:
             await self._send_heartbeat(action)
         elif isinstance(action, ReportPromptAsked):
             receipt = await self._report(self._rails.prompt_asked, question_position=action.question_position,
-                                         kind=action.kind, text=action.text)
+                                         kind=action.kind, text=action.text,
+                                         **({"prompt_key": action.prompt_key} if action.prompt_key else {}))
             if receipt and isinstance(receipt.get("message_id"), str):
                 await self._dispatch(PromptRecorded(action.question_position, receipt["message_id"]))
         elif isinstance(action, ReportAnswerFinished):
@@ -356,12 +378,23 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
         session.on("agent_state_changed", runner.on_agent_state_changed)
         session.on("user_state_changed", runner.on_user_state_changed)
         ctx.room.local_participant.register_rpc_method("interview.choose", runner.choose)
+        ctx.room.on("participant_connected", runner.on_participant_connected)
+        ctx.room.on("participant_disconnected", runner.on_participant_disconnected)
         await session.start(LiveInterviewerAgent(instructions=instructions, runner=runner), room=ctx.room,
-                            record=False)
+                            record=False, room_options=room_io.RoomOptions(close_on_disconnect=False))
+        if not any(participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT
+                   for participant in ctx.room.remote_participants.values()):
+            await runner.handle(CandidateLeft(clock()))  # a fresh agent in an emptied room waits for the candidate
         await runner.handle(Started(question_position=claim.current_question_position,
                                     question_total=claim.question_total, answer_cap=claim.answer_cap,
                                     session_seconds_left=claim.session_seconds_left,
-                                    retry_count=claim.current_question_retry_count))
+                                    retry_count=claim.current_question_retry_count,
+                                    heartbeat_sequence=claim.heartbeat_sequence,
+                                    current_prompt_message_id=claim.current_prompt_message_id,
+                                    current_prompt_kind=claim.current_prompt_kind,
+                                    current_prompt_answered=claim.current_prompt_answered,
+                                    answer_count=claim.current_question_answer_count,
+                                    feedback_given=claim.current_question_feedback_given))
         background = [asyncio.create_task(runner.tick_forever(tick_seconds)),
                       asyncio.create_task(runner.heartbeat_forever(heartbeat_seconds))]
 

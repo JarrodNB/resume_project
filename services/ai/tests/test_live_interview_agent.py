@@ -48,7 +48,18 @@ class FakeRoom:
     name = "interview-session-room"
 
     def __init__(self):
-        self.local_participant = FakeParticipant()
+        self.local_participant, self.handlers = FakeParticipant(), {}
+        self.remote_participants = {"user-owner": candidate()}
+
+    def on(self, event, handler):
+        self.handlers[event] = handler
+
+    def emit(self, event, participant):
+        self.handlers[event](participant)
+
+
+def candidate():
+    return SimpleNamespace(identity="user-owner", kind=rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD)
 
 
 class FakeJob:
@@ -94,9 +105,10 @@ class FakeSession:
     def on(self, event, handler):
         self.handlers[event] = handler
 
-    async def start(self, agent, *, room, record):
+    async def start(self, agent, *, room, record, room_options):
         self.agent = agent
-        self.started = {"instructions": agent.instructions, "room": room, "record": record}
+        self.started = {"instructions": agent.instructions, "room": room, "record": record,
+                        "close_on_disconnect": room_options.close_on_disconnect}
 
     def interrupt(self):
         self.interrupted += 1
@@ -196,6 +208,7 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         persona, session = sessions[0]
         assert persona == "priya"
         assert session.started["record"] is False and session.started["room"] is ctx.room
+        assert session.started["close_on_disconnect"] is False  # a dropped candidate can come back
         assert "First question?" in session.started["instructions"]
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
@@ -270,7 +283,8 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
     assert rails.calls[1:] == [
         ("prompt_asked", "live", {"question_position": 0, "kind": "opening", "text": "Tell me about a project."}),
         ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
-        ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?"}),
+        ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?",
+                                  "prompt_key": "q0-r0-f1"}),
         ("answer_finished", "live", {"prompt_message_id": "follow_up-0", "transcript": "Fewer failed runs."}),
         ("feedback_given", "live", {"question_position": 0, "text": "Quick feedback: clear story. Lead with the result."}),
         ("question_retried", "live", {"question_position": 0, "retry_number": 1}),
@@ -495,3 +509,78 @@ def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
     assert root.name == "live_interview.session" and root.parent is None
     assert dict(root.attributes) == {"interview_session_id": "session", "live_connection_id": "live",
                                      "provider_cost_microdollars": 20_000, "operation.cost": 0.02}
+
+
+def test_a_candidate_who_drops_is_welcomed_back_or_after_two_minutes_the_interview_finishes_as_disconnected():
+    rails, sessions = FakeRails(), []
+    now = [0.0]
+    ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        ctx.room.emit("participant_disconnected", SimpleNamespace(identity="agent-x",
+                                                                  kind=rtc.ParticipantKind.PARTICIPANT_KIND_AGENT))
+        ctx.room.emit("participant_disconnected", candidate())
+        await settle()
+        now[0] = 60.0
+        await settle()
+        replies = len(session.replies)
+        ctx.room.emit("participant_connected", candidate())
+        await settle()
+        assert len(session.replies) == replies + 1 and "welcome them back" in session.replies[-1].lower()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        ctx.room.emit("participant_disconnected", candidate())
+        await settle()
+        now[0] = 200.0
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-3:] == [
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
+        ("heartbeat", "live", {"sequence": 1, "billed_seconds_delta": 0, "usage": []}),
+        ("finish", "live", {"reason": "disconnected", "final_sequence": 1}),
+    ]
+    assert ctx.shutdown_reason
+
+
+def test_a_fresh_agent_resumes_from_the_claim():
+    claim = CLAIM.model_copy(update={"heartbeat_sequence": 4, "current_prompt_message_id": "opening-0",
+                                     "current_prompt_kind": "opening", "current_prompt_answered": True,
+                                     "current_question_answer_count": 1})
+    rails, sessions = FakeRails(claim=claim), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        assert "repeat question 1" in session.replies[0].lower()
+        session.emit_item("user", "A fuller answer.")
+        await settle()
+        await session.agent.finish_answer()
+        await session.agent._runner.heartbeat()
+
+    asyncio.run(scenario())
+    assert rails.calls[1:] == [
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "A fuller answer."}),
+        ("heartbeat", "live", {"sequence": 5, "billed_seconds_delta": 0, "usage": []}),
+    ]
+
+
+def test_a_fresh_agent_in_an_empty_room_says_nothing_and_finishes_as_disconnected_if_nobody_comes():
+    rails, sessions = FakeRails(), []
+    now = [0.0]
+    ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+    ctx.room.remote_participants = {}
+
+    async def scenario():
+        await go()
+        assert sessions[0][1].replies == []
+        now[0] = 120.0
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-1] == ("finish", "live", {"reason": "disconnected", "final_sequence": 1})

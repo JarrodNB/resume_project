@@ -4,14 +4,13 @@ Uses the same fixed-origin, bearer-authenticated and size-bounded transport as t
 interview callbacks. Requests carry only IDs, positions and retry numbers, the interviewer's
 spoken follow-ups and feedback, the candidate's answers, and heartbeat counts (billed seconds
 and priced token/audio usage, never text); Rails decides whether each one still applies. Every
-call is idempotent on the Rails side (a follow-up through its fresh `prompt_key`, a retry
+call is idempotent on the Rails side (a follow-up through its `prompt_key`, a retry
 through its number, a heartbeat through its sequence), so an ambiguous network failure retries
 the identical request once.
 """
 
 from typing import Literal
 from urllib.parse import quote
-from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -25,7 +24,10 @@ from execution.rails_client import (
 
 
 class LiveConnectionClaim(BaseModel):
-    """Rails' answer to a claim: the identities to read with and where the interview stands."""
+    """Rails' answer to a claim: the identities to read with and where the interview stands.
+
+    The `current_*` and `heartbeat_sequence` fields let a fresh agent that takes over a running
+    connection carry on from the same place (only IDs, flags and counts, never text)."""
 
     model_config = ConfigDict(frozen=True, extra="ignore")
     interview_session_id: str
@@ -37,6 +39,12 @@ class LiveConnectionClaim(BaseModel):
     current_question_retry_count: int = Field(default=0, ge=0, le=2)
     session_seconds_left: int = Field(ge=0)  # counted seconds left on the session's 25-minute clock
     allowance_seconds_left: int = Field(ge=0)
+    heartbeat_sequence: int = Field(default=0, ge=0)  # the last heartbeat Rails applied
+    current_prompt_message_id: str | None = None  # the current question's latest saved prompt
+    current_prompt_kind: Literal["opening", "follow_up"] | None = None
+    current_prompt_answered: bool = False
+    current_question_answer_count: int = Field(default=0, ge=0, le=3)
+    current_question_feedback_given: bool = False
 
 
 class HeartbeatReply(BaseModel):
@@ -70,15 +78,17 @@ class RailsLiveInterviewClient(RailsExecutionClient):
             raise RailsTransportError("Invalid live claim receipt")
         return claim
 
-    async def prompt_asked(self, connection_id: str, *, question_position: int, kind: str, text: str) -> dict:
+    async def prompt_asked(self, connection_id: str, *, question_position: int, kind: str, text: str,
+                           prompt_key: str | None = None) -> dict:
         """Save what the interviewer asked; returns Rails' `{message_id, question_position, revision}`.
 
-        Rails keeps the prepared text for an opening. Each follow-up gets a new `prompt_key`, so
-        only this call's own retry can return an already saved follow-up.
+        Rails keeps the prepared text for an opening. A follow-up carries the controller's
+        `prompt_key` (named by question, retry and answers so far), so a repeat of the same
+        follow-up, even from an agent that took over after a crash, returns the saved one.
         """
         body = {"question_position": question_position, "kind": kind, "text": text}
-        if kind == "follow_up":
-            body["prompt_key"] = uuid4().hex
+        if prompt_key is not None:
+            body["prompt_key"] = prompt_key
         return await self._request("POST", self._live_path(connection_id, "prompt_asked"), body)
 
     async def answer_finished(self, connection_id: str, *, prompt_message_id: str, transcript: str) -> dict:

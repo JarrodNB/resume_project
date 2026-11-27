@@ -286,3 +286,28 @@ def test_finish_names_the_final_heartbeat_when_there_is_one():
 
     run(check())
     assert json.loads(seen[0].content) == {"reason": "time_limit", "final_sequence": 7}
+
+
+def test_a_busy_rails_is_not_retried_here_for_reports_but_a_claim_retries_once():
+    """The reporter owns 503 retries for reports, heartbeats and the finish (see reporter.py), so the
+    client sends each of those once; a lost connection is still retried once as an identical request."""
+    seen = []
+
+    def respond(request):
+        seen.append(request.url.path.rsplit("/", 1)[-1])
+        if len(seen) in (1, 4):
+            return httpx.Response(503, json={"errors": ["busy"]})
+        if len(seen) == 2:
+            raise httpx.ReadTimeout("lost")
+        return httpx.Response(200, json=CLAIM if seen[-1] == "claim" else {"current_question_position": 1, "revision": 4})
+
+    async def check():
+        async with client_for(respond) as client:
+            with pytest.raises(RailsClientError) as error:
+                await client.question_advanced("live", question_position=0)
+            assert error.value.status_code == 503
+            await client.question_advanced("live", question_position=0)  # lost once, then saved
+            await client.claim("live", room_name="room")  # 503 once, then claimed
+
+    run(check())
+    assert seen == ["question_advanced", "question_advanced", "question_advanced", "claim", "claim"]

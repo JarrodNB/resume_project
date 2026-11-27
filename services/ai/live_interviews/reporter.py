@@ -3,7 +3,9 @@
 The controller decides what happened; this module decides how it reaches Rails, and knows nothing
 about LiveKit. Reports go in order and one whose answer was lost is resent unchanged before
 anything newer; a lost heartbeat is resent unchanged before the next one. A Rails server error
-(5xx) is retried twice after a short wait (bounded, so it cannot hold up the finish for long).
+(5xx) is retried twice after a short wait (bounded, so it cannot hold up the finish for long), so
+Rails sees a call that keeps failing three times per delivery round; this is the only layer that
+retries a 5xx (the client only resends once at once after a lost connection).
 Only a 503 (Rails' answer after a database wait: "rolled back, retry the same request") then
 counts as lost, and only for a few delivery rounds before it is dropped with an error; any other
 5xx is an unhandled error that would fail every time, so it is logged as an error and dropped like

@@ -6,7 +6,9 @@ spoken follow-ups and feedback, the candidate's answers, and heartbeat counts (b
 and priced token/audio usage, never text); Rails decides whether each one still applies. Every
 call is idempotent on the Rails side (a follow-up through its `prompt_key`, a retry
 through its number, a heartbeat through its sequence), so an ambiguous network failure retries
-the identical request once. A refusal with the code `connection_ended`, or a 404 (the connection
+the identical request once. Rails' 503 ("busy, rolled back") is retried here only for the claim:
+the reporter retries reports, heartbeats and the finish itself (see reporter.py for the counts).
+A refusal with the code `connection_ended`, or a 404 (the connection
 was deleted with its interview), raises LiveConnectionEnded, so the agent can tell "this
 interview is over, leave" from a stale report.
 """
@@ -72,9 +74,9 @@ class RailsLiveInterviewClient(RailsExecutionClient):
     def __init__(self, origin: str, secret: str, *, transport=None):
         super().__init__(origin, secret, transport=transport, max_body_bytes=64_000, namespace="interviews")
 
-    async def _request(self, *args, **kwargs):
+    async def _request(self, *args, retry_busy=False, **kwargs):
         try:
-            return await super()._request(*args, **kwargs)
+            return await super()._request(*args, retry_busy=retry_busy, **kwargs)
         except RailsClientError as error:
             # A missing connection (404) was destroyed with its interview: that is over too.
             if (error.status_code == 409 and error.code == "connection_ended") or error.status_code == 404:
@@ -87,7 +89,8 @@ class RailsLiveInterviewClient(RailsExecutionClient):
 
     async def claim(self, connection_id: str, *, room_name: str) -> LiveConnectionClaim:
         """Mark this dispatch's connection connected; refusals raise RailsClientError."""
-        result = await self._request("POST", self._live_path(connection_id, "claim"), {"room_name": room_name})
+        result = await self._request("POST", self._live_path(connection_id, "claim"), {"room_name": room_name},
+                                     retry_busy=True)
         try:
             claim = LiveConnectionClaim.model_validate(result)
         except ValidationError:

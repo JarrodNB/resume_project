@@ -78,18 +78,22 @@ class RailsExecutionClient:
     async def aclose(self):
         await self._client.aclose()
 
-    async def _request(self, method, path, payload=None, *, retry=True, allow_boolean=False):
+    async def _request(self, method, path, payload=None, *, retry=True, retry_busy=True,
+                       allow_boolean=False):
+        """Send one callback. `retry` resends it once after a lost connection and, unless
+        `retry_busy` is False (a caller that retries Rails' 503 itself), once after a 503."""
         # A total deadline also bounds a server that trickles bytes indefinitely.
         try:
             async with asyncio.timeout(25):
                 return await self._bounded_request(
-                    method, path, payload, retry=retry, allow_boolean=allow_boolean
+                    method, path, payload, retry=retry, retry_busy=retry_busy,
+                    allow_boolean=allow_boolean,
                 )
         except TimeoutError:
             raise RailsTransportError("Rails request deadline exceeded") from None
 
     async def _bounded_request(
-        self, method, path, payload=None, *, retry=True, allow_boolean=False
+        self, method, path, payload=None, *, retry=True, retry_busy=True, allow_boolean=False
     ):
         body = (
             json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
@@ -111,7 +115,7 @@ class RailsExecutionClient:
                         chunks.extend(chunk)
                         if len(chunks) > self._limit:
                             raise RailsTransportError("Rails response exceeds size limit")
-                    if response.status_code == 503 and retry and attempt == 0:
+                    if response.status_code == 503 and retry and retry_busy and attempt == 0:
                         continue
                     if response.status_code != 200:
                         raise RailsClientError(response.status_code, _refusal_code(chunks))

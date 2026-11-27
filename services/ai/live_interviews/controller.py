@@ -488,6 +488,9 @@ class LiveInterviewController:
             return self._start(event)
         if isinstance(event, ToolEvent):
             return self._tool(event)
+        if isinstance(event, PromptRecorded) and self._question_position is not None:
+            # Also after the finish: an answer heard before it still waits for its prompt's receipt.
+            return self._prompt_recorded(event)
         if self._question_position is None or self._phase == "ended":
             return []
         if isinstance(event, HeartbeatDue):
@@ -521,8 +524,6 @@ class LiveInterviewController:
             if self._phase == "answering" and event.text.strip():  # also while a wrap-up waits for quiet
                 self._answer_pieces.append(event.text.strip())
             return []
-        if isinstance(event, PromptRecorded):
-            return self._prompt_recorded(event)
         if isinstance(event, AnswerNotSaved):
             if event.prompt_message_id == self._prompt_message_id and event.transcript == self._saved_answer:
                 self._saved_answer = self._saved_before

@@ -344,7 +344,15 @@ carries out the actions. Delivery to Rails is a separate LiveKit-free module,
 `live_interviews/reporter.py` (`LiveReporter`: `send(report)`, `flush()`, `heartbeat(...)`,
 `finish(...)`): it keeps reports in order, resends lost reports and heartbeats, tracks the
 heartbeat usage Rails acknowledged and the seconds not yet carried, and hands Rails' receipts
-back as controller events. Events are the
+back as controller events. The adapter runs controller steps one at a time under a lock, but no
+step waits for Rails: reports, heartbeats and the finish join one ordered queue that a single
+background task delivers through the reporter, and receipts and heartbeat replies come back as
+events. So a slow Rails (a call can take about 25 seconds plus one retry) never holds up a tool
+result, a room choice, the clock or a transcript. Leaving waits up to 30 seconds
+(`DELIVERY_WAIT_SECONDS`) for that queue, so the finish still reaches Rails after everything
+reported before it, and End interview's RPC answers once its finish was delivered. An answer
+still waiting for its prompt's receipt is reported when the receipt arrives, even after the
+finish was decided. Events are the
 final transcripts of both sides (`conversation_item_added`), the model's interview tools
 (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`, `give_feedback`,
 `offer_menu`, `give_hint`, `retry_question`, plain `@function_tool` methods on the agent), the

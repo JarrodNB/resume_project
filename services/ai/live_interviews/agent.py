@@ -103,15 +103,27 @@ def realtime_model_options(persona: str) -> dict:
 
 MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
 TRANSCRIPT_WAIT_SECONDS = 3.0  # how long a tool call waits for the candidate's late final transcript
+DELIVERY_WAIT_SECONDS = 30.0  # how long leaving waits for reports still on their way to Rails
 
 
 class LiveInterviewRunner:
-    """Feed one session's events to the controller and carry out its actions in order."""
+    """Feed one session's events to the controller and carry out its actions in order.
+
+    Controller steps run one at a time under a lock, but nothing under it waits for Rails: reports,
+    heartbeats and the finish join one ordered delivery queue that a single background task sends
+    through the reporter, and Rails' answers come back as controller events. So a slow Rails never
+    holds up a tool result, a room choice, the clock or a transcript. Leaving waits (a bounded time)
+    for the queue, so the finish still reaches Rails after everything reported before it.
+    """
 
     def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic,
-                 transcript_wait_seconds: float = TRANSCRIPT_WAIT_SECONDS):
+                 transcript_wait_seconds: float = TRANSCRIPT_WAIT_SECONDS,
+                 delivery_wait_seconds: float = DELIVERY_WAIT_SECONDS):
         self._session, self._room = session, room
         self._leave, self._clock, self._transcript_wait_seconds = leave, clock, transcript_wait_seconds
+        self._delivery_wait_seconds = delivery_wait_seconds
+        self._deliveries: asyncio.Queue = asyncio.Queue()  # Rails reports, heartbeats and the finish, in order
+        self._delivery_task: asyncio.Task | None = None
         self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
         self._turn_heard = asyncio.Event()
         self._tool_speeches: list[tuple] = []  # (speech handle, its step) of each tool call still speaking
@@ -277,6 +289,7 @@ class LiveInterviewRunner:
             await self.handle(MenuChoice(option))
             return "accepted"
         await self.handle(EndRequested())
+        await self.delivered()  # the finish answers this choice
         if not self.finished and not self._reporter.ended:
             raise rtc.RpcError(2002, "The interview could not be finished")
         return "ended"
@@ -296,12 +309,58 @@ class LiveInterviewRunner:
 
     async def _rails_event(self, event: LiveEvent) -> list:
         """What a Rails answer means for the controller (a prompt's receipt, a refused answer, or the
-        connection ended); returns the reports it raises, which the reporter sends next."""
+        connection ended); returns the reports it raises, which the reporter sends next. Called by
+        the delivery task, never while the lock is held."""
         if isinstance(event, ConnectionEnded):
             self._interrupt()  # the interviewer stops talking; the controller leaves
         held: list = []
-        await self._dispatch(event, held_reports=held)
+        async with self._lock:
+            await self._dispatch(event, held_reports=held)
         return held
+
+    def _deliver(self, action) -> None:
+        """Queue a report, heartbeat or finish for Rails behind the ones before it; never waits."""
+        self._deliveries.put_nowait(action)
+        if self._delivery_task is None:
+            self._delivery_task = asyncio.create_task(self._deliver_forever())
+
+    async def _deliver_forever(self) -> None:
+        """The one task that talks to Rails, so reports, heartbeats and the finish keep their order."""
+        while True:
+            action = await self._deliveries.get()
+            try:
+                await self._deliver_one(action)
+            except Exception as error:  # noqa: BLE001 - one failed delivery must not stop the rest
+                logger.warning("Live delivery failed: %s", type(error).__name__)
+            finally:
+                self._deliveries.task_done()
+
+    async def _deliver_one(self, action) -> None:
+        if isinstance(action, SendHeartbeat):
+            reply = await self._reporter.heartbeat(action)
+            if reply is not None and not action.final:
+                await self.handle(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason))
+        elif isinstance(action, ReportFinish):
+            if not self._reporter.ended:  # Rails already ended it while this waited: nothing to finish
+                self.finished = await self._reporter.finish(action)
+        else:
+            await self._reporter.send(action)
+
+    async def delivered(self) -> None:
+        """Wait (a bounded time) until everything queued for Rails so far has been delivered or given up."""
+        try:
+            await asyncio.wait_for(self._deliveries.join(), self._delivery_wait_seconds)
+        except TimeoutError:
+            logger.warning("Live reports were still on their way to Rails when the wait ended")
+
+    def stop_delivering(self) -> None:
+        """Job shutdown: stop the delivery task."""
+        if self._delivery_task is not None:
+            self._delivery_task.cancel()
+
+    async def _leave_after_deliveries(self) -> None:
+        await self.delivered()
+        self._leave()
 
     async def _carry_out(self, action: LiveAction) -> None:
         if isinstance(action, GenerateReply):
@@ -312,14 +371,8 @@ class LiveInterviewRunner:
                 self._spawn(ClosingSpoken())
             else:
                 speech.add_done_callback(lambda _speech: self._spawn(ClosingSpoken()))
-        elif isinstance(action, SendHeartbeat):
-            reply = await self._reporter.heartbeat(action)
-            if reply is not None and not action.final:
-                await self._dispatch(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason))
-        elif isinstance(action, InterviewReport):
-            await self._reporter.send(action)
-        elif isinstance(action, ReportFinish):
-            self.finished = await self._reporter.finish(action)
+        elif isinstance(action, SendHeartbeat | ReportFinish | InterviewReport):
+            self._deliver(action)
         elif isinstance(action, PublishRoomState):
             await self._room.local_participant.set_attributes({
                 "cd.question_position": str(action.question_position),
@@ -330,8 +383,10 @@ class LiveInterviewRunner:
                 "cd.time_warning": "true" if action.time_warning else "false",
             })
         elif isinstance(action, EndSession):
-            self._left = True
-            self._leave()
+            self._left = True  # the clock and heartbeats stop; the finish goes out before the job ends
+            task = asyncio.create_task(self._leave_after_deliveries())
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
 
 
 async def _finish_failed_start(rails, connection_id: str) -> None:
@@ -472,6 +527,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
     async def stop_and_record_cost() -> None:
         for task in background:
             task.cancel()
+        runner.stop_delivering()
         cost = runner.usage_totals().cost_microdollars()
         span.set_attributes({"provider_cost_microdollars": cost, "operation.cost": cost / 1_000_000})
         span.end()

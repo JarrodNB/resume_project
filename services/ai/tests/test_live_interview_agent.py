@@ -174,6 +174,7 @@ class FakeRails:
         self.refuse_finish = self.refuse_heartbeat = self.ended = False
         self.heartbeat_error = None
         self.lose, self.refuse_reports = {}, set()  # call name -> answers still to lose; names to refuse
+        self.holds = {}  # call name -> an asyncio.Event the call waits for (Rails is slow or never answers)
         self.heartbeat_reply = HeartbeatReply(action="continue", allowance_seconds_left=500, session_seconds_left=1_400)
 
     async def claim(self, connection_id, *, room_name):
@@ -184,6 +185,7 @@ class FakeRails:
 
     async def prompt_asked(self, connection_id, **values):
         self.calls.append(("prompt_asked", connection_id, values))
+        await self._wait_if_held("prompt_asked")
         self._refuse_if_ended()
         self._lose_or_refuse("prompt_asked")
         position = values["question_position"]
@@ -215,6 +217,7 @@ class FakeRails:
 
     async def heartbeat(self, connection_id, **values):
         self.calls.append(("heartbeat", connection_id, values))
+        await self._wait_if_held("heartbeat")
         self._refuse_if_ended()
         if self.refuse_heartbeat:
             raise RailsTransportError("lost")
@@ -231,6 +234,10 @@ class FakeRails:
 
     async def aclose(self):
         self.closed = True
+
+    async def _wait_if_held(self, name):
+        if name in self.holds:
+            await self.holds[name].wait()
 
     def _lose_or_refuse(self, name):
         if self.lose.get(name):
@@ -251,7 +258,8 @@ def fake_inputs(**ids):
 
 
 async def settle():
-    for _ in range(5):
+    """Let callbacks, the clock and the Rails delivery task run."""
+    for _ in range(20):
         await asyncio.sleep(0)
 
 
@@ -532,6 +540,7 @@ def test_a_heartbeat_refused_as_connection_ended_stops_speaking_and_leaves_witho
         session = sessions[0][1]
         rails.ended = True
         await session.agent._runner.heartbeat()
+        await settle()
         assert session.interrupted == 1
         assert ctx.shutdown_reason
         replies = len(session.replies)
@@ -556,8 +565,10 @@ def test_a_report_refused_as_connection_ended_leaves_and_skips_the_rest():
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
         rails.ended = True
-        assert "ended" in (await session.agent.next_question(tool_call())).lower()  # the answer save is refused first
+        assert "Quick feedback" in await session.agent.next_question(tool_call())  # never waits for Rails
+        await settle()  # the answer save is then refused: the interviewer stops and leaves
         assert ctx.shutdown_reason and session.interrupted == 1
+        assert "ended" in (await session.agent.next_question(tool_call())).lower()
 
     asyncio.run(scenario())
     assert [call[0] for call in rails.calls] == ["claim", "prompt_asked", "answer_finished"]
@@ -619,6 +630,7 @@ def test_a_warn_reply_is_shown_and_said_once():
         session = sessions[0][1]
         await session.agent._runner.heartbeat()
         await session.agent._runner.heartbeat()
+        await settle()
         assert sum("two minutes" in reply for reply in session.replies) == 1
         assert ctx.room.local_participant.attributes[-1]["cd.time_warning"] == "true"
 
@@ -843,6 +855,79 @@ def test_a_lost_prompt_report_is_resent_and_its_answer_reported_once_rails_recor
 
 
 
+
+
+def test_a_rails_call_that_never_answers_does_not_hold_up_tools_room_choices_or_the_clock():
+    rails, sessions = FakeRails(), []
+    rails.holds = {"prompt_asked": asyncio.Event(), "heartbeat": asyncio.Event()}  # never set
+    now = [0.0]
+    ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        runner = session.agent._runner
+        session.emit_item("assistant", "Tell me about a project.")  # its prompt report never gets an answer
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await asyncio.wait_for(runner.heartbeat(), 1)  # neither does this heartbeat
+        result = await asyncio.wait_for(session.agent.ask_follow_up(tool_call(), "What changed?"), 1)
+        assert "follow-up" in result.lower()
+        session.emit_item("assistant", "What changed for the team?")
+        await settle()
+        assert await asyncio.wait_for(ctx.room.local_participant.rpc_methods["interview.choose"](rpc("hint")), 1) \
+            == "accepted"
+        replies = len(session.replies)
+        now[0] = 500.0  # the clock still runs: the long answer is nudged
+        await settle()
+        assert len(session.replies) == replies + 1
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "prompt_asked"]  # the rest waits its turn, in order
+
+
+def test_leaving_waits_for_earlier_reports_and_still_delivers_the_finish_last():
+    rails, sessions = FakeRails(), []
+    rails.holds = {"prompt_asked": asyncio.Event()}
+    ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        end = asyncio.create_task(ctx.room.local_participant.rpc_methods["interview.choose"](rpc("end")))
+        await settle()
+        assert not end.done() and ctx.shutdown_reason is None  # the finish waits behind the slow report
+        rails.holds["prompt_asked"].set()
+        assert await asyncio.wait_for(end, 1) == "ended"
+        await settle()
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "prompt_asked", "answer_finished", "heartbeat", "finish"]
+    assert ctx.shutdown_reason
+
+
+def test_a_finish_refused_as_connection_ended_counts_as_ended():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def finish_ended(connection_id, **values):
+        rails.calls.append(("finish", connection_id, values))
+        raise LiveConnectionEnded(409, "connection_ended")
+
+    rails.finish = finish_ended
+
+    async def scenario():
+        await go()
+        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("end")) == "ended"
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "heartbeat", "finish"]
+    assert ctx.shutdown_reason
 
 
 def test_room_attribute_names_and_choose_options_match_the_documented_contract():

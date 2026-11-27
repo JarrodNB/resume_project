@@ -10,6 +10,7 @@
 #   - ai-worker: Python SQS worker
 #   - ai-http: FastAPI app for interactive AI execution
 #   - ai-mcp: internal MCP tool server
+#   - ai-live: LiveKit Agents worker that runs live interviews (connects out to LiveKit Cloud)
 #   - redis: AI streaming buffer
 #   - web: static web app
 #   - landing: static landing page
@@ -197,6 +198,28 @@ services:
       retries: 5
     depends_on:
       db:
+        condition: service_healthy
+
+  ai-live:
+    # The live interviewer: a LiveKit Agents worker from the same image. It connects out to the
+    # LiveKit Cloud project (LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET in .env, the same
+    # values the api service signs room joins with), OpenAI and Rails. It serves nothing and needs
+    # no published port: LiveKit Cloud carries the browser's audio.
+    <<: *ai
+    command: python -m livekit.agents start live_interviews/worker.py
+    environment:
+      <<: *ai-db
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      LOGFIRE_ENVIRONMENT: production
+    # On SIGTERM the worker stops taking new interviews and waits for the running ones to end
+    # (livekit-agents 1.9 drains for up to an hour, DRAIN_TIMEOUT in livekit/agents/worker.py).
+    # 30 minutes covers a live session's 25 counted minutes plus waits; an interview still
+    # running after that is cut off, and the recovery job finishes it as disconnected.
+    stop_grace_period: 30m
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
         condition: service_healthy
 
   redis:

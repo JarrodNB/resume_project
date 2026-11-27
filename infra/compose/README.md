@@ -7,7 +7,11 @@ Runs on the single EC2 server created by `../terraform`. Reach the server with
 
 Merging to master (a release PR from `develop`) runs `.github/workflows/deploy.yml`: it builds the four images, pushes them
 to ECR tagged with the commit, copies these compose files to the server, restarts the stack
-and checks the three public addresses. AWS access is a role GitHub assumes for runs on master
+and checks the three public addresses. One image serves `ai-worker`, `ai-http`, `ai-mcp` and
+`ai-live`, so a change under `services/ai` restarts all four. `ai-live` waits for its running
+live interviews to end before it stops (up to 30 minutes, `stop_grace_period` in `compose.yml`),
+so a deploy can take that long while someone is in a live interview, and no new live interview
+can start until the new `ai-live` is up. AWS access is a role GitHub assumes for runs on master
 only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
 
 ## First-time setup on the server
@@ -39,6 +43,13 @@ under `/jobapp/prod/` (the server can read it, not write it). The Stripe secrets
 (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) need a copy there too when you add
 them. When you change a secret, change both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
+
+Live interviews need `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`. Production uses
+LiveKit Cloud rather than a LiveKit server of its own: take the project URL (the `wss://...` address
+browsers join) and an API key pair from the LiveKit Cloud project's settings. The `api` service
+signs room joins with them and `ai-live` connects with them, so both read the same three values
+from `.env`. Put each in Parameter Store under `/jobapp/prod/` too, like the other secrets. The
+server opens no extra ports for this: `ai-live` only connects out.
 
 `settings.env` holds the settings that are not secret (registry, buckets, domain, AI models). It is not in git. Its copy is
 in Parameter Store under `/jobapp/prod/settings/`, and `bash restore-secrets.sh` writes it, the same way it writes `.env`.

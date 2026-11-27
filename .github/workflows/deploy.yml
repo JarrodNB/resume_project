@@ -99,7 +99,8 @@ jobs:
     # Runs when nothing needed building too: compose files may have changed.
     if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Restarting ai-live can wait up to 30 minutes for a running live interview to end.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -123,10 +124,11 @@ jobs:
           TAGENV="API_TAG=$(jq -r .api <<<"$TAGS") AI_TAG=$(jq -r .ai <<<"$TAGS") WEB_TAG=$(jq -r .web <<<"$TAGS") LANDING_TAG=$(jq -r .landing <<<"$TAGS")"
           CMD="set -e; cd /opt/app && aws s3 cp --only-show-errors s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz - | tar xz && set -a && . ./.env && . ./settings.env && set +a && aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY} >/dev/null && export ${TAGENV} && docker compose pull -q && docker compose up -d --remove-orphans && docker image prune -af --filter until=12h >/dev/null && docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'"
           ID=$(aws ssm send-command --instance-ids "$SERVER" --document-name AWS-RunShellScript \
-            --parameters "$(jq -cn --arg c "$CMD" '{commands:[$c],executionTimeout:["900"]}')" \
+            --parameters "$(jq -cn --arg c "$CMD" '{commands:[$c],executionTimeout:["2700"]}')" \
             --query Command.CommandId --output text)
-          # Wait for the command (pulling images can take a few minutes).
-          for i in $(seq 1 90); do
+          # Wait for the command: pulling images can take a few minutes, and ai-live stops only
+          # after its running live interviews end (stop_grace_period in compose.yml).
+          for i in $(seq 1 270); do
             status=$(aws ssm get-command-invocation --command-id "$ID" --instance-id "$SERVER" --query Status --output text 2>/dev/null || echo Pending)
             case "$status" in Pending|InProgress|Delayed) sleep 10 ;; *) break ;; esac
           done

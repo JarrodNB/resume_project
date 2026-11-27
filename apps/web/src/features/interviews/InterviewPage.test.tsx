@@ -8,7 +8,7 @@ import { act, render, cleanup, fireEvent, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPage } from './InterviewPage'
-import { AUTHORIZE_INTERVIEW_OUTPUT, AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK, REQUEST_INTERVIEW_REFERENCES } from './interviewOperations'
+import { AUTHORIZE_INTERVIEW_OUTPUT, AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK, REQUEST_INTERVIEW_REFERENCES, LIVE_INTERVIEW_ALLOWANCE } from './interviewOperations'
 import { cancelInterviewTiming, startInterviewTiming } from './interviewLatency'
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
@@ -159,7 +159,15 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
     await userEvent.click(screen.getByRole('link', { name: 'Practice again' }))
     expect(router.state.location.pathname).toBe('/jobs/job-1/interview')
-    expect(router.state.location.state).toEqual({ practiceSetup: snapshot.setup })
+    expect(router.state.location.state).toEqual({ practiceSetup: { ...snapshot.setup, conversationMode: 'turn_based' } })
+  })
+  it('practices a completed live interview again with Live already chosen', async () => {
+    state.interview = { ...snapshot, status: 'completed', conversationMode: 'live' }
+    const allowance = { request: { query: LIVE_INTERVIEW_ALLOWANCE }, maxUsageCount: Infinity, result: { data: { me: { __typename: 'User', id: 'owner', liveInterviewSecondsLeft: 600 } } } }
+    const { router } = renderInterview('/practice/interviews/session', [allowance])
+    await userEvent.click(screen.getByRole('link', { name: 'Practice again' }))
+    expect(router.state.location.state).toEqual({ practiceSetup: { ...snapshot.setup, conversationMode: 'live' } })
+    expect(await screen.findByRole('radio', { name: /^Live/ })).toBeChecked()
   })
   it('returns an abandoned job interview to that job’s Interview tab', async () => {
     state.interview = { ...snapshot, jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }

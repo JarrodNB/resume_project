@@ -36,7 +36,7 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
     <nav aria-label="Review actions" className="review-actions">
       {job?.id && <Button asChild><Link to={`/jobs/${job.id}`}>Back to job</Link></Button>}
       {job && !job.id ? <Button asChild><Link to="/jobs">Choose another job</Link></Button>
-        : <Button asChild variant={job?.id ? 'outline' : 'default'}><Link to={job ? `/jobs/${job.id}/interview` : '/practice/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link></Button>}
+        : <Button asChild variant={job?.id ? 'outline' : 'default'}><Link to={job ? `/jobs/${job.id}/interview` : '/practice/interviews'} state={{ practiceSetup: { ...interview.setup, conversationMode: interview.conversationMode } }}>Practice again</Link></Button>}
       <Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link>
     </nav>
     {job && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. Your questions and saved answers remain available.</p>}

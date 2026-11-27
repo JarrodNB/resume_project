@@ -4,8 +4,11 @@ No LiveKit server, OpenAI or Rails is contacted: the session, room and clients a
 """
 
 import asyncio
+import json
+from types import SimpleNamespace
 
 import pytest
+from livekit import rtc
 from livekit.agents import ConversationItemAddedEvent, llm
 
 from live_interviews.agent import LiveDispatch, realtime_model_options, run_live_interview
@@ -17,15 +20,18 @@ from schemas.interview_setup import InterviewSetup
 
 METADATA = '{"interview_session_id": "session", "live_connection_id": "live"}'
 CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner",
-                            question_total=5, current_question_position=0)
+                            question_total=2, current_question_position=0, answer_cap=2)
 
 
 class FakeParticipant:
     def __init__(self):
-        self.attributes = []
+        self.attributes, self.rpc_methods = [], {}
 
     async def set_attributes(self, attributes):
         self.attributes.append(attributes)
+
+    def register_rpc_method(self, method_name, handler):
+        self.rpc_methods[method_name] = handler
 
 
 class FakeRoom:
@@ -56,13 +62,17 @@ class FakeContext:
 
 class FakeSession:
     def __init__(self):
-        self.handlers, self.replies, self.started = {}, [], None
+        self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
 
     def on(self, event, handler):
         self.handlers[event] = handler
 
     async def start(self, agent, *, room, record):
+        self.agent = agent
         self.started = {"instructions": agent.instructions, "room": room, "record": record}
+
+    def interrupt(self):
+        self.interrupted += 1
 
     def generate_reply(self, *, instructions):
         self.replies.append(instructions)
@@ -75,6 +85,7 @@ class FakeSession:
 class FakeRails:
     def __init__(self, claim=CLAIM, refuse=False):
         self.claim_result, self.refuse, self.calls, self.closed = claim, refuse, [], False
+        self.refuse_finish = False
 
     async def claim(self, connection_id, *, room_name):
         self.calls.append(("claim", connection_id, room_name))
@@ -84,7 +95,22 @@ class FakeRails:
 
     async def prompt_asked(self, connection_id, **values):
         self.calls.append(("prompt_asked", connection_id, values))
-        return {"message_id": "message", "question_position": 0, "revision": 2}
+        position = values["question_position"]
+        return {"message_id": f"{values['kind']}-{position}", "question_position": position, "revision": 2}
+
+    async def answer_finished(self, connection_id, **values):
+        self.calls.append(("answer_finished", connection_id, values))
+        return {"message_id": "answer", "question_position": 0, "accepted_answer_count": 1, "revision": 3}
+
+    async def question_advanced(self, connection_id, **values):
+        self.calls.append(("question_advanced", connection_id, values))
+        return {"current_question_position": values["question_position"] + 1, "revision": 4}
+
+    async def finish(self, connection_id, **values):
+        self.calls.append(("finish", connection_id, values))
+        if self.refuse_finish:
+            raise RailsClientError(409)
+        return {"status": "completed", "end_reason": values["reason"], "revision": 5}
 
     async def aclose(self):
         self.closed = True
@@ -129,7 +155,7 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "First question?" in session.started["instructions"]
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
-            "cd.question_position": "0", "cd.question_total": "5", "cd.phase": "asking"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking"}
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -144,6 +170,87 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
                                   "text": "Welcome. First, tell me about a project."}),
     ]
     assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "answering"
+
+
+def rpc(option):
+    return SimpleNamespace(request_id="r", caller_identity="user-owner", payload=json.dumps({"option": option}),
+                           response_timeout=5.0, method="interview.choose")
+
+
+def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        agent = session.agent
+        assert {tool.info.name for tool in agent.tools} == {"ask_follow_up", "finish_answer", "repeat_question",
+                                                            "next_question"}
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        assert "follow-up" in (await agent.ask_follow_up("What changed?")).lower()
+        session.emit_item("assistant", "What changed for the team?")
+        await settle()
+        session.emit_item("user", "Fewer failed runs.")
+        await settle()
+        assert "next_question" in await agent.ask_follow_up("Anything else?")
+        assert "repeat" in (await agent.repeat_question()).lower()
+        assert "question 2" in (await agent.next_question()).lower()
+        session.emit_item("assistant", "Next question: how do you handle conflict?")
+        await settle()
+        assert "thank" in (await agent.next_question()).lower()
+        session.emit_item("assistant", "Thank you, goodbye!")
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[1:] == [
+        ("prompt_asked", "live", {"question_position": 0, "kind": "opening", "text": "Tell me about a project."}),
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
+        ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?"}),
+        ("answer_finished", "live", {"prompt_message_id": "follow_up-0", "transcript": "Fewer failed runs."}),
+        ("question_advanced", "live", {"question_position": 0}),
+        ("prompt_asked", "live", {"question_position": 1, "kind": "opening",
+                                  "text": "Next question: how do you handle conflict?"}),
+        ("question_advanced", "live", {"question_position": 1}),
+        ("finish", "live", {"reason": "completed"}),
+    ]
+    assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "ended"
+    assert ctx.shutdown_reason
+
+
+def test_the_end_option_finishes_for_the_candidate_and_unknown_options_are_errors():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        with pytest.raises(rtc.RpcError):
+            await choose(rpc("dance"))
+        with pytest.raises(rtc.RpcError):
+            await choose(SimpleNamespace(payload="not json"))
+        assert await choose(rpc("end")) == "ended"
+        assert sessions[0][1].interrupted == 1
+
+    asyncio.run(scenario())
+    assert rails.calls[-1] == ("finish", "live", {"reason": "ended_by_candidate"})
+    assert ctx.shutdown_reason
+
+
+def test_a_refused_finish_is_an_rpc_error_so_the_browser_finishes_through_rails():
+    rails, sessions = FakeRails(), []
+    rails.refuse_finish = True
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        with pytest.raises(rtc.RpcError):
+            await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("end"))
+
+    asyncio.run(scenario())
 
 
 def test_a_refused_claim_ends_the_job_without_starting_a_session():

@@ -57,3 +57,10 @@ def test_masks_known_contact_and_escapes_supplied_text():
     assert "Jordan Rivera" not in text and "jordan@example.com" not in text and "555-123-4567" not in text
     assert "«name»" in text and "«email»" in text and "«phone»" in text
     assert "&lt;/question&gt;" in text
+
+
+def test_explains_when_to_use_each_interview_tool_in_prose():
+    text = build_live_instructions(inputs())
+    for tool in ("ask_follow_up", "finish_answer", "repeat_question", "next_question"):
+        assert tool in text
+    assert "never invent new core questions" in text.lower()

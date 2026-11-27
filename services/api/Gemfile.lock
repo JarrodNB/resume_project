@@ -151,6 +151,12 @@ GEM
     factory_bot_rails (6.5.1)
       factory_bot (~> 6.5)
       railties (>= 6.1.0)
+    faraday (2.15.1)
+      faraday-net_http (>= 2.0, < 3.6)
+      json
+      logger
+    faraday-net_http (3.5.0)
+      net-http (~> 0.5)
     ffi (1.17.4-aarch64-linux-gnu)
     ffi (1.17.4-aarch64-linux-musl)
     ffi (1.17.4-arm-linux-gnu)
@@ -165,6 +171,27 @@ GEM
       raabro (~> 1.4)
     globalid (1.4.0)
       activesupport (>= 6.1)
+    google-protobuf (4.36.2)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.36.2-aarch64-linux-gnu)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.36.2-aarch64-linux-musl)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.36.2-arm64-darwin)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.36.2-x86_64-darwin)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.36.2-x86_64-linux-gnu)
+      bigdecimal
+      rake (~> 13.3)
+    google-protobuf (4.36.2-x86_64-linux-musl)
+      bigdecimal
+      rake (~> 13.3)
     graphql (2.6.11)
       base64
       fiber-storage
@@ -182,6 +209,8 @@ GEM
       reline (>= 0.4.2)
     jmespath (1.6.2)
     json (3.0.2)
+    jwt (2.10.3)
+      base64
     language_server-protocol (3.17.0.6)
     launchy (3.1.1)
       addressable (~> 2.8)
@@ -195,6 +224,11 @@ GEM
       railties (>= 6.1)
       rexml
     lint_roller (1.1.0)
+    livekit-server-sdk (1.0.0)
+      faraday (>= 2.0, < 3.0)
+      google-protobuf (~> 4.30, >= 4.30.2)
+      jwt (>= 2.2.3, < 3.0)
+      twirp (~> 1.13, >= 1.13.1)
     logger (1.7.0)
     loofah (2.25.2)
       crass (~> 1.0.2)
@@ -215,6 +249,9 @@ GEM
     msgpack (1.8.5)
     neighbor (1.2.0)
       activerecord (>= 7.2)
+    net-http (0.10.0)
+      net-protocol (>= 0.3.0)
+      uri (>= 0.11.1)
     net-imap (0.6.7)
       date
       net-protocol
@@ -403,6 +440,10 @@ GEM
     thor (1.5.0)
     timeout (0.6.1)
     tsort (0.2.0)
+    twirp (1.13.1)
+      faraday (< 3)
+      google-protobuf (>= 3.25, < 5.a)
+      rack (>= 2.2.3)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.3.0)
@@ -445,6 +486,7 @@ DEPENDENCIES
   graphql
   image_processing (~> 1.2)
   letter_opener_web (~> 3.0)
+  livekit-server-sdk (~> 1.0)
   neighbor (~> 1.2)
   nokogiri
   openai (~> 0.99.0)

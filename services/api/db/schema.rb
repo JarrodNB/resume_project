@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_27_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_090100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -428,6 +428,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_090000) do
     t.index ["attempt_id"], name: "index_interview_execution_attempts_on_attempt_id", unique: true
     t.index ["operation_id", "claim_generation"], name: "idx_on_operation_id_claim_generation_54803b5c75", unique: true
     t.index ["operation_id"], name: "index_interview_execution_attempts_on_operation_id"
+  end
+
+  create_table "interview_live_connections", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.string "room_name", null: false
+    t.string "status", default: "authorized", null: false
+    t.datetime "connected_at"
+    t.datetime "last_heartbeat_at"
+    t.datetime "ended_at"
+    t.integer "billed_seconds", default: 0, null: false
+    t.string "end_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["interview_session_id", "created_at"], name: "idx_on_interview_session_id_created_at_d5f0267dcc"
+    t.index ["interview_session_id"], name: "index_interview_live_connections_one_open_per_session", unique: true, where: "((status)::text <> 'ended'::text)"
+    t.index ["room_name"], name: "index_interview_live_connections_on_room_name", unique: true
+    t.check_constraint "billed_seconds >= 0", name: "interview_live_connection_billed_seconds"
+    t.check_constraint "end_reason IS NULL OR (end_reason::text = ANY (ARRAY['completed'::character varying, 'time_limit'::character varying, 'allowance'::character varying, 'ended_by_candidate'::character varying, 'disconnected'::character varying, 'failed'::character varying]::text[]))", name: "interview_live_connection_end_reason"
+    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'connected'::character varying, 'ended'::character varying]::text[])", name: "interview_live_connection_status"
   end
 
   create_table "interview_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1066,6 +1085,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_090000) do
   add_foreign_key "interview_clarifications", "interview_session_messages", column: "message_id"
   add_foreign_key "interview_clarifications", "interview_sessions"
   add_foreign_key "interview_execution_attempts", "interview_session_operations", column: "operation_id", on_delete: :cascade
+  add_foreign_key "interview_live_connections", "interview_sessions"
   add_foreign_key "interview_provider_attempts", "interview_execution_attempts", column: "execution_attempt_id", on_delete: :cascade
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"

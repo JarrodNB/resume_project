@@ -22,6 +22,7 @@ class InterviewSession < ApplicationRecord
   has_many :clarifications, class_name: "InterviewClarification", dependent: :destroy
   has_many :operations, class_name: "InterviewSessionOperation", dependent: :destroy
   has_many :transcription_captures, class_name: "InterviewTranscriptionCapture", dependent: :destroy
+  has_many :live_connections, class_name: "InterviewLiveConnection", dependent: :destroy
   enum :status, STATUSES.index_with(&:itself), validate: true
   enum :interview_type, INTERVIEW_TYPES.index_with(&:itself), validate: true
   enum :conversation_mode, CONVERSATION_MODES.index_with(&:itself), validate: true, prefix: :conversation

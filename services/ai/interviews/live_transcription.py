@@ -15,6 +15,7 @@ from decimal import ROUND_CEILING, Decimal
 import logfire
 
 MODEL = "gpt-live-transcribe"
+MICRODOLLARS_PER_MINUTE = 17_000  # US$0.017 per minute of audio
 MAX_AUDIO_BYTES = 24_000 * 2 * 120
 MAX_FRAME_BYTES = 32_768
 MAX_TEXT = 4_000
@@ -48,7 +49,7 @@ def duration_usage(value):
     duration = Decimal(str(seconds))
     return {
         "audio_milliseconds": int((duration * 1000).to_integral_value(rounding=ROUND_CEILING)),
-        "cost_microdollars": int((duration * Decimal(17000) / 60).to_integral_value(rounding=ROUND_CEILING)),
+        "cost_microdollars": int((duration * MICRODOLLARS_PER_MINUTE / 60).to_integral_value(rounding=ROUND_CEILING)),
     }
 
 

@@ -6,8 +6,9 @@ spoken follow-ups and feedback, the candidate's answers, and heartbeat counts (b
 and priced token/audio usage, never text); Rails decides whether each one still applies. Every
 call is idempotent on the Rails side (a follow-up through its `prompt_key`, a retry
 through its number, a heartbeat through its sequence), so an ambiguous network failure retries
-the identical request once. A refusal with the code `connection_ended` raises
-LiveConnectionEnded, so the agent can tell "this interview is over, leave" from a stale report.
+the identical request once. A refusal with the code `connection_ended`, or a 404 (the connection
+was deleted with its interview), raises LiveConnectionEnded, so the agent can tell "this
+interview is over, leave" from a stale report.
 """
 
 from typing import Literal
@@ -26,7 +27,8 @@ from execution.rails_client import (
 
 class LiveConnectionEnded(RailsClientError):
     """Rails refused a live call because the connection or its interview is over (code
-    `connection_ended`): recovery or the owner ended it, or the session finished. The agent leaves."""
+    `connection_ended`, or 404 once the connection was deleted with its interview): recovery or
+    the owner ended it, or the session finished or was deleted. The agent leaves."""
 
 
 class LiveConnectionClaim(BaseModel):
@@ -73,7 +75,8 @@ class RailsLiveInterviewClient(RailsExecutionClient):
         try:
             return await super()._request(*args, **kwargs)
         except RailsClientError as error:
-            if error.status_code == 409 and error.code == "connection_ended":
+            # A missing connection (404) was destroyed with its interview: that is over too.
+            if (error.status_code == 409 and error.code == "connection_ended") or error.status_code == 404:
                 raise LiveConnectionEnded(error.status_code, error.code) from None
             raise
 

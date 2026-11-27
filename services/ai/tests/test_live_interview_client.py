@@ -79,6 +79,17 @@ def test_a_refusal_saying_the_connection_ended_raises_live_connection_ended():
     assert isinstance(error.value, RailsClientError) and error.value.status_code == 409
 
 
+def test_a_missing_connection_means_the_connection_ended():
+    """The connection is destroyed with its interview, so a 404 means the interview is gone: leave."""
+    async def check():
+        async with client_for(lambda _request: httpx.Response(404, json={"errors": ["Record not found"]})) as client:
+            await client.answer_finished("live", prompt_message_id="m", transcript="An answer.")
+
+    with pytest.raises(LiveConnectionEnded) as error:
+        run(check())
+    assert error.value.status_code == 404
+
+
 def test_other_refusal_codes_stay_ordinary_client_errors():
     body = {"errors": ["No more follow-ups for this question"], "code": "something_else"}
 

@@ -567,7 +567,8 @@ already finished or expired is only closed. If a heartbeat merely failed while t
 running, or the owner ended the room, the agent's later calls are refused with 409 and
 `code: "connection_ended"` (any refusal because the connection ended or the session is no longer
 a live, active, unexpired session; other refusals, such as a follow-up past the cap, carry no
-code). The agent then cuts off the interviewer and leaves at once, without calling `finish` again.
+code). A 404 (the connection was destroyed with its interview) means the same. The agent then
+cuts off the interviewer and leaves at once, without calling `finish` again.
 
 **Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same
 setup", the room first starts the new preparation, then calls

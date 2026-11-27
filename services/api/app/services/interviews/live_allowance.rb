@@ -5,7 +5,8 @@
 # counted from the billed seconds of the user's live connections (time while the coaching menu
 # waits for a choice is never billed). A trial counts every connection created since the trial
 # started. A paid day counts connections created since UTC midnight plus any connection that is
-# still open, so a session running across midnight counts fully toward the new day.
+# still open or ended since midnight, so a session running across midnight counts fully toward
+# the new day, also after it ends.
 # Each live session also has a 25-minute counted clock, shared by all its connections.
 module Interviews
   module LiveAllowance
@@ -20,8 +21,9 @@ module Interviews
       plan = Billing::ResolvePlanService.call(user: user).value
       connections = InterviewLiveConnection.joins(:interview_session).where(interview_sessions: { user_id: user.id })
       limit, counted = if plan.paid?
-        [ PAID_DAILY_SECONDS, connections.where("interview_live_connections.created_at >= ? OR interview_live_connections.status <> 'ended'",
-          Time.now.utc.beginning_of_day) ]
+        midnight = Time.now.utc.beginning_of_day
+        [ PAID_DAILY_SECONDS, connections.where("interview_live_connections.created_at >= :midnight OR " \
+          "interview_live_connections.status <> 'ended' OR interview_live_connections.ended_at >= :midnight", midnight: midnight) ]
       elsif plan.trial?
         [ TRIAL_SECONDS, connections.where(interview_live_connections: { created_at: (plan.trial_ends_at - Billing::Trial::LENGTH).. }) ]
       else

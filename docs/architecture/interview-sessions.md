@@ -537,8 +537,9 @@ first sends a final heartbeat with the remaining counted seconds and usage and n
 **Live allowance.** `Interviews::LiveAllowance.remaining_seconds(user)` is separate from the
 hidden daily spend cap: 10 minutes over the whole trial (connections created since the trial
 started, `trial_ends_at` minus the trial length), 60 minutes a UTC day on a paid plan
-(connections created since UTC midnight, plus any connection still open, so a session running
-across midnight counts fully toward the new day) and none once the plan has ended. It sums
+(connections created since UTC midnight, plus any connection still open or ended since
+midnight, so a session running across midnight counts fully toward the new day, also after it
+ends) and none once the plan has ended. It sums
 `billed_seconds` of the user's live connections. `joinLiveInterview` refuses a new room with
 fewer than 5 minutes left (error code `LIVE_ALLOWANCE_LOW`; a rejoin of the open room is not
 refused), and so does `startInterview` in live mode. The viewer's remaining seconds are

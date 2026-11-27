@@ -39,6 +39,16 @@ RSpec.describe Interviews::LiveAllowance do
     end
   end
 
+  it "keeps counting a session that crossed midnight once it ends, so ending it refunds nothing" do
+    create(:billing_subscription, user: user)
+    travel_to Time.utc(2026, 11, 27, 0, 10) do
+      connection = live_connection(user, billed_seconds: 900, created_at: Time.utc(2026, 11, 26, 23, 50), status: "connected")
+      expect(described_class.remaining_seconds(user)).to eq(2_700)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "completed")
+      expect(described_class.remaining_seconds(user)).to eq(2_700)
+    end
+  end
+
   it "gives an ended plan no live minutes" do
     expect(described_class.remaining_seconds(create(:user, :trial_ended))).to eq(0)
   end

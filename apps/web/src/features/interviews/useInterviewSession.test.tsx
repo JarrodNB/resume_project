@@ -39,17 +39,17 @@ it('starts preparation with the selected length and trimmed career focus', async
 })
 
 it('starts with an earlier interview\'s setup by sending only its id, so Rails copies the setup, job and career focus', async () => {
-  const mocks = [{ request: { query: START_INTERVIEW_FROM, variables: { fromInterviewId: 'live-session', conversationMode: 'TURN_BASED' } },
+  const mocks = [{ request: { query: START_INTERVIEW_FROM, variables: { fromInterviewId: 'live-session' } },
     result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], errorCode: null, interview: { ...snapshot, status: 'preparing' } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
-  await act(async () => { expect(await result.current.startFrom('live-session', 'TURN_BASED')).toBe('session') })
+  await act(async () => { expect(await result.current.startFrom('live-session')).toBe('session') })
   expect(result.current.error).toBeNull()
 })
 it('reports a refused start from an earlier interview with its code', async () => {
-  const mocks = [{ request: { query: START_INTERVIEW_FROM, variables: { fromInterviewId: 'live-session', conversationMode: 'TURN_BASED' } },
+  const mocks = [{ request: { query: START_INTERVIEW_FROM, variables: { fromInterviewId: 'live-session' } },
     result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: ['Daily limit reached'], errorCode: 'AI_DAILY_LIMIT', interview: null } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
-  await act(async () => { expect(await result.current.startFrom('live-session', 'TURN_BASED')).toBeNull() })
+  await act(async () => { expect(await result.current.startFrom('live-session')).toBeNull() })
   expect(result.current).toMatchObject({ error: 'Daily limit reached', errorCode: 'AI_DAILY_LIMIT' })
 })
 

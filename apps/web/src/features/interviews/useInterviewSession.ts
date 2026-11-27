@@ -37,13 +37,14 @@ export function useStartInterview() {
     }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }
   }
-  /** Starts with the same setup, saved job and career focus as the owned interview `fromInterviewId`;
-   * Rails copies them, so only the id is sent. */
-  async function startFrom(fromInterviewId: string, conversationMode: ConversationModeEnum = 'TURN_BASED') {
+  /** Starts a turn-based interview with the same setup, saved job and career focus as the owned
+   * interview `fromInterviewId`; Rails copies them (and ends that interview's live room if it was
+   * one), so only the id is sent. */
+  async function startFrom(fromInterviewId: string) {
     setError(null)
     setErrorCode(null)
     try {
-      const payload = (await mutateFrom({ variables: { fromInterviewId, conversationMode } })).data?.startInterview
+      const payload = (await mutateFrom({ variables: { fromInterviewId } })).data?.startInterview
       if (payload?.errors.length) setErrorCode(payload.errorCode ?? null)
       return requirePayload(payload).interview?.id ?? null
     }

@@ -26,16 +26,19 @@ RSpec.describe "Live interview GraphQL" do
     setup = { "question_count" => 5, "question_format" => "behavioral", "difficulty" => "stretch", "interviewer" => "maya", "focus_areas" => [ "leadership" ] }
     source = Interviews::StartPreparationService.call(user: user, setup: setup, job: job, career_focus: "Calibration", conversation_mode: "live").value
     query = 'mutation($input: StartInterviewInput!) { startInterview(input: $input) { interview { id conversationMode jobContext { id } } errors } }'
-    variables = { input: { fromInterviewId: source.id, conversationMode: "TURN_BASED" } }
+    variables = { input: { fromInterviewId: source.id } }
     expect(execute_graphql(query, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
     result = execute_graphql(query, user: user, variables: variables)
     expect(result.dig("data", "startInterview")).to include("errors" => [],
       "interview" => include("conversationMode" => "TURN_BASED", "jobContext" => { "id" => job.id }))
     started = user.interview_sessions.find(result.dig("data", "startInterview", "interview", "id"))
     expect(started).to have_attributes(setup_config: source.setup_config, career_focus: "Calibration", job: job)
-    mixed = execute_graphql(query, user: user, variables: { input: { fromInterviewId: source.id, setup: { questionCount: 8 } } })
-    expect(mixed.dig("data", "startInterview")).to include("interview" => nil,
-      "errors" => [ "Start from an earlier interview or with new settings, not both" ])
+    [ { setup: { questionCount: 8 } }, { conversationMode: "LIVE" }, { executionMode: "fake" } ].each do |setting|
+      mixed = execute_graphql(query, user: user, variables: { input: { fromInterviewId: source.id, **setting } })
+      expect(mixed.dig("data", "startInterview")).to include("interview" => nil,
+        "errors" => [ "Start from an earlier interview or with new settings, not both" ])
+    end
+    expect(user.interview_sessions.count).to eq(2)
   end
 
   describe "joinLiveInterview" do

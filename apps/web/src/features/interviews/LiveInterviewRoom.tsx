@@ -149,7 +149,7 @@ function TurnBasedFallback({ interview, reason }: { interview: InterviewSnapshot
   async function startTurnBased() {
     setPending(true)
     try {
-      const id = await startFrom(interview.id, 'TURN_BASED')
+      const id = await startFrom(interview.id)
       if (!id) return
       await navigate(`/practice/interviews/${id}`)
     } finally { setPending(false) }

@@ -3951,7 +3951,9 @@ input StartInterviewInput {
   executionMode: String = "real"
 
   """
-  An owned interview whose setup, saved job and career focus the new one copies; not combined with the other settings.
+  An owned interview whose setup, saved job and career focus a new turn-based
+  interview copies. Send no other settings with it: career focus, setup, job, a
+  LIVE conversation mode or a non-real execution mode is refused.
   """
   fromInterviewId: ID
   jobId: ID

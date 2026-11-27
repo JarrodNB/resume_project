@@ -87,7 +87,7 @@ it('offers a turn-based interview with the same setup when no interviewer joins 
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(router.state.location.pathname).toBe('/practice/interviews/turn-based-session'))
   // Rails copies the setup, job and career focus, and ends the live room in the same request.
-  expect(startFrom).toHaveBeenCalledWith('session', 'TURN_BASED')
+  expect(startFrom).toHaveBeenCalledWith('session')
   expect(start).not.toHaveBeenCalled()
   expect(live.value.end).not.toHaveBeenCalled()
 })
@@ -125,7 +125,7 @@ it('offers the fallback at once when joining fails, starting from this session',
   renderInterview()
   expect(screen.getByRole('alert')).toHaveTextContent('Live interviews are not configured.')
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
-  await vi.waitFor(() => expect(startFrom).toHaveBeenCalledWith('session', 'TURN_BASED'))
+  await vi.waitFor(() => expect(startFrom).toHaveBeenCalledWith('session'))
 })
 
 it('says the interviewer left and offers the fallback again if no interviewer returns within 15 seconds', () => {

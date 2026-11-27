@@ -132,6 +132,17 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
       expect(described_class.call(user: user, interview: true).errors).to eq([ described_class::DAILY_LIMIT_MESSAGE ])
     end
 
+    it "leaves live conversation costs out of the cap, so a live session never blocks other AI work, while still recording them" do
+      live = create(:ai_task, user: user, task_type: "interview_live_conversation", status: "completed", cost_microdollars: TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS * 3)
+
+      expect(described_class.call(user: user)).to be_success
+      expect(described_class.call(user: user, interview: true)).to be_success
+      expect(user.ai_tasks.where(created_at: Time.now.utc.beginning_of_day..).sum(:cost_microdollars)).to eq(live.cost_microdollars)
+
+      create_finished_task(cost_microdollars: TRIAL_DAILY_AI_SPEND_CAP_MICRODOLLARS)
+      expect(described_class.call(user: user).errors).to eq([ described_class::DAILY_LIMIT_MESSAGE ])
+    end
+
     it "counts background embedding receipts but treats unknown costs as zero" do
       AiEmbeddingRequest.create!(user: user, model: "text-embedding-3-small", purpose: "career_library", cost_microdollars: nil)
       expect(described_class.call(user: user)).to be_success

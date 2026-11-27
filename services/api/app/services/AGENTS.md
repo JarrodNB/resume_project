@@ -124,7 +124,7 @@ All business logic, as service objects grouped by domain folder.
   hour and tasks in flight (hourly/in-flight within separate general/spoken-interview buckets;
   `config/initializers/ai_usage_limits.rb`). Messages never contain amounts; `refusal_code` maps a refusal to
   `plan_ended` or `ai_usage_limit_reached`
-- `ai_usage/daily_spend.rb` — a user's known spend today (UTC) across tasks and background embedding receipts
+- `ai_usage/daily_spend.rb` — a user's known spend today (UTC) across tasks and background embedding receipts, for the hidden cap only (live conversation tasks excluded)
 - `ai_usage/embedding_accounting.rb` — commits each background embedding marker/receipt on
   an independent connection so source/vector rollbacks cannot erase provider charges
 - `ai_usage/reconcile_receipt_service.rb` — operator-only verified receipt import with default

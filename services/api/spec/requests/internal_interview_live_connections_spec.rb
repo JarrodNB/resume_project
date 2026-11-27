@@ -497,7 +497,18 @@ RSpec.describe "Internal live interview connections", type: :request do
         { "stage" => "live_conversation", "provider" => "openai", "model" => "gpt-live-transcribe", "audio_milliseconds" => 12_000,
           "cost_microdollars" => 3_400 }
       )
-      expect(AiUsage::DailySpend.known_microdollars(user)).to be >= 21_400
+      expect(AiUsage::DailySpend.known_microdollars(user)).to eq(user.ai_tasks.where.not(id: task.id).sum(:cost_microdollars))
+    end
+
+    it "keeps live costs out of the hidden daily cap, so other AI work can still start the same day" do
+      claim
+      heartbeat(1, billed_seconds_delta: 12, usage: [ realtime_usage ])
+      expect(connection.reload.ai_task.cost_microdollars).to eq(9_000)
+      user.update!(daily_ai_spend_cap_microdollars: 9_000)
+      stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 30)
+
+      expect(Interviews::StartPreparationService.call(user: user)).to be_success
+      expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).to be_success
     end
 
     it "warns at 2 minutes of live allowance left and says wrap up with the reason once it runs out" do

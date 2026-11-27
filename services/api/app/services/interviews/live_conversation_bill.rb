@@ -4,9 +4,9 @@
 # the interview's hourly admission, like other interview child tasks), one provider observation
 # with its conservative verification reservation, and an unfinished usage report for that
 # observation. Each heartbeat adds its usage deltas to the report's running totals, one entry per
-# model (the realtime model and its input transcription), so daily spend sees live costs while the
-# interview runs. The hidden daily spend cap never stops a running live session; the live
-# allowance is its limit. Finishing closes the report: known only when the agent's final heartbeat
+# model (the realtime model and its input transcription), so task totals and cost reports see live
+# costs while the interview runs. The hidden daily spend cap never stops a running live session and
+# leaves these costs out of its total (AiUsage::DailySpend); the live allowance is its limit. Finishing closes the report: known only when the agent's final heartbeat
 # was the last one applied and every entry has a price; otherwise it stays unknown on the ledger.
 # Callers hold the user, interview and connection locks.
 module Interviews

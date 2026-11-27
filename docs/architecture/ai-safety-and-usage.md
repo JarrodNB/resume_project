@@ -20,7 +20,7 @@ The check runs these in order and fails with the first one that applies:
 2. **Daily spend cap.** One hidden cap per user per UTC day, shared by general AI and spoken
    interviews: trial `TRIAL_DAILY_AI_SPEND_CAP_USD` (fallback $0.25), paid `PAID_DAILY_AI_SPEND_CAP_USD`
    (fallback $2.00). `AiUsage::DailySpend` adds the user's known task costs (general AI and every
-   spoken interview stage) and background embedding receipts created today. The worker estimates each
+   spoken interview stage except live conversations) and background embedding receipts created today. The worker estimates each
    request's cost from its token usage and a per-model price table (`services/ai/llm/model_prices.py`)
    and reports it with attempt reports, including unsuccessful attempts. Missing provider usage or prices
    makes accounting incomplete; unknown costs do not block tasks below the cap. When the cap is
@@ -43,8 +43,9 @@ question practice remains general AI. Every spoken stage still has its own durab
 usage records; only its session's hourly admission is shared. Legacy fixture operations also
 use the interview limits, retaining their existing individual hourly admissions. Live
 interviews add a **live allowance** in minutes (10 over the trial, 60 a UTC day paid; at least 5
-to start), which is shown to users. The hidden daily cap never stops a live session once its
-agent has claimed the room, but its provider costs still count toward daily spend. See
+to start), which is shown to users. The live allowance is live mode's only per-user limit: live
+conversation costs are recorded on their task and the ledger (and count toward the trial site-wide
+limit) but are left out of the hidden daily cap total, so a live session never blocks other AI work. See
 [time, live minutes and heartbeats](interview-sessions.md#time-live-minutes-and-heartbeats),
 [spoken session accounting](interview-sessions.md#http-execution-accounting) and
 [cost accounting and verified receipt reconciliation](ai-cost-accounting.md). The retained

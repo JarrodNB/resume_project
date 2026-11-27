@@ -464,8 +464,8 @@ fewer than 5 minutes left (error code `LIVE_ALLOWANCE_LOW`; a rejoin of the open
 refused), and so does `startInterview` in live mode. The viewer's remaining seconds are
 `me.liveInterviewSecondsLeft`; setup shows the minutes left when Live is chosen and disables
 Continue and Start with the reason below 5 minutes. The hidden daily spend cap never stops a
-claimed live session: live costs still count toward daily spend, but the allowance is the live
-session's limit.
+claimed live session, and live costs are recorded but left out of the cap total, so a live session
+never blocks the user's other AI work: the allowance is live mode's only limit.
 
 **Cost.** Live usage goes through the provider ledger; see
 [provider accounting](interview-provider-accounting.md#live-interviews).
@@ -757,12 +757,12 @@ Spoken interviews have their own per-user start and in-flight limits: **10 sessi
 **three concurrent operations**, configured by `INTERVIEW_SESSIONS_PER_HOUR` and
 `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. Spoken interview hourly starts and in-flight tasks do not consume
 general AI allowances, and the reverse. Spend is the exception: general AI and every spoken
-interview stage's known cost count toward one hidden daily spend cap per user, set by plan
+interview stage's known cost (except live conversations, limited by the live allowance) count toward one hidden daily spend cap per user, set by plan
 (see [AI safety and usage](ai-safety-and-usage.md#usage-limits)). Users never see that cap or their spend.
 Written interview question practice remains general AI. No bills or unknown markers are removed.
 
 Only hourly admission groups interview stages: daily spend sums every spoken
-stage task, and interview concurrency counts every recently queued spoken task. A claim
+stage task except live conversations, and interview concurrency counts every recently queued spoken task. A claim
 excludes only its own task from concurrency, never the preparation root or another operation.
 Claims, explicit retries and every provider start recheck the plan, daily cap and interview limits. New child
 creation and admission rejection commit together, leaving no execution/provider attempt on

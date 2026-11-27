@@ -147,13 +147,13 @@ attempts:
   microdollars, a deliberately generous US$2.00 estimate for 25 counted minutes of audio plus
   input transcription, not a provider ceiling), and an unfinished usage report for that
   observation. The hidden daily spend cap is not checked there: the live allowance is a live
-  session's limit, and the spend still counts.
+  session's limit, and live costs are left out of the daily cap total (`AiUsage::DailySpend`).
 - **Usage.** Each heartbeat carries priced deltas, at most one per model:
   `gpt-realtime-2.1-mini` (`input_tokens`, `cached_input_tokens`, `output_tokens`,
   `cost_microdollars`) and `gpt-live-transcribe` (`audio_milliseconds`, `cost_microdollars`, or
   token counts with no cost). Rails adds them to the report's running entries (stage
-  `live_conversation`, one entry per model), which moves the task's known totals, so daily
-  spend and cost reports include a running interview. Heartbeats apply once per sequence. A
+  `live_conversation`, one entry per model), which moves the task's known totals, so cost
+  reports include a running interview. Heartbeats apply once per sequence. A
   delta without a price leaves that model's cost unknown for the rest of the connection.
 - **Prices.** The AI service prices from LiveKit Agents 1.9's running `AgentSession.usage`
   (`LLMModelUsage` with audio, text and cached-read token splits; `STTModelUsage` with audio

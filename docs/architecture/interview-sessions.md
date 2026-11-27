@@ -393,7 +393,10 @@ on.") in the same response as a tool call; LiveKit adds that message only after 
 after the tool ran, and speaks the reply to the tool's result on the same `SpeechHandle` one step
 later. The adapter marks a message recorded on a tool call's speech at the tool call's step as a
 preamble (same LiveKit source, `_realtime_generation_task_impl`), and the controller ignores it, so only the reply counts as the follow-up, feedback or
-closing the result asked for. On start it publishes room state and asks the model to greet
+closing the result asked for. A room button interrupts the speech that is playing
+(`AgentSession.current_speech`), and LiveKit adds that speech's cut-off message only after the
+choice has moved the interview on; the adapter drops every message recorded on it, so cut-off
+words never count as the feedback, goodbye or next question the choice asked for. On start it publishes room state and asks the model to greet
 and ask the current question. Each question then runs like this:
 
 1. The first final interviewer turn after a question or accepted follow-up is reported through

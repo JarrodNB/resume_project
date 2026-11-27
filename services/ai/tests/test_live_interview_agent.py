@@ -128,6 +128,7 @@ class FakeSession:
     def __init__(self):
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
         self.handles, self.model_usage, self.closed = [], [], False
+        self.current_speech = None  # the SpeechHandle playing now, as LiveKit's AgentSession.current_speech
 
     @property
     def usage(self):
@@ -413,6 +414,62 @@ def test_menu_buttons_interrupt_and_have_the_interviewer_speak_the_choice():
 
     asyncio.run(scenario())
     assert ("question_advanced", "live", {"question_position": 0}) in rails.calls
+
+
+def test_words_cut_off_by_a_room_choice_never_count_as_the_turn_the_choice_asked_for():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        chatter = session.current_speech = FakeToolSpeech()  # the interviewer is mid-sentence
+        assert await choose(rpc("feedback")) == "accepted"
+        session.current_speech = None
+        # LiveKit adds the cut-off message only after its playout task ends, after the choice ran.
+        session.emit_item("assistant", "Mm, and what happened", speech=chatter)
+        await settle()
+        session.emit_item("assistant", "Quick feedback: good start.")
+        await settle()
+
+    asyncio.run(scenario())
+    assert [call for call in rails.calls if call[0] == "feedback_given"] == [
+        ("feedback_given", "live", {"question_position": 0, "text": "Quick feedback: good start."})]
+
+
+def test_move_on_while_the_menu_is_spoken_on_the_last_question_still_says_goodbye():
+    rails, sessions = FakeRails(claim=CLAIM.model_copy(update={"question_total": 1})), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        choose = ctx.room.local_participant.rpc_methods["interview.choose"]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await session.agent.next_question(tool_call())
+        session.emit_item("assistant", "Quick feedback: clear story.")
+        await settle()
+        menu = session.current_speech = FakeToolSpeech()  # the menu sentence is playing
+        assert await choose(rpc("next")) == "accepted"
+        session.current_speech = None
+        session.emit_item("assistant", "You can retry, hear", speech=menu)
+        await settle()
+        assert not any(call[0] == "finish" for call in rails.calls)  # the goodbye is still to come
+        assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "closing"
+        session.emit_item("assistant", "Thank you. Goodbye!")
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-1] == ("finish", "live", {"reason": "completed", "final_sequence": 1})
+    assert ctx.shutdown_reason
 
 
 def test_the_clock_nudges_a_long_answer_once():

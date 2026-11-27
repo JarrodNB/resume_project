@@ -132,6 +132,7 @@ class LiveInterviewRunner:
         self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
         self._turn_heard = asyncio.Event()
         self._tool_speeches: list[tuple] = []  # (speech handle, its step) of each tool call still speaking
+        self._cut_off_speeches: list = []  # speech handles a room choice interrupted, still finishing
         self._controller = LiveInterviewController()
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
@@ -195,6 +196,8 @@ class LiveInterviewRunner:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
         item = event.item
         if isinstance(item, llm.ChatMessage) and item.role == "assistant":
+            if self._cut_off_by_a_choice(item):
+                return
             self._spawn(InterviewerTurnFinished(item.text_content or "", preamble=self._spoken_before_a_tool_result(item)))
         elif isinstance(item, llm.ChatMessage) and item.role == "user":
             task = asyncio.create_task(self._candidate_turn_heard(item.text_content or ""))
@@ -218,6 +221,16 @@ class LiveInterviewRunner:
         (livekit-agents `voice/agent_activity.py`, `_realtime_generation_task_impl`)."""
         return any(step == speech.num_steps and any(recorded is item for recorded in speech.chat_items)
                    for speech, step in self._tool_speeches)
+
+    def _cut_off_by_a_choice(self, item: llm.ChatMessage) -> bool:
+        """Whether this interviewer message belongs to a speech a room choice interrupted.
+
+        LiveKit adds an interrupted speech's message (the words heard before the cut) only once
+        its playout task has finished, after the choice already moved the interview on, so it
+        would arrive as the turn the choice asked for (the feedback, the goodbye, the next
+        question). Those words were never that turn and nothing of them is saved
+        (livekit-agents `voice/agent_activity.py`, `_realtime_generation_task_impl`)."""
+        return any(any(recorded is item for recorded in speech.chat_items) for speech in self._cut_off_speeches)
 
     async def tool(self, event: ToolEvent, speech=None) -> str:
         """Run one tool call once the candidate's ended turns are transcribed (at most a few seconds).
@@ -292,13 +305,19 @@ class LiveInterviewRunner:
             return None
 
     async def choose(self, data: rtc.RpcInvocationData) -> str:
-        """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview."""
+        """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview.
+
+        It cuts off the interviewer; whatever that speech had said is never taken as a turn."""
         try:
             option = json.loads(data.payload).get("option")
         except (ValueError, AttributeError):
             option = None
         if not isinstance(option, str) or option not in MENU_OPTIONS | {"end"}:
             raise rtc.RpcError(2001, "Unknown interview option")
+        speech = self._session.current_speech
+        self._cut_off_speeches = [handle for handle in self._cut_off_speeches if not handle.done()]
+        if speech is not None:
+            self._cut_off_speeches.append(speech)
         self._interrupt()
         if option in MENU_OPTIONS:
             await self.handle(MenuChoice(option))

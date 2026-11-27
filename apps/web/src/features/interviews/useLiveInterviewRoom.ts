@@ -7,9 +7,11 @@
  * two-minute warning flag) the agent publishes as participant attributes, and lets the candidate mute. Leaving the page disconnects the room.
  * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
  * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`); the agent then
- * speaks the choice. `end()` asks the agent to end the interview (`{"option":"end"}`), waiting at
- * most 5 seconds, then calls Rails' `endLiveInterview`. That finishes the interview itself when
- * the agent is gone or failed, and otherwise just returns the finished snapshot.
+ * speaks the choice. `end()` asks the agent to end the interview (`{"option":"end"}`), then calls
+ * Rails' `endLiveInterview`. With no agent in the room, or when the RPC fails with an error, that
+ * call comes at once; otherwise it waits for the agent's own finish (at most 35 seconds, while
+ * the page shows "Ending…"). `endLiveInterview` finishes the interview itself when the agent is
+ * gone or failed, and otherwise just returns the finished snapshot.
  * When the connection drops, the status is `reconnecting` while LiveKit retries by itself, and
  * `disconnected` if it gives up. `rejoin()` then asks Rails to join again (the same room, with a
  * fresh token; the interviewer waits about 2 minutes for the candidate) and connects again. If
@@ -49,8 +51,11 @@ export interface LiveInterviewRoom extends LiveRoomState {
 /** Keep the screen and memory bounded in a long interview. */
 const MAX_CAPTIONS = 50
 const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
-/** How long End interview waits for the agent before finishing through Rails directly. */
-export const LIVE_END_AGENT_TIMEOUT_MS = 5_000
+/** How long End interview waits for the agent's answer. The agent may first spend up to 30 seconds
+ * delivering the last answer, usage and its finish to Rails (`DELIVERY_WAIT_SECONDS` in
+ * services/ai/live_interviews/agent.py), so this is that wait plus room for the round trip. Finishing
+ * through Rails sooner could abandon an answered interview and drop its last usage. */
+export const LIVE_END_AGENT_TIMEOUT_MS = 35_000
 /** How long a menu choice waits for the agent before it is reported as not received. */
 const LIVE_CHOICE_TIMEOUT_MS = 8_000
 const CHOICE_FAILED = 'Your interviewer didn’t get that choice. Try again or say it out loud.'
@@ -192,8 +197,9 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     const agent = agentIn(livekit)
     if (livekit && agent) {
       try {
-        await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload: JSON.stringify({ option: 'end' }) }), LIVE_END_AGENT_TIMEOUT_MS)
-      } catch { /* The agent is gone or failed; Rails finishes the interview below. */ }
+        await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload: JSON.stringify({ option: 'end' }),
+          responseTimeout: LIVE_END_AGENT_TIMEOUT_MS }), LIVE_END_AGENT_TIMEOUT_MS)
+      } catch { /* The agent is gone, failed or never answered; Rails finishes the interview below. */ }
     }
     let endError: string | null = null
     try {

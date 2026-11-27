@@ -511,7 +511,14 @@ The room's End interview button asks for confirmation, then calls the agent's Li
 `interview.choose` with `{"option": "end"}` (the menu options above answer `accepted`; unknown
 options are RPC errors). The agent saves
 the pending answer, calls `finish` with `ended_by_candidate` and leaves; it answers `ended` only
-once Rails accepted the finish. The browser waits at most 5 seconds, then always calls the
+once Rails accepted the finish. Before answering, the agent may wait up to 30 seconds
+(`DELIVERY_WAIT_SECONDS`) for the last answer, heartbeat and finish to reach Rails, so the browser
+sets the RPC's `responseTimeout` to 35 seconds (`LIVE_END_AGENT_TIMEOUT_MS`, that wait plus room
+for the round trip) and shows "Ending…" meanwhile. LiveKit cancels the agent's RPC handler at the
+caller's timeout, so the browser's must stay above the agent's wait. With no agent in the room,
+or when the RPC fails with an error (a refusal, or the agent never acknowledged it), the browser
+goes on at once; it never finishes through Rails while the agent may still be delivering, which
+could abandon an answered interview and drop its last usage. Then it always calls the
 owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiveService` (its `for_owner` entry point) on the
 session's open (or latest) connection: it finishes the session when the agent is gone or failed,
 and otherwise returns the finished snapshot. The page then shows the completed review, or the

@@ -140,7 +140,7 @@ it('ends through the agent with the end option, then confirms the outcome with R
   expect(view.result.current).toMatchObject({ ending: false, endError: null })
 })
 
-it('falls back to Rails when the agent refuses, does not answer within 5 seconds or is gone', async () => {
+it('falls back to Rails at once when the agent refuses or is gone, and waits out the agent’s finish otherwise', async () => {
   const refused = endMock()
   const first = await connectedRoom(refused.mock)
   first.room.remoteParticipants.set(agent.identity, agent)
@@ -157,6 +157,11 @@ it('falls back to Rails when the agent refuses, does not answer within 5 seconds
     second.room.performRpc.mockReturnValue(new Promise(() => {}))
     let ending: Promise<boolean> = Promise.resolve(false)
     act(() => { ending = second.view.result.current.end() })
+    expect(second.view.result.current.ending).toBe(true)
+    expect(second.room.performRpc).toHaveBeenCalledWith(expect.objectContaining({ responseTimeout: 35_000 }))
+    // The agent may still be delivering the last answer and its finish (up to 30 s): keep waiting.
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(slow.result).not.toHaveBeenCalled()
     expect(second.view.result.current.ending).toBe(true)
     await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
     await act(async () => { await ending })

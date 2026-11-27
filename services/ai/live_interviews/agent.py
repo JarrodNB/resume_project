@@ -103,7 +103,10 @@ def realtime_model_options(persona: str) -> dict:
 
 MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
 TRANSCRIPT_WAIT_SECONDS = 3.0  # how long a tool call waits for the candidate's late final transcript
-DELIVERY_WAIT_SECONDS = 30.0  # how long leaving waits for reports still on their way to Rails
+# How long leaving (and End interview's RPC answer) waits for reports still on their way to Rails.
+# The browser's End wait (LIVE_END_AGENT_TIMEOUT_MS in apps/web useLiveInterviewRoom.ts) must stay
+# above it: LiveKit cancels this RPC handler at the caller's response timeout.
+DELIVERY_WAIT_SECONDS = 30.0
 
 
 class LiveInterviewRunner:

@@ -60,6 +60,11 @@ export const JOIN_LIVE_INTERVIEW = graphql(`
   }
 `)
 
+/** Live interview seconds the viewer has left (trial total or today's paid minutes); a new live interview needs 300. */
+export const LIVE_INTERVIEW_ALLOWANCE = graphql(`
+  query LiveInterviewAllowance { me { id liveInterviewSecondsLeft } }
+`)
+
 export const END_LIVE_INTERVIEW = graphql(`
   mutation EndLiveInterview($interviewId: ID!) {
     endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }

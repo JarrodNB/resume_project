@@ -86,10 +86,11 @@ it('shows captions for both sides, replacing interim text with the final text pe
 
 it('reads question progress and phase from the agent participant attributes', async () => {
   const { view, room } = await connectedRoom()
-  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, menuOffered: false })
-  const agent = { isAgent: true, attributes: { 'cd.question_position': '0', 'cd.question_total': '5', 'cd.phase': 'asking', 'cd.menu_offered': 'false' } }
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false })
+  const agent = { isAgent: true, attributes: { 'cd.question_position': '0', 'cd.question_total': '5', 'cd.phase': 'asking', 'cd.menu_offered': 'false',
+    'cd.seconds_left': '1500', 'cd.time_warning': 'false' } }
   act(() => room.handlers.get('participantConnected')!(agent))
-  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', menuOffered: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', menuOffered: false, secondsLeft: 1500, timeWarning: false })
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'answering' }, { ...agent, attributes: { ...agent.attributes, 'cd.phase': 'answering' } }))
   expect(view.result.current.progress.phase).toBe('answering')
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'x' }, { isAgent: false, attributes: { 'cd.phase': 'x' } }))
@@ -196,4 +197,12 @@ it('reports a choice made while the interviewer is not in the room', async () =>
   const { view } = await connectedRoom()
   await act(async () => { await view.result.current.choose('feedback') })
   expect(view.result.current.chooseError).toMatch(/didn’t get that choice/)
+})
+
+it('reads the counted time left and the time warning from the agent', async () => {
+  const { view, room } = await connectedRoom()
+  act(() => room.handlers.get('participantConnected')!({ isAgent: true, attributes: { 'cd.seconds_left': '118', 'cd.time_warning': 'true' } }))
+  expect(view.result.current.progress).toMatchObject({ secondsLeft: 118, timeWarning: true })
+  act(() => room.handlers.get('participantAttributesChanged')!({}, { isAgent: true, attributes: { 'cd.seconds_left': 'soon' } }))
+  expect(view.result.current.progress).toMatchObject({ secondsLeft: null, timeWarning: false })
 })

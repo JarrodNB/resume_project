@@ -3,6 +3,7 @@ import { fireEvent, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { InterviewSetup } from './InterviewSetup'
+import { LIVE_INTERVIEW_ALLOWANCE } from './interviewOperations'
 
 const { start } = vi.hoisted(() => ({ start: vi.fn() }))
 vi.mock('./useInterviewSession', () => ({ useStartInterview: () => ({ start, loading: false, error: null }) }))
@@ -41,4 +42,29 @@ it('sends a Live choice with a saved-job start', () => {
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
   startFromSettings()
   expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'live')
+})
+
+function allowance(seconds: number) {
+  return { request: { query: LIVE_INTERVIEW_ALLOWANCE }, result: { data: { me: { __typename: 'User', id: 'owner', liveInterviewSecondsLeft: seconds } } } }
+}
+
+it('shows the live minutes left once Live is chosen', async () => {
+  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [allowance(430)] })
+  expect(screen.queryByText(/live minutes left/)).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
+  expect(await screen.findByText('You have 7 live minutes left.')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled()
+})
+
+it('disables starting a Live interview with the reason when fewer than 5 minutes are left', async () => {
+  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [allowance(240)] })
+  fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
+  const reason = await screen.findByText('You need at least 5 live minutes to start a live interview. You have 4 minutes left.')
+  const next = screen.getByRole('button', { name: 'Continue to settings' })
+  expect(next).toBeDisabled()
+  expect(next).toHaveAccessibleDescription(reason.textContent!)
+  fireEvent.click(screen.getByRole('radio', { name: 'Turn-based' }))
+  expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled()
+  startFromSettings()
+  expect(start).toHaveBeenCalledWith('', expect.anything(), undefined, 'turn_based')
 })

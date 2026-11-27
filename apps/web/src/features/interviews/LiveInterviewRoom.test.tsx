@@ -13,7 +13,7 @@ const { state, start, live } = vi.hoisted(() => ({
   start: vi.fn(),
   live: { hook: vi.fn(), value: {} as Record<string, unknown> },
 }))
-const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false }
+const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 function liveRoom(change: Record<string, unknown> = {}) {
   return { status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true), ...change }
@@ -126,7 +126,7 @@ it('shows question progress from the agent and nothing before the agent publishe
   const view = renderInterview()
   expect(screen.queryByText(/Question \d+ of/)).not.toBeInTheDocument()
   view.unmount()
-  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { questionPosition: 0, questionTotal: 5, phase: 'answering', menuOffered: false } })
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...NO_PROGRESS, questionPosition: 0, questionTotal: 5, phase: 'answering' } })
   renderInterview()
   expect(screen.getByText('Question 1 of 5')).toBeVisible()
 })
@@ -270,4 +270,22 @@ it('shows the interviewer\'s saved feedback under the question\'s latest answer 
   expect(feedback).toHaveLength(1)
   expect(feedback[0]).toHaveTextContent('Quick feedback: clear example. Lead with the result.')
   expect(saved.textContent!.indexOf('I rebuilt our lab scheduler.')).toBeLessThan(saved.textContent!.indexOf('Interviewer feedback'))
+})
+
+it('shows the counted time left as minutes and seconds, and nothing before the agent publishes it', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true })
+  const view = renderInterview()
+  expect(screen.queryByText(/left$/)).not.toBeInTheDocument()
+  view.unmount()
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...NO_PROGRESS, secondsLeft: 1495 } })
+  renderInterview()
+  expect(screen.getByText('24:55 left')).toBeVisible()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+it('shows and announces the two-minute warning', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...NO_PROGRESS, secondsLeft: 65, timeWarning: true } })
+  renderInterview()
+  expect(screen.getByText('1:05 left')).toBeVisible()
+  expect(screen.getByRole('alert')).toHaveTextContent('About 2 minutes left. Start wrapping up.')
 })

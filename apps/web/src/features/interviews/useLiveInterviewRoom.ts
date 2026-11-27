@@ -2,8 +2,8 @@
  * It asks Rails to join (which starts a ready interview), connects to the room with the
  * short-lived token, turns on the microphone and plays the interviewer's audio. It reports
  * whether the interviewer agent has joined, live captions for both sides (from LiveKit's
- * `lk.transcription` text streams), the interview progress the agent publishes as participant
- * attributes, and lets the candidate mute. Leaving the page disconnects the room.
+ * `lk.transcription` text streams), the interview progress and counted time left (with the
+ * two-minute warning flag) the agent publishes as participant attributes, and lets the candidate mute. Leaving the page disconnects the room.
  * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
  * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`); the agent then
  * speaks the choice. `end()` asks the agent to end the interview (`{"option":"end"}`), waiting at
@@ -20,8 +20,10 @@ export type LiveRoomStatus = 'joining' | 'connecting' | 'connected' | 'failed'
 /** One caption line. A segment's interim text is replaced by its later or final text. */
 export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer'; text: string }
 /** Where the interview stands, as the agent last published it. `questionPosition` is zero-based;
- * `menuOffered` is true while the interviewer waits for the candidate's coaching-menu choice. */
-export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; menuOffered: boolean }
+ * `menuOffered` is true while the interviewer waits for the candidate's coaching-menu choice.
+ * `secondsLeft` is the session's counted time left (menu waits are free), refreshed about every
+ * 5 seconds; `timeWarning` turns on once about 2 minutes (or live minutes) are left. */
+export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
 export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
 interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
@@ -35,7 +37,7 @@ export interface LiveInterviewRoom extends LiveRoomState {
 
 /** Keep the screen and memory bounded in a long interview. */
 const MAX_CAPTIONS = 50
-const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false }
+const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 /** How long End interview waits for the agent before finishing through Rails directly. */
 export const LIVE_END_AGENT_TIMEOUT_MS = 5_000
 /** How long a menu choice waits for the agent before it is reported as not received. */
@@ -54,10 +56,11 @@ function wholeNumber(value: string | undefined) {
   return Number.isInteger(number) && number >= 0 ? number : null
 }
 
-/** The agent publishes `cd.question_position`, `cd.question_total`, `cd.phase` and `cd.menu_offered` as strings. */
+/** The agent publishes `cd.question_position`, `cd.question_total`, `cd.phase`, `cd.menu_offered`,
+ * `cd.seconds_left` and `cd.time_warning` as strings. */
 function agentProgress(attributes: Record<string, string>): LiveRoomProgress {
   return { questionPosition: wholeNumber(attributes['cd.question_position']), questionTotal: wholeNumber(attributes['cd.question_total']), phase: attributes['cd.phase'] ?? null,
-    menuOffered: attributes['cd.menu_offered'] === 'true' }
+    menuOffered: attributes['cd.menu_offered'] === 'true', secondsLeft: wholeNumber(attributes['cd.seconds_left']), timeWarning: attributes['cd.time_warning'] === 'true' }
 }
 
 function agentIn(livekit: Room | null) {

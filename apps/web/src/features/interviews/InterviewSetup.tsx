@@ -1,10 +1,12 @@
 /** Assemble a practice interview from career evidence and deliberate setup choices.
  * Round choices come first as a control panel (switches, interviewer tiles, a focus-area dropdown),
- * including Turn-based or Live; Live offers only the 5 and 8 question lengths,
+ * including Turn-based or Live; Live offers only the 5 and 8 question lengths and shows the live
+ * minutes left (10 over the trial, 60 a day on a paid plan); with fewer than 5 it can't start,
  * then a settings step for how answers are captured, with the round summary beside Start interview.
  * Preparation saves the round choices before review. Settings stay local to this account.
  */
 import { useId, useRef, useState, type ReactNode } from 'react'
+import { useQuery } from '@apollo/client/react'
 import { ArrowLeft, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -16,7 +18,8 @@ import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewAnswerSettings } from './InterviewAnswerSettings'
 import { SetupRow, Switch } from './InterviewSetupControls'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
-import { conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_QUESTION_COUNTS, typeOptions } from './interviewSetupOptions'
+import { conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_MIN_START_SECONDS, LIVE_QUESTION_COUNTS, typeOptions } from './interviewSetupOptions'
+import { LIVE_INTERVIEW_ALLOWANCE } from './interviewOperations'
 import type { InterviewJob } from './InterviewJobContext'
 
 const focusChoices = Object.entries(focusOptions).map(([value, label]) => ({ value, label }))
@@ -39,7 +42,12 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
   const [focusAreas, setFocusAreas] = useState<string[]>(Array.isArray(saved.focusAreas) ? [...new Set(saved.focusAreas.filter((value): value is string => typeof value === 'string' && Object.hasOwn(focusOptions, value)))] : [])
   const [conversationMode, setConversationMode] = useState(choice(saved.conversationMode, conversationModeOptions, 'turn_based'))
   const focusId = useId()
+  const liveMinutesId = useId()
   const live = conversationMode === 'live'
+  const allowance = useQuery(LIVE_INTERVIEW_ALLOWANCE, { skip: !live, fetchPolicy: 'network-only' })
+  const liveSeconds = live ? allowance.data?.me.liveInterviewSecondsLeft ?? null : null
+  const liveMinutes = liveSeconds === null ? null : Math.floor(liveSeconds / 60)
+  const liveBlocked = liveSeconds !== null && liveSeconds < LIVE_MIN_START_SECONDS
   const lengthChoices = live ? lengthOptions.filter((option) => LIVE_QUESTION_COUNTS.includes(Number(option.value))) : lengthOptions
   function changeConversationMode(value: string) {
     setConversationMode(value)
@@ -66,14 +74,15 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
   const roundSummary = `${selected.type.label} · ${selected.difficulty.label} · ${questionCount} core questions`
   const interviewerName = selected.interviewer.label.split(' — ')[0]
-  return <form className={step === 'round' ? 'interview-setup' : 'interview-setup interview-setup-settings'} onSubmit={(event) => { event.preventDefault(); if (step === 'round') setStep('settings'); else void prepare() }}>
+  return <form className={step === 'round' ? 'interview-setup' : 'interview-setup interview-setup-settings'} onSubmit={(event) => { event.preventDefault(); if (liveBlocked) return; if (step === 'round') setStep('settings'); else void prepare() }}>
     {onChangeRole && step === 'round' && <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={onChangeRole}><ArrowLeft aria-hidden /> Change role</Button>}
     {step === 'round'
       ? <div className="grid gap-2"><h2 className="text-xl font-extrabold tracking-tight">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round for this saved job.' : 'Choose the round you want to practice.'}</p></div>
       : <h2 className="text-xl font-extrabold tracking-tight">How you’ll answer</h2>}
     <fieldset disabled={busy} className="interview-setup-fields">
       {step === 'round' ? <div className="interview-setup-panel">
-      <SetupRow title="Conversation"><Switch name="conversation" options={conversationModeOptions} value={conversationMode} change={changeConversationMode} /><p className="interview-setup-help">{selected.conversationMode.description}</p></SetupRow>
+      <SetupRow title="Conversation"><Switch name="conversation" options={conversationModeOptions} value={conversationMode} change={changeConversationMode} /><p className="interview-setup-help">{selected.conversationMode.description}</p>
+        {liveMinutes !== null && <p className="interview-setup-help">You have {liveMinutes} live {liveMinutes === 1 ? 'minute' : 'minutes'} left.</p>}</SetupRow>
       <SetupRow title="Interview type"><Switch name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} /><p className="interview-setup-help">{selected.type.description}</p></SetupRow>
       <SetupRow title="Difficulty"><Switch name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} /><p className="interview-setup-help">{selected.difficulty.description}</p></SetupRow>
       <SetupRow title="Your interviewer"><div className="interview-setup-people">
@@ -105,9 +114,10 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
       {/* Distinct keys matter: React would otherwise reuse one DOM button and flip its type to
           "submit" mid-click, so the Continue click would also submit the form and start preparation. */}
       {step === 'round'
-        ? <Button key="continue" type="button" size="lg" className="min-h-11" onClick={() => setStep('settings')}>Continue to settings</Button>
-        : <Button key="start" type="submit" size="lg" className="min-h-11" disabled={busy} aria-busy={busy}>{busy ? 'Starting…' : 'Start interview'}</Button>}
+        ? <Button key="continue" type="button" size="lg" className="min-h-11" disabled={liveBlocked} aria-describedby={liveBlocked ? liveMinutesId : undefined} onClick={() => setStep('settings')}>Continue to settings</Button>
+        : <Button key="start" type="submit" size="lg" className="min-h-11" disabled={busy || liveBlocked} aria-busy={busy} aria-describedby={liveBlocked ? liveMinutesId : undefined}>{busy ? 'Starting…' : 'Start interview'}</Button>}
     </div>
+    {liveBlocked && <p id={liveMinutesId} className="text-sm font-semibold text-destructive">You need at least {LIVE_MIN_START_SECONDS / 60} live minutes to start a live interview. You have {liveMinutes} {liveMinutes === 1 ? 'minute' : 'minutes'} left.</p>}
     {step === 'settings' && error && <MutationErrorAlert errors={[error]} errorCode={errorCode} />}
     {notice && <details className="text-sm text-muted-foreground"><summary className="cursor-pointer py-3 font-medium text-foreground">How your details and audio are used</summary><div className="pt-2">{notice}</div></details>}
   </form>

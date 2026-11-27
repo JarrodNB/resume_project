@@ -1,6 +1,7 @@
 /** The room for a live interview: the candidate and the interviewer talk in real time through
  * LiveKit (see useLiveInterviewRoom). It shows the connection state, then captions (which the
- * candidate can hide), "Question N of M" from the interviewer agent and a mute button. After the
+ * candidate can hide), "Question N of M" and the counted time left from the interviewer agent
+ * (with an announced warning at about 2 minutes left) and a mute button. After the
  * interviewer's spoken feedback on a question, it shows the coaching choices (Try again, Hear the
  * question again, Get a hint, Move on) while the agent says the menu is offered; while the
  * candidate answers it offers "How was that?". Each button sends the same choice as saying it. The
@@ -56,18 +57,25 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
   </section>
 }
 
-/** Progress from the agent's attributes (zero-based position shown as "Question N of M"), mute,
- * the coaching choices and captions. */
+/** Counted seconds as m:ss, such as 24:55 or 1:05. */
+function minutesAndSeconds(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/** Progress from the agent's attributes (zero-based position shown as "Question N of M"), the
+ * time left and its warning, mute, the coaching choices and captions. */
 function LiveRoomControls({ room }: { room: LiveRoom }) {
-  const { questionPosition, questionTotal, phase, menuOffered } = room.progress
+  const { questionPosition, questionTotal, phase, menuOffered, secondsLeft, timeWarning } = room.progress
   return <div className="grid gap-3">
     <div className="flex flex-wrap items-center justify-center gap-3">
       {questionPosition !== null && questionTotal !== null && <p className="text-sm font-medium">Question {questionPosition + 1} of {questionTotal}</p>}
+      {secondsLeft !== null && <p className={timeWarning ? 'text-sm font-semibold tabular-nums text-destructive' : 'text-sm font-medium tabular-nums'}>{minutesAndSeconds(secondsLeft)} left</p>}
       <Button variant="outline" className="min-h-11" aria-pressed={room.muted} onClick={() => void room.mute(!room.muted)}>
         {room.muted ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}Mute microphone
       </Button>
       {phase === 'answering' && <Button variant="outline" className="min-h-11" disabled={room.choosing} onClick={() => void room.choose('feedback')}>How was that?</Button>}
     </div>
+    {timeWarning && <p role="alert" className="text-center text-sm font-semibold">About 2 minutes left. Start wrapping up.</p>}
     {menuOffered && <CoachingMenu room={room} />}
     {room.chooseError && <p role="alert" className="text-sm text-destructive">{room.chooseError}</p>}
     <LiveCaptions captions={room.captions} />

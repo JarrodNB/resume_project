@@ -255,23 +255,68 @@ live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explic
    default `gpt-live-transcribe`), with LiveKit recording off.
 
 The pure `LiveInterviewController` (`live_interviews/controller.py`) takes events and returns
-actions; the adapter only forwards and executes them. On start it publishes room state and asks
-the model to greet and ask the current question. The first final interviewer message after that
-is reported once through `POST /internal/interviews/live_connections/:id/prompt_asked`
-(`question_position`, `kind: "opening"`, spoken text). `RecordLivePromptService` saves it as the
-question's normal opening message (semantic key `question:<id>:opening`, content bounded by
-`TextLimits::PROSE`), bumps the revision and so publishes the snapshot; a repeat returns the
-saved message unchanged. It refuses an unclaimed or ended connection, a question that is not
-current and other kinds for now. Because the opening is a normal message, career references are
-requested and shown exactly as in turn-based rooms. Room state reaches the browser as the agent
-participant's attributes `cd.question_position` (zero-based), `cd.question_total` and `cd.phase`.
+actions; the adapter (`live_interviews/agent.py`) only forwards and executes them. Events are the
+final transcripts of both sides (`conversation_item_added`), the model's interview tools
+(`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`, plain `@function_tool`
+methods on the agent), Rails' saved-prompt receipts and the candidate's End interview. Every tool
+call gets one tool result; LiveKit has the realtime model speak in reply to it, so the result
+says what to say next (ask the follow-up, repeat the prompt, ask question N, close) or why the
+call was refused. On start it publishes room state and asks the model to greet and ask the
+current question. Each question then runs like this:
+
+1. The first final interviewer turn after a question or accepted follow-up is reported through
+   `POST /internal/interviews/live_connections/:id/prompt_asked` (`question_position`, `kind`,
+   `text`). `RecordLivePromptService` saves an `opening` with the **prepared question text**
+   (semantic key `question:<id>:opening`, as `BeginService` does), never the spoken words, so a
+   cut-off opening cannot shorten the saved question and references match turn-based; a repeat
+   returns the saved opening. A `follow_up` saves the spoken text (bounded by
+   `TextLimits::PROSE`) under a `prompt_key` the Rails client generates per call (semantic key
+   `live_prompt:<key>`), so only that call's retry returns the saved follow-up. It is refused
+   until the latest prompt of the current question has an answer and once the question has
+   `answer_cap` answers. The receipt's `message_id` is fed back to the controller.
+2. The candidate's final transcripts for the current prompt are joined and reported through
+   `answer_finished` (`prompt_message_id`, `transcript`) when the interviewer moves on (an
+   accepted follow-up, the next question, `finish_answer` or End interview).
+   `RecordLiveAnswerService` saves the prompt's answer (semantic key `live_answer:<prompt id>`)
+   and increments `accepted_answer_count`; a later report for the same prompt replaces the text
+   (only the latest is kept) without counting again. New answers go only to the latest prompt of
+   the current question. The controller also refuses `ask_follow_up` before an answer or at the
+   cap, telling the model to call `next_question`.
+3. `next_question` reports `question_advanced` (`question_position`). `AdvanceLiveQuestionService`
+   uses `Interviews::QuestionProgression`, shared with `AcceptTurnService` and
+   `SkipQuestionService`: the next question becomes current and its opening is saved with the
+   prepared text (the agent's later `prompt_asked` returns it). A question with no answer gets
+   `skipped_at`. At the last question nothing moves and the interview stays active; a retry of
+   the move just made returns the same receipt.
+4. After the last question the model closes warmly; once that turn is spoken the agent calls
+   `finish` (`reason`: `completed`, `ended_by_candidate` or `failed` for now) and leaves.
+   `FinishLiveService` ends the connection (`ended_at`, `end_reason`) and completes the session
+   (`completed_at`) when at least one answer is saved, otherwise runs `AbandonService`. No
+   closing message is saved. A repeat after the session finished returns the first outcome.
+
+Every write bumps the revision (so the snapshot is published) and is refused with 409 when the
+connection is unclaimed or ended, the session is not a live, active, unexpired one, or the
+question or prompt is no longer current. Because prompts and answers are normal messages, the
+career references panel, the completed review and session feedback work exactly as for
+turn-based interviews. Room state reaches the browser as the agent participant's attributes
+`cd.question_position` (zero-based), `cd.question_total` and `cd.phase` (`asking`, `answering`,
+`closing`, `ended`). The claim response also carries `answer_cap`.
+
+The room's End interview button asks for confirmation, then calls the agent's LiveKit RPC method
+`interview.choose` with `{"option": "end"}` (unknown options are RPC errors). The agent saves
+the pending answer, calls `finish` with `ended_by_candidate` and leaves; it answers `ended` only
+once Rails accepted the finish. The browser waits at most 5 seconds, then always calls the
+owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiveService` on the
+session's open (or latest) connection: it finishes the session when the agent is gone or failed,
+and otherwise returns the finished snapshot. The page then shows the completed review, or the
+usual abandoned state.
 Provider usage, heartbeats and the live allowance are not recorded yet.
 
 In the web app, an active live session (or a ready one after "Enter interview room") renders
 `LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
 `livekit-client`. The hook exposes captions from the `lk.transcription` text streams (both
-sides; a segment's interim text is replaced by its later text), the agent's progress attributes
-and `mute(on)`. The room shows hideable captions, "Question N of M", a mute toggle and the
+sides; a segment's interim text is replaced by its later text), the agent's progress attributes,
+`mute(on)` and `end()`. The room shows hideable captions, "Question N of M", a mute toggle, End interview and the
 references panel for the current saved prompt. If no agent joins within 15 seconds, or joining
 fails, the room offers a new turn-based preparation with the same setup.
 

@@ -1,4 +1,6 @@
-/** Remember the signed-in candidate's input choice without storing recognized answer text. */
+/** Remember the signed-in candidate's input choice without storing recognized answer text.
+ * Streaming transcription is the default until the candidate picks another mode.
+ */
 import { useState } from 'react'
 import { PRODUCT_NAME } from '@/lib/productName'
 import type { TranscriptionMode } from './transcriptionCapture'
@@ -8,8 +10,8 @@ export function useTranscriptionPreference(ownerId: string): [TranscriptionMode,
   const [mode, setMode] = useState<TranscriptionMode>(() => {
     try {
       const saved = localStorage.getItem(key)
-      return saved === 'streaming' || saved === 'recorded' ? saved : 'browser'
-    } catch { return 'browser' }
+      return saved === 'browser' || saved === 'recorded' ? saved : 'streaming'
+    } catch { return 'streaming' }
   })
   return [mode, (next) => {
     setMode(next)

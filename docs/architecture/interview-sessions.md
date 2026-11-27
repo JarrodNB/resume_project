@@ -89,7 +89,7 @@ ready, active or completed states. Preparing/ready sessions reopen their saved p
 or role review; active sessions restore accepted dialogue and progress; completed sessions
 reopen for review. Scripted fixtures and abandoned/expired sessions do not appear in this list.
 
-Candidate input supports browser recognition (the default), live provider transcription,
+Candidate input supports live provider transcription (the default), browser recognition,
 and complete-recording transcription. The owner-scoped browser preference is independent
 of interviewer speech playback. Typed answers submit reviewed text directly without a recording. They use the explicit
 `typed` input mode, preserve the exact text through acceptance, and never

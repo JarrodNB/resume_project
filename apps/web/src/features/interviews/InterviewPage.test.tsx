@@ -51,7 +51,12 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; recorder.liveFailed = false; recorder.limitReached = false; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
+/** Most tests drive the mic by hand with browser recognition; the new-account defaults have their own test. */
+function useManualMicrophone() {
+  localStorage.setItem('Careerdrafter:interview-microphone:owner', JSON.stringify({ automatic: false }))
+  localStorage.setItem('Careerdrafter:interview-transcription:owner', 'browser')
+}
+beforeEach(() => { vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001'); localStorage.clear(); useManualMicrophone(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; recorder.liveFailed = false; recorder.limitReached = false; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.errorCode = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(async () => {
   cleanup()
   // Unmounting stops the mocked Apollo client and rejects requests still in flight (for example the
@@ -204,13 +209,27 @@ describe('InterviewPage', () => {
     expect(recorder.start).not.toHaveBeenCalled()
   })
 
+  it('starts a new account with streaming, hands-free and a 3 second automatic microphone', async () => {
+    localStorage.clear()
+    stubMicrophoneSupport()
+    await renderPracticeRoleSetup()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
+    const transcription = screen.getByRole('radiogroup', { name: 'Transcription' })
+    expect(within(transcription).getAllByRole('radio')[0]).toBe(within(transcription).getByRole('radio', { name: 'Streaming' }))
+    expect(within(transcription).getByRole('radio', { name: 'Streaming' })).toBeChecked()
+    expect(within(screen.getByRole('radiogroup', { name: 'Microphone' })).getByRole('radio', { name: 'Automatic' })).toBeChecked()
+    expect(within(screen.getByRole('radiogroup', { name: 'Thinking time' })).getByRole('radio', { name: '3 sec' })).toBeChecked()
+    expect(within(screen.getByRole('radiogroup', { name: 'Hands-free' })).getByRole('radio', { name: 'On' })).toBeChecked()
+    expect(recorder.start).not.toHaveBeenCalled()
+  })
+
   it('shares microphone preferences from setup without starting capture', async () => {
     stubMicrophoneSupport()
     const view = await renderPracticeRoleSetup()
     expect(screen.queryByRole('radiogroup', { name: 'Microphone' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Streaming' }))
-    expect(screen.getByText(/Try it if Browser misses words/)).toBeVisible()
+    expect(screen.getByText(/Fills in as you speak using OpenAI/)).toBeVisible()
     expect(screen.queryByRole('radiogroup', { name: 'Thinking time' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('radio', { name: 'Automatic' }))
     await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Thinking time' })).getByRole('radio', { name: '10 sec' }))
@@ -937,7 +956,7 @@ describe('prepared interview begin', () => {
 })
 
 
-it('defaults to browser recognition, remembers a choice, and locks it while an answer is captured', async () => {
+it('shows a saved browser recognition choice, remembers a change, and locks it while an answer is captured', async () => {
   const first = renderInterview()
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Interview settings' }))

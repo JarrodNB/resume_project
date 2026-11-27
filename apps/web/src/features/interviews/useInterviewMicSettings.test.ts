@@ -7,13 +7,20 @@ const key = 'Careerdrafter:interview-microphone:owner'
 const saved = () => JSON.parse(localStorage.getItem(key) ?? 'null')
 beforeEach(() => localStorage.clear())
 
-it('loads older saved settings with hands-free off and the normal silence length', () => {
-  localStorage.setItem(key, JSON.stringify({ automatic: true, seconds: 3 }))
+it('starts new accounts with the automatic microphone, 3 seconds of thinking time and hands-free on', () => {
   const { result } = renderHook(() => useInterviewMicSettings('owner'))
-  expect(result.current).toMatchObject({ automatic: true, seconds: 3, handsFree: false, silenceSeconds: 2.5 })
+  expect(result.current).toMatchObject({ automatic: true, seconds: 3, handsFree: true, silenceSeconds: 2.5 })
+})
+
+it('keeps choices someone already saved and fills missing ones with the defaults', () => {
+  localStorage.setItem(key, JSON.stringify({ automatic: true, seconds: 10, handsFree: false }))
+  expect(renderHook(() => useInterviewMicSettings('owner')).result.current).toMatchObject({ automatic: true, seconds: 10, handsFree: false, silenceSeconds: 2.5 })
+  localStorage.setItem(key, JSON.stringify({ automatic: false }))
+  expect(renderHook(() => useInterviewMicSettings('owner')).result.current).toMatchObject({ automatic: false, seconds: 0, handsFree: false })
 })
 
 it('turns on automatic capture with hands-free and turns hands-free off with automatic capture', () => {
+  localStorage.setItem(key, JSON.stringify({ automatic: false }))
   const { result, unmount } = renderHook(() => useInterviewMicSettings('owner'))
   expect(result.current).toMatchObject({ automatic: false, handsFree: false })
   act(() => result.current.update({ handsFree: true }))

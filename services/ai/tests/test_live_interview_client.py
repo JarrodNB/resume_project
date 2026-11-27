@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from live_interviews.client import (
+    HeartbeatReply,
     LiveConnectionClaim,
     RailsClientError,
     RailsLiveInterviewClient,
@@ -14,7 +15,8 @@ from live_interviews.client import (
 )
 
 CLAIM = {"interview_session_id": "session", "live_connection_id": "live", "user_id": "owner",
-         "question_total": 5, "current_question_position": 0, "answer_cap": 2}
+         "question_total": 5, "current_question_position": 0, "answer_cap": 2, "session_seconds_left": 1_500,
+         "allowance_seconds_left": 600}
 
 
 def run(coro):
@@ -173,3 +175,46 @@ def test_feedback_and_retry_post_only_positions_numbers_and_the_spoken_feedback(
         (base + "feedback_given", {"question_position": 0, "text": "Quick feedback: clear. Lead with the result."}),
         (base + "question_retried", {"question_position": 0, "retry_number": 1}),
     ]
+
+
+def test_claim_carries_the_session_clock_and_allowance_seconds():
+    async def check(body):
+        async with client_for(lambda _request: httpx.Response(200, json=body)) as client:
+            return await client.claim("live", room_name="room")
+
+    claim = run(check(CLAIM))
+    assert (claim.session_seconds_left, claim.allowance_seconds_left) == (1_500, 600)
+    with pytest.raises(RailsTransportError):
+        run(check({key: value for key, value in CLAIM.items() if key != "session_seconds_left"}))
+
+
+def test_heartbeat_posts_its_sequence_billed_seconds_and_usage_and_validates_the_reply():
+    seen, respond = recorded_calls([
+        {"action": "wrap_up", "reason": "allowance", "allowance_seconds_left": 0, "session_seconds_left": 700},
+        {"action": "dance", "allowance_seconds_left": 0, "session_seconds_left": 700},
+    ])
+    usage = [{"model": "gpt-realtime-2.1-mini", "input_tokens": 10, "cached_input_tokens": 0, "output_tokens": 5,
+              "cost_microdollars": 120}]
+
+    async def check():
+        async with client_for(respond) as client:
+            reply = await client.heartbeat("live", sequence=3, billed_seconds_delta=30, usage=usage)
+            with pytest.raises(RailsTransportError):
+                await client.heartbeat("live", sequence=4, billed_seconds_delta=0, usage=[])
+            return reply
+
+    assert run(check()) == HeartbeatReply(action="wrap_up", reason="allowance", allowance_seconds_left=0,
+                                          session_seconds_left=700)
+    assert str(seen[0].url) == "http://api:3000/internal/interviews/live_connections/live/heartbeat"
+    assert json.loads(seen[0].content) == {"sequence": 3, "billed_seconds_delta": 30, "usage": usage}
+
+
+def test_finish_names_the_final_heartbeat_when_there_is_one():
+    seen, respond = recorded_calls([{"status": "completed", "end_reason": "time_limit", "revision": 5}])
+
+    async def check():
+        async with client_for(respond) as client:
+            return await client.finish("live", reason="time_limit", final_sequence=7)
+
+    run(check())
+    assert json.loads(seen[0].content) == {"reason": "time_limit", "final_sequence": 7}

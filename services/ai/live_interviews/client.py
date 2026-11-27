@@ -2,12 +2,14 @@
 
 Uses the same fixed-origin, bearer-authenticated and size-bounded transport as the other
 interview callbacks. Requests carry only IDs, positions and retry numbers, the interviewer's
-spoken follow-ups and feedback, and the candidate's answers; Rails decides whether each one
-still applies. Every call is idempotent on the Rails side (a follow-up through its fresh
-`prompt_key`, a retry through its number), so an ambiguous network failure retries the
-identical request once.
+spoken follow-ups and feedback, the candidate's answers, and heartbeat counts (billed seconds
+and priced token/audio usage, never text); Rails decides whether each one still applies. Every
+call is idempotent on the Rails side (a follow-up through its fresh `prompt_key`, a retry
+through its number, a heartbeat through its sequence), so an ambiguous network failure retries
+the identical request once.
 """
 
+from typing import Literal
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -33,6 +35,18 @@ class LiveConnectionClaim(BaseModel):
     current_question_position: int = Field(ge=0)
     answer_cap: int = Field(ge=1, le=3)
     current_question_retry_count: int = Field(default=0, ge=0, le=2)
+    session_seconds_left: int = Field(ge=0)  # counted seconds left on the session's 25-minute clock
+    allowance_seconds_left: int = Field(ge=0)
+
+
+class HeartbeatReply(BaseModel):
+    """Rails' answer to a heartbeat: carry on, warn the candidate, or wrap up now and why."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+    action: Literal["continue", "warn", "wrap_up"]
+    reason: Literal["allowance", "time_limit"] | None = None
+    allowance_seconds_left: int = Field(ge=0)
+    session_seconds_left: int = Field(ge=0)
 
 
 class RailsLiveInterviewClient(RailsExecutionClient):
@@ -87,6 +101,20 @@ class RailsLiveInterviewClient(RailsExecutionClient):
         return await self._request("POST", self._live_path(connection_id, "question_retried"),
                                    {"question_position": question_position, "retry_number": retry_number})
 
-    async def finish(self, connection_id: str, *, reason: str) -> dict:
-        """End the connection and complete or abandon the interview; returns `{status, end_reason, revision}`."""
-        return await self._request("POST", self._live_path(connection_id, "finish"), {"reason": reason})
+    async def heartbeat(self, connection_id: str, *, sequence: int, billed_seconds_delta: int,
+                        usage: list[dict]) -> HeartbeatReply:
+        """Report counted seconds and priced usage since the last heartbeat; a repeated sequence replays."""
+        result = await self._request("POST", self._live_path(connection_id, "heartbeat"),
+                                     {"sequence": sequence, "billed_seconds_delta": billed_seconds_delta, "usage": usage})
+        try:
+            return HeartbeatReply.model_validate(result)
+        except ValidationError:
+            raise RailsTransportError("Invalid live heartbeat receipt") from None
+
+    async def finish(self, connection_id: str, *, reason: str, final_sequence: int | None = None) -> dict:
+        """End the connection and complete or abandon the interview; returns `{status, end_reason, revision}`.
+
+        `final_sequence` names the heartbeat sent just before, so Rails can close the bill as known.
+        """
+        body = {"reason": reason} if final_sequence is None else {"reason": reason, "final_sequence": final_sequence}
+        return await self._request("POST", self._live_path(connection_id, "finish"), body)

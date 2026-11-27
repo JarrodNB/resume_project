@@ -535,7 +535,10 @@ the dispatched owner-scoped inputs (see `services/ai/screening/AGENTS.md`). Room
 browser as the agent participant's attributes
 `cd.question_position` (zero-based), `cd.question_total`, `cd.phase` (`asking`, `answering`,
 `feedback`, `menu`, `closing`, `ended`), `cd.state_seq` (the room state counter a button echoes)
-and `cd.menu_offered` (`true` only in `menu`). The claim
+and `cd.menu_offered` (`true` only in `menu`). LiveKit's `set_attributes` waits for its reply
+with no timeout, so one background task publishes these, never under the controller's lock: it
+sends one state at a time, always the newest waiting, so a slow LiveKit holds up no tool, choice,
+tick or heartbeat, and the room never sees an older state after a newer one. The claim
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
 turn-based questions), and seven-day expiry clears it with the rest of the dialogue.
 

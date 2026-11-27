@@ -46,17 +46,22 @@ done
 
 if [ -z "$current" ]; then
   # Add one container with the new config next to the ones still running. --no-recreate keeps
-  # compose from stopping the old ones; the scale counts every ai-live container compose sees.
-  count=$(docker compose ps -a -q "$LIVE" | wc -l)
+  # compose from stopping the old ones; the scale counts every ai-live container compose sees,
+  # draining ones included (they keep their compose labels). --no-start, then starting only the
+  # new container: a draining one that exited since the loop above would otherwise be started
+  # again by compose, with the old code, and its -draining- name would keep it running for good.
   before=$(docker compose ps -a -q "$LIVE")
-  docker compose up -d --no-deps --no-recreate --scale "$LIVE=$((count + 1))" "$LIVE"
+  count=$(wc -l <<<"$before")
+  [ -n "$before" ] || count=0
+  docker compose up --no-start --no-deps --no-recreate --scale "$LIVE=$((count + 1))" "$LIVE"
   for id in $(docker compose ps -a -q "$LIVE"); do
     grep -qx "$id" <<<"$before" || current=$id
   done
   if [ -z "$current" ]; then
-    echo "ai-live: compose did not start a new container" >&2
+    echo "ai-live: compose did not create a new container" >&2
     exit 1
   fi
+  docker start "$current" >/dev/null
 fi
 
 [ ${#stale[@]} -gt 0 ] || exit 0

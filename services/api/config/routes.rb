@@ -42,6 +42,8 @@ Rails.application.routes.draw do
     post "interviews/live_connections/:id/prompt_asked", to: "interview_live_connections#prompt_asked"
     post "interviews/live_connections/:id/answer_finished", to: "interview_live_connections#answer_finished"
     post "interviews/live_connections/:id/question_advanced", to: "interview_live_connections#question_advanced"
+    post "interviews/live_connections/:id/feedback_given", to: "interview_live_connections#feedback_given"
+    post "interviews/live_connections/:id/question_retried", to: "interview_live_connections#question_retried"
     post "interviews/live_connections/:id/finish", to: "interview_live_connections#finish"
     post "interviews/feedback/:id/claim", to: "interviews#claim_feedback"
     post "interviews/references/:id/claim", to: "interviews#claim_references"

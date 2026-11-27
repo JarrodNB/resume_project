@@ -1,6 +1,6 @@
-# The live agent's private Rails callbacks: claiming its dispatched connection, saving prompts and
-# answers as they are spoken, moving between questions and finishing. All are safe to repeat;
-# stale or foreign calls are refused with 409 and change nothing.
+# The live agent's private Rails callbacks: claiming its dispatched connection, saving prompts,
+# answers and spoken feedback as they happen, restarting a question, moving between questions and
+# finishing. All are safe to repeat; stale or foreign calls are refused with 409 and change nothing.
 require "rails_helper"
 
 RSpec.describe "Internal live interview connections", type: :request do
@@ -56,7 +56,8 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.headers["Cache-Control"]).to eq("no-store")
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
-          "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap
+          "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
+          "current_question_retry_count" => 0
         )
         expect(connection.reload).to have_attributes(status: "connected", connected_at: Time.current, last_heartbeat_at: Time.current)
       end
@@ -67,6 +68,9 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(connection.reload.connected_at).to eq(first_connected_at)
         expect(connection.last_heartbeat_at).to be > first_connected_at
       end
+      interview.questions.find_by!(position: 0).update!(live_retry_count: 2)
+      claim # a restarted agent learns the retries the current question already used
+      expect(response.parsed_body["current_question_retry_count"]).to eq(2)
     end
 
     it "refuses a foreign room, an ended connection and a finished session" do
@@ -308,6 +312,113 @@ RSpec.describe "Internal live interview connections", type: :request do
     end
   end
 
+  describe "feedback_given" do
+    def feedback_given(text: "Quick feedback: clear example. Next time, say the result first.", question_position: 0)
+      post "#{base}/feedback_given", params: { question_position: question_position, text: text }, headers: headers, as: :json
+    end
+
+    it "saves the current question's spoken feedback, replaces it later and publishes the snapshot" do
+      answer_finished(prompt_message_id: asked_opening)
+      revision = interview.reload.revision
+      expect(Interviews::PublishSnapshotService).to receive(:call).with(interview_id: interview.id).at_least(:once).and_call_original
+      feedback_given(text: "  Quick feedback: clear example.  ")
+      expect(response).to have_http_status(:ok)
+      question = interview.questions.find_by!(position: 0)
+      expect(question.reload.live_feedback).to eq("Quick feedback: clear example.")
+      expect(response.parsed_body).to eq("question_position" => 0, "revision" => revision + 1)
+
+      feedback_given(text: "Quick feedback: clear example.") # a retried report changes nothing
+      expect(interview.reload.revision).to eq(revision + 1)
+      feedback_given(text: "Quick feedback: better now. Keep it shorter.")
+      expect(response).to have_http_status(:ok)
+      expect(question.reload.live_feedback).to eq("Quick feedback: better now. Keep it shorter.")
+      expect(interview.reload.revision).to eq(revision + 2)
+    end
+
+    it "refuses blank, oversized or non-current feedback and ended connections without saving" do
+      feedback_given
+      expect(response).to have_http_status(:conflict) # not yet claimed
+      claim
+      prompt_asked
+      feedback_given(text: "   ")
+      expect(response).to have_http_status(:conflict)
+      feedback_given(text: "x" * (InterviewSessionQuestion::LIVE_FEEDBACK_LIMIT + 1))
+      expect(response).to have_http_status(:conflict)
+      feedback_given(question_position: 1)
+      expect(response).to have_http_status(:conflict)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
+      feedback_given
+      expect(response).to have_http_status(:conflict)
+      expect(interview.questions.where.not(live_feedback: nil)).to be_empty
+    end
+  end
+
+  describe "question_retried" do
+    def question_retried(retry_number, question_position: 0)
+      post "#{base}/question_retried", params: { question_position: question_position, retry_number: retry_number },
+        headers: headers, as: :json
+    end
+
+    def answered_question_with_follow_up
+      interview.update_columns(answer_cap: 2)
+      opening_id = asked_opening
+      answer_finished(prompt_message_id: opening_id, transcript: "First try.")
+      prompt_asked(kind: "follow_up", text: "What changed?", prompt_key: SecureRandom.uuid)
+      follow_up_id = response.parsed_body.fetch("message_id")
+      answer_finished(prompt_message_id: follow_up_id, transcript: "Not much.")
+      post "#{base}/feedback_given", params: { question_position: 0, text: "Quick feedback: add a result." }, headers: headers, as: :json
+      [ opening_id, follow_up_id ]
+    end
+
+    it "removes the question's answers, follow-ups and feedback so the next attempt replaces them" do
+      opening_id, follow_up_id = answered_question_with_follow_up
+      allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+      references = Interviews::CurrentPromptWork::References.new
+      kept = interview.career_references.create!(message_id: opening_id) # requested while the opening was current
+      removed = references.request(interview: interview.reload, message_id: follow_up_id).value
+      revision = interview.reload.revision
+      question_retried(1)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq("question_position" => 0, "retry_count" => 1, "revision" => revision + 1)
+      question = interview.questions.find_by!(position: 0)
+      expect(question.reload).to have_attributes(accepted_answer_count: 0, live_feedback: nil, live_retry_count: 1)
+      expect(interview.messages.where(question: question).pluck(:id)).to eq([ opening_id ])
+      expect(InterviewCareerReferences.where(id: removed.id)).to be_empty
+      expect(removed.ai_task.reload.status).to eq("failed")
+      expect(kept.reload.message_id).to eq(opening_id)
+
+      question_retried(1) # a retried report of the same retry does not clear the new attempt
+      answer_finished(prompt_message_id: opening_id, transcript: "A better second try.")
+      question_retried(1)
+      expect(response).to have_http_status(:ok)
+      expect(interview.messages.answer.sole.content).to eq("A better second try.")
+      expect(question.reload.accepted_answer_count).to eq(1)
+    end
+
+    it "allows two retries per question and refuses a third or a skipped number" do
+      answered_question_with_follow_up
+      question_retried(2)
+      expect(response).to have_http_status(:conflict)
+      question_retried(1)
+      question_retried(2)
+      expect(response).to have_http_status(:ok)
+      question_retried(3)
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body["errors"]).to eq([ "This question has no retries left" ])
+      expect(interview.questions.find_by!(position: 0).live_retry_count).to eq(2)
+    end
+
+    it "refuses a question that is not current and an ended connection" do
+      claim
+      question_retried(1, question_position: 1)
+      expect(response).to have_http_status(:conflict)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
+      question_retried(1)
+      expect(response).to have_http_status(:conflict)
+      expect(interview.questions.find_by!(position: 0).live_retry_count).to eq(0)
+    end
+  end
+
   describe "finish" do
     def finish(reason)
       post "#{base}/finish", params: { reason: reason }, headers: headers, as: :json
@@ -337,6 +448,14 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(response.parsed_body).to include("status" => "abandoned", "end_reason" => "ended_by_candidate")
       expect(interview.reload.status).to eq("abandoned")
       expect(connection.reload.status).to eq("ended")
+    end
+
+    it "closes an idle menu with the idle reason by the same completed/abandoned rule" do
+      answer_finished(prompt_message_id: asked_opening)
+      finish("idle")
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to include("status" => "completed", "end_reason" => "idle")
+      expect(connection.reload).to have_attributes(status: "ended", end_reason: "idle")
     end
 
     it "refuses reasons that are not used yet and an ended connection of a still-active interview" do

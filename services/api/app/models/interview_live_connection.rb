@@ -3,7 +3,7 @@
 # connection that is not ended, and a repeat join reuses it.
 class InterviewLiveConnection < ApplicationRecord
   STATUSES = %w[authorized connected ended].freeze
-  END_REASONS = %w[completed time_limit allowance ended_by_candidate disconnected failed].freeze
+  END_REASONS = %w[completed time_limit allowance ended_by_candidate disconnected failed idle].freeze
   belongs_to :interview_session
   scope :open, -> { where.not(status: "ended") }
   validates :room_name, presence: true

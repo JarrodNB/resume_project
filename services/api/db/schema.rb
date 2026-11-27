@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_27_090100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_100100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -445,7 +445,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_090100) do
     t.index ["interview_session_id"], name: "index_interview_live_connections_one_open_per_session", unique: true, where: "((status)::text <> 'ended'::text)"
     t.index ["room_name"], name: "index_interview_live_connections_on_room_name", unique: true
     t.check_constraint "billed_seconds >= 0", name: "interview_live_connection_billed_seconds"
-    t.check_constraint "end_reason IS NULL OR (end_reason::text = ANY (ARRAY['completed'::character varying, 'time_limit'::character varying, 'allowance'::character varying, 'ended_by_candidate'::character varying, 'disconnected'::character varying, 'failed'::character varying]::text[]))", name: "interview_live_connection_end_reason"
+    t.check_constraint "end_reason IS NULL OR (end_reason::text = ANY (ARRAY['completed'::character varying, 'time_limit'::character varying, 'allowance'::character varying, 'ended_by_candidate'::character varying, 'disconnected'::character varying, 'failed'::character varying, 'idle'::character varying]::text[]))", name: "interview_live_connection_end_reason"
     t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'connected'::character varying, 'ended'::character varying]::text[])", name: "interview_live_connection_status"
   end
 
@@ -653,11 +653,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_090100) do
     t.datetime "skipped_at"
     t.string "skip_submission_key"
     t.integer "skip_expected_revision"
+    t.text "live_feedback"
+    t.integer "live_retry_count", default: 0, null: false
     t.index ["interview_session_id", "id"], name: "interview_session_question_owner_identity", unique: true
     t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_ef5940a581", unique: true
     t.index ["interview_session_id", "skip_submission_key"], name: "interview_question_skip_identity", unique: true
     t.index ["interview_session_id"], name: "index_interview_session_questions_on_interview_session_id"
     t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 3", name: "interview_session_question_counters"
+    t.check_constraint "live_feedback IS NULL OR char_length(live_feedback) >= 1 AND char_length(live_feedback) <= 1500", name: "interview_question_live_feedback"
+    t.check_constraint "live_retry_count >= 0 AND live_retry_count <= 2", name: "interview_question_live_retry_count"
     t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text, 'screening'::character varying::text])", name: "interview_question_type"
   end
 

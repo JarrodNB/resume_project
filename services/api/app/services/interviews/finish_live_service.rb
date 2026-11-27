@@ -1,11 +1,12 @@
 # Ends a live interview's room connection and finishes the interview by one rule: it is
 # completed when at least one answer is saved, and abandoned (the same clean-up as the
 # Abandon button) when none is. The live agent calls it when it closes or the candidate ends
-# the interview; the owner's End interview mutation calls it when the agent is gone. A repeat
+# the interview (or `idle` when the coaching menu waited three minutes without a choice); the
+# owner's End interview mutation calls it when the agent is gone. A repeat
 # after the interview finished returns the first outcome unchanged.
 module Interviews
   class FinishLiveService < ApplicationService
-    REASONS = %w[completed ended_by_candidate failed].freeze
+    REASONS = %w[completed ended_by_candidate idle failed].freeze
 
     def initialize(connection:, reason:)
       @connection, @reason = connection, reason

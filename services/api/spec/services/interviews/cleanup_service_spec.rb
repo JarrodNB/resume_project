@@ -105,6 +105,7 @@ RSpec.describe Interviews::CleanupService do
     task = operation.reload.ai_task
     task.update!(result: { private: "dialogue" })
     interview.messages.first.update!(acknowledgement: "You described a private answer detail.")
+    interview.questions.first.update!(live_feedback: "Quick feedback: your private example was clear.")
     interview.update!(expires_at: 1.second.ago,
       career_focus: "Private focus")
     expect(described_class.call(storage: storage).value[:purged_sessions]).to eq(1)
@@ -112,7 +113,7 @@ RSpec.describe Interviews::CleanupService do
     expect(interview.content_purged_at).to be_present
     expect(interview.messages.pluck(:content).uniq).to eq([ "[expired]" ])
     expect(interview.messages.pluck(:acknowledgement).compact).to be_empty
-    expect(interview.questions.first).to have_attributes(content: "[expired]")
+    expect(interview.questions.first).to have_attributes(content: "[expired]", live_feedback: nil)
     expect(operation.reload).to have_attributes(status: "expired", accepted_result: {})
     expect(task.reload).to have_attributes(status: "failed", input: {}, result: {})
     expect(task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])

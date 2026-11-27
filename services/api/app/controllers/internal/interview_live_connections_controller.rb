@@ -27,6 +27,16 @@ module Internal
         question_position: params.require(:question_position))
     end
 
+    def feedback_given
+      respond Interviews::RecordLiveFeedbackService.call(connection: @connection,
+        question_position: params.require(:question_position), text: params[:text])
+    end
+
+    def question_retried
+      respond Interviews::RetryLiveQuestionService.call(connection: @connection,
+        question_position: params.require(:question_position), retry_number: params.require(:retry_number))
+    end
+
     def finish
       respond Interviews::FinishLiveService.call(connection: @connection, reason: params.require(:reason))
     end

@@ -44,6 +44,16 @@ RSpec.describe "Live interview GraphQL" do
     end
   end
 
+  it "shows the owner each question's saved live feedback, and nothing for questions without it" do
+    interview = ready_live_interview(user)
+    interview.questions.find_by!(position: 0).update!(live_feedback: "Quick feedback: clear example. Lead with the result.")
+    query = 'query($id: ID!) { interviewSession(id: $id) { questions { position liveFeedback } } }'
+    expect(execute_graphql(query, user: create(:user), variables: { id: interview.id }).dig("data", "interviewSession")).to be_nil
+    questions = execute_graphql(query, user: user, variables: { id: interview.id }).dig("data", "interviewSession", "questions")
+    expect(questions.find { |question| question["position"] == 0 }["liveFeedback"]).to eq("Quick feedback: clear example. Lead with the result.")
+    expect(questions.find { |question| question["position"] == 1 }["liveFeedback"]).to be_nil
+  end
+
   describe "endLiveInterview" do
     let(:end_live) { 'mutation($input: EndLiveInterviewInput!) { endLiveInterview(input: $input) { interview { id status } errors } }' }
 

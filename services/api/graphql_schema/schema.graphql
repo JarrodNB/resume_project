@@ -1911,6 +1911,11 @@ type InterviewSessionQuestion {
   acceptedAnswerCount: Int!
   content: String!
   id: ID!
+
+  """
+  The live interviewer's latest spoken feedback for this question, saved as text. Null for turn-based interviews.
+  """
+  liveFeedback: String
   position: Int!
   questionType: String!
   skipped: Boolean!

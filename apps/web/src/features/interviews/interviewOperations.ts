@@ -7,7 +7,7 @@ export const INTERVIEW_FIELDS = graphql(`
     feedback { id status content attemptCount aiTaskId deadline }
     setup { questionCount questionFormat difficulty interviewer focusAreas }
     jobContext { id title company description requirements responsibilities niceToHaves }
-    questions { id content questionType position acceptedAnswerCount skipped }
+    questions { id content questionType position acceptedAnswerCount skipped liveFeedback }
     messages { id questionId kind position content avoided acknowledgement spokenContent careerReferences { id status canRetry attemptCount aiTaskId deadline references { sourceType sourceId title body } } clarification { id status explanation attemptCount aiTaskId deadline } }
     operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry reviewTranscript expectedRevision }
   }

@@ -6,6 +6,8 @@ RSpec.describe Interviews::StartFromInterviewService do
   let(:user) { create(:user, summary: "I maintain laboratory instruments.") }
   let(:setup) { { "question_count" => 5, "question_format" => "behavioral", "difficulty" => "stretch", "interviewer" => "maya", "focus_areas" => [ "leadership" ] } }
 
+  before { allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true) }
+
   def live_source(**options)
     Interviews::StartPreparationService.call(user: user, setup: setup, conversation_mode: "live", **options).value
   end

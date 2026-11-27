@@ -597,8 +597,10 @@ by the same rule, so the abandoned live session never stays active.
 (`Interviews::LiveAllowance::SESSION_SECONDS`, shared by all its connections). The claim
 response carries `session_seconds_left` (25 minutes minus the session's billed seconds) and
 `allowance_seconds_left`; the controller counts down from the former. Time counts between clock
-ticks in every phase except `menu`: while the coaching menu waits for a choice nothing is
-counted, for the session clock or the allowance. The counted seconds left reach the room as
+ticks in every phase except `menu`: while the coaching menu waits quietly for a choice nothing is
+counted, for the session clock or the allowance. At the menu, time still counts while the
+interviewer is busy (speaking or thinking of a reply, such as a hint or a repeated question),
+because the model is running then. The counted seconds left reach the room as
 `cd.seconds_left` with each phase change and about every 5 seconds. With 2 minutes left the
 controller sets `cd.time_warning` `true` and the interviewer says so once. At zero it wraps up:
 tools are refused ("time is up"), menu buttons are ignored, and once neither side is speaking
@@ -617,7 +619,9 @@ older one and an unclaimed or ended connection are refused with 409, invalid cou
 `invalid_request`. The answer
 is `{action, allowance_seconds_left, session_seconds_left, reason?}`: `wrap_up` with reason
 `allowance` once the user's live allowance (counting this running connection) is used up, or
-`time_limit` once the session's 25 minutes are billed; `warn` at 2 minutes of allowance or
+`time_limit` once the session's 25 minutes are billed or the connection has been open 45 minutes
+since it was first claimed (`LiveAllowance::CONNECTION_WALL_CLOCK`, wall-clock time including
+free menu waits, so a room cannot stay open indefinitely); `warn` at 2 minutes of allowance or
 less; otherwise `continue`. `wrap_up` gives the same clean wrap-up as the clock (finishing with
 its reason), and `warn` the same spoken warning, still only once per session. A heartbeat
 whose answer was lost may still have been applied, so the agent resends it unchanged (same
@@ -625,7 +629,10 @@ sequence and counts) before any newer one and Rails replays it rather than count
 seconds counted meanwhile wait for the next new heartbeat. A heartbeat Rails refused was not
 applied, so its seconds and usage go with the next one. On finishing, the agent
 first sends a final heartbeat with the remaining counted seconds and usage and names it in
-`finish` (`final_sequence`).
+`finish` (`final_sequence`). If an agent ignores the wall-clock wrap-up, recovery
+(`RecoverLiveConnectionsService`, every minute) ends a connected room still open 5 minutes past
+the cap (`WALL_CLOCK_MARGIN`) as `time_limit` by the usual completed/abandoned rule, even while it
+heartbeats.
 
 **Live allowance.** `Interviews::LiveAllowance.remaining_seconds(user)` is separate from the
 hidden daily spend cap: 10 minutes over the whole trial (connections created since the trial

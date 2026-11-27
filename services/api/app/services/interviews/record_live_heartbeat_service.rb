@@ -2,8 +2,9 @@
 # (coaching menu waits excluded) and provider usage deltas. Each sequence number is applied once;
 # repeating the latest one replays its answer without changes and an older one is refused.
 # The answer tells the agent to carry on, to warn the candidate (2 minutes of live allowance
-# left) or to wrap up now because the allowance ran out or the session's 25 counted minutes are
-# used. The allowance counts this connection's own billed seconds too. Usage for a model the
+# left) or to wrap up now because the allowance ran out, or with `time_limit` because the
+# session's 25 counted minutes are used or the connection reached its 45-minute wall-clock cap
+# (LiveAllowance::CONNECTION_WALL_CLOCK; menu waits are free, so counted time alone has no end). The allowance counts this connection's own billed seconds too. Usage for a model the
 # live bill does not know is refused with the code `unknown_usage_model` (and logged), because
 # it means the agent and Rails disagree on the live models.
 module Interviews
@@ -46,7 +47,7 @@ module Interviews
       session = LiveAllowance.session_seconds_left(interview)
       seconds = { allowance_seconds_left: allowance, session_seconds_left: session }
       return { action: "wrap_up", reason: "allowance", **seconds } if allowance <= 0
-      return { action: "wrap_up", reason: "time_limit", **seconds } if session <= 0
+      return { action: "wrap_up", reason: "time_limit", **seconds } if session <= 0 || LiveAllowance.wall_clock_passed?(@connection)
       return { action: "warn", **seconds } if allowance <= LiveAllowance::WARNING_SECONDS
 
       { action: "continue", **seconds }

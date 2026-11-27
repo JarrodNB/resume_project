@@ -7,10 +7,14 @@
 # started. A paid day counts connections created since UTC midnight plus any connection that is
 # still open or ended since midnight, so a session running across midnight counts fully toward
 # the new day, also after it ends.
-# Each live session also has a 25-minute counted clock, shared by all its connections.
+# Each live session also has a 25-minute counted clock, shared by all its connections. Because
+# waiting at the coaching menu is not counted, each connection also has a hard wall-clock cap of
+# 45 minutes after it was first claimed: the heartbeat then says wrap up (`time_limit`), and
+# recovery ends a connection whose agent ignores that.
 module Interviews
   module LiveAllowance
     SESSION_SECONDS = 25 * 60
+    CONNECTION_WALL_CLOCK = 45.minutes
     MIN_START_SECONDS = 5 * 60
     WARNING_SECONDS = 2 * 60
     TRIAL_SECONDS = 10 * 60
@@ -41,6 +45,11 @@ module Interviews
       minutes = seconds / 60
       "You need at least #{MIN_START_SECONDS / 60} live minutes to start a live interview. " \
         "You have #{minutes} #{minutes == 1 ? 'minute' : 'minutes'} left."
+    end
+
+    # True once a claimed connection has been open for the wall-clock cap.
+    def self.wall_clock_passed?(connection, now: Time.current)
+      connection.connected_at.present? && connection.connected_at <= now - CONNECTION_WALL_CLOCK
     end
 
     # @return [Integer] counted seconds left on this live session's 25-minute clock

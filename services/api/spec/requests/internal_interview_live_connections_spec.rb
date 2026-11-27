@@ -539,6 +539,20 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "allowance_seconds_left" => 2_100, "session_seconds_left" => 0)
     end
 
+    it "says wrap up with time_limit once the connection has been open 45 minutes, however little was counted" do
+      create(:billing_subscription, user: user)
+      claim
+      travel(Interviews::LiveAllowance::CONNECTION_WALL_CLOCK - 1.second) do
+        heartbeat(1, billed_seconds_delta: 0)
+        expect(response.parsed_body).to include("action" => "continue")
+      end
+      travel(Interviews::LiveAllowance::CONNECTION_WALL_CLOCK + 1.second) do # travel drops sub-seconds
+        heartbeat(2, billed_seconds_delta: 0)
+        expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "allowance_seconds_left" => 3_600,
+          "session_seconds_left" => 1_500)
+      end
+    end
+
     it "keeps an unpriced usage report unknown rather than free" do
       claim
       heartbeat(1, usage: [ realtime_usage.except(:cost_microdollars) ])

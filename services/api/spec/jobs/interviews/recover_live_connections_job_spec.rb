@@ -90,6 +90,23 @@ RSpec.describe Interviews::RecoverLiveConnectionsJob do
     end
   end
 
+  it "ends a connection still open 5 minutes past the 45-minute cap as time_limit, even while it heartbeats" do
+    claim_and_answer
+    cap = Interviews::LiveAllowance::CONNECTION_WALL_CLOCK
+    sequence = 0
+    heartbeat_at = ->(offset) do
+      travel(offset) do
+        Interviews::RecordLiveHeartbeatService.call(connection: connection, sequence: sequence += 1, billed_seconds_delta: 0, usage: [])
+        described_class.perform_now
+      end
+    end
+    heartbeat_at.call(cap + 4.minutes)
+    expect(connection.reload.status).to eq("connected")
+    heartbeat_at.call(cap + 5.minutes + 1.second)
+    expect(connection.reload).to have_attributes(status: "ended", end_reason: "time_limit")
+    expect(interview.reload.status).to eq("completed")
+  end
+
   it "is scheduled about every minute in recurring.yml for development and production" do
     config = YAML.safe_load_file(Rails.root.join("config/recurring.yml"), aliases: true)
     %w[development production].each do |env|

@@ -607,10 +607,11 @@ class LiveInterviewController:
         return [GenerateReply(welcome)] if welcome else []
 
     def _count(self, now: float) -> list[LiveAction]:
-        """Count the time since the last tick unless the menu is waiting, and act on what is left."""
+        """Count the time since the last tick unless the menu is waiting quietly (the interviewer
+        speaking or thinking at the menu counts), and act on what is left."""
         elapsed = 0.0 if self._last_tick is None else max(now - self._last_tick, 0.0)
         self._last_tick = now
-        if self._phase == "menu" or not elapsed:
+        if (self._phase == "menu" and not self._interviewer_busy) or not elapsed:
             return []
         self._counted += elapsed
         self._seconds_left -= elapsed

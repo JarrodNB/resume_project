@@ -660,6 +660,18 @@ def test_counted_time_excludes_the_waiting_menu_and_is_billed_in_heartbeats():
     assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=3, billed_seconds_delta=10)]
 
 
+def test_at_the_menu_time_counts_while_the_interviewer_is_speaking_or_thinking():
+    """Waiting for a choice is free, but a hint or repeat the model speaks at the menu is not."""
+    controller = menu_controller()
+    controller.handle(Tick(now=0.0))
+    controller.handle(MenuChoice("hint"))
+    controller.handle(SpeakingChanged("interviewer", True))
+    controller.handle(Tick(now=15.0))
+    controller.handle(SpeakingChanged("interviewer", False))
+    controller.handle(Tick(now=100.0))  # waiting again: free
+    assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=1, billed_seconds_delta=15)]
+
+
 def test_the_clock_is_published_about_every_five_seconds_and_on_phase_changes():
     controller, _ = started_controller()
     controller.handle(Tick(now=0.0))

@@ -9,9 +9,10 @@ Merging to master (a release PR from `develop`) runs `.github/workflows/deploy.y
 to ECR tagged with the commit, copies these compose files to the server, restarts the stack
 and checks the three public addresses. One image serves `ai-worker`, `ai-http`, `ai-mcp` and
 `ai-live`, so a change under `services/ai` restarts all four. `ai-live` waits for its running
-live interviews to end before it stops (up to 30 minutes, `stop_grace_period` in `compose.yml`),
-so a deploy can take that long while someone is in a live interview, and no new live interview
-can start until the new `ai-live` is up. AWS access is a role GitHub assumes for runs on master
+live interviews to end before it stops (up to 30 minutes, `stop_grace_period` in `compose.yml`).
+While it drains, the deploy job can wait that whole time, and a new live interview gets no
+interviewer: after 15 seconds the room offers the turn-based interview instead. New live
+interviews work again once the new `ai-live` is up. AWS access is a role GitHub assumes for runs on master
 only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
 
 ## First-time setup on the server

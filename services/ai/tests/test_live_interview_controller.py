@@ -27,7 +27,13 @@ from live_interviews.controller import (
     ReportPromptAsked,
     ReportQuestionAdvanced,
     ReportQuestionRetried,
+    ClosingSpoken,
+    HeartbeatDue,
+    HeartbeatReplied,
     RetryQuestion,
+    SayClosing,
+    SendHeartbeat,
+    SpeakingChanged,
     Started,
     Tick,
     ToolResult,
@@ -36,7 +42,8 @@ from live_interviews.controller import (
 
 def started_controller(position=0, total=5, answer_cap=2):
     controller = LiveInterviewController()
-    actions = controller.handle(Started(question_position=position, question_total=total, answer_cap=answer_cap))
+    actions = controller.handle(Started(question_position=position, question_total=total, answer_cap=answer_cap,
+                                         session_seconds_left=1_500))
     return controller, actions
 
 
@@ -54,7 +61,7 @@ def tool_text(actions):
 
 def test_start_publishes_progress_and_asks_for_a_greeting_and_the_current_question():
     _controller, actions = started_controller()
-    assert actions[0] == PublishRoomState(question_position=0, question_total=5, phase="asking")
+    assert actions[0] == PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="asking")
     assert len(actions) == 2
     reply = actions[1]
     assert isinstance(reply, GenerateReply)
@@ -64,7 +71,7 @@ def test_start_publishes_progress_and_asks_for_a_greeting_and_the_current_questi
 
 def test_start_asks_the_question_rails_says_is_current():
     _controller, actions = started_controller(position=2, total=8)
-    assert actions[0] == PublishRoomState(question_position=2, question_total=8, phase="asking")
+    assert actions[0] == PublishRoomState(seconds_left=1_500, question_position=2, question_total=8, phase="asking")
     assert "question 3" in actions[1].instructions.lower()
 
 
@@ -73,7 +80,7 @@ def test_the_first_interviewer_turn_is_reported_once_as_the_opening():
     spoken = "Hi, I'm glad you're here. Tell me about a project you're proud of."
     assert controller.handle(InterviewerTurnFinished(text=f"  {spoken} ")) == [
         ReportPromptAsked(question_position=0, kind="opening", text=spoken),
-        PublishRoomState(question_position=0, question_total=5, phase="answering"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="answering"),
     ]
     assert controller.handle(InterviewerTurnFinished(text="Take your time.")) == []
 
@@ -81,7 +88,7 @@ def test_the_first_interviewer_turn_is_reported_once_as_the_opening():
 def test_blank_turns_and_turns_before_start_are_ignored():
     controller = LiveInterviewController()
     assert controller.handle(InterviewerTurnFinished(text="Hello")) == []
-    controller.handle(Started(question_position=0, question_total=5, answer_cap=2))
+    controller.handle(Started(question_position=0, question_total=5, answer_cap=2, session_seconds_left=1_500))
     assert controller.handle(InterviewerTurnFinished(text="   ")) == []
     assert controller.handle(InterviewerTurnFinished(text="Question one?"))[0] == ReportPromptAsked(
         question_position=0, kind="opening", text="Question one?"
@@ -90,7 +97,7 @@ def test_blank_turns_and_turns_before_start_are_ignored():
 
 def test_a_repeated_start_does_not_greet_twice():
     controller, _ = started_controller()
-    assert controller.handle(Started(question_position=0, question_total=5, answer_cap=2)) == []
+    assert controller.handle(Started(question_position=0, question_total=5, answer_cap=2, session_seconds_left=1_500)) == []
 
 
 def test_the_controller_loads_without_livekit_openai_or_http_clients():
@@ -136,12 +143,12 @@ def test_an_accepted_follow_up_saves_the_answer_and_reports_the_spoken_follow_up
     actions = controller.handle(AskFollowUp(question_text="What changed?"))
     assert actions[:2] == [
         ReportAnswerFinished(prompt_message_id="opening-0", transcript="I rebuilt the scheduler."),
-        PublishRoomState(question_position=0, question_total=5, phase="asking"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="asking"),
     ]
     assert "ask" in tool_text(actions).lower()
     assert controller.handle(InterviewerTurnFinished(text="Nice. What changed for the team?")) == [
         ReportPromptAsked(question_position=0, kind="follow_up", text="Nice. What changed for the team?"),
-        PublishRoomState(question_position=0, question_total=5, phase="answering"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="answering"),
     ]
     controller.handle(PromptRecorded(question_position=0, message_id="follow-1"))
     controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
@@ -203,7 +210,7 @@ def test_choosing_next_from_the_menu_advances_and_asks_the_next_opening():
     actions = controller.handle(NextQuestion())
     assert actions[:2] == [
         ReportQuestionAdvanced(question_position=0),
-        PublishRoomState(question_position=1, question_total=5, phase="asking"),
+        PublishRoomState(seconds_left=1_500, question_position=1, question_total=5, phase="asking"),
     ]
     assert "question 2" in tool_text(actions).lower()
     assert controller.handle(InterviewerTurnFinished(text="Next: how do you handle conflict?"))[0] == ReportPromptAsked(
@@ -226,12 +233,13 @@ def test_the_last_question_closes_warmly_then_finishes_and_ends():
     actions = controller.handle(NextQuestion())
     assert actions[:2] == [
         ReportQuestionAdvanced(question_position=4),
-        PublishRoomState(question_position=4, question_total=5, phase="closing"),
+        PublishRoomState(seconds_left=1_500, question_position=4, question_total=5, phase="closing"),
     ]
     assert "thank" in tool_text(actions).lower()
     assert controller.handle(InterviewerTurnFinished(text="Thanks so much, that's the end. Goodbye!")) == [
-        ReportFinish(reason="completed"),
-        PublishRoomState(question_position=4, question_total=5, phase="ended"),
+        SendHeartbeat(sequence=1, billed_seconds_delta=0, final=True),
+        ReportFinish(reason="completed", final_sequence=1),
+        PublishRoomState(seconds_left=1_500, question_position=4, question_total=5, phase="ended"),
         EndSession(),
     ]
     assert controller.handle(InterviewerTurnFinished(text="Bye.")) == []
@@ -245,8 +253,9 @@ def test_end_requested_saves_the_pending_answer_then_finishes_for_the_candidate(
     controller.handle(CandidateTurnFinished(text="Partial answer."))
     assert controller.handle(EndRequested()) == [
         ReportAnswerFinished(prompt_message_id="opening-0", transcript="Partial answer."),
-        ReportFinish(reason="ended_by_candidate"),
-        PublishRoomState(question_position=0, question_total=5, phase="ended"),
+        SendHeartbeat(sequence=1, billed_seconds_delta=0, final=True),
+        ReportFinish(reason="ended_by_candidate", final_sequence=1),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="ended"),
         EndSession(),
     ]
     assert controller.handle(EndRequested()) == []
@@ -277,7 +286,7 @@ def test_moving_on_from_an_answered_question_gives_quick_feedback_before_advanci
     actions = controller.handle(NextQuestion())
     assert actions[:2] == [
         ReportAnswerFinished(prompt_message_id="opening-0", transcript="My answer."),
-        PublishRoomState(question_position=0, question_total=5, phase="feedback"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="feedback"),
     ]
     assert not any(isinstance(action, ReportQuestionAdvanced) for action in actions)
     text = tool_text(actions)
@@ -292,7 +301,7 @@ def test_the_spoken_feedback_is_saved_then_the_menu_is_offered_and_published():
     actions = controller.handle(InterviewerTurnFinished(text=" Quick feedback: clear example. Lead with the result. "))
     assert actions[:2] == [
         ReportFeedbackGiven(question_position=0, text="Quick feedback: clear example. Lead with the result."),
-        PublishRoomState(question_position=0, question_total=5, phase="menu", menu_offered=True),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="menu", menu_offered=True),
     ]
     assert isinstance(actions[2], GenerateReply) and len(actions) == 3
     menu = actions[2].instructions.lower()
@@ -305,7 +314,7 @@ def test_the_follow_up_cap_leads_straight_to_feedback():
     controller.handle(CandidateTurnFinished(text="My answer."))
     actions = controller.handle(AskFollowUp(question_text="Why?"))
     assert actions[0] == ReportAnswerFinished(prompt_message_id="opening-0", transcript="My answer.")
-    assert actions[1] == PublishRoomState(question_position=0, question_total=5, phase="feedback")
+    assert actions[1] == PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="feedback")
     assert "Quick feedback:" in tool_text(actions)
 
 
@@ -332,12 +341,12 @@ def test_how_was_that_mid_answer_gives_feedback_then_returns_to_the_answer():
     actions = controller.handle(GiveFeedback())
     assert actions[:2] == [
         ReportAnswerFinished(prompt_message_id="opening-0", transcript="I rebuilt the scheduler."),
-        PublishRoomState(question_position=0, question_total=5, phase="feedback"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="feedback"),
     ]
     assert "answer so far" in tool_text(actions)
     assert controller.handle(InterviewerTurnFinished(text="Quick feedback: good start. Say what changed.")) == [
         ReportFeedbackGiven(question_position=0, text="Quick feedback: good start. Say what changed."),
-        PublishRoomState(question_position=0, question_total=5, phase="answering"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="answering"),
     ]
     controller.handle(CandidateTurnFinished(text="Missed runs halved."))
     assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(
@@ -357,7 +366,7 @@ def test_feedback_needs_an_answer_and_waits_while_it_is_being_spoken():
 def test_feedback_from_the_menu_replaces_the_saved_feedback_and_offers_the_menu_again():
     controller = menu_controller()
     actions = controller.handle(GiveFeedback())
-    assert actions[0] == PublishRoomState(question_position=0, question_total=5, phase="feedback")
+    assert actions[0] == PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="feedback")
     assert "Quick feedback:" in tool_text(actions)
     actions = controller.handle(InterviewerTurnFinished(text="Quick feedback: more detail on the result."))
     assert actions[0] == ReportFeedbackGiven(question_position=0, text="Quick feedback: more detail on the result.")
@@ -387,7 +396,7 @@ def test_try_again_restarts_the_whole_question_and_the_new_attempt_replaces_the_
     actions = controller.handle(RetryQuestion())
     assert actions[:2] == [
         ReportQuestionRetried(question_position=0, retry_number=1),
-        PublishRoomState(question_position=0, question_total=5, phase="asking"),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="asking"),
     ]
     assert "question 1" in tool_text(actions).lower()
     # Rails returns the saved opening for the re-asked question; the new answer goes to it.
@@ -417,7 +426,7 @@ def test_a_third_retry_is_refused_politely_and_the_other_choices_are_offered():
 
 def test_retries_already_used_before_a_restart_count_toward_the_limit():
     controller = LiveInterviewController()
-    controller.handle(Started(question_position=1, question_total=5, answer_cap=2, retry_count=2))
+    controller.handle(Started(question_position=1, question_total=5, answer_cap=2, session_seconds_left=1_500, retry_count=2))
     asked_and_recorded(controller, position=1, message_id="opening-1")
     controller.handle(CandidateTurnFinished(text="My answer."))
     controller.handle(NextQuestion())
@@ -491,30 +500,35 @@ def test_how_was_that_button_while_answering_gives_feedback_on_the_answer_so_far
     assert isinstance(actions[-1], GenerateReply) and "answer so far" in actions[-1].instructions
 
 
+def spoken(actions):
+    """Leave out the clock's room-state updates."""
+    return [action for action in actions if not isinstance(action, PublishRoomState)]
+
+
 def test_a_long_answer_gets_one_polite_nudge_at_three_minutes():
     controller, _ = started_controller()
     asked_and_recorded(controller)
-    assert controller.handle(Tick(now=1_000.0)) == []
-    assert controller.handle(Tick(now=1_179.0)) == []
-    actions = controller.handle(Tick(now=1_180.0))
+    assert spoken(controller.handle(Tick(now=1_000.0))) == []
+    assert spoken(controller.handle(Tick(now=1_179.0))) == []
+    actions = spoken(controller.handle(Tick(now=1_180.0)))
     assert len(actions) == 1 and isinstance(actions[0], GenerateReply)
     assert "wrap" in actions[0].instructions.lower()
-    assert controller.handle(Tick(now=1_500.0)) == []  # once per answer
+    assert spoken(controller.handle(Tick(now=1_500.0))) == []  # once per answer
 
 
 def test_each_new_prompt_gets_its_own_nudge_and_other_phases_never_nudge():
     controller, _ = started_controller(answer_cap=3)
-    assert controller.handle(Tick(now=0.0)) == []
-    assert controller.handle(Tick(now=500.0)) == []  # still asking: not answering yet
+    assert spoken(controller.handle(Tick(now=0.0))) == []
+    assert spoken(controller.handle(Tick(now=500.0))) == []  # still asking: not answering yet
     asked_and_recorded(controller)
     controller.handle(Tick(now=500.0))
     controller.handle(CandidateTurnFinished(text="Answer."))
-    assert controller.handle(Tick(now=600.0)) == []
+    assert spoken(controller.handle(Tick(now=600.0))) == []
     controller.handle(AskFollowUp(question_text="Why?"))
     controller.handle(InterviewerTurnFinished(text="Why?"))
     controller.handle(Tick(now=610.0))
-    assert controller.handle(Tick(now=789.0)) == []
-    assert isinstance(controller.handle(Tick(now=790.0))[0], GenerateReply)
+    assert spoken(controller.handle(Tick(now=789.0))) == []
+    assert isinstance(spoken(controller.handle(Tick(now=790.0)))[0], GenerateReply)
 
 
 def test_a_menu_left_waiting_three_minutes_says_goodbye_then_finishes_as_idle():
@@ -522,12 +536,13 @@ def test_a_menu_left_waiting_three_minutes_says_goodbye_then_finishes_as_idle():
     assert controller.handle(Tick(now=50.0)) == []
     assert controller.handle(Tick(now=229.0)) == []
     actions = controller.handle(Tick(now=230.0))
-    assert actions[0] == PublishRoomState(question_position=0, question_total=5, phase="closing")
+    assert actions[0] == PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="closing")
     assert isinstance(actions[1], GenerateReply) and "goodbye" in actions[1].instructions.lower()
     assert "ended" in tool_text(controller.handle(RetryQuestion())).lower()
     assert controller.handle(InterviewerTurnFinished(text="I'll let you go for now. Goodbye!")) == [
-        ReportFinish(reason="idle"),
-        PublishRoomState(question_position=0, question_total=5, phase="ended"),
+        SendHeartbeat(sequence=1, billed_seconds_delta=0, final=True),
+        ReportFinish(reason="idle", final_sequence=1),
+        PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="ended"),
         EndSession(),
     ]
     assert controller.handle(Tick(now=1_000.0)) == []
@@ -556,3 +571,98 @@ def test_offer_menu_gives_feedback_first_and_at_the_menu_only_offers_the_choices
     actions = controller.handle(OfferMenu())
     assert len(actions) == 1 and "wait for their choice" in tool_text(actions).lower()
     assert controller.handle(InterviewerTurnFinished(text="You can try again, get a hint or move on.")) == []
+
+
+def clock_states(actions):
+    return [(action.seconds_left, action.time_warning) for action in actions if isinstance(action, PublishRoomState)]
+
+
+def test_counted_time_excludes_the_waiting_menu_and_is_billed_in_heartbeats():
+    controller, _ = started_controller()
+    controller.handle(Tick(now=0.0))
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    controller.handle(Tick(now=40.4))
+    assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=1, billed_seconds_delta=40)]
+    controller.handle(NextQuestion())
+    menu = controller.handle(InterviewerTurnFinished(text="Quick feedback: clear."))
+    assert clock_states(menu) == [(1_460, False)]
+    for now in (60.0, 120.0, 200.0):
+        assert controller.handle(Tick(now=now)) == []  # the menu waits for free
+    assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=2, billed_seconds_delta=0)]
+    actions = controller.handle(NextQuestion())
+    assert clock_states(actions) == [(1_460, False)]
+    controller.handle(Tick(now=210.0))
+    assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=3, billed_seconds_delta=10)]
+
+
+def test_the_clock_is_published_about_every_five_seconds_and_on_phase_changes():
+    controller, _ = started_controller()
+    controller.handle(Tick(now=0.0))
+    assert controller.handle(Tick(now=3.0)) == []
+    assert clock_states(controller.handle(Tick(now=5.0))) == [(1_495, False)]
+    assert controller.handle(Tick(now=9.0)) == []
+    assert clock_states(controller.handle(InterviewerTurnFinished(text="Tell me about a project."))) == [(1_491, False)]
+    assert clock_states(controller.handle(Tick(now=16.0))) == [(1_484, False)]
+
+
+def test_two_minutes_left_is_said_once_and_shown_in_the_room():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(Tick(now=0.0))
+    controller.handle(Tick(now=200.0))  # the long-answer nudge
+    assert spoken(controller.handle(Tick(now=1_379.0))) == []
+    actions = controller.handle(Tick(now=1_380.0))
+    assert clock_states(actions) == [(120, True)]
+    assert len(spoken(actions)) == 1 and "two minutes" in spoken(actions)[0].instructions.lower()
+    assert spoken(controller.handle(Tick(now=1_390.0))) == []
+    assert controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100)) == []  # only once overall
+
+
+def test_time_up_waits_for_the_current_turn_then_closes_and_finishes_with_time_limit():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer"))
+    controller.handle(Tick(now=0.0))
+    controller.handle(Tick(now=1_380.0))
+    assert controller.handle(SpeakingChanged(who="candidate", speaking=True)) == []
+    assert spoken(controller.handle(Tick(now=1_500.0))) == []  # the candidate is mid-sentence
+    assert "time is up" in tool_text(controller.handle(AskFollowUp(question_text="Why?"))).lower()
+    assert controller.handle(MenuChoice(option="next")) == []
+    controller.handle(CandidateTurnFinished(text="and that was the result."))
+    actions = controller.handle(SpeakingChanged(who="candidate", speaking=False))
+    assert actions[:2] == [
+        ReportAnswerFinished(prompt_message_id="opening-0", transcript="My answer and that was the result."),
+        PublishRoomState(seconds_left=0, question_position=0, question_total=5, phase="closing", time_warning=True),
+    ]
+    assert isinstance(actions[2], SayClosing) and "time" in actions[2].instructions.lower() and len(actions) == 3
+    assert controller.handle(InterviewerTurnFinished(text="We're out of time, thank you!")) == []
+    assert controller.handle(ClosingSpoken()) == [
+        SendHeartbeat(sequence=1, billed_seconds_delta=1_500, final=True),
+        ReportFinish(reason="time_limit", final_sequence=1),
+        PublishRoomState(seconds_left=0, question_position=0, question_total=5, phase="ended", time_warning=True),
+        EndSession(),
+    ]
+    assert controller.handle(ClosingSpoken()) == []
+
+
+def test_the_closing_waits_while_the_interviewer_is_still_talking():
+    controller, _ = started_controller()
+    controller.handle(SpeakingChanged(who="interviewer", speaking=True))
+    assert spoken(controller.handle(HeartbeatReplied(action="wrap_up", reason="allowance", allowance_seconds_left=0))) == []
+    actions = controller.handle(SpeakingChanged(who="interviewer", speaking=False))
+    assert isinstance(actions[-1], SayClosing) and "live minutes" in actions[-1].instructions.lower()
+    assert controller.handle(ClosingSpoken())[1] == ReportFinish(reason="allowance", final_sequence=1)
+
+
+def test_an_allowance_warning_from_rails_is_said_once_and_a_wrap_up_closes_from_the_menu():
+    controller = menu_controller()
+    actions = controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110))
+    assert clock_states(actions) == [(1_500, True)]
+    assert "two minutes" in spoken(actions)[0].instructions.lower()
+    assert controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100)) == []
+    assert controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=300)) == []
+    actions = controller.handle(HeartbeatReplied(action="wrap_up", reason="allowance", allowance_seconds_left=0))
+    assert [type(action) for action in actions] == [PublishRoomState, SayClosing]
+    assert controller.handle(HeartbeatReplied(action="wrap_up", reason="time_limit", allowance_seconds_left=0)) == []
+    assert controller.handle(ClosingSpoken())[1] == ReportFinish(reason="allowance", final_sequence=1)

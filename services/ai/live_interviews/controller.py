@@ -26,6 +26,18 @@ Clock ticks drive one polite nudge after about three minutes of answering a prom
 the interview (`idle`) when the menu waits three minutes. After the last question the
 interviewer closes warmly, and once that closing turn is spoken the interview finishes.
 
+The session clock: Rails says how many counted seconds the session has left when the agent
+claims it (25 minutes for a new session). Time counts between ticks in every phase except the
+menu waiting for a choice, which is free. The counted seconds left go to the room with each
+phase change and about every 5 seconds. With 2 minutes left the interviewer says so once and the
+room shows a warning; a heartbeat reply of `warn` (2 minutes of live allowance left) gives the
+same warning, still only once. At zero, or on a heartbeat reply of `wrap_up`, the interview
+wraps up: nothing new is asked, the current turn of whoever is speaking finishes first, the
+pending answer is saved, the interviewer says a short closing, and once that closing has played
+the interview finishes with `time_limit` or `allowance`. Heartbeats (asked for about every 30
+seconds) carry the counted seconds since the last one, so Rails bills only counted time; the
+finish first sends a final heartbeat and names its sequence.
+
 Tool calls always get exactly one `ToolResult`, the last action. The realtime model speaks in
 reply to it, so the result says what to say next, or why the call was refused. Button choices
 have no tool call, so they end with a `GenerateReply` carrying the same words instead.
@@ -33,6 +45,7 @@ have no tool call, so they end with a `GenerateReply` carrying the same words in
 Question positions are zero-based, matching Rails.
 """
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -47,6 +60,7 @@ class Started:
     question_position: int
     question_total: int
     answer_cap: int
+    session_seconds_left: int  # counted seconds left on the session's clock (Rails keeps the total)
     retry_count: int = 0  # retries the current question already used (Rails keeps the count)
 
 
@@ -136,9 +150,36 @@ class EndRequested:
     """The candidate chose End interview in the room."""
 
 
+@dataclass(frozen=True)
+class HeartbeatDue:
+    """About 30 seconds passed since the last heartbeat."""
+
+
+@dataclass(frozen=True)
+class HeartbeatReplied:
+    """Rails' answer to a heartbeat: carry on, warn (2 live minutes left) or wrap up now."""
+
+    action: Literal["continue", "warn", "wrap_up"]
+    allowance_seconds_left: int
+    reason: Literal["allowance", "time_limit"] | None = None
+
+
+@dataclass(frozen=True)
+class SpeakingChanged:
+    """The interviewer started or stopped talking (or thinking of a reply), or the candidate did."""
+
+    who: Literal["interviewer", "candidate"]
+    speaking: bool
+
+
+@dataclass(frozen=True)
+class ClosingSpoken:
+    """The wrap-up closing asked for with `SayClosing` has finished playing (or was cut off)."""
+
+
 LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AskFollowUp
              | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
-             | MenuChoice | Tick | EndRequested)
+             | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken)
 ToolEvent = (AskFollowUp | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint
              | RetryQuestion)
 
@@ -190,21 +231,47 @@ class ReportQuestionRetried:
     retry_number: int
 
 
+FinishReason = Literal["completed", "ended_by_candidate", "idle", "time_limit", "allowance"]
+
+
 @dataclass(frozen=True)
 class ReportFinish:
-    """Tell Rails the interview is over and why (`idle`: the menu waited too long for a choice)."""
+    """Tell Rails the interview is over and why (`idle`: the menu waited too long for a choice;
+    `time_limit` / `allowance`: the session clock or the live allowance ran out). `final_sequence`
+    names the final heartbeat sent just before, so Rails knows all usage was reported."""
 
-    reason: Literal["completed", "ended_by_candidate", "idle"]
+    reason: FinishReason
+    final_sequence: int | None = None
+
+
+@dataclass(frozen=True)
+class SendHeartbeat:
+    """Tell Rails the counted seconds since the last heartbeat (the adapter adds provider usage).
+    The reply comes back as `HeartbeatReplied`, except for the `final` one sent at the finish."""
+
+    sequence: int
+    billed_seconds_delta: int
+    final: bool = False
+
+
+@dataclass(frozen=True)
+class SayClosing:
+    """Have the realtime model speak the wrap-up closing; report `ClosingSpoken` once it has played."""
+
+    instructions: str
 
 
 @dataclass(frozen=True)
 class PublishRoomState:
-    """Show the candidate's browser where the interview is (agent participant attributes)."""
+    """Show the candidate's browser where the interview is (agent participant attributes),
+    including the counted seconds left and whether the time warning is showing."""
 
     question_position: int
     question_total: int
     phase: Phase
+    seconds_left: int
     menu_offered: bool = False
+    time_warning: bool = False
 
 
 @dataclass(frozen=True)
@@ -220,7 +287,8 @@ class ToolResult:
 
 
 LiveAction = (GenerateReply | ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdvanced | ReportFeedbackGiven
-              | ReportQuestionRetried | ReportFinish | PublishRoomState | EndSession | ToolResult)
+              | ReportQuestionRetried | ReportFinish | SendHeartbeat | SayClosing | PublishRoomState | EndSession
+              | ToolResult)
 
 
 def _ask_question_instructions(question_position: int) -> str:
@@ -288,6 +356,17 @@ IDLE_GOODBYE = ("The candidate has not chosen anything for three minutes. Say in
                 "will stop here for now, thank them and say goodbye. Do not ask anything else.")
 CLOSING = ("That was the last question. Thank the candidate warmly in one or two short sentences and "
            "say goodbye. Do not ask anything else or give feedback.")
+WARNING_SECONDS = 120  # counted seconds left when the interviewer warns once
+CLOCK_PUBLISH_SECONDS = 5  # the room's time left is refreshed about this often
+TIME_WARNING = ("In one short sentence, tell the candidate there are about two minutes left, so they can start to "
+                "wrap up. Then carry on where you were.")
+TIME_UP = "Time is up and the interview is closing. Do not ask anything new."
+WRAP_UP = {
+    "time_limit": ("We are out of time for this practice interview. In one or two short sentences, say that time is "
+                   "up, thank the candidate warmly and say goodbye. Do not ask anything else."),
+    "allowance": ("The candidate has used their live minutes for now. In one or two short sentences, say that their "
+                  "live minutes are used up for now, thank them warmly and say goodbye. Do not ask anything else."),
+}
 
 
 class LiveInterviewController:
@@ -309,6 +388,16 @@ class LiveInterviewController:
         self._nudged = False  # the current prompt's one nudge was given
         self._menu_since: float | None = None  # first clock tick of the menu's current wait
         self._closing_reason: Literal["completed", "idle"] = "completed"
+        self._seconds_left = 0.0  # counted seconds left on the session clock
+        self._counted = 0.0  # counted seconds so far in this connection
+        self._billed = 0  # whole counted seconds already sent in heartbeats
+        self._sequence = 0  # the last heartbeat's sequence number
+        self._last_tick: float | None = None
+        self._published_seconds = 0  # the seconds left the room last showed
+        self._warned = False  # the one time warning was given (shown and due to be said)
+        self._warning_due = False  # the warning still has to be said at the next quiet moment
+        self._wrap_reason: Literal["time_limit", "allowance"] | None = None
+        self._interviewer_busy = self._candidate_speaking = False
 
     def handle(self, event: LiveEvent) -> list[LiveAction]:
         """Return the actions for `event`, in the order the adapter should carry them out."""
@@ -318,7 +407,25 @@ class LiveInterviewController:
             return self._tool(event)
         if self._question_position is None or self._phase == "ended":
             return []
+        if isinstance(event, HeartbeatDue):
+            return [self._heartbeat()]
+        if isinstance(event, HeartbeatReplied):
+            if event.action == "warn":
+                return self._warn()
+            if event.action == "wrap_up":
+                return self._wrap_up("time_limit" if event.reason == "time_limit" else "allowance")
+            return []
+        if isinstance(event, SpeakingChanged):
+            if event.who == "interviewer":
+                self._interviewer_busy = event.speaking
+            else:
+                self._candidate_speaking = event.speaking
+            return self._speak_when_quiet()
+        if isinstance(event, ClosingSpoken):
+            return self._finish(self._wrap_reason) if self._wrap_reason and self._phase == "closing" else []
         if isinstance(event, MenuChoice):
+            if self._wrap_reason:
+                return []
             *actions, result = self._tool(MENU_EVENTS[event.option]())
             return [*actions, GenerateReply(result.text)]  # no tool call to reply to, so ask the model to speak
         if isinstance(event, Tick):
@@ -326,7 +433,7 @@ class LiveInterviewController:
         if isinstance(event, InterviewerTurnFinished):
             return self._interviewer_turn_finished(event)
         if isinstance(event, CandidateTurnFinished):
-            if self._phase == "answering" and event.text.strip():
+            if self._phase == "answering" and event.text.strip():  # also while a wrap-up waits for quiet
                 self._answer_pieces.append(event.text.strip())
             return []
         if isinstance(event, PromptRecorded):
@@ -340,6 +447,7 @@ class LiveInterviewController:
             return []
         self._question_position, self._question_total = event.question_position, event.question_total
         self._answer_cap, self._retries = event.answer_cap, event.retry_count
+        self._seconds_left = float(event.session_seconds_left)
         self._reporting = "opening"
         return [self._room_state(), GenerateReply(_opening_instructions(event.question_position))]
 
@@ -348,7 +456,9 @@ class LiveInterviewController:
         if not text:
             return []
         if self._phase == "closing":
-            return self._finish(self._closing_reason)
+            # A wrap-up finishes when its own closing has played (`ClosingSpoken`), not on a turn
+            # that was still being spoken when it began.
+            return [] if self._wrap_reason else self._finish(self._closing_reason)
         if self._phase == "feedback":
             return self._feedback_spoken(text)
         if self._phase != "asking" or self._reporting is None:
@@ -358,7 +468,29 @@ class LiveInterviewController:
         return [ReportPromptAsked(self._question_position, kind, text), self._room_state()]
 
     def _tick(self, now: float) -> list[LiveAction]:
-        """Time the one nudge per answer and the menu's idle close; waits start at their first tick."""
+        """Count session time, then time the one nudge per answer and the menu's idle close."""
+        return [*self._count(now), *self._timers(now)]
+
+    def _count(self, now: float) -> list[LiveAction]:
+        """Count the time since the last tick unless the menu is waiting, and act on what is left."""
+        elapsed = 0.0 if self._last_tick is None else max(now - self._last_tick, 0.0)
+        self._last_tick = now
+        if self._phase == "menu" or not elapsed:
+            return []
+        self._counted += elapsed
+        self._seconds_left -= elapsed
+        if self._seconds_left <= 0 and self._phase != "closing":
+            return self._wrap_up("time_limit")
+        if self._seconds_left <= WARNING_SECONDS and not self._warned:
+            return self._warn()
+        if self._published_seconds - self._shown_seconds() >= CLOCK_PUBLISH_SECONDS:
+            return [self._room_state()]
+        return []
+
+    def _timers(self, now: float) -> list[LiveAction]:
+        """The nudge and idle waits start at their first tick."""
+        if self._wrap_reason:
+            return []
         if self._phase == "answering" and not self._nudged:
             if self._answering_since is None:
                 self._answering_since = now
@@ -371,6 +503,39 @@ class LiveInterviewController:
             elif now - self._menu_since >= MENU_IDLE_SECONDS:
                 self._phase, self._closing_reason = "closing", "idle"
                 return [self._room_state(), GenerateReply(IDLE_GOODBYE)]
+        return []
+
+    def _heartbeat(self, *, final: bool = False) -> SendHeartbeat:
+        counted = math.ceil(self._counted) if final else math.floor(self._counted)
+        delta, self._billed = max(counted - self._billed, 0), max(counted, self._billed)
+        self._sequence += 1
+        return SendHeartbeat(self._sequence, delta, final=final)
+
+    def _warn(self) -> list[LiveAction]:
+        """Show the time warning now and say it at the next quiet moment, once overall."""
+        if self._warned or self._wrap_reason or self._phase == "closing":
+            return []
+        self._warned = self._warning_due = True
+        return [self._room_state(), *self._speak_when_quiet()]
+
+    def _wrap_up(self, reason: Literal["time_limit", "allowance"]) -> list[LiveAction]:
+        """Stop asking anything new and close once nobody is speaking."""
+        if self._wrap_reason or self._phase == "closing":
+            return []
+        self._wrap_reason = reason
+        return self._speak_when_quiet()
+
+    def _speak_when_quiet(self) -> list[LiveAction]:
+        """Say a pending warning or wrap-up closing, but never over a turn still being spoken."""
+        if self._interviewer_busy or self._candidate_speaking or self._phase in ("closing", "ended"):
+            return []
+        if self._wrap_reason:
+            actions = self._save_answer()
+            self._phase = "closing"
+            return [*actions, self._room_state(), SayClosing(WRAP_UP[self._wrap_reason])]
+        if self._warning_due:
+            self._warning_due = False
+            return [GenerateReply(TIME_WARNING)]
         return []
 
     def _feedback_spoken(self, text: str) -> list[LiveAction]:
@@ -386,6 +551,8 @@ class LiveInterviewController:
             return [ToolResult(NOT_STARTED)]
         if self._phase in ("closing", "ended"):
             return [ToolResult(ENDED)]
+        if self._wrap_reason:
+            return [ToolResult(TIME_UP)]
         if self._phase == "feedback":
             return [ToolResult(FEEDBACK_FIRST)]
         if self._phase == "menu":
@@ -461,9 +628,10 @@ class LiveInterviewController:
         self._new_prompt("opening")
         return [*actions, self._room_state(), ToolResult("Now ask " + _ask_question_instructions(position + 1))]
 
-    def _finish(self, reason: Literal["completed", "ended_by_candidate", "idle"]) -> list[LiveAction]:
+    def _finish(self, reason: FinishReason) -> list[LiveAction]:
+        heartbeat = self._heartbeat(final=True)
         self._phase = "ended"
-        return [ReportFinish(reason), self._room_state(), EndSession()]
+        return [heartbeat, ReportFinish(reason, final_sequence=heartbeat.sequence), self._room_state(), EndSession()]
 
     def _has_answer(self) -> bool:
         return self._phase == "answering" and (bool(self._answer_pieces) or self._saved_answer is not None)
@@ -487,6 +655,11 @@ class LiveInterviewController:
         self._prompt_message_id, self._answer_pieces, self._saved_answer = None, [], None
         self._answering_since, self._nudged = None, False
 
+    def _shown_seconds(self) -> int:
+        return max(math.ceil(self._seconds_left), 0)
+
     def _room_state(self) -> PublishRoomState:
+        self._published_seconds = self._shown_seconds()
         return PublishRoomState(self._question_position or 0, self._question_total, self._phase,
-                                menu_offered=self._phase == "menu")
+                                seconds_left=self._published_seconds, menu_offered=self._phase == "menu",
+                                time_warning=self._warned)

@@ -85,6 +85,18 @@ _Avoid_: Basic Interview when referring to the shared session concept
 **Interview type**:
 The format of an interview session. Basic is the only supported type today.
 
+**Conversation mode**:
+How an interview session is conducted, chosen when preparation starts and never changed:
+Turn-based (hear a question, then record or type and send an answer) or Live.
+
+**Live interview**:
+An interview session in Live conversation mode: the candidate and an AI interviewer talk in
+real time in a LiveKit room. It allows 5 or 8 main questions.
+
+**Live connection**:
+One candidate join of a live interview's room, with its room name, status, billed seconds and
+end reason. A session has at most one live connection that has not ended.
+
 **Question format**:
 The kinds of questions chosen for a practice interview: Mixed, Behavioral, Technical / Role,
 or HR Screening. It is separate from the session's interview type.

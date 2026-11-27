@@ -213,6 +213,27 @@ the saved state without duplicate messages or speech. Begin can also replay afte
 or completion. Expired and not-yet-ready sessions cannot begin; role review alone creates no
 speech or recording.
 
+### Live conversation mode
+
+Each session saves a readonly `conversation_mode` column: `turn_based` (the default, and every
+older session) or `live`, chosen by `startInterview(conversationMode:)`. Live preparations accept
+only 5 or 8 questions; preparation itself is unchanged. `BeginService` refuses live sessions, so
+no turn-based opening is saved for them. Instead, the owned `joinLiveInterview` mutation
+(`Interviews::JoinLiveService`) accepts a `ready` or `active` live session, moves ready to active
+without saving an opening (the live agent saves it when spoken), and creates or reuses the
+session's one open `InterviewLiveConnection` (a partial unique index allows one row that is not
+`ended`). The room name is `interview-<session id>-<random>`. It returns `LIVEKIT_URL` and a
+ten-minute LiveKit token signed with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`: identity
+`user-<id>`, room join for that room only, and a room configuration that dispatches the
+`careerdrafter-live-interviewer` agent with metadata holding only `interview_session_id` and
+`live_connection_id`. Missing LiveKit settings fail the join with a configuration error. Rails
+makes no LiveKit request. Live connections are destroyed with their session.
+
+In the web app, an active live session (or a ready one after "Enter interview room") renders
+`LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
+`livekit-client`. If no agent joins within 15 seconds, or joining fails, the room offers a new
+turn-based preparation with the same setup.
+
 Public snapshots expose the prepared fictional role and safe preparation progress, never
 raw personal source snapshots or execution credentials. Question type is persisted separately
 from its position. Existing fixture sessions, their two-answer caps and saved configurations

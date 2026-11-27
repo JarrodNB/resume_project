@@ -11,11 +11,13 @@ import pytest
 from livekit import rtc
 from livekit.agents import (
     AgentStateChangedEvent,
+    CloseEvent,
     ConversationItemAddedEvent,
     UserStateChangedEvent,
     llm,
 )
 from livekit.agents.metrics import LLMModelUsage
+from livekit.agents.voice.events import CloseReason
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -41,9 +43,12 @@ CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="
 
 class FakeParticipant:
     def __init__(self):
-        self.attributes, self.rpc_methods = [], {}
+        self.attributes, self.rpc_methods, self.fail_next = [], {}, False
 
     async def set_attributes(self, attributes):
+        if self.fail_next:
+            self.fail_next = False
+            raise ConnectionError("room unavailable")
         self.attributes.append(attributes)
 
     def register_rpc_method(self, method_name, handler):
@@ -120,7 +125,7 @@ def tool_call(speech=None):
 class FakeSession:
     def __init__(self):
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
-        self.handles, self.model_usage = [], []
+        self.handles, self.model_usage, self.closed = [], [], False
 
     @property
     def usage(self):
@@ -135,9 +140,13 @@ class FakeSession:
                         "close_on_disconnect": room_options.close_on_disconnect}
 
     def interrupt(self):
+        if self.closed:
+            raise RuntimeError("AgentSession isn't running")
         self.interrupted += 1
 
     def generate_reply(self, *, instructions):
+        if self.closed:
+            raise RuntimeError("AgentSession isn't running")
         self.replies.append(instructions)
         self.handles.append(FakeSpeechHandle())
         return self.handles[-1]
@@ -147,6 +156,12 @@ class FakeSession:
         if speech is not None:  # LiveKit records the item on its speech just before announcing it
             speech.chat_items.append(item)
         self.handlers["conversation_item_added"](ConversationItemAddedEvent(item=item))
+
+    def close(self, reason=CloseReason.ERROR):
+        """LiveKit closes the session on its own (as `AgentSession._on_error` does on an
+        unrecoverable realtime error): later speech calls raise, then "close" is emitted."""
+        self.closed = True
+        self.handlers["close"](CloseEvent(reason=reason))
 
     def candidate_stops_speaking(self):
         """The provider heard the end of a candidate turn; its final transcript comes later."""
@@ -845,3 +860,76 @@ def test_room_attribute_names_and_choose_options_match_the_documented_contract()
     assert MENU_OPTIONS == {"retry", "repeat", "hint", "next", "feedback"}  # plus "end", handled on its own
     assert set(MENU_EVENTS) == MENU_OPTIONS
     assert set(Phase.__args__) == {"asking", "answering", "feedback", "menu", "closing", "ended"}
+
+
+@pytest.mark.parametrize(("close_reason", "finish_reason"), [
+    (CloseReason.ERROR, "failed"), (CloseReason.PARTICIPANT_DISCONNECTED, "disconnected")])
+def test_a_session_livekit_closes_mid_interview_saves_the_answer_finishes_and_leaves(close_reason, finish_reason):
+    rails, sessions = FakeRails(), []
+    now = [0.0]
+    ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        session.close(close_reason)
+        await settle()
+        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next")) == "accepted"
+        now[0] = 500.0  # the clock goes on; nothing raises and nothing is said
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-3:] == [
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
+        ("heartbeat", "live", {"sequence": 1, "billed_seconds_delta": 0, "usage": []}),
+        ("finish", "live", {"reason": finish_reason, "final_sequence": 1}),
+    ]
+    assert ctx.shutdown_reason
+
+
+def test_our_own_shutdown_closing_the_session_finishes_nothing_twice():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("end"))
+        session.close(CloseReason.JOB_SHUTDOWN)
+        await settle()
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls].count("finish") == 1
+
+
+def test_the_clock_keeps_ticking_when_one_action_fails(caplog):
+    rails, sessions = FakeRails(), []
+    now = [0.0]
+    ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.closed = True  # speech fails, but LiveKit has not said why yet
+        now[0] = 1.0
+        await settle()
+        ctx.room.local_participant.fail_next = True
+        now[0] = 10.0  # the room's clock refresh fails once
+        await settle()
+        now[0] = 200.0  # the nudge cannot be spoken
+        await settle()
+        session.closed = False
+        ctx.room.emit("participant_disconnected", candidate())
+        await settle()
+        now[0] = 400.0  # the tick loop is still alive, so the away wait still ends the interview
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-1] == ("finish", "live", {"reason": "disconnected", "final_sequence": 1})
+    assert "RuntimeError" in caplog.text and "ConnectionError" in caplog.text and "Tell me" not in caplog.text

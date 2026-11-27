@@ -54,6 +54,7 @@ from livekit import rtc
 from livekit.agents import (
     Agent,
     AgentStateChangedEvent,
+    CloseEvent,
     ConversationItemAddedEvent,
     RunContext,
     UserStateChangedEvent,
@@ -61,6 +62,7 @@ from livekit.agents import (
     llm,
     room_io,
 )
+from livekit.agents.voice.events import CloseReason
 from openai.types.realtime import AudioTranscription
 from openai.types.realtime.realtime_audio_input_turn_detection import ServerVad
 from opentelemetry import trace
@@ -99,6 +101,7 @@ from live_interviews.controller import (
     RetryQuestion,
     SayClosing,
     SendHeartbeat,
+    SessionClosed,
     SpeakingChanged,
     Started,
     Tick,
@@ -184,6 +187,17 @@ class LiveInterviewRunner:
         if participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT:
             self._spawn(CandidateLeft(self._clock()))
 
+    def on_session_close(self, event: CloseEvent) -> None:
+        """LiveKit callback: the AgentSession closed. Our own leaving closes it too (job shutdown);
+        otherwise LiveKit closed it on its own (an unrecoverable realtime error closes it in
+        `AgentSession._on_error`, and the room stays), so nothing more can be said: save and finish."""
+        if self._left:
+            return
+        logger.warning("Live AgentSession closed: %s %s", event.reason.value,
+                       type(event.error).__name__ if event.error else "")
+        reason = "disconnected" if event.reason == CloseReason.PARTICIPANT_DISCONNECTED else "failed"
+        self._spawn(SessionClosed(reason))
+
     def on_conversation_item_added(self, event: ConversationItemAddedEvent) -> None:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
         item = event.item
@@ -251,7 +265,7 @@ class LiveInterviewRunner:
         """Send the controller the clock about once a second until the interview finishes."""
         while not self._left:
             await asyncio.sleep(seconds)
-            await self.handle(Tick(self._clock()))
+            await self._keep_going("tick", Tick(self._clock()))
 
     async def heartbeat(self) -> None:
         """Ask the controller for a heartbeat now (the loop below does this about every 30 seconds)."""
@@ -260,7 +274,29 @@ class LiveInterviewRunner:
     async def heartbeat_forever(self, seconds: float = 30.0) -> None:
         while not self._left:
             await asyncio.sleep(seconds)
-            await self.heartbeat()
+            await self._keep_going("heartbeat", HeartbeatDue())
+
+    async def _keep_going(self, loop: str, event: LiveEvent) -> None:
+        """One failed action must not stop the clock or the heartbeats (logged by type, never content)."""
+        try:
+            await self.handle(event)
+        except Exception as error:  # noqa: BLE001 - the loop carries on with the next tick or heartbeat
+            logger.warning("Live %s action failed: %s", loop, type(error).__name__)
+
+    def _interrupt(self) -> None:
+        """Stop the interviewer talking; a session LiveKit already closed has nothing to stop."""
+        try:
+            self._session.interrupt()
+        except RuntimeError as error:
+            logger.warning("Live interrupt skipped: %s", type(error).__name__)
+
+    def _generate_reply(self, instructions: str):
+        """Have the model speak; returns its SpeechHandle, or None once the session is closed."""
+        try:
+            return self._session.generate_reply(instructions=instructions)
+        except RuntimeError as error:
+            logger.warning("Live reply skipped: %s", type(error).__name__)
+            return None
 
     async def choose(self, data: rtc.RpcInvocationData) -> str:
         """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview."""
@@ -270,7 +306,7 @@ class LiveInterviewRunner:
             option = None
         if not isinstance(option, str) or option not in MENU_OPTIONS | {"end"}:
             raise rtc.RpcError(2001, "Unknown interview option")
-        self._session.interrupt()
+        self._interrupt()
         if option in MENU_OPTIONS:
             await self.handle(MenuChoice(option))
             return "accepted"
@@ -296,17 +332,20 @@ class LiveInterviewRunner:
         """What a Rails answer means for the controller (a prompt's receipt, a refused answer, or the
         connection ended); returns the reports it raises, which the reporter sends next."""
         if isinstance(event, ConnectionEnded):
-            self._session.interrupt()  # the interviewer stops talking; the controller leaves
+            self._interrupt()  # the interviewer stops talking; the controller leaves
         held: list = []
         await self._dispatch(event, held_reports=held)
         return held
 
     async def _carry_out(self, action: LiveAction) -> None:
         if isinstance(action, GenerateReply):
-            self._session.generate_reply(instructions=action.instructions)
+            self._generate_reply(action.instructions)
         elif isinstance(action, SayClosing):
-            speech = self._session.generate_reply(instructions=action.instructions)
-            speech.add_done_callback(lambda _speech: self._spawn(ClosingSpoken()))
+            speech = self._generate_reply(action.instructions)
+            if speech is None:  # nothing can be said, so the closing is over
+                self._spawn(ClosingSpoken())
+            else:
+                speech.add_done_callback(lambda _speech: self._spawn(ClosingSpoken()))
         elif isinstance(action, SendHeartbeat):
             reply = await self._reporter.heartbeat(action)
             if reply is not None and not action.final:
@@ -433,6 +472,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             session.on("conversation_item_added", runner.on_conversation_item_added)
             session.on("agent_state_changed", runner.on_agent_state_changed)
             session.on("user_state_changed", runner.on_user_state_changed)
+            session.on("close", runner.on_session_close)
             ctx.room.local_participant.register_rpc_method("interview.choose", runner.choose)
             ctx.room.on("participant_connected", runner.on_participant_connected)
             ctx.room.on("participant_disconnected", runner.on_participant_disconnected)

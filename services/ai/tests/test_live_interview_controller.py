@@ -267,6 +267,32 @@ def test_the_last_question_closes_warmly_then_finishes_and_ends():
     assert "ended" in tool_text(controller.handle(NextQuestion())).lower()
 
 
+def finishes_with(actions, reason):
+    return [action for action in actions if isinstance(action, ReportFinish)] == [ReportFinish(reason, final_sequence=1)]
+
+
+def test_a_closing_that_is_never_heard_as_a_turn_still_finishes_after_twenty_seconds():
+    """The closing may be spoken only as a preamble or cut off with no text, so the room must not stay open."""
+    controller = menu_controller(position=4)
+    controller.handle(Tick(now=0.0))
+    controller.handle(NextQuestion())
+    controller.handle(InterviewerTurnFinished(text="Sure.", preamble=True))
+    assert controller.handle(Tick(now=1.0)) == []
+    assert not finishes_with(controller.handle(Tick(now=20.9)), "completed")
+    assert finishes_with(controller.handle(Tick(now=21.0)), "completed")
+    assert controller.handle(Tick(now=60.0)) == []
+
+
+def test_a_wrap_up_closing_that_never_reports_back_finishes_after_twenty_seconds():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(Tick(now=0.0))
+    actions = controller.handle(HeartbeatReplied("wrap_up", 0, "allowance"))
+    assert any(isinstance(action, SayClosing) for action in actions)
+    controller.handle(Tick(now=5.0))
+    assert finishes_with(controller.handle(Tick(now=25.0)), "allowance")
+
+
 def test_end_requested_saves_the_pending_answer_then_finishes_for_the_candidate():
     controller, _ = started_controller()
     asked_and_recorded(controller)
@@ -601,7 +627,7 @@ def test_a_menu_left_waiting_three_minutes_says_goodbye_then_finishes_as_idle():
     assert controller.handle(Tick(now=229.0)) == []
     actions = controller.handle(Tick(now=230.0))
     assert actions[0] == PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="closing")
-    assert isinstance(actions[1], GenerateReply) and "goodbye" in actions[1].instructions.lower()
+    assert isinstance(actions[1], SayClosing) and "goodbye" in actions[1].instructions.lower()
     assert "ended" in tool_text(controller.handle(RetryQuestion())).lower()
     assert controller.handle(InterviewerTurnFinished(text="I'll let you go for now. Goodbye!")) == [
         SendHeartbeat(sequence=1, billed_seconds_delta=0, final=True),
@@ -612,6 +638,13 @@ def test_a_menu_left_waiting_three_minutes_says_goodbye_then_finishes_as_idle():
     assert controller.handle(Tick(now=1_000.0)) == []
 
 
+def test_the_idle_goodbye_finishes_once_its_speech_has_played_even_without_a_final_turn():
+    controller = menu_controller()
+    controller.handle(Tick(now=0.0))
+    controller.handle(Tick(now=180.0))
+    assert finishes_with(controller.handle(ClosingSpoken()), "idle")
+
+
 def test_a_choice_at_the_menu_restarts_its_idle_wait():
     controller = menu_controller()
     controller.handle(Tick(now=0.0))
@@ -620,7 +653,7 @@ def test_a_choice_at_the_menu_restarts_its_idle_wait():
     controller.handle(InterviewerTurnFinished(text="Try leading with the outcome."))
     controller.handle(Tick(now=171.0))
     assert controller.handle(Tick(now=350.0)) == []
-    assert isinstance(controller.handle(Tick(now=351.0))[1], GenerateReply)
+    assert isinstance(controller.handle(Tick(now=351.0))[1], SayClosing)
 
 
 def test_offer_menu_gives_feedback_first_and_at_the_menu_only_offers_the_choices_again():
@@ -804,7 +837,7 @@ def test_the_menu_is_offered_again_on_return_and_its_idle_wait_ignores_the_time_
     actions = controller.handle(CandidateJoined(now=210.0))
     assert "welcome" in actions[0].instructions.lower() and "choices" in actions[0].instructions.lower()
     assert controller.handle(Tick(now=289.0)) == []  # 100 s waited before leaving + 79 s since
-    assert isinstance(controller.handle(Tick(now=290.0))[1], GenerateReply)
+    assert isinstance(controller.handle(Tick(now=290.0))[1], SayClosing)
 
 
 def test_nothing_new_is_said_while_the_candidate_is_away():

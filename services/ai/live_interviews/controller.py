@@ -167,7 +167,8 @@ class SpeakingChanged:
 
 @dataclass(frozen=True)
 class ClosingSpoken:
-    """The wrap-up closing asked for with `SayClosing` has finished playing (or was cut off)."""
+    """The closing asked for with `SayClosing` (a wrap-up or the idle goodbye) has finished playing
+    (or was cut off)."""
 
 
 @dataclass(frozen=True)
@@ -280,7 +281,7 @@ class SendHeartbeat:
 
 @dataclass(frozen=True)
 class SayClosing:
-    """Have the realtime model speak the wrap-up closing; report `ClosingSpoken` once it has played."""
+    """Have the realtime model speak a wrap-up or idle closing; report `ClosingSpoken` once it has played."""
 
     instructions: str
 
@@ -385,6 +386,7 @@ MENU_EVENTS = {"retry": RetryQuestion, "repeat": RepeatQuestion, "hint": GiveHin
                "feedback": GiveFeedback}
 NUDGE_AFTER_SECONDS = 180  # of answering one prompt
 MENU_IDLE_SECONDS = 180  # of the menu waiting for a choice
+CLOSING_WAIT_SECONDS = 20  # the closing finishes the interview by then even if it was never heard as a turn
 NUDGE = ("The candidate has been answering this for about three minutes. Politely cut in once, in one short "
          "sentence, and ask them to wrap that answer up in a sentence or two.")
 IDLE_GOODBYE = ("The candidate has not chosen anything for three minutes. Say in one or two short sentences that you "
@@ -448,6 +450,7 @@ class LiveInterviewController:
         self._nudged = False  # the current prompt's one nudge was given
         self._menu_since: float | None = None  # first clock tick of the menu's current wait
         self._closing_reason: Literal["completed", "idle"] = "completed"
+        self._closing_since: float | None = None  # first clock tick of the closing
         self._seconds_left = 0.0  # counted seconds left on the session clock
         self._counted = 0.0  # counted seconds so far in this connection
         self._billed = 0  # whole counted seconds already sent in heartbeats
@@ -510,7 +513,7 @@ class LiveInterviewController:
                 self._candidate_speaking = event.speaking
             return self._speak_when_quiet()
         if isinstance(event, ClosingSpoken):
-            return self._finish(self._wrap_reason) if self._wrap_reason and self._phase == "closing" else []
+            return self._finish(self._wrap_reason or self._closing_reason) if self._phase == "closing" else []
         if isinstance(event, MenuChoice):
             if self._wrap_reason:
                 return []
@@ -624,7 +627,15 @@ class LiveInterviewController:
         return []
 
     def _timers(self, now: float) -> list[LiveAction]:
-        """The nudge and idle waits start at their first tick."""
+        """The nudge, idle and closing waits start at their first tick."""
+        if self._phase == "closing":
+            # The closing may never come back as a finished turn (spoken only as a preamble, or cut
+            # off with nothing forwarded), so the room does not wait for it forever.
+            if self._closing_since is None:
+                self._closing_since = now
+            elif now - self._closing_since >= CLOSING_WAIT_SECONDS:
+                return self._finish(self._wrap_reason or self._closing_reason)
+            return []
         if self._wrap_reason:
             return []
         if self._phase == "answering" and not self._nudged:
@@ -638,7 +649,7 @@ class LiveInterviewController:
                 self._menu_since = now
             elif now - self._menu_since >= MENU_IDLE_SECONDS:
                 self._phase, self._closing_reason = "closing", "idle"
-                return [self._room_state(), GenerateReply(IDLE_GOODBYE)]
+                return [self._room_state(), SayClosing(IDLE_GOODBYE)]
         return []
 
     def _heartbeat(self, *, final: bool = False) -> SendHeartbeat:

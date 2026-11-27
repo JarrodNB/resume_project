@@ -441,8 +441,9 @@ and ask the current question. Each question then runs like this:
    - **Clock.** The adapter sends `Tick(now)` (monotonic seconds) about once a second. Once per
      prompt, after about three minutes of answering, the interviewer politely cuts in to ask
      the candidate to wrap up. A menu that waits three minutes without any choice has the
-     interviewer say a short goodbye and then finishes with reason `idle`. Every choice at the
-     menu restarts that wait. The model is told not to time the candidate itself.
+     interviewer say a short goodbye through its own speech handle and then finishes with reason
+     `idle` once that goodbye is heard as a turn or has played. Every choice at the menu
+     restarts that wait (the 45-minute connection cap below still bounds it). The model is told not to time the candidate itself.
    A question with no answer at all moves on directly, as before.
 4. Move on (`next`) from the menu reports `question_advanced` (`question_position`). `AdvanceLiveQuestionService`
    uses `Interviews::QuestionProgression`, shared with `AcceptTurnService` and
@@ -450,8 +451,11 @@ and ask the current question. Each question then runs like this:
    prepared text (the agent's later `prompt_asked` returns it). A question with no answer gets
    `skipped_at`. At the last question nothing moves and the interview stays active; a retry of
    the move just made returns the same receipt.
-5. After the last question the model closes warmly; once that turn is spoken the agent calls
-   `finish` (`reason`: `completed`, `ended_by_candidate`, `idle`, `time_limit`, `allowance`,
+5. After the last question the model closes warmly; once that turn is spoken the agent
+   finishes. The closing may never come back as a finished turn (it was spoken only as a
+   preamble, or cut off with nothing forwarded), so any closing (this one, the idle goodbye or a
+   wrap-up) also finishes 20 seconds after its first clock tick (`CLOSING_WAIT_SECONDS`). The
+   agent calls `finish` (`reason`: `completed`, `ended_by_candidate`, `idle`, `time_limit`, `allowance`,
    `disconnected` or `failed`) and leaves. `idle` was added to the connection's end-reason check constraint; it follows the
    same completed/abandoned rule.
    `FinishLiveService` ends the connection (`ended_at`, `end_reason`) and completes the session

@@ -9,10 +9,19 @@ from types import SimpleNamespace
 
 import pytest
 from livekit import rtc
-from livekit.agents import ConversationItemAddedEvent, llm
+from livekit.agents import AgentStateChangedEvent, ConversationItemAddedEvent, llm
+from livekit.agents.metrics import LLMModelUsage
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from live_interviews.agent import LiveDispatch, realtime_model_options, run_live_interview
-from live_interviews.client import LiveConnectionClaim, RailsClientError
+from live_interviews.client import (
+    HeartbeatReply,
+    LiveConnectionClaim,
+    RailsClientError,
+    RailsTransportError,
+)
 from live_interviews.instructions import LiveInterviewInputs
 from live_interviews.settings import AGENT_NAME, PERSONA_VOICES, LiveInterviewSettings
 from privacy.known_contact import KnownContact
@@ -20,7 +29,8 @@ from schemas.interview_setup import InterviewSetup
 
 METADATA = '{"interview_session_id": "session", "live_connection_id": "live"}'
 CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner",
-                            question_total=2, current_question_position=0, answer_cap=2)
+                            question_total=2, current_question_position=0, answer_cap=2, session_seconds_left=1_500,
+                            allowance_seconds_left=600)
 
 
 class FakeParticipant:
@@ -60,9 +70,26 @@ class FakeContext:
         self.shutdown_reason = reason
 
 
+class FakeSpeechHandle:
+    def __init__(self):
+        self.callbacks = []
+
+    def add_done_callback(self, callback):
+        self.callbacks.append(callback)
+
+    def finish(self):
+        for callback in self.callbacks:
+            callback(self)
+
+
 class FakeSession:
     def __init__(self):
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
+        self.handles, self.model_usage = [], []
+
+    @property
+    def usage(self):
+        return SimpleNamespace(model_usage=list(self.model_usage))
 
     def on(self, event, handler):
         self.handlers[event] = handler
@@ -76,6 +103,8 @@ class FakeSession:
 
     def generate_reply(self, *, instructions):
         self.replies.append(instructions)
+        self.handles.append(FakeSpeechHandle())
+        return self.handles[-1]
 
     def emit_item(self, role, text):
         self.handlers["conversation_item_added"](
@@ -85,7 +114,8 @@ class FakeSession:
 class FakeRails:
     def __init__(self, claim=CLAIM, refuse=False):
         self.claim_result, self.refuse, self.calls, self.closed = claim, refuse, [], False
-        self.refuse_finish = False
+        self.refuse_finish = self.refuse_heartbeat = False
+        self.heartbeat_reply = HeartbeatReply(action="continue", allowance_seconds_left=500, session_seconds_left=1_400)
 
     async def claim(self, connection_id, *, room_name):
         self.calls.append(("claim", connection_id, room_name))
@@ -113,6 +143,12 @@ class FakeRails:
     async def question_retried(self, connection_id, **values):
         self.calls.append(("question_retried", connection_id, values))
         return {"question_position": values["question_position"], "retry_count": values["retry_number"], "revision": 7}
+
+    async def heartbeat(self, connection_id, **values):
+        self.calls.append(("heartbeat", connection_id, values))
+        if self.refuse_heartbeat:
+            raise RailsTransportError("lost")
+        return self.heartbeat_reply
 
     async def finish(self, connection_id, **values):
         self.calls.append(("finish", connection_id, values))
@@ -163,7 +199,8 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "First question?" in session.started["instructions"]
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
-            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.menu_offered": "false"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.menu_offered": "false",
+            "cd.seconds_left": "1500", "cd.time_warning": "false"}
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -209,7 +246,8 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         session.emit_item("assistant", "Quick feedback: clear story. Lead with the result.")
         await settle()
         assert ctx.room.local_participant.attributes[-1] == {
-            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.menu_offered": "true"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.menu_offered": "true",
+            "cd.seconds_left": "1500", "cd.time_warning": "false"}
         assert "hint" in session.replies[-1].lower()  # the menu is offered
         assert "finished answer" in (await agent.give_hint()).lower()
         assert "repeat" in (await agent.repeat_question()).lower()
@@ -244,7 +282,8 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         ("prompt_asked", "live", {"question_position": 1, "kind": "opening",
                                   "text": "Next question: how do you handle conflict?"}),
         ("question_advanced", "live", {"question_position": 1}),
-        ("finish", "live", {"reason": "completed"}),
+        ("heartbeat", "live", {"sequence": 1, "billed_seconds_delta": 0, "usage": []}),
+        ("finish", "live", {"reason": "completed", "final_sequence": 1}),
     ]
     assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "ended"
     assert ctx.shutdown_reason
@@ -313,7 +352,7 @@ def test_the_end_option_finishes_for_the_candidate_and_unknown_options_are_error
         assert sessions[0][1].interrupted == 1
 
     asyncio.run(scenario())
-    assert rails.calls[-1] == ("finish", "live", {"reason": "ended_by_candidate"})
+    assert rails.calls[-1] == ("finish", "live", {"reason": "ended_by_candidate", "final_sequence": 1})
     assert ctx.shutdown_reason
 
 
@@ -353,3 +392,106 @@ def test_realtime_options_use_the_persona_voice_server_vad_and_transcription():
     assert options["input_audio_transcription"].model == "gpt-live-transcribe"
     assert PERSONA_VOICES == {"maya": "marin", "daniel": "cedar", "priya": "shimmer"}
     assert AGENT_NAME == "careerdrafter-live-interviewer"
+
+
+def realtime_usage(input_audio_tokens):
+    return LLMModelUsage(provider="api.openai.com", model="gpt-realtime-2.1-mini", input_tokens=input_audio_tokens,
+                         input_audio_tokens=input_audio_tokens)
+
+
+def test_heartbeats_report_counted_seconds_and_new_usage_and_carry_on_after_a_lost_one():
+    rails, sessions = FakeRails(), []
+    now = [0.0]
+    _ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+
+    async def scenario():
+        ctx = await go()
+        session = sessions[0][1]
+        runner = session.agent._runner
+        session.model_usage = [realtime_usage(1_000)]
+        now[0] = 30.0
+        await settle()
+        await runner.heartbeat()
+        rails.refuse_heartbeat = True
+        session.model_usage = [realtime_usage(1_500)]
+        now[0] = 60.0
+        await settle()
+        await runner.heartbeat()
+        rails.refuse_heartbeat = False
+        now[0] = 70.0
+        await settle()
+        await runner.heartbeat()
+        return ctx
+
+    asyncio.run(scenario())
+    heartbeats = [call[2] for call in rails.calls if call[0] == "heartbeat"]
+    entry = {"model": "gpt-realtime-2.1-mini", "cached_input_tokens": 0, "output_tokens": 0}
+    assert heartbeats == [
+        {"sequence": 1, "billed_seconds_delta": 30, "usage": [{**entry, "input_tokens": 1_000, "cost_microdollars": 10_000}]},
+        {"sequence": 2, "billed_seconds_delta": 30, "usage": [{**entry, "input_tokens": 500, "cost_microdollars": 5_000}]},
+        # the lost heartbeat's seconds and usage go with the next one
+        {"sequence": 3, "billed_seconds_delta": 40, "usage": [{**entry, "input_tokens": 500, "cost_microdollars": 5_000}]},
+    ]
+
+
+def test_a_wrap_up_reply_closes_after_the_current_turn_and_finishes_once_the_closing_has_played():
+    rails, sessions = FakeRails(), []
+    rails.heartbeat_reply = HeartbeatReply(action="wrap_up", reason="allowance", allowance_seconds_left=0,
+                                           session_seconds_left=900)
+    ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.handlers["agent_state_changed"](AgentStateChangedEvent(old_state="listening", new_state="speaking"))
+        await settle()
+        await session.agent._runner.heartbeat()
+        assert not any("live minutes" in reply for reply in session.replies)
+        session.handlers["agent_state_changed"](AgentStateChangedEvent(old_state="speaking", new_state="listening"))
+        await settle()
+        assert "live minutes" in session.replies[-1]
+        assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "closing"
+        session.handles[-1].finish()
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-2:] == [("heartbeat", "live", {"sequence": 2, "billed_seconds_delta": 0, "usage": []}),
+                                ("finish", "live", {"reason": "allowance", "final_sequence": 2})]
+    assert ctx.shutdown_reason
+
+
+def test_a_warn_reply_is_shown_and_said_once():
+    rails, sessions = FakeRails(), []
+    rails.heartbeat_reply = HeartbeatReply(action="warn", allowance_seconds_left=100, session_seconds_left=900)
+    ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        await session.agent._runner.heartbeat()
+        await session.agent._runner.heartbeat()
+        assert sum("two minutes" in reply for reply in session.replies) == 1
+        assert ctx.room.local_participant.attributes[-1]["cd.time_warning"] == "true"
+
+    asyncio.run(scenario())
+
+
+def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions, tracer=provider.get_tracer("test"))
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.model_usage = [realtime_usage(2_000)]
+        for callback in ctx.shutdown_callbacks:
+            await callback()
+
+    asyncio.run(scenario())
+    (root,) = exporter.get_finished_spans()
+    assert root.name == "live_interview.session" and root.parent is None
+    assert dict(root.attributes) == {"interview_session_id": "session", "live_connection_id": "live",
+                                     "provider_cost_microdollars": 20_000, "operation.cost": 0.02}

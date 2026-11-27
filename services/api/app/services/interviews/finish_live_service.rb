@@ -20,11 +20,12 @@
 module Interviews
   class FinishLiveService < ApplicationService
     REASONS = %w[completed ended_by_candidate idle time_limit allowance disconnected failed].freeze
+    OWNER_REASONS = %w[ended_by_candidate failed].freeze
 
     # The owner ending the interview from the room: finishes its open connection (or, on a repeat,
-    # the latest one) as `ended_by_candidate`, or as `failed` when the live room was unavailable
-    # and the candidate is switching to a turn-based interview with the same setup
-    # (Interviews::StartFromInterviewService).
+    # the latest one) with `reason`: `ended_by_candidate`, or `failed` when the live room was
+    # unavailable and the candidate is switching to a turn-based interview with the same setup
+    # (Interviews::StartFromInterviewService). The agent's reasons are not the owner's to give.
     #
     # The agent's refusal codes (`connection_ended`, `invalid_request`) are for the agent, so the
     # owner's failure carries only the message.
@@ -34,11 +35,13 @@ module Interviews
     # through AbandonService rather than staying resumable until it expires.
     #
     # @return [ServiceResult<Hash>] as `call`, or a failure for an interview that is not a live one
-    def self.for_owner(interview:, live_unavailable: false)
+    def self.for_owner(interview:, reason: "ended_by_candidate")
+      raise ArgumentError, "Unsupported owner finish reason: #{reason}" unless OWNER_REASONS.include?(reason)
+
       connection = interview.live_connections.open.first || interview.live_connections.order(:created_at).last
       return abandon_never_joined(interview) unless connection
 
-      result = call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate")
+      result = call(connection: connection, reason: reason)
       result.success? ? result : result.with(code: nil)
     end
 

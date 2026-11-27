@@ -505,11 +505,14 @@ class LiveInterviewController:
             return self._welcome_back(event.now)
         if isinstance(event, HeartbeatReplied):
             self._refresh_allowance(event)
+            actions: list[LiveAction] = []
             if event.action == "warn":
-                return self._warn()
-            if event.action == "wrap_up":
-                return self._wrap_up("time_limit" if event.reason == "time_limit" else "allowance")
-            return []
+                actions = self._warn()
+            elif event.action == "wrap_up":
+                actions = self._wrap_up("time_limit" if event.reason == "time_limit" else "allowance")
+            if any(isinstance(action, PublishRoomState) for action in actions):
+                return actions
+            return [*self._clock_moved(), *actions]  # the menu's quiet wait publishes nothing else
         if isinstance(event, SpeakingChanged):
             if event.who == "interviewer":
                 self._interviewer_busy = event.speaking
@@ -648,8 +651,13 @@ class LiveInterviewController:
         self._allowance_left -= elapsed
         if self._seconds_left <= 0 and self._phase != "closing":
             return self._wrap_up("time_limit")
-        if min(self._seconds_left, self._allowance_left) <= WARNING_SECONDS and not self._warned:
-            return self._warn()
+        # A warning returns nothing during a wrap-up or closing, so the clock still moves then.
+        if min(self._seconds_left, self._allowance_left) <= WARNING_SECONDS and (warning := self._warn()):
+            return warning
+        return self._clock_moved()
+
+    def _clock_moved(self) -> list[LiveAction]:
+        """Publish the time left once it has moved far enough from what the room shows."""
         if abs(self._published_seconds - self._shown_seconds()) >= CLOCK_PUBLISH_SECONDS:
             return [self._room_state()]
         return []
@@ -690,7 +698,7 @@ class LiveInterviewController:
 
     def _refresh_allowance(self, reply: HeartbeatReplied) -> None:
         """Take Rails' allowance as of the heartbeat it answers, less the time counted since that
-        heartbeat left (Rails has not billed it yet). The room shows the change at the next tick."""
+        heartbeat left (Rails has not billed it yet). The reply publishes the change if it is big enough."""
         billed = self._billed_at.get(reply.sequence, self._billed)
         self._billed_at = {sequence: seconds for sequence, seconds in self._billed_at.items() if sequence > reply.sequence}
         self._allowance_left = reply.allowance_seconds_left - (self._counted - billed)

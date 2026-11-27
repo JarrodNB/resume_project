@@ -676,7 +676,7 @@ live session's ID (any other setting with it is refused, and the copy is always 
 `Interviews::StartFromInterviewService` copies its setup, saved job and career focus
 (owner-scoped; refused if the saved job was deleted). Once the new preparation has started, the
 same request finishes the unfinished live session through
-`FinishLiveService.for_owner(live_unavailable: true)`: a joined room ends as `failed` by the same
+`FinishLiveService.for_owner(reason: "failed")`: a joined room ends as `failed` by the same
 rule as any finish, so the abandoned live session never stays active. If Rails never opened a
 room (the first join was refused, for example too few live minutes or LiveKit not configured),
 the session is still `ready` with no connection and no answers, so it is abandoned through

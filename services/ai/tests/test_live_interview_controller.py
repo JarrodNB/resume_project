@@ -844,7 +844,7 @@ def test_two_minutes_left_is_said_once_and_shown_in_the_room():
     assert clock_states(actions) == [(120, True)]
     assert len(spoken(actions)) == 1 and "two minutes" in spoken(actions)[0].instructions.lower()
     assert spoken(controller.handle(Tick(now=1_390.0))) == []
-    assert controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100, sequence=1)) == []  # only once overall
+    assert spoken(controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100, sequence=1))) == []  # only once overall
 
 
 def test_a_smaller_live_allowance_is_what_the_room_counts_down_and_warns_on_once():
@@ -875,12 +875,37 @@ def test_each_heartbeat_reply_refreshes_the_allowance_counting_only_time_since_t
     assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=1, billed_seconds_delta=30)]
     controller.handle(Tick(now=32.5))  # counted while the heartbeat was on its way
     # Rails billed 30 seconds and another live session used 300 more of the allowance.
-    assert controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=570, sequence=1)) == []
-    assert clock_states(controller.handle(Tick(now=33.0))) == [(567, False)]  # 570 - (33 - 30)
+    actions = controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=570, sequence=1))
+    assert clock_states(actions) == [(568, False)]  # 570 - (32.5 - 30)
+    assert controller.handle(Tick(now=33.0)) == []  # 567.0 is too close to 568 to publish again
     assert controller.handle(HeartbeatDue()) == [SendHeartbeat(sequence=2, billed_seconds_delta=3)]
     # Back to the paid daily allowance after an upgrade: the room shows the session clock again.
-    controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=3_600, sequence=2))
-    assert clock_states(controller.handle(Tick(now=34.0))) == [(1_466, False)]
+    actions = controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=3_600, sequence=2))
+    assert clock_states(actions) == [(1_467, False)]
+
+
+def test_a_heartbeat_reply_shows_a_changed_allowance_while_the_menu_waits_quietly():
+    """The menu's quiet wait has no ticks that publish, so the reply itself shows the new time."""
+    controller = menu_controller()
+    controller.handle(Tick(now=0.0))
+    controller.handle(HeartbeatDue())
+    # Another live session used most of the allowance.
+    assert clock_states(controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=400,
+                                                           sequence=1))) == [(400, False)]
+    controller.handle(HeartbeatDue())
+    assert controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=398, sequence=2)) == []
+
+
+def test_the_clock_keeps_publishing_during_a_wrap_up_with_little_time_left():
+    """A wrap-up waiting for the interviewer to finish speaking still shows the time going down."""
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(Tick(now=0.0))
+    controller.handle(SpeakingChanged("interviewer", True))
+    controller.handle(HeartbeatDue())
+    controller.handle(HeartbeatReplied(action="wrap_up", reason="allowance", allowance_seconds_left=100, sequence=1))
+    assert controller.handle(Tick(now=3.0)) == []
+    assert clock_states(controller.handle(Tick(now=5.0))) == [(95, False)]
 
 
 def said(actions):
@@ -986,8 +1011,10 @@ def test_an_allowance_warning_from_rails_is_said_once_and_a_wrap_up_closes_from_
     actions = controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110, sequence=1))
     assert clock_states(actions) == [(110, True)]
     assert "two minutes" in spoken(actions)[0].instructions.lower()
-    assert controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100, sequence=1)) == []
-    assert controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=300, sequence=1)) == []
+    actions = controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100, sequence=1))
+    assert clock_states(actions) == [(100, True)] and spoken(actions) == []  # said only once
+    assert clock_states(controller.handle(HeartbeatReplied(action="continue", allowance_seconds_left=300,
+                                                           sequence=1))) == [(300, True)]
     actions = controller.handle(HeartbeatReplied(action="wrap_up", reason="allowance", allowance_seconds_left=0, sequence=1))
     assert [type(action) for action in actions] == [PublishRoomState, SayClosing]
     assert controller.handle(HeartbeatReplied(action="wrap_up", reason="time_limit", allowance_seconds_left=0, sequence=1)) == []

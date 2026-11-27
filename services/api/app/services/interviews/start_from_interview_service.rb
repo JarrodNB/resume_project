@@ -34,7 +34,7 @@ module Interviews
     def finish_live_source
       return unless @source.conversation_live? && %w[preparing ready active].include?(@source.status)
 
-      finished = FinishLiveService.for_owner(interview: @source, live_unavailable: true)
+      finished = FinishLiveService.for_owner(interview: @source, reason: "failed")
       Rails.logger.warn("Live session #{@source.id} was not finished for its turn-based fallback: #{finished.errors.join(', ')}") unless finished.success?
     end
   end

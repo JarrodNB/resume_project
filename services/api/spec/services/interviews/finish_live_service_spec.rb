@@ -18,8 +18,15 @@ RSpec.describe Interviews::FinishLiveService do
     it "ends the room as failed when the candidate leaves an unavailable live room" do
       interview = ready_live_interview(user)
       Interviews::JoinLiveService.call(interview: interview)
-      expect(described_class.for_owner(interview: interview, live_unavailable: true)).to be_success
+      expect(described_class.for_owner(interview: interview, reason: "failed")).to be_success
       expect(interview.live_connections.sole.end_reason).to eq("failed")
+    end
+
+    it "accepts only the owner's reasons, never an agent's" do
+      interview = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: interview)
+      expect { described_class.for_owner(interview: interview, reason: "completed") }.to raise_error(ArgumentError)
+      expect(interview.live_connections.sole.status).not_to eq("ended")
     end
 
     it "refuses an interview that is no longer active with a message only, never the agent's internal code" do
@@ -35,7 +42,7 @@ RSpec.describe Interviews::FinishLiveService do
       interview = ready_live_interview(user)
       with_livekit_env(LiveInterviewHelpers::LIVEKIT_TEST_ENV.transform_values { "" }) { Interviews::JoinLiveService.call(interview: interview) } # not configured
       expect(interview.reload.status).to eq("ready")
-      result = described_class.for_owner(interview: interview, live_unavailable: true)
+      result = described_class.for_owner(interview: interview, reason: "failed")
       expect(result).to be_success
       expect(result.value).to include(status: "abandoned")
       expect(interview.reload.status).to eq("abandoned")

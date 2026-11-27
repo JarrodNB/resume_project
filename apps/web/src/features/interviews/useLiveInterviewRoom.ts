@@ -32,8 +32,9 @@ export type LiveRoomStatus = 'joining' | 'connecting' | 'connected' | 'reconnect
 export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer'; text: string }
 /** Where the interview stands, as the agent last published it. `questionPosition` is zero-based;
  * `menuOffered` is true while the interviewer waits for the candidate's coaching-menu choice.
- * `secondsLeft` is the session's counted time left (menu waits are free), refreshed about every
- * 5 seconds; `timeWarning` turns on once about 2 minutes (or live minutes) are left. */
+ * `secondsLeft` is the lower of the session's counted time left (menu waits are free) and the
+ * user's live allowance left, refreshed about every 5 seconds; `timeWarning` turns on once about
+ * 2 minutes of either are left. */
 export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; stateSeq: number | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
 export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
@@ -61,7 +62,6 @@ export interface LiveInterviewRoom extends LiveRoomState {
   end: () => Promise<boolean>
   /** After a dropped connection, joins the same room again. */
   rejoin: () => Promise<void>
-  /** Ends the live room as failed (the candidate is switching to turn-based); errors are ignored. */
 }
 
 /** Keep the screen and memory bounded in a long interview. */

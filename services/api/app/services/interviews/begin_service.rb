@@ -18,7 +18,7 @@ module Interviews
         question = @interview.questions.lock.first
         next failure("Prepared questions unavailable") unless question
         message = @interview.messages.create!(question: question, kind: "opening", position: 0,
-          semantic_key: "question:#{question.id}:opening", content: question.content)
+          semantic_key: QuestionProgression.opening_key(question), content: question.content)
         if SpeechPlayback.provider?(@interview)
           operation = @interview.operations.create!(kind: "speech", question: question, message: message)
           AiExecutions::ScheduleOperationService.call(operation: operation)

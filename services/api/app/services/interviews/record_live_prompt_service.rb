@@ -35,7 +35,7 @@ module Interviews
       existing = interview.messages.find_by(question: question, kind: "opening")
       return success(receipt(existing, interview)) if existing
 
-      create_prompt(interview, question, kind: "opening", semantic_key: "question:#{question.id}:opening", content: question.content)
+      create_prompt(interview, question, kind: "opening", semantic_key: QuestionProgression.opening_key(question), content: question.content)
     end
 
     def save_follow_up(interview, question)

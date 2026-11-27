@@ -6,6 +6,11 @@ module Interviews
   module QuestionProgression
     CLOSING = "Thank you. This interview is complete.".freeze
 
+    # The key a question's opening message is saved under; message keys are unique per interview.
+    def self.opening_key(question)
+      "question:#{question.id}:opening"
+    end
+
     # @param questions [Array<InterviewSessionQuestion>] the interview's locked questions
     # @return [InterviewSessionMessage, nil] the next question's opening, or nil after the last question
     def self.open_next_question(interview, questions, question, position:, acknowledgement: nil)
@@ -14,7 +19,7 @@ module Interviews
 
       interview.current_question_position = next_question.position
       interview.messages.create!(question: next_question, kind: "opening", position: position,
-        semantic_key: "question:#{next_question.id}:opening", content: next_question.content, acknowledgement: acknowledgement)
+        semantic_key: opening_key(next_question), content: next_question.content, acknowledgement: acknowledgement)
     end
 
     # Completes a turn-based interview after its last question with the standard closing message.

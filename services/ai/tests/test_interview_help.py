@@ -97,7 +97,7 @@ def test_admitted_work_uses_owned_context_from_identity_only_claim(help_attempt,
              "claimed_at": "2026-11-03T00:00:00Z"}
     saved = {
         "question_text": "Describe a project.", "query_text": "Describe a project.",
-        "conversation_mode": "turn_based", "questions": [{"question_id": question_id, "question": "Describe a project.",
+        "questions": [{"question_id": question_id, "question": "Describe a project.",
                        "dialogue": [{"kind": "answer", "content": "I planned a workshop."}]}],
     }
     reader = Mock(return_value=saved)

@@ -34,7 +34,7 @@ def read_interview_auxiliary(connection, task, grant):
     with connection.transaction(), connection.cursor() as cursor:
         cursor.execute("SET LOCAL statement_timeout = '5s'")
         query = f"""SELECT r.id::text, r.claimed_at, r.deadline, s.status, s.revision,
-          s.current_question_position, s.preparation_kind, s.prepared_role, s.conversation_mode, t.input,
+          s.current_question_position, s.preparation_kind, s.prepared_role, t.input,
           {"r.expected_revision" if key == "feedback_id" else "r.message_id::text"}
           FROM {table} r JOIN interview_sessions s ON s.id=r.interview_session_id
           JOIN ai_tasks t ON t.id=r.ai_task_id AND t.user_id=s.user_id
@@ -78,7 +78,6 @@ def read_interview_auxiliary(connection, task, grant):
                     "role": row["prepared_role"]
                     if row["preparation_kind"] == "fictional_role"
                     else {},
-                    "conversation_mode": row["conversation_mode"],
                 }
             )
         else:

@@ -157,7 +157,8 @@ requests get a JSON 429 with `Retry-After`.
   workflow; optional batches are omitted together. Complete-source caps still apply
   when every field is already approved. One-off messages and uploads keep using the
   direct text screen. Generated output is trusted through its validated server provenance;
-  immutable accepted user text has the separate `trust_rails_screened_source` API.
+  saved interview dialogue has the separate `trust_interview_dialogue` API (not screened,
+  because interview agents have no tools; see `services/ai/screening/AGENTS.md`).
   Only session and record-screening code mutate source coverage directly.
   Large sources use 4,000-character chunks with 300 characters of overlap by default.
   A live synthetic comparison of 2,000, 4,000, and whole resumes found identical decisions

@@ -15,7 +15,7 @@ def test_completed_session_returns_saved_question_coaching(task_dependencies):
     question_id = str(uuid4())
     request = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="interview_session_feedback",
         input={"feedback_id": str(uuid4())})
-    grant = {"allowed": True, "conversation_mode": "turn_based", "role": {"title": "Coordinator", "responsibilities": ["Plan workshops"], "requirements": []},
+    grant = {"allowed": True, "role": {"title": "Coordinator", "responsibilities": ["Plan workshops"], "requirements": []},
         "setup": {}, "questions": [{"question_id": question_id, "question": "Describe a challenge.",
         "dialogue": [{"kind": "answer", "content": "I organized a workshop."},
                      {"kind": "follow_up", "content": "What happened?"},
@@ -50,7 +50,7 @@ def request_and_dependencies(task_dependencies, grant):
 
 
 def saved_grant():
-    return {"allowed": True, "role": {}, "conversation_mode": "turn_based", "questions": [{"question_id": str(uuid4()),
+    return {"allowed": True, "role": {}, "questions": [{"question_id": str(uuid4()),
         "question": "Describe a project.", "dialogue": [{"kind": "answer", "content": "I planned a workshop."}]}]}
 
 
@@ -120,6 +120,32 @@ def test_prompt_contains_readable_dialogue_and_reuses_screening(task_dependencie
         assert handle_ai_task(request, dependencies).status == "completed"
 
 
+def test_live_answers_are_trusted_without_a_screen(task_dependencies, monkeypatch):
+    """Interview agents have no tools or side effects, so live speech is not screened."""
+    from screening.session import current_session, prompt_is_covered
+    from worker import interview_session_feedback_handler as handler
+    grant = saved_grant()
+    grant["conversation_mode"] = "live"
+    grant["questions"][0]["dialogue"] += [{"kind": "follow_up", "content": "What changed?"},
+        {"kind": "answer", "content": "My peers attended."}]
+    def no_screen(*args, **kwargs):
+        raise AssertionError("Interview dialogue must not be screened")
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", no_screen)
+    monkeypatch.setattr("screening.screen_user_text.screen_user_message", no_screen)
+    seen = {}
+    def generate(prompt, claim, settings):
+        from schemas.interview_session_feedback import InterviewSessionFeedback
+        seen["covered"] = prompt_is_covered(prompt)
+        seen["trusted"] = set(current_session().interview_dialogue_sources)
+        return InterviewSessionFeedback.model_validate(coaching(grant["questions"][0]["question_id"]))
+    monkeypatch.setattr(handler, "generate_interview_session_feedback", generate)
+    request, dependencies = request_and_dependencies(task_dependencies, grant)
+    result = handle_ai_task(request, dependencies)
+    assert result.status == "completed" and result.usage == []
+    assert seen["covered"]
+    assert any("My peers attended." in source for source in seen["trusted"])
+
+
 def test_provider_timeout_finalizes_failure_without_automatic_retry(task_dependencies, monkeypatch):
     from tests.test_process_task_message import FakeResultQueue
     from worker.main import process_task_message
@@ -172,74 +198,6 @@ def test_known_contact_is_masked_and_output_restored(task_dependencies):
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert "Avery Sample" in result.result["interview_session_feedback"]["questions"][0]["example_answer"]
-
-
-def live_grant():
-    grant = saved_grant()
-    grant["conversation_mode"] = "live"
-    grant["questions"][0]["dialogue"] += [{"kind": "follow_up", "content": "What changed?"},
-        {"kind": "answer", "content": "My peers attended."}]
-    return grant
-
-
-@pytest.fixture
-def classifier(monkeypatch):
-    """Replace only Jev's provider call; the real screening policy records approvals."""
-    from pydantic_ai.usage import RunUsage
-
-    from agents.user_text_screen_agent import UserTextScreenRun
-    from schemas.user_text_screen import UserTextScreen
-    monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "typesafe:jev-1.13.0")
-    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
-    calls = {"texts": [], "blocked": set()}
-    def classify(text, *args, **kwargs):
-        calls["texts"].append(text)
-        return UserTextScreenRun(UserTextScreen(prompt_injection=text in calls["blocked"], harmful_request=False),
-            "jev-1.13.0", {"prompt_injection": 1.0, "harmful_request": 1.0}, RunUsage(input_tokens=3))
-    monkeypatch.setattr("screening.screen_user_text.screen_user_message", classify)
-    return calls
-
-
-def test_live_answers_are_screened_before_feedback(task_dependencies, classifier, monkeypatch):
-    """Live speech was saved unscreened, so only the candidate's words are checked now."""
-    from screening.session import current_session, prompt_is_covered
-    from worker import interview_session_feedback_handler as handler
-    grant = live_grant()
-    seen = {}
-    def generate(prompt, claim, settings):
-        seen["covered"] = prompt_is_covered(prompt)
-        seen["rails"] = set(current_session().rails_screened_sources)
-        from schemas.interview_session_feedback import InterviewSessionFeedback
-        return InterviewSessionFeedback.model_validate(coaching(grant["questions"][0]["question_id"]))
-    monkeypatch.setattr(handler, "generate_interview_session_feedback", generate)
-    request, dependencies = request_and_dependencies(task_dependencies, grant)
-    result = handle_ai_task(request, dependencies)
-    assert result.status == "completed"
-    assert classifier["texts"] == ["I planned a workshop.", "My peers attended."]
-    assert seen["covered"] and seen["rails"] == set()
-    assert sum(entry.input_tokens for entry in result.usage) == 6
-
-
-def test_rejected_live_answer_fails_feedback_before_generation(task_dependencies, classifier, monkeypatch):
-    from screening.prompt_guardrail import BLOCKED_MESSAGE
-    from worker import interview_session_feedback_handler as handler
-    classifier["blocked"].add("My peers attended.")
-    def generate(*args, **kwargs):
-        raise AssertionError("A rejected live answer must not reach the feedback model")
-    monkeypatch.setattr(handler, "generate_interview_session_feedback", generate)
-    request, dependencies = request_and_dependencies(task_dependencies, live_grant())
-    result = handle_ai_task(request, dependencies)
-    assert result.status == "failed"
-    assert result.error_message == BLOCKED_MESSAGE
-    assert result.result is None and result.usage
-
-
-def test_missing_conversation_mode_is_invalid_context(task_dependencies):
-    grant = saved_grant()
-    del grant["conversation_mode"]
-    request, dependencies = request_and_dependencies(task_dependencies, grant)
-    result = handle_ai_task(request, dependencies)
-    assert result.status == "failed" and result.error_message == "Saved interview feedback context is invalid"
 
 
 @pytest.fixture

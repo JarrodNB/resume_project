@@ -142,7 +142,6 @@ def test_reads_canonical_source_and_ignores_legacy_copies(admin_connection, kind
         assert str(value.questions[0].question_id) == str(question)
         assert value.questions[0].dialogue[0].content == "My accepted answer."
         assert value.role.title == "Generated role"
-        assert value.conversation_mode == "turn_based"
     else:
         assert value["question_text"] == (
             "Follow-up?" if kind == "references" else "Current generated question?"
@@ -153,14 +152,6 @@ def test_reads_canonical_source_and_ignores_legacy_copies(admin_connection, kind
                 == "Original core question?\n\nMy accepted answer.\n\nFollow-up?"
             )
         assert "FORGED" not in str(value) and "acknowledgement" not in str(value)
-
-
-def test_feedback_reports_live_conversation_mode(admin_connection):
-    """Live answers were saved unscreened, so feedback must learn the session's mode."""
-    task, grant, *_ = seed(admin_connection, "session_feedback")
-    admin_connection.execute("UPDATE interview_sessions SET conversation_mode='live' WHERE id=%s",
-                             (grant["interview_id"],))
-    assert read(admin_connection, task, grant).conversation_mode == "live"
 
 
 @pytest.mark.parametrize("kind", ["clarification", "references", "session_feedback"])

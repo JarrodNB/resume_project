@@ -4,11 +4,11 @@ import { MockedProvider } from '@apollo/client/testing/react'
 import type { MockLink } from '@apollo/client/testing'
 import type { ReactNode } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { JOIN_LIVE_INTERVIEW } from './interviewOperations'
+import { END_LIVE_INTERVIEW, JOIN_LIVE_INTERVIEW } from './interviewOperations'
 import { useLiveInterviewRoom } from './useLiveInterviewRoom'
 
 type TextHandler = (reader: AsyncIterable<string> & { info: { id: string; attributes?: Record<string, string> } }, participant: { identity: string }) => void
-type FakeRoom = { handlers: Map<string, (...values: unknown[]) => void>; textHandlers: Map<string, TextHandler>; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; setMicrophoneEnabled: ReturnType<typeof vi.fn> }
+type FakeRoom = { handlers: Map<string, (...values: unknown[]) => void>; textHandlers: Map<string, TextHandler>; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; setMicrophoneEnabled: ReturnType<typeof vi.fn>; performRpc: ReturnType<typeof vi.fn>; remoteParticipants: Map<string, unknown> }
 const { rooms } = vi.hoisted(() => ({ rooms: [] as FakeRoom[] }))
 vi.mock('livekit-client', () => {
   class Room {
@@ -17,8 +17,9 @@ vi.mock('livekit-client', () => {
     connect = vi.fn().mockResolvedValue(undefined)
     disconnect = vi.fn().mockResolvedValue(undefined)
     setMicrophoneEnabled = vi.fn().mockResolvedValue(undefined)
+    performRpc = vi.fn().mockResolvedValue('ended')
     remoteParticipants = new Map()
-    localParticipant = { identity: 'user-owner', setMicrophoneEnabled: this.setMicrophoneEnabled }
+    localParticipant = { identity: 'user-owner', setMicrophoneEnabled: this.setMicrophoneEnabled, performRpc: this.performRpc }
     constructor() { rooms.push(this) }
     on(event: string, handler: (...values: unknown[]) => void) { this.handlers.set(event, handler); return this }
     registerTextStreamHandler(topic: string, handler: TextHandler) { this.textHandlers.set(topic, handler) }
@@ -36,8 +37,8 @@ function joinMock(payload: Record<string, unknown>): MockLink.MockedResponse {
   return { request: { query: JOIN_LIVE_INTERVIEW, variables: { interviewId: 'session' } }, result: { data: { joinLiveInterview: {
     __typename: 'JoinLiveInterviewPayload', url: null, token: null, roomName: null, expiresAt: null, interview: null, errors: [], errorCode: null, ...payload } } } }
 }
-function render(mock: MockLink.MockedResponse) {
-  const wrapper = ({ children }: { children: ReactNode }) => <MockedProvider mocks={[mock]}>{children}</MockedProvider>
+function render(mock: MockLink.MockedResponse, ...more: MockLink.MockedResponse[]) {
+  const wrapper = ({ children }: { children: ReactNode }) => <MockedProvider mocks={[mock, ...more]}>{children}</MockedProvider>
   return renderHook(() => useLiveInterviewRoom('session'), { wrapper })
 }
 
@@ -65,8 +66,8 @@ it('fails with the Rails refusal without connecting', async () => {
   expect(rooms.every((room) => !room.connect.mock.calls.length)).toBe(true)
 })
 
-async function connectedRoom() {
-  const view = render(joinMock({ url: 'wss://live.test', token: 'join-token', roomName: 'room', expiresAt: '2099-01-01T00:00:00Z' }))
+async function connectedRoom(...more: MockLink.MockedResponse[]) {
+  const view = render(joinMock({ url: 'wss://live.test', token: 'join-token', roomName: 'room', expiresAt: '2099-01-01T00:00:00Z' }), ...more)
   await waitFor(() => expect(view.result.current.status).toBe('connected'))
   return { view, room: rooms.at(-1)! }
 }
@@ -104,4 +105,62 @@ it('mutes and unmutes the microphone', async () => {
   await act(() => view.result.current.mute(false))
   expect(room.setMicrophoneEnabled).toHaveBeenLastCalledWith(true)
   expect(view.result.current.muted).toBe(false)
+})
+
+function endMock(errors: string[] = []) {
+  const result = vi.fn(() => ({ data: { endLiveInterview: { __typename: 'EndLiveInterviewPayload', interview: null, errors, errorCode: null } } }))
+  return { mock: { request: { query: END_LIVE_INTERVIEW, variables: { interviewId: 'session' } }, result } as MockLink.MockedResponse, result }
+}
+const agent = { identity: 'agent-1', isAgent: true, attributes: {} }
+
+it('ends through the agent with the end option, then confirms the outcome with Rails', async () => {
+  const end = endMock()
+  const { view, room } = await connectedRoom(end.mock)
+  room.remoteParticipants.set(agent.identity, agent)
+  let ended = false
+  await act(async () => { ended = await view.result.current.end() })
+  expect(ended).toBe(true)
+  expect(room.performRpc).toHaveBeenCalledWith(expect.objectContaining({ destinationIdentity: 'agent-1', method: 'interview.choose', payload: JSON.stringify({ option: 'end' }) }))
+  expect(end.result).toHaveBeenCalledOnce()
+  expect(view.result.current).toMatchObject({ ending: false, endError: null })
+})
+
+it('falls back to Rails when the agent refuses, does not answer within 5 seconds or is gone', async () => {
+  const refused = endMock()
+  const first = await connectedRoom(refused.mock)
+  first.room.remoteParticipants.set(agent.identity, agent)
+  first.room.performRpc.mockRejectedValue(new Error('Application error'))
+  await act(async () => { await first.view.result.current.end() })
+  expect(refused.result).toHaveBeenCalledOnce()
+  first.view.unmount()
+
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    const slow = endMock()
+    const second = await connectedRoom(slow.mock)
+    second.room.remoteParticipants.set(agent.identity, agent)
+    second.room.performRpc.mockReturnValue(new Promise(() => {}))
+    let ending: Promise<boolean> = Promise.resolve(false)
+    act(() => { ending = second.view.result.current.end() })
+    expect(second.view.result.current.ending).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+    await act(async () => { await ending })
+    expect(slow.result).toHaveBeenCalledOnce()
+    second.view.unmount()
+  } finally { vi.useRealTimers() }
+
+  const alone = endMock()
+  const third = await connectedRoom(alone.mock)
+  await act(async () => { await third.view.result.current.end() })
+  expect(third.room.performRpc).not.toHaveBeenCalled()
+  expect(alone.result).toHaveBeenCalledOnce()
+})
+
+it('reports a Rails refusal to end', async () => {
+  const end = endMock(['Interview expired'])
+  const { view } = await connectedRoom(end.mock)
+  let ended = true
+  await act(async () => { ended = await view.result.current.end() })
+  expect(ended).toBe(false)
+  expect(view.result.current).toMatchObject({ ending: false, endError: 'Interview expired' })
 })

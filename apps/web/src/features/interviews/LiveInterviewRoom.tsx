@@ -4,11 +4,14 @@
  * career references panel works exactly as in the turn-based room, for the prompt the agent
  * saved. If the interviewer hasn't joined within 15 seconds, or joining fails, it offers to
  * start a new turn-based interview with the same setup (a fresh preparation, so new questions).
+ * End interview (after a confirmation) finishes the session: completed with at least one saved
+ * answer, so the page shows the usual review, or abandoned with none.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Mic, MicOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useFocusMode } from '@/components/useFocusMode'
 import { useAuth } from '@/features/auth/useAuth'
 import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
@@ -45,6 +48,7 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
     {!showFallback && <p role="status" className="text-sm">{message}</p>}
     {showFallback && <TurnBasedFallback interview={interview} reason={room.status === 'failed' ? room.error : null} />}
     {!showFallback && room.status === 'connected' && <LiveRoomControls room={room} />}
+    {room.status !== 'joining' && <EndLiveInterviewButton room={room} />}
     {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={interview.id} visitId={referenceVisitId} message={reply} disabled={false} />}
   </section>
 }
@@ -61,6 +65,32 @@ function LiveRoomControls({ room }: { room: LiveRoom }) {
     </div>
     <LiveCaptions captions={room.captions} />
   </div>
+}
+
+/** Confirms, then ends the interview through the room hook (the agent, or Rails if the agent is gone). */
+function EndLiveInterviewButton({ room }: { room: LiveRoom }) {
+  const [open, setOpen] = useState(false)
+  const descriptionId = useId()
+  async function confirm() {
+    if (await room.end()) setOpen(false)
+  }
+  return <>
+    <Button type="button" variant="outline" className="min-h-11 justify-self-start" disabled={room.ending} onClick={() => setOpen(true)}>{room.ending ? 'Ending…' : 'End interview'}</Button>
+    {room.endError && !open && <p role="alert" className="text-sm text-destructive">{room.endError}</p>}
+    <Dialog open={open} onOpenChange={(value) => { if (!room.ending) setOpen(value) }}>
+      <DialogContent aria-describedby={descriptionId}>
+        <DialogHeader>
+          <DialogTitle>End this interview?</DialogTitle>
+          <DialogDescription id={descriptionId}>You cannot continue it afterward. Your saved answers stay, and you’ll see your review. If you haven’t answered any question yet, the interview is abandoned.</DialogDescription>
+        </DialogHeader>
+        {room.endError && <p role="alert" className="text-sm text-destructive">{room.endError}</p>}
+        <DialogFooter>
+          <Button type="button" autoFocus variant="outline" disabled={room.ending} onClick={() => setOpen(false)}>Keep interview</Button>
+          <Button type="button" variant="destructive" disabled={room.ending} onClick={() => void confirm()}>{room.ending ? 'Ending…' : 'Confirm end'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
 }
 
 /** Starts a turn-based preparation with this session's saved setup and opens it like a normal start. */

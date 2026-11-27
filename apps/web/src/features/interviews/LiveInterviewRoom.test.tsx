@@ -1,5 +1,6 @@
 /** Verifies live sessions open the live room, its connection states, captions, progress, mute,
- * the career references panel and the turn-based fallback, against a fake live room hook (no LiveKit). */
+ * End interview, the career references panel, the turn-based fallback and the completed review
+ * of a live session, against a fake live room hook (no LiveKit). */
 import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
@@ -13,7 +14,8 @@ const { state, start, live } = vi.hoisted(() => ({
 }))
 const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null }
 function liveRoom(change: Record<string, unknown> = {}) {
-  return { status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, mute: vi.fn().mockResolvedValue(undefined), ...change }
+  return { status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
+    mute: vi.fn().mockResolvedValue(undefined), end: vi.fn().mockResolvedValue(true), ...change }
 }
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
 vi.mock('./useLiveInterviewRoom', () => ({ useLiveInterviewRoom: (id: string) => { live.hook(id); return live.value } }))
@@ -154,4 +156,54 @@ it('shows the career references panel for the saved opening of the current quest
   const panel = screen.getByRole('region', { name: 'Relevant career examples' })
   expect(panel).toHaveAttribute('data-message', 'opening')
   expect(panel).toHaveAttribute('data-disabled', 'false')
+})
+
+it('asks for confirmation before ending the interview, and can be kept', async () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true })
+  renderInterview()
+  fireEvent.click(screen.getByRole('button', { name: 'End interview' }))
+  const dialog = screen.getByRole('dialog', { name: 'End this interview?' })
+  expect(dialog).toHaveTextContent('Your saved answers stay')
+  fireEvent.click(screen.getByRole('button', { name: 'Keep interview' }))
+  await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(live.value.end).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'End interview' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm end' }))
+  await vi.waitFor(() => expect(live.value.end).toHaveBeenCalledOnce())
+})
+
+it('shows ending progress and a refusal to end', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, ending: true })
+  const view = renderInterview()
+  expect(screen.getByRole('button', { name: 'Ending…' })).toBeDisabled()
+  view.unmount()
+  live.value = liveRoom({ status: 'connected', agentJoined: true, endError: 'Interview expired' })
+  renderInterview()
+  expect(screen.getByRole('alert')).toHaveTextContent('Interview expired')
+})
+
+it('offers End interview even while the interviewer has not joined', () => {
+  live.value = liveRoom({ status: 'connected' })
+  renderInterview()
+  expect(screen.getByRole('button', { name: 'End interview' })).toBeEnabled()
+})
+
+it('shows the completed review of a live session with its questions, latest answers and follow-ups', () => {
+  state.interview = { ...structuredClone(snapshot), status: 'completed', messages: [
+    opening,
+    { ...opening, id: 'answer-1', kind: 'answer', position: 1, content: 'I rebuilt our lab scheduler.' },
+    { ...opening, id: 'follow-1', kind: 'follow_up', position: 2, content: 'What changed for the team?' },
+    { ...opening, id: 'answer-2', kind: 'answer', position: 3, content: 'Fewer failed runs.' },
+  ], questions: [{ ...snapshot.questions[0], acceptedAnswerCount: 2 }] }
+  renderInterview()
+  expect(live.hook).not.toHaveBeenCalled()
+  expect(screen.getByRole('heading', { name: 'Interview complete' })).toBeVisible()
+  expect(screen.getByText('1 answered · 0 skipped without an answer · Remaining follow-ups skipped on 0 questions')).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: /Core question 1/ }))
+  const saved = screen.getByLabelText('Saved questions and answers')
+  expect(saved).toHaveTextContent('I rebuilt our lab scheduler.')
+  expect(saved).toHaveTextContent('Follow-upWhat changed for the team?')
+  expect(saved).toHaveTextContent('Fewer failed runs.')
+  fireEvent.click(screen.getByRole('button', { name: 'Interview feedback' }))
+  expect(screen.getByRole('button', { name: 'Generate feedback' })).toBeEnabled()
 })

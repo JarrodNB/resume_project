@@ -16,7 +16,7 @@ from live_interviews.controller import (
     ReportQuestionAdvanced,
     SendHeartbeat,
 )
-from live_interviews.reporter import LiveReporter
+from live_interviews.reporter import MAX_BUSY_ROUNDS, LiveReporter
 from live_interviews.settings import REALTIME_MODEL, TRANSCRIPTION_MODEL
 from live_interviews.usage import LiveUsageTotals
 from tests.test_live_interview_agent import FakeRails, realtime_usage
@@ -278,3 +278,77 @@ def test_a_finish_refused_as_connection_ended_marks_the_connection_ended():
     harness.rails.finish = finish_ended
     assert run(harness.reporter.finish(ReportFinish("ended_by_candidate", final_sequence=1))) is False
     assert harness.reporter.ended and harness.events == [ConnectionEnded()]
+
+
+def test_a_report_rails_keeps_answering_with_a_500_is_dropped_as_a_bug_and_later_reports_still_arrive(caplog):
+    """Only a 503 means "rolled back, send it again"; another 5xx (an unhandled error) is not resent."""
+    harness = Harness()
+
+    async def answer_finished(connection_id, **values):
+        harness.rails.calls.append(("answer_finished", connection_id, values))
+        raise RailsClientError(500, None)
+
+    harness.rails.answer_finished = answer_finished
+
+    async def scenario():
+        await harness.reporter.send(ANSWER)
+        await harness.reporter.send(FOLLOW_UP)
+        await harness.reporter.heartbeat(SendHeartbeat(1, 30))
+
+    with caplog.at_level("ERROR", logger="live_interviews.reporter"):
+        run(scenario())
+    assert len(harness.calls("answer_finished")) == 3  # one round: the first try and two retries
+    assert harness.events == [AnswerNotSaved("opening-0", "I rebuilt the scheduler."),
+                              PromptRecorded(question_position=0, message_id="follow_up-0", prompt_key="q0-r0-f1")]
+    assert [call[0] for call in harness.calls()][3:] == ["prompt_asked", "heartbeat"]
+    assert any(record.levelname == "ERROR" and "500" in record.getMessage() for record in caplog.records)
+
+
+def test_a_report_rails_keeps_answering_with_a_503_is_dropped_after_a_bounded_number_of_rounds(caplog):
+    harness = Harness()
+    failing_question_advanced(harness, failures=1_000)
+
+    async def scenario():
+        await harness.reporter.send(ReportQuestionAdvanced(question_position=0))
+        for _ in range(MAX_BUSY_ROUNDS - 1):
+            await harness.reporter.flush()
+        await harness.reporter.send(OPENING)
+
+    with caplog.at_level("ERROR", logger="live_interviews.reporter"):
+        run(scenario())
+    assert [call[0] for call in harness.calls()] == ["question_advanced"] * 3 * MAX_BUSY_ROUNDS + ["prompt_asked"]
+    assert harness.events == [PromptRecorded(question_position=0, message_id="opening-0")]
+    assert any(record.levelname == "ERROR" for record in caplog.records)
+
+
+def test_a_heartbeat_rails_answers_with_a_500_is_not_resent_and_its_seconds_go_with_the_next():
+    harness = Harness()
+    harness.rails.heartbeat_error = RailsClientError(500, None)
+
+    async def scenario():
+        assert await harness.reporter.heartbeat(SendHeartbeat(1, 30)) is None
+        harness.rails.heartbeat_error = None
+        return await harness.reporter.heartbeat(SendHeartbeat(2, 10))
+
+    assert run(scenario()) == harness.rails.heartbeat_reply  # a reply (say, wrap up) still arrives
+    assert harness.calls("heartbeat") == [{"sequence": 1, "billed_seconds_delta": 30, "usage": []}] * 3 + [
+        {"sequence": 2, "billed_seconds_delta": 40, "usage": []}]
+
+
+def test_a_heartbeat_rails_keeps_answering_with_a_503_is_dropped_after_the_cap_and_newer_ones_get_through():
+    harness = Harness()
+    harness.rails.heartbeat_error = RailsClientError(503, None)  # rolled back each time: never applied
+
+    async def scenario():
+        for sequence in range(1, MAX_BUSY_ROUNDS + 1):
+            assert await harness.reporter.heartbeat(SendHeartbeat(sequence, 30)) is None
+        harness.rails.heartbeat_error = None
+        return await harness.reporter.heartbeat(SendHeartbeat(MAX_BUSY_ROUNDS + 1, 5))
+
+    assert run(scenario()) == harness.rails.heartbeat_reply
+    sent = harness.calls("heartbeat")
+    # The first is resent each round until the cap, then dropped; the next one is sent at once (and lost too).
+    assert [call["sequence"] for call in sent] == [1] * 3 * MAX_BUSY_ROUNDS + [MAX_BUSY_ROUNDS] * 4 + [
+        MAX_BUSY_ROUNDS + 1]
+    # No counted second is lost: the dropped one's seconds went with the next heartbeat.
+    assert [call["billed_seconds_delta"] for call in sent[-2:]] == [30 * MAX_BUSY_ROUNDS, 5]

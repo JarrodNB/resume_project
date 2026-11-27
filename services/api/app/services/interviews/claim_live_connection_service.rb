@@ -1,7 +1,9 @@
 # The live agent's first call after LiveKit dispatches it: it proves the dispatch still matches
 # an open connection (same room) of a live, active interview, and Rails marks that connection
 # connected. The first claim also opens the connection's provider bill (LiveConversationBill).
-# Safe to repeat: the first connected time and bill are kept and only the heartbeat moves.
+# Safe to repeat: the first connected time and bill are kept and only the heartbeat moves; a
+# repeat marks the bill's usage incomplete, since a takeover cannot report the earlier agent's
+# last usage (a retried claim whose reply was lost is treated the same way, conservatively).
 # A fresh agent that takes over a running connection (the first agent crashed, or the room was
 # re-created after it emptied) claims the same way and learns where the current question stands:
 # its latest saved prompt, whether that has an answer, the answers counted and whether feedback
@@ -22,7 +24,10 @@ module Interviews
         next failure("Live connection does not match this room") unless @room_name.is_a?(String) &&
           ActiveSupport::SecurityUtils.secure_compare(@room_name, @connection.room_name)
         now = Time.current
-        @connection.update!(status: "connected", connected_at: @connection.connected_at || now, last_heartbeat_at: now)
+        # A claim on an already connected connection is a takeover (or a lost reply's retry): the
+        # earlier agent's usage since its last heartbeat is never reported, so the bill stays unknown.
+        @connection.update!(status: "connected", connected_at: @connection.connected_at || now, last_heartbeat_at: now,
+          usage_gap: @connection.usage_gap || @connection.status == "connected")
         raise ActiveRecord::Rollback unless LiveConversationBill.open(@connection, interview)
         question = interview.questions.find_by(position: interview.current_question_position)
         success({ interview_session_id: interview.id, live_connection_id: @connection.id, user_id: interview.user_id,

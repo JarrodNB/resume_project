@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_27_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -444,6 +444,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_110000) do
     t.integer "heartbeat_sequence", default: 0, null: false
     t.uuid "observation_id"
     t.uuid "ai_task_id"
+    t.boolean "usage_gap", default: false, null: false
     t.index ["ai_task_id"], name: "index_interview_live_connections_on_ai_task_id", unique: true
     t.index ["interview_session_id", "created_at"], name: "idx_on_interview_session_id_created_at_d5f0267dcc"
     t.index ["interview_session_id"], name: "index_interview_live_connections_one_open_per_session", unique: true, where: "((status)::text <> 'ended'::text)"

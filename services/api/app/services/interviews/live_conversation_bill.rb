@@ -7,7 +7,8 @@
 # model (the realtime model and its input transcription), so task totals and cost reports see live
 # costs while the interview runs. The hidden daily spend cap never stops a running live session and
 # leaves these costs out of its total (AiUsage::DailySpend); the live allowance is its limit. Finishing closes the report: known only when the agent's final heartbeat
-# was the last one applied and every entry has a price; otherwise it stays unknown on the ledger.
+# was the last one applied, no agent took the connection over (`usage_gap`) and every entry has a
+# price; otherwise it stays unknown on the ledger.
 # Callers hold the user, interview and connection locks.
 module Interviews
   module LiveConversationBill
@@ -77,7 +78,7 @@ module Interviews
       task = connection.ai_task.lock!
       report = task.ai_usage_attempts.find_by!(attempt_id: connection.observation_id)
       entries = AiUsage::AttemptEntries.as_hashes(report)
-      known &&= entries.all? { |entry| entry.key?("cost_microdollars") }
+      known &&= !connection.usage_gap && entries.all? { |entry| entry.key?("cost_microdollars") }
       report.update!(finalized: true, incomplete: !known)
       VerificationBudget.reconcile(observation_id: connection.observation_id, cost: entries.sum { |entry| entry["cost_microdollars"] }) if known
       AiTasks::UpdateTaskService.call(task: task, attributes: { status: "completed", completed_at: Time.current }) unless task.finished?

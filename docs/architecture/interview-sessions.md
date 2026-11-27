@@ -498,7 +498,10 @@ connection and the controller restores its place from the claim: it continues th
 sequence, repeats the current question's opening if it was asked (answers go to the saved
 prompt; an answered one counts toward the cap and new words replace it), or, when feedback was
 given or a follow-up is current, greets and offers the menu (it never heard that follow-up, so
-it cannot repeat it). The re-dispatch on room re-creation and how long LiveKit keeps an emptied
+it cannot repeat it). A claim on an already `connected` connection sets its `usage_gap`, because
+the earlier agent's usage since its last heartbeat is never reported; the bill then closes
+unknown even when the new agent's final heartbeat matches (a retried claim whose reply was lost
+is treated the same way). The re-dispatch on room re-creation and how long LiveKit keeps an emptied
 room are LiveKit server behaviour, not visible in the installed packages; they need checking
 against a real LiveKit server.
 

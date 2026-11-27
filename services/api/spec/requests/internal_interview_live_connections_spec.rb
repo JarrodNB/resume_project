@@ -631,6 +631,17 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(InterviewVerificationReservation.find_by!(observation_id: connection.observation_id).actual_microdollars).to eq(120)
     end
 
+    it "keeps the bill unknown after another agent took over, even when its final heartbeat matches" do
+      answer_finished(prompt_message_id: asked_opening)
+      claim # a fresh agent claims the already connected connection; the first agent's last usage is lost
+      expect(response).to have_http_status(:ok)
+      post "#{base}/heartbeat", params: { sequence: 1, billed_seconds_delta: 30, usage: [ { model: "gpt-realtime-2.1-mini",
+        input_tokens: 10, cached_input_tokens: 0, output_tokens: 5, cost_microdollars: 120 } ] }, headers: headers, as: :json
+      finish("completed", final_sequence: 1)
+      expect(connection.reload.ai_task.ai_usage_attempts.sole).to have_attributes(finalized: true, incomplete: true)
+      expect(InterviewVerificationReservation.find_by!(observation_id: connection.observation_id).actual_microdollars).to be_nil
+    end
+
     it "keeps the bill unknown when a final heartbeat is missing or the owner ends without the agent" do
       answer_finished(prompt_message_id: asked_opening)
       finish("completed", final_sequence: 3)

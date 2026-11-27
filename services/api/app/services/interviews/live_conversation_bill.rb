@@ -1,7 +1,7 @@
 # Keeps one live connection's provider bill in the shared AI usage ledger.
 #
 # When the agent claims a connection it gets one `interview_live_conversation` AI task (sharing
-# the interview's hourly admission, like other interview child tasks), one provider observation
+# the interview's hourly admission through PreparationAdmission, like other interview child tasks), one provider observation
 # with its conservative verification reservation, and an unfinished usage report for that
 # observation. Each heartbeat adds its usage deltas to the report's running totals, one entry per
 # model (the realtime model and its input transcription), so task totals and cost reports see live
@@ -21,19 +21,24 @@ module Interviews
     MAX_COUNT = 1_000_000_000
 
     # Opens the bill once per connection; a repeat claim keeps the first one.
-    # @return [Boolean] false only when the live model has no registered reservation
+    # @return [ServiceResult] a failure when the session's preparation admission is invalid or the
+    #   live model has no registered reservation
     def self.open(connection, interview)
-      return true if connection.ai_task
+      return ServiceResult.new(success: true, value: connection.ai_task, errors: []) if connection.ai_task
 
+      admission = PreparationAdmission.call(interview)
+      return admission unless admission.success?
       observation_id = SecureRandom.uuid
-      return false unless VerificationBudget.reserve(observation_id: observation_id, stage: STAGE, provider: PROVIDER, model: REALTIME_MODEL)
+      unless VerificationBudget.reserve(observation_id: observation_id, stage: STAGE, provider: PROVIDER, model: REALTIME_MODEL)
+        return ServiceResult.new(success: false, value: nil, errors: [ "Live pricing unavailable" ])
+      end
 
       task = interview.user.ai_tasks.create!(counts_toward_trial_budget: AiUsage::SiteDailySpend.counts_user?(interview.user),
-        task_type: "interview_live_conversation", subject: interview, hourly_admission_task: interview.operations.preparation.first&.ai_task,
+        task_type: "interview_live_conversation", subject: interview, hourly_admission_task: admission.value,
         input: { live_connection_id: connection.id })
       AiTasks::RecordAttemptUsageService.call(ai_task: task, message: { "attempt_id" => observation_id, "attempt_finished" => false })
       connection.update!(ai_task: task, observation_id: observation_id)
-      true
+      ServiceResult.new(success: true, value: task, errors: [])
     end
 
     # True when `usage` is a list of at most one delta per known model with bounded counts only.

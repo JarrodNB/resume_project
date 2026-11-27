@@ -25,7 +25,7 @@ module Interviews
         end
         next success(record) if task && (!task.failed? || !retry_failed)
         next failure("#{label} retry limit reached") if record.attempt_count >= 2
-        admission = preparation_admission(interview)
+        admission = PreparationAdmission.call(interview)
         next admission unless admission.success?
         allowance = check_allowance(user: interview.user, existing_task: admission.value)
         next allowance unless allowance.success?
@@ -64,7 +64,7 @@ module Interviews
           next success({ allowed: false })
         end
         next success({ allowed: false }) if record.claimed_at
-        admission = preparation_admission(interview, task: ai_task)
+        admission = PreparationAdmission.call(interview, task: ai_task)
         unless admission.success?
           fail_task(ai_task, admission.errors.join(", "))
           next success({ allowed: false })
@@ -114,18 +114,6 @@ module Interviews
         task.input[task.interview_clarification? ? "clarification_id" : "reference_id"] == record.id &&
         (task.input["message_id"].nil? || task.input["message_id"] == record.message_id) &&
         (task.input["question_digest"].nil? || task.input["question_digest"] == Digest::SHA256.hexdigest(record.message.content))
-    end
-
-    def preparation_admission(interview, task: nil)
-      preparation = interview.operations.preparation.first
-      root = preparation&.ai_task
-      if preparation || task&.hourly_admission_task_id
-        valid = root && root.user_id == interview.user_id && root.subject == interview && root.interview_preparation? &&
-          root.hourly_admission_task_id.nil? && root.input["operation_id"] == preparation.id
-        valid &&= task.hourly_admission_task_id == root.id if task
-        return failure("Interview admission is invalid") unless valid
-      end
-      success(root)
     end
 
     def fail_task(task, message)

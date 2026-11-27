@@ -22,6 +22,7 @@ module Interviews
     def call
       return LiveConnectionAccess.invalid_request("Room name must be text") unless @room_name.is_a?(String)
 
+      refusal = nil
       LiveConnectionAccess.with_locked(@connection) do |interview|
         next failure("Live connection does not match this room") unless
           ActiveSupport::SecurityUtils.secure_compare(@room_name, @connection.room_name)
@@ -30,14 +31,18 @@ module Interviews
         # earlier agent's usage since its last heartbeat is never reported, so the bill stays unknown.
         @connection.update!(status: "connected", connected_at: @connection.connected_at || now, last_heartbeat_at: now,
           usage_gap: @connection.usage_gap || @connection.status == "connected")
-        raise ActiveRecord::Rollback unless LiveConversationBill.open(@connection, interview)
+        bill = LiveConversationBill.open(@connection, interview)
+        unless bill.success?
+          refusal = bill
+          raise ActiveRecord::Rollback
+        end
         question = interview.questions.find_by(position: interview.current_question_position)
         success({ interview_session_id: interview.id, live_connection_id: @connection.id, user_id: interview.user_id,
           question_total: interview.questions.count, current_question_position: interview.current_question_position,
           answer_cap: interview.answer_cap, current_question_retry_count: question&.live_retry_count || 0,
           session_seconds_left: LiveAllowance.session_seconds_left(interview), allowance_seconds_left: LiveAllowance.remaining_seconds(interview.user),
           heartbeat_sequence: @connection.heartbeat_sequence, **current_question_state(interview, question) })
-      end || failure("Live pricing unavailable")
+      end || refusal
     end
 
     private

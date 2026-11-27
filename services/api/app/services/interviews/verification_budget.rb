@@ -1,6 +1,7 @@
 # Record conservative cost estimates for each provider call and reconcile them with actual usage.
 # This is bookkeeping only: it does not cap or pause spending. Call inside the owner/operation
-# transaction; reconciliation takes a shared lock and no provider work runs while it is held.
+# transaction; reconciliation takes one exclusive transaction-level advisory lock (every
+# caller waits for it in turn) and no provider work runs while it is held.
 module Interviews
   module VerificationBudget
     LOCK_ID = 741_009

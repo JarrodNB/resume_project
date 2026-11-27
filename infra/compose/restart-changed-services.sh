@@ -61,10 +61,13 @@ fi
 
 [ ${#stale[@]} -gt 0 ] || exit 0
 
-# Only drain the old worker once the new one can take interviews.
+# Only drain the old worker once the new one can take interviews. livekit-agents logs
+# "registered worker" when LiveKit accepts its registration (livekit-agents 1.9.0,
+# livekit/agents/worker.py, AgentServer._handle_register). Not `docker logs | grep -q`: under
+# pipefail, grep quitting at the first match kills docker logs with SIGPIPE and fails the pipe.
 registered=""
 for _ in $(seq 1 "$LIVE_REGISTER_SECONDS"); do
-  if docker logs "$current" 2>&1 | grep -q 'registered worker'; then
+  if grep -q 'registered worker' < <(docker logs "$current" 2>&1); then
     registered=yes
     break
   fi

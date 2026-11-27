@@ -7,15 +7,37 @@ questions, the fictional role or current saved job, and the user's contact detai
 they can be masked). It never reads career references, the career library or dialogue. A saved
 job deleted while its interview runs is reported as unavailable rather than failing: Rails
 refuses a new room for such an interview, so only a running one (a takeover) gets here.
+`LiveInterviewInputs` is the record it returns; live_interviews/instructions.py turns it into
+the realtime session's instructions.
 """
+
+from dataclasses import dataclass, field
 
 from psycopg import IsolationLevel
 from psycopg.pq import TransactionStatus
 
 from database.open_read_only_connection import open_read_only_connection
-from live_interviews.instructions import LiveInterviewInputs
 from privacy.known_contact import KnownContact
 from schemas.interview_setup import InterviewSetup
+
+
+@dataclass(frozen=True)
+class LiveInterviewInputs:
+    """What the live interviewer may know about one interview, loaded read-only from Rails data.
+
+    `questions` are the prepared question texts in plan order. At most one of `role` (the
+    prepared fictional role) and `job` (the saved job's current fields) is set; `job_deleted`
+    marks a saved-job interview whose job was deleted while it ran. `contact` holds the user's
+    known contact details, used only to mask them.
+    """
+
+    setup: InterviewSetup
+    questions: tuple[str, ...]
+    role: dict | None = None
+    job: dict | None = None
+    job_deleted: bool = False
+    contact: KnownContact = field(default_factory=KnownContact)
+
 
 SESSION_QUERY = """
 SELECT s.setup_config, s.preparation_kind, s.prepared_role, s.job_id::text

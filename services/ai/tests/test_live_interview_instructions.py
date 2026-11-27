@@ -1,6 +1,7 @@
 """Check the live interviewer's instructions: persona, plan, masking and readable prose."""
 
-from live_interviews.instructions import LiveInterviewInputs, build_live_instructions
+from database.live_interview_inputs import LiveInterviewInputs
+from live_interviews.instructions import build_live_instructions
 from privacy.known_contact import KnownContact
 from schemas.interview_setup import InterviewSetup
 

@@ -22,6 +22,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+from database.live_interview_inputs import LiveInterviewInputs
 from live_interviews.agent import LiveDispatch, realtime_model_options, run_live_interview
 from live_interviews.client import (
     HeartbeatReply,
@@ -30,7 +31,6 @@ from live_interviews.client import (
     RailsClientError,
     RailsTransportError,
 )
-from live_interviews.instructions import LiveInterviewInputs
 from live_interviews.settings import AGENT_NAME, PERSONA_VOICES
 from privacy.known_contact import KnownContact
 from prompts.live_interviewer_instructions import LIVE_INTERVIEWER_PROMPT_VERSION

@@ -8,33 +8,12 @@ readable prose with headings and bullets, never a JSON dump. Career references a
 so they can never reach the interviewer.
 """
 
-from dataclasses import dataclass, field
-
+from database.live_interview_inputs import LiveInterviewInputs
 from interviews.conversation import ContextLimitExceeded, data_block, format_role, format_saved_job
 from privacy.contact_mask import contact_scope, mask_outbound
-from privacy.known_contact import KnownContact
 from prompts.interview_style import live_style
 from prompts.live_interviewer_instructions import JOB_UNAVAILABLE, LIVE_INTERVIEWER_INSTRUCTIONS
-from schemas.interview_setup import InterviewSetup
 from text_limits import MAX_PROMPT_TEXT
-
-
-@dataclass(frozen=True)
-class LiveInterviewInputs:
-    """What the live interviewer may know about one interview, loaded read-only from Rails data.
-
-    `questions` are the prepared question texts in plan order. At most one of `role` (the
-    prepared fictional role) and `job` (the saved job's current fields) is set; `job_deleted`
-    marks a saved-job interview whose job was deleted while it ran. `contact` holds the user's
-    known contact details, used only to mask them.
-    """
-
-    setup: InterviewSetup
-    questions: tuple[str, ...]
-    role: dict | None = None
-    job: dict | None = None
-    job_deleted: bool = False
-    contact: KnownContact = field(default_factory=KnownContact)
 
 
 def _question_plan(questions: tuple[str, ...]) -> str:

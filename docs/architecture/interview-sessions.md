@@ -360,7 +360,9 @@ and ask the current question. Each question then runs like this:
    stale and dropped; a refused answer is not counted as saved, so the next save reports it again.
 2. The candidate's final transcripts for the current prompt are joined and reported through
    `answer_finished` (`prompt_message_id`, `transcript`) when the interviewer moves on (an
-   accepted follow-up, the next question, `finish_answer` or End interview).
+   accepted follow-up, the next question, `finish_answer` or End interview). Rails accepts at most
+   4,000 characters (`TextLimits::PROSE`), so the controller reports a longer answer cut at a
+   word boundary, keeping its beginning (`ANSWER_LIMIT`; a test on each side pins the number).
    `RecordLiveAnswerService` saves the prompt's answer (semantic key `live_answer:<prompt id>`)
    and increments `accepted_answer_count`; a later report for the same prompt replaces the text
    (only the latest is kept) without counting again. New answers go only to the latest prompt of

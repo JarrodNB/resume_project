@@ -10,7 +10,9 @@ live conversation's place.
 The flow per question: the interviewer asks the opening, the candidate answers (their final
 transcripts may arrive in several pieces and are joined), and the interviewer may ask
 follow-ups until the question has `answer_cap` answers. Moving on saves the pending answer for
-the current prompt; more words for an already saved prompt replace its answer.
+the current prompt; more words for an already saved prompt replace its answer. Rails keeps at
+most `ANSWER_LIMIT` characters of an answer, so a longer one is reported cut at a word boundary
+(its beginning is kept), rather than being refused on every resend.
 
 Tool decisions see the whole answer: the realtime provider may send the candidate's final
 transcript after the reply (and tool call) it prompted has started, so the adapter holds a tool
@@ -84,6 +86,8 @@ Question positions are zero-based, matching Rails.
 import math
 from dataclasses import dataclass
 from typing import Literal
+
+from text_limits import MAX_PROSE_TEXT
 
 Phase = Literal["asking", "answering", "feedback", "menu", "closing", "ended"]
 
@@ -403,6 +407,7 @@ ASK_FOLLOW_UP = ("Ask that follow-up now in one short, natural spoken question. 
 REPEAT = ("Repeat the current question or follow-up now, clearly and with the same meaning. You may "
           "rephrase it slightly. Do not ask anything new.")
 FEEDBACK_LIMIT = 1_500  # characters Rails keeps for one question's feedback
+ANSWER_LIMIT = MAX_PROSE_TEXT  # characters Rails accepts for one answer (TextLimits::PROSE)
 FEEDBACK_AT_END = ("This question is done. Step out of the interviewer role now: start with \"Quick feedback:\" "
                    "and, in about 20 seconds, give one specific strength and one specific fix for the candidate's "
                    "answers to this question. Give only the feedback in this turn: do not offer choices yet and do "
@@ -470,6 +475,15 @@ WRAP_UP = {
     "allowance": ("The candidate has used their live minutes for now. In one or two short sentences, say that their "
                   "live minutes are used up for now, thank them warmly and say goodbye. Do not ask anything else."),
 }
+
+
+def _bounded_answer(transcript: str) -> str:
+    """Keep the beginning of an answer Rails would refuse as too long, cut between words."""
+    if len(transcript) <= ANSWER_LIMIT:
+        return transcript
+    head = transcript[:ANSWER_LIMIT + 1]
+    cut = head.rsplit(" ", 1)[0] if " " in head else head
+    return cut[:ANSWER_LIMIT].rstrip()
 
 
 class LiveInterviewController:
@@ -819,7 +833,7 @@ class LiveInterviewController:
         """Report the current prompt's answer if Rails doesn't have these exact words yet. Until
         Rails has recorded the prompt (its report was lost and is being resent), the answer waits
         and is reported with the prompt's receipt."""
-        transcript = " ".join(self._answer_pieces)
+        transcript = _bounded_answer(" ".join(self._answer_pieces))
         if not transcript or self._prompt is None or transcript == self._saved_answer:
             return []
         if self._saved_answer is None:

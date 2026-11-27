@@ -272,6 +272,16 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(interview.reload.revision).to eq(revision)
     end
 
+    # The live agent cuts longer answers to this limit before reporting them
+    # (services/ai/tests/test_live_interview_controller.py pins ANSWER_LIMIT to the same number).
+    it "accepts an answer of exactly 4,000 characters, the live agent's limit" do
+      expect(TextLimits::PROSE).to eq(4_000)
+      opening_id = asked_opening
+      answer_finished(prompt_message_id: opening_id, transcript: "x" * 4_000)
+      expect(response).to have_http_status(:ok)
+      expect(interview.messages.answer.sole.content.length).to eq(4_000)
+    end
+
     it "refuses blank, oversized, unknown or non-current prompts and ended connections without saving" do
       opening_id = asked_opening
       answer_finished(prompt_message_id: opening_id, transcript: "   ")

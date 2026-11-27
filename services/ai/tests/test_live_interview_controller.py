@@ -932,3 +932,25 @@ def test_an_answer_rails_refused_is_not_counted_as_saved():
     assert controller.handle(FinishAnswer())[0] == report  # still unsaved, so it is reported again
     controller.handle(AskFollowUp(question_text="Why?"))
     assert controller.handle(InterviewerTurnFinished(text="Why?"))[0].prompt_key == "q0-r0-f1"  # counted once
+
+
+def test_a_long_answer_is_cut_at_a_word_to_the_rails_limit():
+    """Rails refuses answers over 4,000 characters (TextLimits::PROSE; the Rails spec
+    internal_interview_live_connections_spec.rb pins the same number), so the reported answer
+    keeps the beginning, cut at a word boundary, instead of being refused on every resend."""
+    from live_interviews.controller import ANSWER_LIMIT
+
+    assert ANSWER_LIMIT == 4_000
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    words = " ".join(f"word{index}" for index in range(1_000))  # about 6,900 characters
+    controller.handle(CandidateTurnFinished(text=words))
+    controller.handle(CandidateTurnFinished(text="the end"))
+    actions = controller.handle(FinishAnswer())
+    report = next(action for action in actions if isinstance(action, ReportAnswerFinished))
+    assert len(report.transcript) <= ANSWER_LIMIT
+    assert words.startswith(report.transcript)
+    assert words[len(report.transcript)] == " "  # cut between words, never inside one
+    assert len(report.transcript) > ANSWER_LIMIT - 20
+    again = controller.handle(FinishAnswer())  # the same words: nothing is reported again
+    assert not any(isinstance(action, ReportAnswerFinished) for action in again)

@@ -8,6 +8,7 @@ from live_interviews.client import HeartbeatReply, LiveConnectionEnded, RailsCli
 from live_interviews.controller import (
     AnswerNotSaved,
     ConnectionEnded,
+    PromptNotSaved,
     PromptRecorded,
     ReportAnswerFinished,
     ReportFinish,
@@ -86,6 +87,19 @@ def test_an_answer_rails_refused_is_dropped_and_reported_back_as_not_saved():
     run(scenario())
     assert harness.events == [AnswerNotSaved("opening-0", "I rebuilt the scheduler.")]
     assert len(harness.calls("answer_finished")) == 1  # never resent on its own
+
+
+def test_a_prompt_rails_refused_is_dropped_and_reported_back_as_not_saved():
+    harness = Harness()
+    harness.rails.refuse_reports.add("prompt_asked")  # e.g. "No more follow-ups for this question"
+
+    async def scenario():
+        await harness.reporter.send(FOLLOW_UP)
+        await harness.reporter.flush()
+
+    run(scenario())
+    assert harness.events == [PromptNotSaved(question_position=0, prompt_key="q0-r0-f1")]
+    assert len(harness.calls("prompt_asked")) == 1  # never resent on its own
 
 
 def test_connection_ended_stops_everything_and_is_reported_once():

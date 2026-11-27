@@ -417,6 +417,10 @@ and ask the current question. Each question then runs like this:
    openings, prompt keys and answer replacement make them idempotent. An answer to a prompt whose
    receipt has not arrived waits and is reported with it. A report Rails refuses outright is
    stale and dropped; a refused answer is not counted as saved, so the next save reports it again.
+   A refused prompt (such as a follow-up past the cap) leaves its answer nothing to be saved to:
+   an answer waiting for its receipt is dropped and no longer counted, and later words to it are
+   still heard (feedback and the cap see them) but never reported, so the next follow-up is keyed
+   from Rails' count of saved answers.
 2. The candidate's final transcripts for the current prompt are joined and reported through
    `answer_finished` (`prompt_message_id`, `transcript`) when the interviewer moves on (an
    accepted follow-up, the next question, `finish_answer` or End interview). Rails accepts at most

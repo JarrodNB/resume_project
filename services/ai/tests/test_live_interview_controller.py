@@ -25,6 +25,7 @@ from live_interviews.controller import (
     MenuChoice,
     NextQuestion,
     OfferMenu,
+    PromptNotSaved,
     PromptRecorded,
     PublishRoomState,
     RepeatQuestion,
@@ -1045,6 +1046,54 @@ def test_an_answer_rails_refused_is_not_counted_as_saved():
     assert controller.handle(FinishAnswer())[0] == report  # still unsaved, so it is reported again
     controller.handle(AskFollowUp(question_text="Why?"))
     assert controller.handle(InterviewerTurnFinished(text="Why?"))[0].prompt_key == "q0-r0-f1"  # counted once
+
+
+def asked_follow_up(controller, answer="I rebuilt the scheduler."):
+    """The candidate answers the recorded opening and the interviewer asks follow-up q0-r0-f1."""
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text=answer))
+    controller.handle(AskFollowUp(question_text="What changed?"))
+    controller.handle(InterviewerTurnFinished(text="What changed for the team?"))
+
+
+def test_an_answer_to_a_follow_up_rails_refused_is_dropped_and_not_counted():
+    controller, _ = started_controller(answer_cap=3)
+    asked_follow_up(controller)
+    controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
+    assert not any(isinstance(action, ReportAnswerFinished) for action in controller.handle(FinishAnswer()))
+    # The follow-up's report comes back refused, so its waiting answer has nowhere to go.
+    assert controller.handle(PromptNotSaved(question_position=0, prompt_key="q0-r0-f1")) == []
+    assert controller.handle(PromptRecorded(question_position=0, message_id="late", prompt_key="q0-r0-f1")) == []
+    actions = controller.handle(AskFollowUp(question_text="Anything else?"))
+    assert not any(isinstance(action, ReportAnswerFinished) for action in actions)
+    assert "ask" in tool_text(actions).lower()
+    # Rails still has one answer, so the next follow-up is asked at the same point.
+    assert controller.handle(InterviewerTurnFinished(text="Anything else?"))[0].prompt_key == "q0-r0-f1"
+
+
+def test_words_answering_a_follow_up_rails_already_refused_are_never_reported():
+    controller, _ = started_controller(answer_cap=2)
+    asked_follow_up(controller)
+    assert controller.handle(PromptNotSaved(question_position=0, prompt_key="q0-r0-f1")) == []
+    controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
+    actions = controller.handle(FinishAnswer())
+    assert not any(isinstance(action, ReportAnswerFinished) for action in actions)
+    assert controller.handle(PromptRecorded(question_position=0, message_id="late", prompt_key="q0-r0-f1")) == []
+
+
+def test_a_refused_prompt_for_another_question_only_drops_its_waiting_answer():
+    controller, _ = started_controller(answer_cap=3)
+    controller.handle(InterviewerTurnFinished(text="Tell me about a project."))  # its report is being resent
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    controller.handle(NextQuestion())  # the answer waits for the opening's receipt
+    controller.handle(InterviewerTurnFinished(text="Quick feedback: clear."))
+    controller.handle(NextQuestion())
+    asked_and_recorded(controller, position=1, message_id="opening-1")
+    assert controller.handle(PromptNotSaved(question_position=0)) == []  # question 1 is no longer current
+    assert controller.handle(PromptRecorded(question_position=0, message_id="opening-0")) == []
+    controller.handle(CandidateTurnFinished(text="I listen first."))
+    assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(prompt_message_id="opening-1",
+                                                                        transcript="I listen first.")
 
 
 def test_a_long_answer_is_cut_at_a_word_to_the_rails_limit():

@@ -108,6 +108,15 @@ class PromptRecorded:
 
 
 @dataclass(frozen=True)
+class PromptNotSaved:
+    """Rails refused the prompt reported for `question_position` (the opening, or the follow-up
+    named `prompt_key`) outright, for example a follow-up past the answer cap, so it was not saved."""
+
+    question_position: int
+    prompt_key: str | None = None
+
+
+@dataclass(frozen=True)
 class AnswerNotSaved:
     """Rails refused this answer report outright (it was stale), so it was not saved."""
 
@@ -235,8 +244,8 @@ class SessionClosed:
     without finishing so the candidate can rejoin or a fresh agent can take over.)"""
 
 
-LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AnswerNotSaved | AskFollowUp
-             | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
+LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | PromptNotSaved | AnswerNotSaved
+             | AskFollowUp | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
              | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken
              | CandidateLeft | CandidateJoined | ConnectionEnded | SessionClosed)
 ToolEvent = (AskFollowUp | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint
@@ -441,6 +450,8 @@ class LiveInterviewController:
         if isinstance(event, PromptRecorded) and self._question_position is not None:
             # Also after the finish: an answer heard before it still waits for its prompt's receipt.
             return self._prompt_recorded(event)
+        if isinstance(event, PromptNotSaved) and self._question_position is not None:
+            return self._prompt_not_saved(event)
         if self._question_position is None or self._phase == "ended":
             return []
         if isinstance(event, HeartbeatDue):
@@ -532,6 +543,19 @@ class LiveInterviewController:
             self._prompt_message_id = event.message_id
         transcript = self._unrecorded_answers.pop(prompt, None)
         return [ReportAnswerFinished(event.message_id, transcript)] if transcript else []
+
+    def _prompt_not_saved(self, event: PromptNotSaved) -> list[LiveAction]:
+        """Rails refused a prompt, so answers to it have nothing to be saved to. An answer waiting
+        for its receipt is dropped and no longer counted. If it is the current prompt, the
+        candidate's words to it are still heard (feedback and the answer cap see them) but never
+        reported, matching Rails, which has no such prompt."""
+        prompt = (event.question_position, event.prompt_key)
+        waiting = self._unrecorded_answers.pop(prompt, None)
+        if waiting is not None and event.question_position == self._question_position:
+            self._answered_prompts = max(self._answered_prompts - 1, 0)  # a retry or move-on already reset it
+        if prompt == self._prompt and self._prompt_message_id is None:
+            self._prompt, self._saved_answer, self._saved_before = None, None, None
+        return []
 
     def _tick(self, now: float) -> list[LiveAction]:
         """Count session time, then time the one nudge per answer and the menu's idle close."""

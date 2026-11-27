@@ -342,7 +342,7 @@ class LiveInterviewRunner:
         return ENDED if self._reporter.ended and result is not None else result
 
     async def _rails_event(self, event: LiveEvent) -> list:
-        """What a Rails answer means for the controller (a prompt's receipt, a refused answer, or the
+        """What a Rails answer means for the controller (a prompt's receipt, a refused prompt or answer, or the
         connection ended); returns the reports it raises, which the reporter sends next. Called by
         the delivery task, never while the lock is held."""
         if isinstance(event, ConnectionEnded):

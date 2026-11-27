@@ -3,7 +3,7 @@
 The controller decides what happened; this module decides how it reaches Rails, and knows nothing
 about LiveKit. Reports go in order and one whose answer was lost is resent unchanged before
 anything newer; a lost heartbeat is resent unchanged before the next one; Rails' answers that
-matter to the controller (a prompt's receipt, a refused answer, the connection ending) go back
+matter to the controller (a prompt's receipt, a refused prompt or answer, the connection ending) go back
 to it as events. Only counts and the controller's report fields are sent, and spoken text is
 never logged. The rules are in docs/architecture/interview-sessions.md, "Questions, answers and
 coaching" and "Time, live minutes and heartbeats".
@@ -23,6 +23,7 @@ from live_interviews.controller import (
     AnswerNotSaved,
     ConnectionEnded,
     LiveEvent,
+    PromptNotSaved,
     PromptRecorded,
     ReportAnswerFinished,
     ReportFeedbackGiven,
@@ -56,7 +57,7 @@ class LiveReporter:
     """Send one connection's interview reports, heartbeats and finish to Rails.
 
     `on_event(event)` hears what Rails' answers mean for the controller (`PromptRecorded`,
-    `AnswerNotSaved`, `ConnectionEnded`) and returns the reports that raises, to send next.
+    `PromptNotSaved`, `AnswerNotSaved`, `ConnectionEnded`) and returns the reports that raises, to send next.
     `usage_totals()` returns the session's running provider usage for heartbeats.
     """
 
@@ -174,9 +175,11 @@ class LiveReporter:
 
 
 def _report_outcome(report, outcome) -> LiveEvent | None:
-    """The controller hears when Rails records a prompt, and when it refuses an answer."""
+    """The controller hears when Rails records a prompt, and when it refuses a prompt or an answer."""
     if isinstance(report, ReportPromptAsked) and outcome and isinstance(outcome.get("message_id"), str):
         return PromptRecorded(report.question_position, outcome["message_id"], prompt_key=report.prompt_key)
+    if isinstance(report, ReportPromptAsked) and outcome is None:
+        return PromptNotSaved(report.question_position, prompt_key=report.prompt_key)
     if isinstance(report, ReportAnswerFinished) and outcome is None:
         return AnswerNotSaved(report.prompt_message_id, report.transcript)
     return None

@@ -35,4 +35,15 @@ RSpec.describe "accountExport query" do
     expect(exported.last).to include("memory_anchor" => "Retired cue", "answer_text" => "Kept answer")
     expect(exported.last["retired_at"]).to be_present
   end
+
+  it "exports a spoken interview's live feedback with the question it was given for" do
+    user = create(:user, summary: "I maintain laboratory instruments.")
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
+    interview = ready_live_interview(user)
+    first, second = interview.questions.order(:position).first(2)
+    first.update!(live_feedback: "Lead with the result.")
+    exported = execute_graphql(query, user: user).dig("data", "accountExport", "interview_sessions", 0)
+    expect(exported["questions"]).to include(first.content, second.content)
+    expect(exported["live_feedback"]).to eq([ { "question" => first.content, "feedback" => "Lead with the result." } ])
+  end
 end

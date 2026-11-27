@@ -65,7 +65,8 @@ The `accountExport` GraphQL query returns a JSON document built by
 fields explicitly, so password hashes, sessions, screening receipts, embeddings and AI
 bookkeeping are never included. It covers the profile, career library, jobs with gap
 responses, resumes with sections, chats, written practice, spoken interviews whose content
-has not expired and avoided questions. Uploaded files are not included.
+has not expired (questions, transcript, a live interview's per-question coaching feedback and the
+final feedback) and avoided questions. Uploaded files are not included.
 The field has a high complexity cost so a request can fetch it only once.
 
 The web app saves the result as `careerdrafter-export-YYYY-MM-DD.json` without caching it in

@@ -84,7 +84,8 @@ module Accounts
       end
     end
 
-    # Expired sessions keep only placeholders, so leave their dialogue out.
+    # Expired sessions keep only placeholders, so leave their dialogue out. A live interview's spoken
+    # coaching feedback is saved per question, so it is listed with the question it was given for.
     def interview_sessions
       @user.interview_sessions.includes(:questions, :messages, :feedback).map do |interview|
         details = interview.slice(:interview_type, :status, :career_focus, :created_at, :completed_at, :expires_at)
@@ -92,6 +93,7 @@ module Accounts
 
         details.merge(questions: interview.questions.map(&:content),
           messages: pick(interview.messages, :kind, :content, :created_at),
+          live_feedback: interview.questions.select(&:live_feedback).map { |question| { question: question.content, feedback: question.live_feedback } },
           feedback: interview.feedback&.content)
       end
     end

@@ -5,6 +5,7 @@
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit, except that
  * optional hands-free mode pauses on silence and sends after a countdown the candidate can stop.
+ * Live sessions share preparation and review, but entering the room opens LiveInterviewRoom instead.
  */
 import { useCallback, useEffect, useEffectEvent, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
@@ -29,6 +30,7 @@ import { InterviewCareerReferences } from './InterviewCareerReferences'
 import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
 import { InterviewPreparation } from './InterviewPreparation'
+import { LiveInterviewRoom } from './LiveInterviewRoom'
 import { InterviewJobSource } from './InterviewJobSource'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
@@ -84,6 +86,17 @@ export function InterviewPrivacy() {
 function OwnedInterview({ id }: { id: string }) {
   const { user } = useAuth()
   const state = useInterviewSession(id, user?.id ?? '')
+  const [liveEntered, setLiveEntered] = useState(false)
+  const interview = state.interview
+  const live = interview?.conversationMode === 'live'
+  if (interview && live && !state.loadError && (interview.status === 'active' || (interview.status === 'ready' && liveEntered))) return <LiveInterviewRoom interview={interview} />
+  return <TurnBasedInterview id={id} state={state} begin={live ? async () => setLiveEntered(true) : state.beginInterview} />
+}
+
+/** Preparation, the turn-based room and completed review. A live session uses it until it enters
+ * its room, so `begin` opens the live room for live sessions and calls beginInterview otherwise. */
+function TurnBasedInterview({ id, state, begin }: { id: string; state: ReturnType<typeof useInterviewSession>; begin: () => Promise<void> }) {
+  const { user } = useAuth()
   const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
   const startStreaming = useInterviewStreaming(state.interview)
   const [abandoned, setAbandoned] = useState(false)
@@ -167,7 +180,7 @@ function OwnedInterview({ id }: { id: string }) {
   const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/practice/interviews">Recent interviews</Link>
   if (abandoned || interview.status === 'abandoned') return <>{recordingWarning}<Navigate to={interview.jobContext?.id ? `/jobs/${interview.jobContext.id}/interview` : '/practice/interviews'} replace state={{ interviewEnded: 'abandoned' }} /></>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
-  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} errorCode={state.errorCode} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
+  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} errorCode={state.errorCode} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={begin} />{abandonControl}<InterviewPrivacy /></>
   const browserSpeech = interview.speechPlaybackMode === 'browser'
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)

@@ -24,7 +24,7 @@ vi.mock('livekit-client', () => {
     on(event: string, handler: (...values: unknown[]) => void) { this.handlers.set(event, handler); return this }
     registerTextStreamHandler(topic: string, handler: TextHandler) { this.textHandlers.set(topic, handler) }
   }
-  return { Room, RoomEvent: { ParticipantConnected: 'participantConnected', ParticipantAttributesChanged: 'participantAttributesChanged', TrackSubscribed: 'trackSubscribed', Disconnected: 'disconnected', Reconnecting: 'reconnecting', Reconnected: 'reconnected' }, Track: { Kind: { Audio: 'audio' } } }
+  return { Room, RoomEvent: { ParticipantConnected: 'participantConnected', ParticipantDisconnected: 'participantDisconnected', ParticipantAttributesChanged: 'participantAttributesChanged', TrackSubscribed: 'trackSubscribed', Disconnected: 'disconnected', Reconnecting: 'reconnecting', Reconnected: 'reconnected' }, Track: { Kind: { Audio: 'audio' } } }
 })
 
 /** A text stream that yields its chunks, like a LiveKit transcription segment. */
@@ -58,6 +58,20 @@ it('joins through Rails, connects with the token, enables the microphone and not
   expect(view.result.current.agentJoined).toBe(true)
   view.unmount()
   expect(room.disconnect).toHaveBeenCalled()
+})
+
+it('clears the joined interviewer and its progress when the agent participant leaves', async () => {
+  const { view, room } = await connectedRoom()
+  const agent = { isAgent: true, attributes: { 'cd.question_position': '1', 'cd.question_total': '5', 'cd.phase': 'menu', 'cd.menu_offered': 'true' } }
+  act(() => room.handlers.get('participantConnected')!(agent))
+  expect(view.result.current).toMatchObject({ agentJoined: true, agentLeft: false })
+  act(() => room.handlers.get('participantDisconnected')!({ isAgent: false, attributes: {} }))
+  expect(view.result.current.agentJoined).toBe(true)
+  act(() => room.handlers.get('participantDisconnected')!(agent))
+  expect(view.result.current).toMatchObject({ agentJoined: false, agentLeft: true })
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false })
+  act(() => room.handlers.get('participantConnected')!(agent))
+  expect(view.result.current).toMatchObject({ agentJoined: true, agentLeft: false })
 })
 
 it('fails with the Rails refusal without connecting', async () => {

@@ -6,7 +6,8 @@
  * question again, Get a hint, Move on) while the agent says the menu is offered; while the
  * candidate answers it offers "How was that?". Each button sends the same choice as saying it. The
  * career references panel works exactly as in the turn-based room, for the prompt the agent
- * saved. If the interviewer hasn't joined within 15 seconds, or joining fails, it offers to
+ * saved. If the interviewer hasn't joined within 15 seconds (or left and hasn't come back within
+ * 15 seconds; the room then says it left), or joining fails, it offers to
  * start a new turn-based interview with the same setup (a fresh preparation, so new questions);
  * taking it ends the live room as failed so the live session doesn't stay active. If the
  * connection drops it shows "Reconnecting…" while LiveKit retries, and after a full disconnect a
@@ -50,6 +51,7 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
     : room.status === 'reconnecting' ? 'Reconnecting…'
     : room.status === 'disconnected' ? 'You were disconnected. Your interviewer waits about 2 minutes.'
     : room.status === 'connected' && room.agentJoined ? 'Connected. Your interviewer is here.'
+    : room.status === 'connected' && room.agentLeft ? 'Your interviewer left the room. Waiting for them to come back…'
     : room.status === 'connected' ? 'Waiting for your interviewer…'
     : 'Could not connect to the live room.'
   const showFallback = room.status === 'failed' || (timedOut && waitingForAgent)

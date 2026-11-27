@@ -51,7 +51,7 @@ class FakeParticipant:
 
 
 class FakeRoom:
-    name = "interview-session-room"
+    name = ""  # LiveKit fills the room's name only once the agent has joined
 
     def __init__(self):
         self.local_participant, self.handlers = FakeParticipant(), {}
@@ -70,6 +70,7 @@ def candidate():
 
 class FakeJob:
     metadata = METADATA
+    room = SimpleNamespace(name="interview-session-room")  # the dispatched room, known before joining
 
 
 class FakeContext:
@@ -79,6 +80,7 @@ class FakeContext:
 
     async def connect(self):
         self.connected = True
+        self.room.name = self.job.room.name
 
     def add_shutdown_callback(self, callback):
         self.shutdown_callbacks.append(callback)
@@ -438,12 +440,49 @@ def test_a_refused_finish_is_an_rpc_error_so_the_browser_finishes_through_rails(
     asyncio.run(scenario())
 
 
-def test_a_refused_claim_ends_the_job_without_starting_a_session():
+def test_a_refused_claim_ends_the_job_without_joining_the_room_or_starting_a_session():
     rails, sessions = FakeRails(refuse=True), []
     ctx, go = run_interview(rails, sessions)
     asyncio.run(go())
-    assert sessions == [] and ctx.shutdown_reason
+    assert sessions == [] and ctx.shutdown_reason and not ctx.connected
     assert rails.calls == [("claim", "live", "interview-session-room")]
+
+
+def test_the_agent_joins_the_room_only_after_the_claim_and_inputs_are_read():
+    rails, ctx = FakeRails(), FakeContext()
+    seen = []
+
+    def read_inputs(**ids):
+        seen.append(ctx.connected)
+        return fake_inputs(**ids)
+
+    async def scenario():
+        await run_live_interview(ctx, rails=rails, read_inputs=read_inputs, make_session=lambda persona: FakeSession())
+        await settle()
+
+    asyncio.run(scenario())
+    assert seen == [False] and ctx.connected
+
+
+def test_a_failure_after_the_claim_finishes_the_connection_as_failed_before_leaving():
+    """The browser would otherwise wait in a room no interviewer ever joins."""
+    def unreadable(**ids):
+        raise ValueError("inputs changed")
+
+    def broken_session(persona):
+        session = FakeSession()
+
+        async def start(*args, **kwargs):
+            raise RuntimeError("realtime model unavailable")
+        session.start = start
+        return session
+
+    for read_inputs, make_session, joined in ((unreadable, lambda persona: FakeSession(), False),
+                                              (fake_inputs, broken_session, True)):
+        rails, ctx = FakeRails(), FakeContext()
+        asyncio.run(run_live_interview(ctx, rails=rails, read_inputs=read_inputs, make_session=make_session))
+        assert ctx.connected is joined and ctx.shutdown_reason
+        assert rails.calls == [("claim", "live", "interview-session-room"), ("finish", "live", {"reason": "failed"})]
 
 
 def test_dispatch_metadata_holds_only_the_two_ids():

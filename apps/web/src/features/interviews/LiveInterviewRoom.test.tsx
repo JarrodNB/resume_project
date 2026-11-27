@@ -15,7 +15,7 @@ const { state, start, live } = vi.hoisted(() => ({
 }))
 const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 function liveRoom(change: Record<string, unknown> = {}) {
-  return { status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
+  return { status: 'joining', agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),
     rejoin: vi.fn().mockResolvedValue(undefined), leaveForTurnBased: vi.fn().mockResolvedValue(undefined), ...change }
 }
@@ -123,6 +123,16 @@ it('offers the fallback at once when joining fails, keeping a saved job', async 
   expect(screen.getByRole('alert')).toHaveTextContent('Live interviews are not configured.')
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'TURN_BASED'))
+})
+
+it('says the interviewer left and offers the fallback again if no interviewer returns within 15 seconds', () => {
+  vi.useFakeTimers()
+  live.value = liveRoom({ status: 'connected', agentJoined: false, agentLeft: true })
+  renderInterview()
+  expect(screen.getByRole('status')).toHaveTextContent('Your interviewer left the room. Waiting for them to come back…')
+  expect(screen.queryByRole('button', { name: 'Start a turn-based interview with the same setup' })).not.toBeInTheDocument()
+  act(() => { vi.advanceTimersByTime(15_000) })
+  expect(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' })).toBeVisible()
 })
 
 it('does not offer the fallback once the interviewer has joined', () => {

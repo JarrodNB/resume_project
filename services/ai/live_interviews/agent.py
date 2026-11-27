@@ -2,7 +2,8 @@
 
 This adapter stays thin on purpose. It reads the dispatch metadata (only the session and
 connection IDs), claims the connection with Rails, loads the interview's inputs read-only,
-builds the instructions and starts a LiveKit `AgentSession` on the OpenAI realtime model. From
+builds the instructions, and only then joins the room and starts a LiveKit `AgentSession` on the
+OpenAI realtime model; a failure after the claim finishes the connection as `failed`. From
 then on it forwards events into the controller: final transcripts of both sides, the model's
 interview tools (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`,
 `give_feedback`, `offer_menu`, `give_hint`, `retry_question`), a clock tick about once a second
@@ -67,10 +68,8 @@ from livekit.agents import (
 from openai.types.realtime import AudioTranscription
 from openai.types.realtime.realtime_audio_input_turn_detection import ServerVad
 from opentelemetry import trace
-from psycopg import Error as DatabaseError
 from pydantic import BaseModel, ConfigDict
 
-from interviews.conversation import ContextLimitExceeded
 from live_interviews.client import (
     HeartbeatReply,
     LiveConnectionEnded,
@@ -459,6 +458,14 @@ class LiveInterviewRunner:
             self._leave()
 
 
+async def _finish_failed_start(rails, connection_id: str) -> None:
+    """Tell Rails a claimed connection could not start, so it finishes the interview now."""
+    try:
+        await rails.finish(connection_id, reason="failed")
+    except (RailsClientError, RailsTransportError) as error:
+        logger.warning("Live interview failed start was not recorded: %s", type(error).__name__)
+
+
 class LiveInterviewerAgent(Agent):
     """The realtime interviewer. Its tools only forward to the controller and return its answer."""
 
@@ -526,58 +533,64 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
     `tick_seconds` and `heartbeat_seconds` drive the controller's clock and heartbeats (tests pass
     a fake clock); `transcript_wait_seconds` bounds how long a tool call waits for a late final
     transcript. `tracer` makes the job's root span (the global tracer by default).
-    A refused or unreadable start ends the job without starting the model.
+
+    The agent joins the room only after the claim and the input read succeed, so the browser never
+    sees an interviewer that cannot start. A refused claim ends the job without joining. Anything
+    that fails after a successful claim finishes the connection as `failed` before the job ends,
+    so Rails closes the interview instead of leaving the candidate in a silent room.
     """
     ctx.add_shutdown_callback(rails.aclose)
     tracer = tracer or trace.get_tracer("live_interviews")
-    span = None
-    await ctx.connect()
+    span = claim = None
     try:
         dispatch = LiveDispatch.model_validate_json(ctx.job.metadata)
         span = tracer.start_span("live_interview.session", attributes={
             "interview_session_id": dispatch.interview_session_id, "live_connection_id": dispatch.live_connection_id})
+        # LiveKit's session spans and our tasks join this trace.
         with trace.use_span(span, end_on_exit=False):
-            claim = await rails.claim(dispatch.live_connection_id, room_name=ctx.room.name)
+            claim = await rails.claim(dispatch.live_connection_id, room_name=ctx.job.room.name)
             if claim.interview_session_id != dispatch.interview_session_id:
                 raise ValueError("Live claim belongs to another interview")
             inputs = await asyncio.to_thread(read_inputs, interview_id=claim.interview_session_id,
                                              user_id=claim.user_id, connection_id=claim.live_connection_id)
             instructions = build_live_instructions(inputs)
-    except (RailsClientError, RailsTransportError, DatabaseError, ContextLimitExceeded, ValueError) as error:
+            await ctx.connect()
+            session = make_session(inputs.setup.interviewer)
+            runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id,
+                                         room=ctx.room, leave=lambda: ctx.shutdown(reason="live interview finished"),
+                                         clock=clock, transcript_wait_seconds=transcript_wait_seconds)
+            session.on("conversation_item_added", runner.on_conversation_item_added)
+            session.on("agent_state_changed", runner.on_agent_state_changed)
+            session.on("user_state_changed", runner.on_user_state_changed)
+            ctx.room.local_participant.register_rpc_method("interview.choose", runner.choose)
+            ctx.room.on("participant_connected", runner.on_participant_connected)
+            ctx.room.on("participant_disconnected", runner.on_participant_disconnected)
+            await session.start(LiveInterviewerAgent(instructions=instructions, runner=runner), room=ctx.room,
+                                record=False, room_options=room_io.RoomOptions(close_on_disconnect=False))
+            if not any(participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT
+                       for participant in ctx.room.remote_participants.values()):
+                await runner.handle(CandidateLeft(clock()))  # a fresh agent in an emptied room waits for the candidate
+            await runner.handle(Started(question_position=claim.current_question_position,
+                                        question_total=claim.question_total, answer_cap=claim.answer_cap,
+                                        session_seconds_left=claim.session_seconds_left,
+                                        retry_count=claim.current_question_retry_count,
+                                        heartbeat_sequence=claim.heartbeat_sequence,
+                                        current_prompt_message_id=claim.current_prompt_message_id,
+                                        current_prompt_kind=claim.current_prompt_kind,
+                                        current_prompt_answered=claim.current_prompt_answered,
+                                        answer_count=claim.current_question_answer_count,
+                                        feedback_given=claim.current_question_feedback_given))
+            background = [asyncio.create_task(runner.tick_forever(tick_seconds)),
+                          asyncio.create_task(runner.heartbeat_forever(heartbeat_seconds))]
+    except Exception as error:  # noqa: BLE001 - any start failure ends the job; a claimed one is finished first
         logger.warning("Live interview could not start: %s", type(error).__name__)
+        if claim is not None:
+            await _finish_failed_start(rails, claim.live_connection_id)
         if span is not None:
             span.set_status(trace.Status(trace.StatusCode.ERROR, type(error).__name__))
             span.end()
         ctx.shutdown(reason="live interview unavailable")
         return
-    with trace.use_span(span, end_on_exit=False):  # LiveKit's session spans and our tasks join this trace
-        session = make_session(inputs.setup.interviewer)
-        runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id,
-                                     room=ctx.room, leave=lambda: ctx.shutdown(reason="live interview finished"),
-                                     clock=clock, transcript_wait_seconds=transcript_wait_seconds)
-        session.on("conversation_item_added", runner.on_conversation_item_added)
-        session.on("agent_state_changed", runner.on_agent_state_changed)
-        session.on("user_state_changed", runner.on_user_state_changed)
-        ctx.room.local_participant.register_rpc_method("interview.choose", runner.choose)
-        ctx.room.on("participant_connected", runner.on_participant_connected)
-        ctx.room.on("participant_disconnected", runner.on_participant_disconnected)
-        await session.start(LiveInterviewerAgent(instructions=instructions, runner=runner), room=ctx.room,
-                            record=False, room_options=room_io.RoomOptions(close_on_disconnect=False))
-        if not any(participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT
-                   for participant in ctx.room.remote_participants.values()):
-            await runner.handle(CandidateLeft(clock()))  # a fresh agent in an emptied room waits for the candidate
-        await runner.handle(Started(question_position=claim.current_question_position,
-                                    question_total=claim.question_total, answer_cap=claim.answer_cap,
-                                    session_seconds_left=claim.session_seconds_left,
-                                    retry_count=claim.current_question_retry_count,
-                                    heartbeat_sequence=claim.heartbeat_sequence,
-                                    current_prompt_message_id=claim.current_prompt_message_id,
-                                    current_prompt_kind=claim.current_prompt_kind,
-                                    current_prompt_answered=claim.current_prompt_answered,
-                                    answer_count=claim.current_question_answer_count,
-                                    feedback_given=claim.current_question_feedback_given))
-        background = [asyncio.create_task(runner.tick_forever(tick_seconds)),
-                      asyncio.create_task(runner.heartbeat_forever(heartbeat_seconds))]
 
     async def stop_and_record_cost() -> None:
         for task in background:

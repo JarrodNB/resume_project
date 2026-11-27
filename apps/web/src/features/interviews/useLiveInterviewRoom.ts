@@ -1,7 +1,8 @@
 /** The one adapter between a live interview and LiveKit; no other module imports `livekit-client`.
  * It asks Rails to join (which starts a ready interview), connects to the room with the
  * short-lived token, turns on the microphone and plays the interviewer's audio. It reports
- * whether the interviewer agent has joined, live captions for both sides (from LiveKit's
+ * whether the interviewer agent has joined (and `agentLeft` once it left again, clearing its
+ * progress until an agent rejoins), live captions for both sides (from LiveKit's
  * `lk.transcription` text streams), the interview progress and counted time left (with the
  * two-minute warning flag) the agent publishes as participant attributes, and lets the candidate mute. Leaving the page disconnects the room.
  * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
@@ -32,7 +33,7 @@ export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer';
 export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
 export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
-interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
+interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; agentLeft: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
 export interface LiveInterviewRoom extends LiveRoomState {
   mute: (on: boolean) => Promise<void>
   /** Sends a menu choice to the interviewer; resolves true once the agent accepted it. */
@@ -81,7 +82,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const [join] = useMutation(JOIN_LIVE_INTERVIEW)
   const [endLive] = useMutation(END_LIVE_INTERVIEW)
   const client = useApolloClient()
-  const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
+  const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
   const livekitRef = useRef<Room | null>(null)
   const connectRef = useRef<(() => Promise<boolean>) | null>(null)
   useEffect(() => {
@@ -91,7 +92,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     const audio: HTMLMediaElement[] = []
     const update = (change: (previous: LiveRoomState) => Partial<LiveRoomState>) => { if (!cancelled) setRoom((previous) => ({ ...previous, ...change(previous) })) }
     const noticeAgent = (participant: Participant) => {
-      if (participant.isAgent) update(() => ({ agentJoined: true, progress: agentProgress(participant.attributes) }))
+      if (participant.isAgent) update(() => ({ agentJoined: true, agentLeft: false, progress: agentProgress(participant.attributes) }))
     }
     const showCaption = (caption: LiveCaption) => update(({ captions }) => {
       const index = captions.findIndex((item) => item.id === caption.id)
@@ -112,6 +113,9 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
       })()
     })
     livekit.on(RoomEvent.ParticipantConnected, noticeAgent)
+    livekit.on(RoomEvent.ParticipantDisconnected, (participant: Participant) => {
+      if (participant.isAgent) update(() => ({ agentJoined: false, agentLeft: true, progress: NO_PROGRESS }))
+    })
     livekit.on(RoomEvent.ParticipantAttributesChanged, (_changed: Record<string, string>, participant: Participant) => noticeAgent(participant))
     livekit.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
       if (track.kind === Track.Kind.Audio) { const element = track.attach(); audio.push(element); document.body.append(element) }

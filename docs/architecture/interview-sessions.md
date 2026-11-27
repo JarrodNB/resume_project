@@ -314,6 +314,13 @@ each dispatched job it:
    with the code `unknown_usage_model`, which both sides log as an error. Tests on each side
    check the same names.
 
+The agent joins the LiveKit room (`ctx.connect()`) only after steps 1 and 2 succeed (the claim
+uses the dispatched room's name from the job), so the browser never sees an interviewer that
+cannot start. A refused claim ends the job without joining. If anything fails after a
+successful claim (the input read, joining or starting the session), the agent calls `finish`
+with `failed` before it shuts down, so Rails completes or abandons the interview instead of
+leaving the candidate waiting.
+
 #### Questions, answers and coaching
 
 The pure `LiveInterviewController` (`live_interviews/controller.py`) takes events and returns
@@ -461,7 +468,10 @@ wrapping up.") is shown and announced. While the agent offers the menu it shows 
 "How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
 choice the agent didn't get shows a short alert. The completed review shows a question's
 `liveFeedback` under its latest answer as "Interviewer feedback". If no agent joins within 15 seconds, or joining
-fails, the room offers a new turn-based preparation with the same setup.
+fails, the room offers a new turn-based preparation with the same setup. When the agent
+participant leaves the room, the hook clears `agentJoined` and its progress and sets `agentLeft`;
+the room says "Your interviewer left the room. Waiting for them to come back…" and the same
+15-second fallback applies until an agent joins again.
 
 #### Dropped connections, rejoin and recovery
 

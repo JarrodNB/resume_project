@@ -117,6 +117,16 @@ RSpec.describe "Live interview GraphQL" do
       expect(interview.live_connections.sole).to have_attributes(status: "ended", end_reason: "failed")
     end
 
+    it "refuses ending an interview that is no longer active with a message, never the agent's internal code" do
+      interview = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: interview)
+      interview.update_columns(status: "completed") # finished another way while its room stayed open
+      query = 'mutation($input: EndLiveInterviewInput!) { endLiveInterview(input: $input) { interview { id } errors errorCode } }'
+      result = execute_graphql(query, user: user, variables: { input: { interviewId: interview.id } })
+      expect(result["errors"]).to be_nil
+      expect(result.dig("data", "endLiveInterview")).to eq("interview" => nil, "errors" => [ "Interview is not active" ], "errorCode" => nil)
+    end
+
     it "abandons a live interview with no answers and refuses one that never opened a room" do
       interview = ready_live_interview(user)
       variables = { input: { interviewId: interview.id } }

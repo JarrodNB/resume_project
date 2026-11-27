@@ -30,9 +30,11 @@ module Mutations
     end
 
     # The `errors` and `error_code` fields for a ServiceResult. Use this for hand-built payloads
-    # so the failure code is mapped in one place.
+    # so the failure code is mapped in one place. A code clients do not know (an internal one,
+    # such as the live agent's `connection_ended`) is left out; the error message still explains it.
     def error_fields_from(result)
-      { errors: result.errors, error_code: result.code&.to_s }
+      code = result.code&.to_s
+      { errors: result.errors, error_code: (code if Types::MutationErrorCodeEnum::CODES.include?(code)) }
     end
   end
 end

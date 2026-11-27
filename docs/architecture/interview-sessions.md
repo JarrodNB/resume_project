@@ -324,7 +324,13 @@ leaving the candidate waiting.
 #### Questions, answers and coaching
 
 The pure `LiveInterviewController` (`live_interviews/controller.py`) takes events and returns
-actions; the adapter (`live_interviews/agent.py`) only forwards and executes them. Events are the
+actions. The LiveKit adapter (`live_interviews/agent.py`) turns LiveKit callbacks into events,
+holds a tool call until the candidate's ended turns are transcribed, marks preambles, and
+carries out the actions. Delivery to Rails is a separate LiveKit-free module,
+`live_interviews/reporter.py` (`LiveReporter`: `send(report)`, `flush()`, `heartbeat(...)`,
+`finish(...)`): it keeps reports in order, resends lost reports and heartbeats, tracks the
+heartbeat usage Rails acknowledged and the seconds not yet carried, and hands Rails' receipts
+back as controller events. Events are the
 final transcripts of both sides (`conversation_item_added`), the model's interview tools
 (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`, `give_feedback`,
 `offer_menu`, `give_hint`, `retry_question`, plain `@function_tool` methods on the agent), the
@@ -359,7 +365,7 @@ and ask the current question. Each question then runs like this:
    than saving a second one. It is refused
    until the latest prompt of the current question has an answer and once the question has
    `answer_cap` answers. The receipt's `message_id` is fed back to the controller, naming the
-   opening or the follow-up's key. Reports go to Rails in order: one whose answer was lost (a
+   opening or the follow-up's key. The reporter sends reports to Rails in order: one whose answer was lost (a
    transport error, so it may or may not have been saved) stays first and is resent unchanged
    before any newer report, and before each heartbeat and the finish; repeats are safe because
    openings, prompt keys and answer replacement make them idempotent. An answer to a prompt whose

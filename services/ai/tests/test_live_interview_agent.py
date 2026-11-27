@@ -526,19 +526,6 @@ def test_a_heartbeat_refused_as_connection_ended_stops_speaking_and_leaves_witho
     assert [call[0] for call in rails.calls] == ["claim", "heartbeat"]
 
 
-def test_a_heartbeat_refused_for_an_unbilled_model_is_logged_as_an_error_with_its_code(caplog):
-    rails, sessions = FakeRails(), []
-    _ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
-
-    async def scenario():
-        await go()
-        rails.heartbeat_error = RailsClientError(409, "unknown_usage_model")
-        with caplog.at_level("ERROR", logger="live_interviews.agent"):
-            await sessions[0][1].agent._runner.heartbeat()
-
-    asyncio.run(scenario())
-    errors = [record for record in caplog.records if record.levelname == "ERROR"]
-    assert len(errors) == 1 and "unknown_usage_model" in errors[0].getMessage()
 
 
 def test_a_report_refused_as_connection_ended_leaves_and_skips_the_rest():
@@ -574,90 +561,10 @@ def test_the_end_button_after_rails_ended_the_connection_leaves_without_finishin
     assert ctx.shutdown_reason
 
 
-def test_heartbeats_report_counted_seconds_and_new_usage_and_resend_a_lost_one_unchanged():
-    rails, sessions = FakeRails(), []
-    now = [0.0]
-    _ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
-
-    async def scenario():
-        ctx = await go()
-        session = sessions[0][1]
-        runner = session.agent._runner
-        session.model_usage = [realtime_usage(1_000)]
-        now[0] = 30.0
-        await settle()
-        await runner.heartbeat()
-        rails.refuse_heartbeat = True  # Rails may have applied it; only the reply is lost
-        session.model_usage = [realtime_usage(1_500)]
-        now[0] = 60.0
-        await settle()
-        await runner.heartbeat()
-        rails.refuse_heartbeat = False
-        now[0] = 70.0
-        await settle()
-        await runner.heartbeat()
-        return ctx
-
-    asyncio.run(scenario())
-    heartbeats = [call[2] for call in rails.calls if call[0] == "heartbeat"]
-    entry = {"model": "gpt-realtime-2.1-mini", "cached_input_tokens": 0, "output_tokens": 0}
-    lost = {"sequence": 2, "billed_seconds_delta": 30, "usage": [{**entry, "input_tokens": 500, "cost_microdollars": 5_000}]}
-    assert heartbeats == [
-        {"sequence": 1, "billed_seconds_delta": 30, "usage": [{**entry, "input_tokens": 1_000, "cost_microdollars": 10_000}]},
-        lost,
-        lost,  # resent unchanged, so Rails replays it if it was applied
-        {"sequence": 3, "billed_seconds_delta": 10, "usage": []},
-    ]
 
 
-def test_a_heartbeat_lost_twice_holds_back_newer_seconds_until_rails_answers():
-    rails, sessions = FakeRails(), []
-    now = [0.0]
-    _ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
-
-    async def scenario():
-        await go()
-        session = sessions[0][1]
-        runner = session.agent._runner
-        rails.refuse_heartbeat = True
-        now[0] = 30.0
-        await settle()
-        await runner.heartbeat()
-        now[0] = 60.0
-        await settle()
-        await runner.heartbeat()  # the resend is lost too; the new 30 seconds wait
-        rails.refuse_heartbeat = False
-        now[0] = 65.0
-        await settle()
-        await runner.heartbeat()
-
-    asyncio.run(scenario())
-    heartbeats = [call[2] for call in rails.calls if call[0] == "heartbeat"]
-    first = {"sequence": 1, "billed_seconds_delta": 30, "usage": []}
-    assert heartbeats == [first, first, first, {"sequence": 3, "billed_seconds_delta": 35, "usage": []}]
 
 
-def test_a_heartbeat_refused_outright_is_not_resent_and_its_seconds_go_with_the_next():
-    rails, sessions = FakeRails(), []
-    now = [0.0]
-    _ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
-
-    async def scenario():
-        await go()
-        runner = sessions[0][1].agent._runner
-        rails.heartbeat_error = RailsClientError(409, None)  # a definite no: nothing was applied
-        now[0] = 30.0
-        await settle()
-        await runner.heartbeat()
-        rails.heartbeat_error = None
-        now[0] = 40.0
-        await settle()
-        await runner.heartbeat()
-
-    asyncio.run(scenario())
-    heartbeats = [call[2] for call in rails.calls if call[0] == "heartbeat"]
-    assert heartbeats == [{"sequence": 1, "billed_seconds_delta": 30, "usage": []},
-                          {"sequence": 2, "billed_seconds_delta": 40, "usage": []}]
 
 
 def test_a_wrap_up_reply_closes_after_the_current_turn_and_finishes_once_the_closing_has_played():
@@ -919,48 +826,4 @@ def test_a_lost_prompt_report_is_resent_and_its_answer_reported_once_rails_recor
     ]
 
 
-def test_a_lost_answer_report_is_resent_before_the_follow_up_that_needs_it():
-    rails, sessions = FakeRails(), []
-    rails.lose["answer_finished"] = 1
-    _ctx, go = run_interview(rails, sessions)
 
-    async def scenario():
-        await go()
-        session = sessions[0][1]
-        session.emit_item("assistant", "Tell me about a project.")
-        await settle()
-        session.emit_item("user", "I rebuilt the scheduler.")
-        await settle()
-        await session.agent.ask_follow_up(tool_call(), "What changed?")
-        session.emit_item("assistant", "What changed for the team?")
-        await settle()
-
-    asyncio.run(scenario())
-    answer = ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."})
-    assert rails.calls[2:] == [
-        answer,
-        answer,
-        ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?",
-                                  "prompt_key": "q0-r0-f1"}),
-    ]
-
-
-def test_an_answer_rails_refused_is_not_treated_as_saved():
-    rails, sessions = FakeRails(), []
-    rails.refuse_reports.add("answer_finished")
-    _ctx, go = run_interview(rails, sessions)
-
-    async def scenario():
-        await go()
-        session = sessions[0][1]
-        session.emit_item("assistant", "Tell me about a project.")
-        await settle()
-        session.emit_item("user", "I rebuilt the scheduler.")
-        await settle()
-        await session.agent.finish_answer(tool_call())
-        rails.refuse_reports.clear()
-        await session.agent.finish_answer(tool_call())
-
-    asyncio.run(scenario())
-    answer = ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."})
-    assert rails.calls[2:] == [answer, answer]  # not resent on its own, but reported again at the next save

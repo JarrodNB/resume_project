@@ -1,38 +1,35 @@
 """Connect one live interview's LiveKit room to the controller, the realtime model and Rails.
 
-This adapter stays thin on purpose. It reads the dispatch metadata (only the session and
-connection IDs), claims the connection with Rails, loads the interview's inputs read-only,
-builds the instructions, and only then joins the room and starts a LiveKit `AgentSession` on the
-OpenAI realtime model; a failure after the claim finishes the connection as `failed`. From
-then on it forwards events into the controller: final transcripts of both sides, the model's
-interview tools (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_question`,
-`give_feedback`, `offer_menu`, `give_hint`, `retry_question`), a clock tick about once a second
-and the room's `interview.choose` RPC (`{"option": ...}` with `retry`, `repeat`, `hint`, `next`,
-`feedback` or `end`; a button interrupts whatever the interviewer is saying), whether either
-side is speaking (so a time warning or wrap-up never talks over a turn) and a heartbeat about
-every 30 seconds. A tool call waits (up to 3 seconds) for the final transcript of each candidate
-turn that has ended (`user_state_changed` from `speaking`) but not yet been transcribed: with the
-realtime model the provider may send it after the reply it prompted has started generating, and
-LiveKit runs tools during generation (livekit-agents `voice/agent_activity.py`,
-`_on_input_audio_transcription_completed` and `_realtime_generation_task_impl`). The controller
-then decides on the answer the candidate actually gave. An interviewer message spoken in the
-same model response as a tool call (a preamble such as "Sure, let's move on.") finishes after
-the tool has run; it is passed on marked as a preamble, so only the reply to the tool's result
-counts as the follow-up, feedback or closing. It carries out the actions the controller returns: speak, report to Rails,
-publish progress and the clock as agent participant attributes and leave. When Rails refuses a
-call with `connection_ended` (recovery or the owner already finished the interview), the
-interviewer is cut off and the agent leaves without reporting or finishing anything else. Interview reports
-(prompt, answer, advance, feedback, retry) go to Rails in order: one whose answer was lost stays
-first and is resent unchanged before any newer report, and again before each heartbeat and the
-finish (Rails treats repeats as the same report). A report Rails refused outright was stale and
-is dropped; a refused answer is passed back so the controller does not count it as saved. A
-prompt's receipt is passed back with its key, so an answer waiting for it can be reported. A heartbeat adds the
-provider usage that is new since Rails last acknowledged one (from LiveKit's running
-`AgentSession.usage`, priced in live_interviews.usage). A heartbeat whose answer is lost may
-still have been applied, so it is resent unchanged (same sequence, same counts) before any newer
-one, and Rails replays it instead of counting it twice; seconds counted meanwhile wait for the
-next new heartbeat. A heartbeat Rails refused outright was not applied, so its seconds and usage
-go with the next one. All interview decisions live in the controller; nothing here is recorded
+This is the LiveKit adapter: interview decisions live in the controller and delivery to Rails
+lives in live_interviews.reporter; this module wires them to LiveKit. It reads the dispatch
+metadata (only the session and connection IDs), claims the connection with Rails, loads the
+interview's inputs read-only, builds the instructions, and only then joins the room and starts a
+LiveKit `AgentSession` on the OpenAI realtime model; a failure after the claim finishes the
+connection as `failed`. From then on it turns LiveKit callbacks into controller events: final
+transcripts of both sides, the model's interview tools (`ask_follow_up`, `finish_answer`,
+`repeat_question`, `next_question`, `give_feedback`, `offer_menu`, `give_hint`,
+`retry_question`), a clock tick about once a second and the room's `interview.choose` RPC
+(`{"option": ...}` with `retry`, `repeat`, `hint`, `next`, `feedback` or `end`; a button
+interrupts whatever the interviewer is saying), whether either side is speaking (so a time
+warning or wrap-up never talks over a turn) and a heartbeat about every 30 seconds.
+
+It also owns two timing rules that need LiveKit's view of the conversation. A tool call waits (up
+to 3 seconds) for the final transcript of each candidate turn that has ended (`user_state_changed`
+from `speaking`) but not yet been transcribed: with the realtime model the provider may send it
+after the reply it prompted has started generating, and LiveKit runs tools during generation
+(livekit-agents `voice/agent_activity.py`, `_on_input_audio_transcription_completed` and
+`_realtime_generation_task_impl`), so the controller decides on the answer the candidate actually
+gave. An interviewer message spoken in the same model response as a tool call (a preamble such
+as "Sure, let's move on.") finishes after the tool has run; it is passed on marked as a preamble,
+so only the reply to the tool's result counts as the follow-up, feedback or closing.
+
+It carries out the controller's actions: speak, hand reports, heartbeats and the finish to the
+reporter (which keeps them in order, resends lost ones and adds provider usage from LiveKit's
+running `AgentSession.usage`), publish progress and the clock as agent participant attributes and
+leave. Rails' answers that matter to the controller (a prompt's receipt, a refused answer) come
+back from the reporter as controller events. When Rails refuses a call with `connection_ended`
+(recovery or the owner already finished the interview), the interviewer is cut off and the
+agent leaves without reporting or finishing anything else. Nothing here is recorded
 (`record=False`) and spoken text is never logged.
 
 Dropped connections: the session is started with `close_on_disconnect=False`, so the agent stays
@@ -52,7 +49,6 @@ import asyncio
 import json
 import logging
 import time
-from dataclasses import dataclass
 
 from livekit import rtc
 from livekit.agents import (
@@ -71,14 +67,11 @@ from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict
 
 from live_interviews.client import (
-    HeartbeatReply,
-    LiveConnectionEnded,
     RailsClientError,
     RailsTransportError,
 )
 from live_interviews.controller import (
     ENDED,
-    AnswerNotSaved,
     AskFollowUp,
     CandidateJoined,
     CandidateLeft,
@@ -100,15 +93,9 @@ from live_interviews.controller import (
     MenuChoice,
     NextQuestion,
     OfferMenu,
-    PromptRecorded,
     PublishRoomState,
     RepeatQuestion,
-    ReportAnswerFinished,
-    ReportFeedbackGiven,
     ReportFinish,
-    ReportPromptAsked,
-    ReportQuestionAdvanced,
-    ReportQuestionRetried,
     RetryQuestion,
     SayClosing,
     SendHeartbeat,
@@ -119,8 +106,9 @@ from live_interviews.controller import (
     ToolResult,
 )
 from live_interviews.instructions import build_live_instructions
+from live_interviews.reporter import InterviewReport, LiveReporter
 from live_interviews.settings import PERSONA_VOICES, REALTIME_MODEL, TRANSCRIPTION_MODEL
-from live_interviews.usage import LiveUsageTotals, heartbeat_usage
+from live_interviews.usage import LiveUsageTotals
 
 logger = logging.getLogger(__name__)
 
@@ -146,17 +134,6 @@ def realtime_model_options(persona: str) -> dict:
 
 MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
 TRANSCRIPT_WAIT_SECONDS = 3.0  # how long a tool call waits for the candidate's late final transcript
-_LOST = object()  # a heartbeat sent without a trustworthy answer
-
-
-@dataclass(frozen=True)
-class _PendingHeartbeat:
-    """A heartbeat exactly as sent, kept until Rails gives a definite answer."""
-
-    sequence: int
-    billed_seconds_delta: int
-    usage: list
-    totals: LiveUsageTotals
 
 
 class LiveInterviewRunner:
@@ -164,7 +141,7 @@ class LiveInterviewRunner:
 
     def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic,
                  transcript_wait_seconds: float = TRANSCRIPT_WAIT_SECONDS):
-        self._session, self._rails, self._connection_id, self._room = session, rails, connection_id, room
+        self._session, self._room = session, room
         self._leave, self._clock, self._transcript_wait_seconds = leave, clock, transcript_wait_seconds
         self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
         self._turn_heard = asyncio.Event()
@@ -174,12 +151,7 @@ class LiveInterviewRunner:
         self._tasks: set[asyncio.Task] = set()
         self.finished = False  # Rails accepted the finish
         self._left = False
-        self._ended_by_rails = False  # Rails said the connection or interview is over; only leaving is left
-        self._acknowledged = LiveUsageTotals()  # usage Rails has acknowledged in heartbeats
-        self._unsent_seconds = 0  # billed seconds no applied heartbeat has carried yet
-        self._pending: _PendingHeartbeat | None = None  # sent, but Rails' answer was lost
-        self._reports: list[LiveAction] = []  # interview reports not yet answered by Rails, oldest first
-        self._front: int | None = None  # where reports raised by a receipt go: ahead of the later ones
+        self._reporter = LiveReporter(rails, connection_id, usage_totals=self.usage_totals, on_event=self._rails_event)
 
     def usage_totals(self) -> LiveUsageTotals:
         """The session's running provider usage so far."""
@@ -303,131 +275,31 @@ class LiveInterviewRunner:
             await self.handle(MenuChoice(option))
             return "accepted"
         await self.handle(EndRequested())
-        if not self.finished and not self._ended_by_rails:
+        if not self.finished and not self._reporter.ended:
             raise rtc.RpcError(2002, "The interview could not be finished")
         return "ended"
 
-    async def _dispatch(self, event: LiveEvent) -> str | None:
+    async def _dispatch(self, event: LiveEvent, *, held_reports: list | None = None) -> str | None:
+        """Carry out the controller's actions for `event`. With `held_reports`, interview reports are
+        collected there for the reporter to send next instead of being sent now."""
         result = None
         for action in self._controller.handle(event):
             if isinstance(action, ToolResult):
                 result = action.text
-            elif not self._ended_by_rails or (isinstance(action, EndSession) and not self._left):
+            elif held_reports is not None and isinstance(action, InterviewReport):
+                held_reports.append(action)
+            elif not self._reporter.ended or (isinstance(action, EndSession) and not self._left):
                 await self._carry_out(action)
-        return ENDED if self._ended_by_rails and result is not None else result
+        return ENDED if self._reporter.ended and result is not None else result
 
-    async def _report(self, call, *, lost=None, **values):
-        """Call Rails; a refusal means the report was stale, so it is logged (never its text) and skipped.
-
-        A `connection_ended` refusal means recovery or the owner already finished the interview:
-        the interviewer stops talking and the controller leaves, with nothing else sent to Rails.
-        Returns None for a refusal and `lost` when no trustworthy answer arrived."""
-        try:
-            return await call(self._connection_id, **values)
-        except LiveConnectionEnded:
-            logger.info("Live connection ended by Rails during %s; leaving", call.__name__)
-            if not self._ended_by_rails:
-                self._ended_by_rails = True
-                self._session.interrupt()
-                await self._dispatch(ConnectionEnded())
-            return None
-        except RailsClientError as error:
-            # A heartbeat naming a model Rails does not bill is refused every time: the session
-            # would end in recovery, so it is an error, not a stale report.
-            log = logger.error if error.code == "unknown_usage_model" else logger.warning
-            log("Live report %s was refused: %s", call.__name__, error.code or type(error).__name__)
-            return None
-        except RailsTransportError as error:
-            logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
-            return lost
-
-    async def _send_report(self, action: LiveAction) -> None:
-        """Send an interview report after any earlier one whose answer was lost.
-
-        Rails needs them in order (a follow-up needs the answer before it, an answer needs its
-        prompt), so a report whose answer was lost stays first and is resent unchanged before
-        anything newer; repeats are safe (prompt keys and answer replacement make them
-        idempotent). A report Rails refused outright was stale and is dropped."""
-        if self._front is None:
-            self._reports.append(action)
-            await self._flush_reports()
-        else:  # raised by an earlier report's receipt, while that flush is running
-            self._reports.insert(self._front, action)
-            self._front += 1
-
-    async def _flush_reports(self) -> None:
-        while self._reports and self._front is None and not self._ended_by_rails:
-            action = self._reports[0]
-            outcome = await self._post_report(action)
-            if outcome is _LOST:
-                return
-            self._reports.pop(0)
-            event = self._report_outcome(action, outcome)
-            if event is not None and not self._ended_by_rails:
-                self._front = 0
-                try:
-                    await self._dispatch(event)
-                finally:
-                    self._front = None
-
-    async def _post_report(self, action: LiveAction):
-        if isinstance(action, ReportPromptAsked):
-            return await self._report(self._rails.prompt_asked, lost=_LOST, question_position=action.question_position,
-                                      kind=action.kind, text=action.text,
-                                      **({"prompt_key": action.prompt_key} if action.prompt_key else {}))
-        if isinstance(action, ReportAnswerFinished):
-            return await self._report(self._rails.answer_finished, lost=_LOST,
-                                      prompt_message_id=action.prompt_message_id, transcript=action.transcript)
-        if isinstance(action, ReportQuestionAdvanced):
-            return await self._report(self._rails.question_advanced, lost=_LOST,
-                                      question_position=action.question_position)
-        if isinstance(action, ReportFeedbackGiven):
-            return await self._report(self._rails.feedback_given, lost=_LOST,
-                                      question_position=action.question_position, text=action.text)
-        return await self._report(self._rails.question_retried, lost=_LOST,
-                                  question_position=action.question_position, retry_number=action.retry_number)
-
-    @staticmethod
-    def _report_outcome(action: LiveAction, outcome) -> LiveEvent | None:
-        """The controller hears when Rails records a prompt, and when it refuses an answer."""
-        if isinstance(action, ReportPromptAsked) and outcome and isinstance(outcome.get("message_id"), str):
-            return PromptRecorded(action.question_position, outcome["message_id"], prompt_key=action.prompt_key)
-        if isinstance(action, ReportAnswerFinished) and outcome is None:
-            return AnswerNotSaved(action.prompt_message_id, action.transcript)
-        return None
-
-    async def _send_heartbeat(self, action: SendHeartbeat) -> None:
-        """Report counted seconds and new priced usage, after resending a lost heartbeat unchanged.
-        Interview reports still waiting behind a lost one are retried first."""
-        await self._flush_reports()
-        if self._pending is not None and await self._post_heartbeat(self._pending) is _LOST:
-            self._unsent_seconds += action.billed_seconds_delta
-            return
-        if self._ended_by_rails:
-            return
-        totals = self.usage_totals()
-        self._pending = _PendingHeartbeat(action.sequence, action.billed_seconds_delta + self._unsent_seconds,
-                                          heartbeat_usage(totals, self._acknowledged), totals)
-        self._unsent_seconds = 0
-        reply = await self._post_heartbeat(self._pending)
-        if isinstance(reply, HeartbeatReply) and not action.final:
-            await self._dispatch(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason))
-
-    async def _post_heartbeat(self, heartbeat: "_PendingHeartbeat"):
-        """Send one heartbeat. Returns Rails' reply once applied or replayed, `_LOST` when no answer
-        came (it stays pending, to be resent unchanged) or None when Rails refused it (not applied,
-        so its seconds wait for the next heartbeat and its usage is counted again from the last
-        acknowledged totals)."""
-        reply = await self._report(self._rails.heartbeat, lost=_LOST, sequence=heartbeat.sequence,
-                                   billed_seconds_delta=heartbeat.billed_seconds_delta, usage=heartbeat.usage)
-        if reply is _LOST:
-            return _LOST
-        self._pending = None
-        if reply is None:
-            self._unsent_seconds += heartbeat.billed_seconds_delta
-            return None
-        self._acknowledged = heartbeat.totals
-        return reply
+    async def _rails_event(self, event: LiveEvent) -> list:
+        """What a Rails answer means for the controller (a prompt's receipt, a refused answer, or the
+        connection ended); returns the reports it raises, which the reporter sends next."""
+        if isinstance(event, ConnectionEnded):
+            self._session.interrupt()  # the interviewer stops talking; the controller leaves
+        held: list = []
+        await self._dispatch(event, held_reports=held)
+        return held
 
     async def _carry_out(self, action: LiveAction) -> None:
         if isinstance(action, GenerateReply):
@@ -436,14 +308,13 @@ class LiveInterviewRunner:
             speech = self._session.generate_reply(instructions=action.instructions)
             speech.add_done_callback(lambda _speech: self._spawn(ClosingSpoken()))
         elif isinstance(action, SendHeartbeat):
-            await self._send_heartbeat(action)
-        elif isinstance(action, ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdvanced
-                        | ReportFeedbackGiven | ReportQuestionRetried):
-            await self._send_report(action)
+            reply = await self._reporter.heartbeat(action)
+            if reply is not None and not action.final:
+                await self._dispatch(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason))
+        elif isinstance(action, InterviewReport):
+            await self._reporter.send(action)
         elif isinstance(action, ReportFinish):
-            await self._flush_reports()  # a last try for reports whose answer was lost
-            self.finished = await self._report(self._rails.finish, reason=action.reason,
-                                               final_sequence=action.final_sequence) is not None
+            self.finished = await self._reporter.finish(action)
         elif isinstance(action, PublishRoomState):
             await self._room.local_participant.set_attributes({
                 "cd.question_position": str(action.question_position),

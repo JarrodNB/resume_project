@@ -95,7 +95,7 @@ from live_interviews.controller import (
     ToolResult,
 )
 from live_interviews.instructions import build_live_instructions
-from live_interviews.settings import PERSONA_VOICES, LiveInterviewSettings
+from live_interviews.settings import PERSONA_VOICES, REALTIME_MODEL, TRANSCRIPTION_MODEL
 from live_interviews.usage import LiveUsageTotals, heartbeat_usage
 
 logger = logging.getLogger(__name__)
@@ -109,14 +109,14 @@ class LiveDispatch(BaseModel):
     live_connection_id: str
 
 
-def realtime_model_options(settings: LiveInterviewSettings, persona: str) -> dict:
+def realtime_model_options(persona: str) -> dict:
     """Keyword arguments for `openai.realtime.RealtimeModel`: model, persona voice, server VAD
     turn detection and input transcription (for the candidate's captions)."""
     return {
-        "model": settings.live_interview_model,
+        "model": REALTIME_MODEL,
         "voice": PERSONA_VOICES[persona],
         "turn_detection": ServerVad(type="server_vad", create_response=True, interrupt_response=True),
-        "input_audio_transcription": AudioTranscription(model=settings.live_interview_transcription_model),
+        "input_audio_transcription": AudioTranscription(model=TRANSCRIPTION_MODEL),
     }
 
 
@@ -126,11 +126,9 @@ MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
 class LiveInterviewRunner:
     """Feed one session's events to the controller and carry out its actions in order."""
 
-    def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic,
-                 settings: LiveInterviewSettings | None = None):
+    def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic):
         self._session, self._rails, self._connection_id, self._room = session, rails, connection_id, room
         self._leave, self._clock = leave, clock
-        self._settings = settings or LiveInterviewSettings()
         self._controller = LiveInterviewController()
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
@@ -143,8 +141,7 @@ class LiveInterviewRunner:
     def usage_totals(self) -> LiveUsageTotals:
         """The session's running provider usage so far."""
         return LiveUsageTotals.from_model_usage(
-            self._session.usage.model_usage, realtime_model=self._settings.live_interview_model,
-            transcription_model=self._settings.live_interview_transcription_model)
+            self._session.usage.model_usage, realtime_model=REALTIME_MODEL, transcription_model=TRANSCRIPTION_MODEL)
 
     def _spawn(self, event: LiveEvent) -> None:
         task = asyncio.create_task(self.handle(event))
@@ -236,7 +233,13 @@ class LiveInterviewRunner:
                 self._session.interrupt()
                 await self._dispatch(ConnectionEnded())
             return None
-        except (RailsClientError, RailsTransportError) as error:
+        except RailsClientError as error:
+            # A heartbeat naming a model Rails does not bill is refused every time: the session
+            # would end in recovery, so it is an error, not a stale report.
+            log = logger.error if error.code == "unknown_usage_model" else logger.warning
+            log("Live report %s was refused: %s", call.__name__, error.code or type(error).__name__)
+            return None
+        except RailsTransportError as error:
             logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
             return None
 
@@ -352,8 +355,7 @@ class LiveInterviewerAgent(Agent):
 
 
 async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=time.monotonic,
-                             tick_seconds: float = 1.0, heartbeat_seconds: float = 30.0, tracer=None,
-                             settings: LiveInterviewSettings | None = None) -> None:
+                             tick_seconds: float = 1.0, heartbeat_seconds: float = 30.0, tracer=None) -> None:
     """Run one dispatched live interview job.
 
     `rails` is a RailsLiveInterviewClient, `read_inputs(interview_id=, user_id=, connection_id=)`
@@ -388,7 +390,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
         session = make_session(inputs.setup.interviewer)
         runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id,
                                      room=ctx.room, leave=lambda: ctx.shutdown(reason="live interview finished"),
-                                     clock=clock, settings=settings)
+                                     clock=clock)
         session.on("conversation_item_added", runner.on_conversation_item_added)
         session.on("agent_state_changed", runner.on_agent_state_changed)
         session.on("user_state_changed", runner.on_user_state_changed)

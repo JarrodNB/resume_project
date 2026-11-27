@@ -3,7 +3,9 @@
 # repeating the latest one replays its answer without changes and an older one is refused.
 # The answer tells the agent to carry on, to warn the candidate (2 minutes of live allowance
 # left) or to wrap up now because the allowance ran out or the session's 25 counted minutes are
-# used. The allowance counts this connection's own billed seconds too.
+# used. The allowance counts this connection's own billed seconds too. Usage for a model the
+# live bill does not know is refused with the code `unknown_usage_model` (and logged), because
+# it means the agent and Rails disagree on the live models.
 module Interviews
   class RecordLiveHeartbeatService < ApplicationService
     def initialize(connection:, sequence:, billed_seconds_delta:, usage:)
@@ -15,6 +17,10 @@ module Interviews
     #   session_seconds_left:, reason: "allowance" | "time_limit" (wrap_up only) }`
     def call
       @usage = @usage.map { |entry| entry.respond_to?(:to_h) ? entry.to_h.stringify_keys : entry } if @usage.is_a?(Array)
+      if LiveConversationBill.unknown_model?(@usage)
+        Rails.logger.error("Live heartbeat refused: unknown_usage_model (live connection #{@connection.id})")
+        return failure("Heartbeat usage names a model that live interviews do not bill", code: :unknown_usage_model)
+      end
       return failure("Invalid heartbeat") unless valid?
 
       LiveConnectionAccess.with_locked(@connection) do |interview|

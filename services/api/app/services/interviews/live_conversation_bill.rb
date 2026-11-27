@@ -43,6 +43,12 @@ module Interviews
       end && usage.map { |entry| entry["model"] }.uniq.length == usage.length
     end
 
+    # True when `usage` names a model this bill does not know (the agent and Rails disagree on
+    # the live models), so the heartbeat can be refused with its own code.
+    def self.unknown_model?(usage)
+      usage.is_a?(Array) && usage.any? { |entry| entry.is_a?(Hash) && entry.key?("model") && !MODELS.include?(entry["model"]) }
+    end
+
     # Adds one heartbeat's deltas to the running totals. A delta without a price leaves that
     # model's cost unknown for the rest of the connection.
     def self.add(connection, usage)

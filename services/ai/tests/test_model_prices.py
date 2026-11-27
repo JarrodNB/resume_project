@@ -120,7 +120,13 @@ def test_realtime_usage_without_an_audio_price_is_unknown():
         estimate_realtime_cost_microdollars("openai:gpt-realtime-2.1-mini", RealtimeUsage(text_input_tokens=-1))
 
 
-def test_the_live_interview_models_have_prices():
-    from live_interviews.settings import LiveInterviewSettings
+def test_the_live_interview_models_are_fixed_and_priced():
+    """Rails bills only these two models (services/api/spec/services/interviews/live_conversation_bill_spec.rb
+    checks the same names); a heartbeat naming any other model is refused."""
+    from interviews.live_transcription import MICRODOLLARS_PER_MINUTE
+    from live_interviews.settings import REALTIME_MODEL, TRANSCRIPTION_MODEL
 
-    assert MODEL_PRICES[f"openai:{LiveInterviewSettings().live_interview_model}"].audio_input is not None
+    assert (REALTIME_MODEL, TRANSCRIPTION_MODEL) == ("gpt-realtime-2.1-mini", "gpt-live-transcribe")
+    assert MODEL_PRICES[f"openai:{REALTIME_MODEL}"].audio_input is not None
+    assert MODEL_PRICES[f"openai:{REALTIME_MODEL}"].audio_output is not None
+    assert MICRODOLLARS_PER_MINUTE > 0  # the transcription model is priced per audio minute

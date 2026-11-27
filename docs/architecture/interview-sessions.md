@@ -300,10 +300,13 @@ each dispatched job it:
    `prompts/live_interviewer_instructions.py`): practice-interviewer framing that marks coaching
    with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question
    plan, all inside escaped data sections with contact masked.
-4. starts an `AgentSession` on the OpenAI realtime model (`LIVE_INTERVIEW_MODEL`, default
-   `gpt-realtime-2.1-mini`) with the persona's fixed voice (maya `marin`, daniel `cedar`, priya
-   `shimmer`), server VAD and input transcription (`LIVE_INTERVIEW_TRANSCRIPTION_MODEL`,
-   default `gpt-live-transcribe`), with LiveKit recording off.
+4. starts an `AgentSession` on the OpenAI realtime model `gpt-realtime-2.1-mini` with the
+   persona's fixed voice (maya `marin`, daniel `cedar`, priya `shimmer`), server VAD and input
+   transcription with `gpt-live-transcribe`, with LiveKit recording off. Both model names are
+   fixed constants (`live_interviews/settings.py`), not settings: Rails bills only these two
+   (`Interviews::LiveConversationBill::MODELS`) and refuses a heartbeat naming another model
+   with the code `unknown_usage_model`, which both sides log as an error. Tests on each side
+   check the same names.
 
 #### Questions, answers and coaching
 

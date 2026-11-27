@@ -154,7 +154,9 @@ attempts:
   token counts with no cost). Rails adds them to the report's running entries (stage
   `live_conversation`, one entry per model), which moves the task's known totals, so cost
   reports include a running interview. Heartbeats apply once per sequence. A
-  delta without a price leaves that model's cost unknown for the rest of the connection.
+  delta without a price leaves that model's cost unknown for the rest of the connection. Both
+  model names are fixed in the AI service, not settings; a heartbeat naming any other model is
+  refused with the code `unknown_usage_model` and logged as an error on both sides.
 - **Prices.** The AI service prices from LiveKit Agents 1.9's running `AgentSession.usage`
   (`LLMModelUsage` with audio, text and cached-read token splits; `STTModelUsage` with audio
   seconds for the realtime session's input transcription). Per million tokens:

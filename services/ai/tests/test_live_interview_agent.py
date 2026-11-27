@@ -24,7 +24,7 @@ from live_interviews.client import (
     RailsTransportError,
 )
 from live_interviews.instructions import LiveInterviewInputs
-from live_interviews.settings import AGENT_NAME, PERSONA_VOICES, LiveInterviewSettings
+from live_interviews.settings import AGENT_NAME, PERSONA_VOICES
 from privacy.known_contact import KnownContact
 from schemas.interview_setup import InterviewSetup
 
@@ -128,6 +128,7 @@ class FakeRails:
     def __init__(self, claim=CLAIM, refuse=False):
         self.claim_result, self.refuse, self.calls, self.closed = claim, refuse, [], False
         self.refuse_finish = self.refuse_heartbeat = self.ended = False
+        self.heartbeat_error = None
         self.heartbeat_reply = HeartbeatReply(action="continue", allowance_seconds_left=500, session_seconds_left=1_400)
 
     async def claim(self, connection_id, *, room_name):
@@ -167,6 +168,8 @@ class FakeRails:
         self._refuse_if_ended()
         if self.refuse_heartbeat:
             raise RailsTransportError("lost")
+        if self.heartbeat_error:
+            raise self.heartbeat_error
         return self.heartbeat_reply
 
     async def finish(self, connection_id, **values):
@@ -411,7 +414,7 @@ def test_dispatch_metadata_holds_only_the_two_ids():
 
 
 def test_realtime_options_use_the_persona_voice_server_vad_and_transcription():
-    options = realtime_model_options(LiveInterviewSettings(), "daniel")
+    options = realtime_model_options("daniel")
     assert options["model"] == "gpt-realtime-2.1-mini"
     assert options["voice"] == "cedar"
     assert options["turn_detection"].type == "server_vad"
@@ -442,6 +445,21 @@ def test_a_heartbeat_refused_as_connection_ended_stops_speaking_and_leaves_witho
 
     asyncio.run(scenario())
     assert [call[0] for call in rails.calls] == ["claim", "heartbeat"]
+
+
+def test_a_heartbeat_refused_for_an_unbilled_model_is_logged_as_an_error_with_its_code(caplog):
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        rails.heartbeat_error = RailsClientError(409, "unknown_usage_model")
+        with caplog.at_level("ERROR", logger="live_interviews.agent"):
+            await sessions[0][1].agent._runner.heartbeat()
+
+    asyncio.run(scenario())
+    errors = [record for record in caplog.records if record.levelname == "ERROR"]
+    assert len(errors) == 1 and "unknown_usage_model" in errors[0].getMessage()
 
 
 def test_a_report_refused_as_connection_ended_leaves_and_skips_the_rest():

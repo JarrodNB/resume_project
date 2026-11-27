@@ -539,6 +539,14 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(AiUsage::AttemptEntries.as_hashes(connection.ai_task.ai_usage_attempts.sole).sole).not_to have_key("cost_microdollars")
     end
 
+    it "refuses usage for a model it does not bill with a distinct code, without changes" do
+      claim
+      heartbeat(1, usage: [ realtime_usage.merge(model: "gpt-realtime-9") ])
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to include("code" => "unknown_usage_model")
+      expect(connection.reload).to have_attributes(billed_seconds: 0, heartbeat_sequence: 0)
+    end
+
     it "refuses an unclaimed or ended connection and invalid reports without changes" do
       heartbeat(1)
       expect(response).to have_http_status(:conflict)

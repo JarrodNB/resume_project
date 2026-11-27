@@ -28,14 +28,13 @@ async def entrypoint(ctx: JobContext) -> None:
     settings = LiveInterviewSettings()
 
     def make_session(persona: str) -> AgentSession:
-        return AgentSession(llm=openai.realtime.RealtimeModel(**realtime_model_options(settings, persona)))
+        return AgentSession(llm=openai.realtime.RealtimeModel(**realtime_model_options(persona)))
 
     await run_live_interview(
         ctx,
         rails=RailsLiveInterviewClient(settings.interview_rails_origin, settings.interview_service_secret),
         read_inputs=build_live_interview_input_reader(AISettings()),
         make_session=make_session,
-        settings=settings,
     )
 
     async def flush() -> None:  # after run_live_interview's own shutdown callback ends the session span

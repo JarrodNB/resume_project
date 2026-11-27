@@ -1816,6 +1816,11 @@ type InterviewRecordingUpload {
 
 type InterviewSession {
   answerCap: Int!
+
+  """
+  turn_based or live, chosen when preparation starts
+  """
+  conversationMode: String!
   createdAt: ISO8601DateTime!
   currentQuestionPosition: Int!
   executionMode: String!
@@ -3838,6 +3843,11 @@ input StartInterviewInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
+
+  """
+  turn_based (default) or live; live allows 5 or 8 questions
+  """
+  conversationMode: String = "turn_based"
   executionMode: String = "real"
   jobId: ID
   setup: InterviewSetupInput

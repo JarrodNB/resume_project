@@ -10,6 +10,7 @@ module Types
     field :prepared_role, GraphQL::Types::JSON, null: false
     field :job_context, Types::InterviewJobContextType, null: true
     field :setup, Types::InterviewSetupType, null: false
+    field :conversation_mode, String, null: false, description: "turn_based or live, chosen when preparation starts"
     field :revision, Integer, null: false
     field :answer_cap, Integer, null: false
     field :current_question_position, Integer, null: false

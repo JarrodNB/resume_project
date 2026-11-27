@@ -2,8 +2,8 @@
 # Rails probes safe executor readiness and never contacts providers or reads AI keys.
 module Interviews
   class StartSessionService < ApplicationService
-    def initialize(user:, execution_mode: "real", career_focus: nil, setup: nil, job: nil)
-      @user, @execution_mode, @career_focus = user, execution_mode, career_focus
+    def initialize(user:, execution_mode: "real", career_focus: nil, setup: nil, job: nil, conversation_mode: "turn_based")
+      @user, @execution_mode, @career_focus, @conversation_mode = user, execution_mode, career_focus, conversation_mode
       @setup = setup
       @job = job
     end
@@ -14,7 +14,7 @@ module Interviews
       if !RuntimeReadiness.ready?
         return failure("Real interview unavailable. Check the real runtime readiness and required provider configuration.")
       end
-      StartPreparationService.call(user: @user, career_focus: @career_focus, setup: @setup, job: @job)
+      StartPreparationService.call(user: @user, career_focus: @career_focus, setup: @setup, job: @job, conversation_mode: @conversation_mode)
     end
   end
 end

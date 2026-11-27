@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -662,9 +662,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
     t.uuid "job_id"
     t.string "career_focus", default: "", null: false
     t.string "preparation_kind", default: "fictional_role", null: false
+    t.string "conversation_mode", default: "turn_based", null: false
     t.index ["job_id"], name: "index_interview_sessions_on_job_id"
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
     t.check_constraint "char_length(career_focus::text) <= 200", name: "interview_career_focus_length"
+    t.check_constraint "conversation_mode::text = ANY (ARRAY['turn_based'::character varying, 'live'::character varying]::text[])", name: "interview_conversation_mode"
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "preparation_kind::text = ANY (ARRAY['saved_job'::character varying::text, 'fictional_role'::character varying::text])", name: "interview_preparation_kind"

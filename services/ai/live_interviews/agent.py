@@ -476,7 +476,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
     try:
         dispatch = LiveDispatch.model_validate_json(ctx.job.metadata)
         span = tracer.start_span("live_interview.session", attributes={
-            "interview_session_id": dispatch.interview_session_id, "live_connection_id": dispatch.live_connection_id})
+            "interview_id": dispatch.interview_session_id, "live_connection_id": dispatch.live_connection_id})
         # LiveKit's session spans and our tasks join this trace.
         with trace.use_span(span, end_on_exit=False):
             claim = await rails.claim(dispatch.live_connection_id, room_name=ctx.job.room.name)

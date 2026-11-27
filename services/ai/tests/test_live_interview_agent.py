@@ -654,7 +654,7 @@ def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
     asyncio.run(scenario())
     (root,) = exporter.get_finished_spans()
     assert root.name == "live_interview.session" and root.parent is None
-    assert dict(root.attributes) == {"interview_session_id": "session", "live_connection_id": "live",
+    assert dict(root.attributes) == {"interview_id": "session", "live_connection_id": "live",
                                      "provider_cost_microdollars": 20_000, "operation.cost": 0.02}
 
 

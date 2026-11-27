@@ -38,7 +38,7 @@ CONTENT_EVENTS = frozenset({
 # livekit-agents `telemetry/trace_types.py`.
 LIVEKIT_SAFE_ATTRIBUTES = frozenset({
     # our IDs (the session root's, if LiveKit spans ever carry them)
-    "interview_session_id", "live_connection_id",
+    "interview_id", "live_connection_id",
     # LiveKit IDs, counts and flags
     "lk.speech_id", "lk.agent_label", "lk.agent_name", "lk.job_id", "lk.room_sid", "lk.participant_kind",
     "lk.retry_count", "lk.provider_request_ids", "lk.generation_id", "lk.parent_generation_id", "lk.generation_count",

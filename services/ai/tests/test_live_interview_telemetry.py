@@ -24,7 +24,7 @@ def exported(monkeypatch):
 
 def test_livekit_spans_join_the_session_trace_without_content_attributes_or_events(exported):
     root = trace.get_tracer("live_interviews").start_span("live_interview.session",
-                                                          attributes={"interview_session_id": "session"})
+                                                          attributes={"interview_id": "session"})
     content = {
         "lk.speech_id": "speech-1",
         "lk.pii.chat_ctx": "[candidate said: my phone is 555 0100]",
@@ -70,13 +70,13 @@ def test_livekit_spans_keep_only_allowlisted_keys_so_an_unknown_attribute_is_dro
         "live_connection_id": "c-1",
     }
     unknown = {"lk.brand_new_text": "I rebuilt the scheduler.", "gen_ai.new.content": "private", "notes": "private"}
-    ids = {"interview_session_id": "s-1"}  # kept, though Logfire's default scrubbing masks its value ("session")
+    ids = {"interview_id": "s-1"}  # not named "*session*", which Logfire's default scrubbing would mask
     with livekit_tracer.start_as_current_span("agent_turn", attributes={**safe, **ids, **unknown}) as span:
         span.add_event("new_livekit_event", {"lk.speech_id": "speech-1", "text": "I rebuilt the scheduler."})
     (turn,) = [span for span in exported.get_finished_spans() if span.name == "agent_turn"]
     kept = dict(turn.attributes)
     assert safe.items() <= kept.items()
-    assert "interview_session_id" in kept and not set(unknown) & set(kept)
+    assert "interview_id" in kept and not set(unknown) & set(kept)
     assert [dict(event.attributes) for event in turn.events] == [{"lk.speech_id": "speech-1"}]
     assert "scheduler" not in str(dict(turn.attributes))
 

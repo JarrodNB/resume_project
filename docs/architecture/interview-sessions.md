@@ -522,8 +522,11 @@ is `{action, allowance_seconds_left, session_seconds_left, reason?}`: `wrap_up` 
 `allowance` once the user's live allowance (counting this running connection) is used up, or
 `time_limit` once the session's 25 minutes are billed; `warn` at 2 minutes of allowance or
 less; otherwise `continue`. `wrap_up` gives the same clean wrap-up as the clock (finishing with
-its reason), and `warn` the same spoken warning, still only once per session. A heartbeat the
-agent could not deliver keeps its seconds and usage for the next one. On finishing, the agent
+its reason), and `warn` the same spoken warning, still only once per session. A heartbeat
+whose answer was lost may still have been applied, so the agent resends it unchanged (same
+sequence and counts) before any newer one and Rails replays it rather than counting it twice;
+seconds counted meanwhile wait for the next new heartbeat. A heartbeat Rails refused was not
+applied, so its seconds and usage go with the next one. On finishing, the agent
 first sends a final heartbeat with the remaining counted seconds and usage and names it in
 `finish` (`final_sequence`).
 

@@ -14,8 +14,11 @@ publish progress and the clock as agent participant attributes and leave. When R
 call with `connection_ended` (recovery or the owner already finished the interview), the
 interviewer is cut off and the agent leaves without reporting or finishing anything else. A heartbeat adds the
 provider usage that is new since Rails last acknowledged one (from LiveKit's running
-`AgentSession.usage`, priced in live_interviews.usage); a lost heartbeat's seconds and usage go
-with the next one. All interview decisions live in the controller; nothing here is recorded
+`AgentSession.usage`, priced in live_interviews.usage). A heartbeat whose answer is lost may
+still have been applied, so it is resent unchanged (same sequence, same counts) before any newer
+one, and Rails replays it instead of counting it twice; seconds counted meanwhile wait for the
+next new heartbeat. A heartbeat Rails refused outright was not applied, so its seconds and usage
+go with the next one. All interview decisions live in the controller; nothing here is recorded
 (`record=False`) and spoken text is never logged.
 
 Dropped connections: the session is started with `close_on_disconnect=False`, so the agent stays
@@ -35,6 +38,7 @@ import asyncio
 import json
 import logging
 import time
+from dataclasses import dataclass
 
 from livekit import rtc
 from livekit.agents import (
@@ -53,7 +57,12 @@ from psycopg import Error as DatabaseError
 from pydantic import BaseModel, ConfigDict
 
 from interviews.conversation import ContextLimitExceeded
-from live_interviews.client import LiveConnectionEnded, RailsClientError, RailsTransportError
+from live_interviews.client import (
+    HeartbeatReply,
+    LiveConnectionEnded,
+    RailsClientError,
+    RailsTransportError,
+)
 from live_interviews.controller import (
     ENDED,
     AskFollowUp,
@@ -121,6 +130,17 @@ def realtime_model_options(persona: str) -> dict:
 
 
 MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
+_LOST = object()  # a heartbeat sent without a trustworthy answer
+
+
+@dataclass(frozen=True)
+class _PendingHeartbeat:
+    """A heartbeat exactly as sent, kept until Rails gives a definite answer."""
+
+    sequence: int
+    billed_seconds_delta: int
+    usage: list
+    totals: LiveUsageTotals
 
 
 class LiveInterviewRunner:
@@ -136,7 +156,8 @@ class LiveInterviewRunner:
         self._left = False
         self._ended_by_rails = False  # Rails said the connection or interview is over; only leaving is left
         self._acknowledged = LiveUsageTotals()  # usage Rails has acknowledged in heartbeats
-        self._unsent_seconds = 0  # billed seconds of heartbeats Rails did not get
+        self._unsent_seconds = 0  # billed seconds no applied heartbeat has carried yet
+        self._pending: _PendingHeartbeat | None = None  # sent, but Rails' answer was lost
 
     def usage_totals(self) -> LiveUsageTotals:
         """The session's running provider usage so far."""
@@ -219,11 +240,12 @@ class LiveInterviewRunner:
                 await self._carry_out(action)
         return ENDED if self._ended_by_rails and result is not None else result
 
-    async def _report(self, call, **values):
+    async def _report(self, call, *, lost=None, **values):
         """Call Rails; a refusal means the report was stale, so it is logged (never its text) and skipped.
 
         A `connection_ended` refusal means recovery or the owner already finished the interview:
-        the interviewer stops talking and the controller leaves, with nothing else sent to Rails."""
+        the interviewer stops talking and the controller leaves, with nothing else sent to Rails.
+        Returns None for a refusal and `lost` when no trustworthy answer arrived."""
         try:
             return await call(self._connection_id, **values)
         except LiveConnectionEnded:
@@ -241,20 +263,38 @@ class LiveInterviewRunner:
             return None
         except RailsTransportError as error:
             logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
-            return None
+            return lost
 
     async def _send_heartbeat(self, action: SendHeartbeat) -> None:
-        """Report counted seconds and new priced usage; keep both for the next one if this one is lost."""
-        totals = self.usage_totals()
-        seconds = action.billed_seconds_delta + self._unsent_seconds
-        reply = await self._report(self._rails.heartbeat, sequence=action.sequence, billed_seconds_delta=seconds,
-                                   usage=heartbeat_usage(totals, self._acknowledged))
-        if reply is None:
-            self._unsent_seconds = seconds
+        """Report counted seconds and new priced usage, after resending a lost heartbeat unchanged."""
+        if self._pending is not None and await self._post_heartbeat(self._pending) is _LOST:
+            self._unsent_seconds += action.billed_seconds_delta
             return
-        self._acknowledged, self._unsent_seconds = totals, 0
-        if not action.final:
+        if self._ended_by_rails:
+            return
+        totals = self.usage_totals()
+        self._pending = _PendingHeartbeat(action.sequence, action.billed_seconds_delta + self._unsent_seconds,
+                                          heartbeat_usage(totals, self._acknowledged), totals)
+        self._unsent_seconds = 0
+        reply = await self._post_heartbeat(self._pending)
+        if isinstance(reply, HeartbeatReply) and not action.final:
             await self._dispatch(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason))
+
+    async def _post_heartbeat(self, heartbeat: "_PendingHeartbeat"):
+        """Send one heartbeat. Returns Rails' reply once applied or replayed, `_LOST` when no answer
+        came (it stays pending, to be resent unchanged) or None when Rails refused it (not applied,
+        so its seconds wait for the next heartbeat and its usage is counted again from the last
+        acknowledged totals)."""
+        reply = await self._report(self._rails.heartbeat, lost=_LOST, sequence=heartbeat.sequence,
+                                   billed_seconds_delta=heartbeat.billed_seconds_delta, usage=heartbeat.usage)
+        if reply is _LOST:
+            return _LOST
+        self._pending = None
+        if reply is None:
+            self._unsent_seconds += heartbeat.billed_seconds_delta
+            return None
+        self._acknowledged = heartbeat.totals
+        return reply
 
     async def _carry_out(self, action: LiveAction) -> None:
         if isinstance(action, GenerateReply):

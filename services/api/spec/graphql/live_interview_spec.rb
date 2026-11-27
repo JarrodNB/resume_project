@@ -123,4 +123,50 @@ RSpec.describe "Live interview GraphQL" do
       expect(result.dig("data", "endLiveInterview", "interview", "status")).to eq("abandoned")
     end
   end
+
+  describe "turn-based actions on a live interview" do
+    around { |example| with_livekit_env { example.run } }
+
+    let(:interview) do
+      interview = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: interview)
+      question = interview.questions.first
+      interview.messages.create!(question: question, kind: "opening", position: 0, semantic_key: "question:#{question.id}:opening", content: question.content)
+      interview.reload
+    end
+    let(:question_id) { interview.questions.first.id }
+    let(:message_id) { interview.messages.sole.id }
+
+    def errors_of(field, mutation, input)
+      execute_graphql(mutation, user: user, variables: { input: { interviewId: interview.id, **input } }).dig("data", field, "errors")
+    end
+
+    it "refuses submitting, skipping and every way of capturing an answer, starting no work" do
+      revision = interview.revision
+      refusals = {
+        "submitInterviewTurn" => [ "mutation($input: SubmitInterviewTurnInput!) { submitInterviewTurn(input: $input) { errors } }",
+          { questionId: question_id, expectedRevision: revision, submissionKey: "typed", transcriptionMode: "typed", candidateTranscript: "My answer." } ],
+        "skipInterviewQuestion" => [ "mutation($input: SkipInterviewQuestionInput!) { skipInterviewQuestion(input: $input) { errors } }",
+          { questionId: question_id, expectedRevision: revision, submissionKey: "skip" } ],
+        "authorizeInterviewTranscription" => [ "mutation($input: AuthorizeInterviewTranscriptionInput!) { authorizeInterviewTranscription(input: $input) { errors } }",
+          { questionId: question_id, expectedRevision: revision } ],
+        "authorizeInterviewRecording" => [ "mutation($input: AuthorizeInterviewRecordingInput!) { authorizeInterviewRecording(input: $input) { errors } }",
+          { questionId: question_id, expectedRevision: revision, contentType: "audio/webm", byteSize: 1_000, checksum: Base64.strict_encode64(Digest::MD5.digest("x")) } ],
+        "startRecordedTranscription" => [ "mutation($input: StartRecordedTranscriptionInput!) { startRecordedTranscription(input: $input) { errors } }",
+          { questionId: question_id, expectedRevision: revision, recordingId: SecureRandom.uuid } ],
+        "requestInterviewClarification" => [ "mutation($input: RequestInterviewClarificationInput!) { requestInterviewClarification(input: $input) { errors } }",
+          { messageId: message_id } ],
+        "avoidInterviewPrompt" => [ "mutation($input: AvoidInterviewPromptInput!) { avoidInterviewPrompt(input: $input) { errors } }",
+          { messageId: message_id } ]
+      }
+      refusals.each do |field, (mutation, input)|
+        expect(errors_of(field, mutation, input)).to eq([ "This is a live interview" ]), field
+      end
+      expect(interview.reload).to have_attributes(status: "active", revision: revision)
+      expect(interview.operations.where.not(kind: "preparation")).to be_empty
+      expect(interview.clarifications).to be_empty
+      expect(InterviewTranscriptionCapture.where(interview_session: interview)).to be_empty
+      expect(InterviewSessionMedia.where(interview_session: interview)).to be_empty
+    end
+  end
 end

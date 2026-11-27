@@ -10,6 +10,8 @@ module Interviews
     # The GraphQL boundary supplies an already owner-authorized interview.
     # @return [ServiceResult<InterviewSession>] current snapshot after a durable skip
     def call
+      live = TurnBasedOnly.refusal(@interview)
+      return live if live
       return failure("Invalid skip request") unless @question_id.is_a?(String) && @question_id.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/) &&
         @expected_revision.is_a?(Integer) && @expected_revision >= 0 && @submission_key.is_a?(String) &&
         @submission_key.present? && @submission_key.length <= 200

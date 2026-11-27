@@ -10,6 +10,8 @@ module Interviews
     end
 
     def call
+      live = TurnBasedOnly.refusal(@interview)
+      return live if live
       return failure("Invalid audio metadata") unless valid_metadata?(@content_type, @byte_size, @checksum)
       result = @interview.user.with_lock do
         @interview.lock!

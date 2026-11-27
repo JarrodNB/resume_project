@@ -259,7 +259,11 @@ are safe to repeat, and are refused with 409 once the connection or session is o
 Each session saves a readonly `conversation_mode` column: `turn_based` (the default, and every
 older session) or `live`, chosen by `startInterview(conversationMode:)`. Live preparations accept
 only 5 or 8 questions; preparation itself is unchanged. `BeginService` refuses live sessions, so
-no turn-based opening is saved for them. Instead, the owned `joinLiveInterview` mutation
+no turn-based opening is saved for them. The other turn-based actions (submitting or skipping a
+turn, reserving a recording, starting a recorded transcription, authorizing streaming
+transcription, clarification and avoiding a prompt) refuse them too with "This is a live
+interview", through one guard (`Interviews::TurnBasedOnly`); career references, session
+feedback, `endLiveInterview` and abandoning still work. Instead, the owned `joinLiveInterview` mutation
 (`Interviews::JoinLiveService`) accepts a `ready` or `active` live session, moves ready to active
 without saving an opening (the live agent saves it when spoken), and creates or reuses the
 session's one open `InterviewLiveConnection` (a partial unique index allows one row that is not

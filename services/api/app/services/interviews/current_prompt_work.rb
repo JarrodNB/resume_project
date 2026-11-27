@@ -12,6 +12,9 @@ module Interviews
     # Requests one prompt's logical work. Repeated requests reuse the saved attempt;
     # only an explicit retry replaces failed work, up to two total attempts.
     def request(interview:, message_id:, retry_failed: false)
+      live = TurnBasedOnly.refusal(interview)
+      return live if live
+
       publish = nil
       result = interview.user.with_lock do
         interview.lock!

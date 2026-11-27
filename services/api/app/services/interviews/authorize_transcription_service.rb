@@ -10,6 +10,9 @@ module Interviews
 
     # @return [ServiceResult<Hash>] one opaque, single-use streaming capability
     def call
+      live = TurnBasedOnly.refusal(@interview)
+      return live if live
+
       @interview.user.with_lock do
         @interview.lock!
         next failure("Interview is not active") unless @interview.active? && @interview.expires_at > Time.current && @interview.execution_mode == "real"

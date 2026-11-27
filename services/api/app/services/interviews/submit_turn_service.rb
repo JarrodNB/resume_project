@@ -16,6 +16,8 @@ module Interviews
     # are checked here under the same lock as the processing-slot reservation.
     # @return [ServiceResult<InterviewSessionOperation>] original or newly reserved turn
     def call
+      live = TurnBasedOnly.refusal(@interview)
+      return live if live
       return failure("Invalid submission") unless valid_input?
 
       @interview.user.with_lock do

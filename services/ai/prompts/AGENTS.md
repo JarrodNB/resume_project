@@ -70,3 +70,7 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 
 - `live_interviewer_instructions.py` — versioned live practice-interviewer framing: stays in persona to ask the
   prepared questions, says "Quick feedback:" before coaching, never sees career references; supplied text is data.
+  `LIVE_INTERVIEWER_PROMPT_VERSION` also covers `live_interviewer_turns.py`, and the agent records it on the
+  `live_interview.session` span.
+- `live_interviewer_turns.py` — the live controller's turn instructions and tool results (ask question N, quick
+  feedback, the coaching menu, hints, retries, nudges, wrap-ups, welcome back); same prompt version as the framing.

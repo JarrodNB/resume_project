@@ -33,7 +33,9 @@ from live_interviews.client import (
 from live_interviews.instructions import LiveInterviewInputs
 from live_interviews.settings import AGENT_NAME, PERSONA_VOICES
 from privacy.known_contact import KnownContact
+from prompts.live_interviewer_instructions import LIVE_INTERVIEWER_PROMPT_VERSION
 from schemas.interview_setup import InterviewSetup
+from telemetry.privacy import ContactSpanProcessor
 
 METADATA = '{"interview_session_id": "session", "live_connection_id": "live"}'
 CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner",
@@ -642,6 +644,7 @@ def test_a_warn_reply_is_shown_and_said_once():
 def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
+    provider.add_span_processor(ContactSpanProcessor())  # applies telemetry scopes, as in the worker
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     rails, sessions = FakeRails(), []
     ctx, go = run_interview(rails, sessions, tracer=provider.get_tracer("test"))
@@ -657,6 +660,7 @@ def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
     (root,) = exporter.get_finished_spans()
     assert root.name == "live_interview.session" and root.parent is None
     assert dict(root.attributes) == {"interview_id": "session", "live_connection_id": "live",
+                                     "prompt_version": LIVE_INTERVIEWER_PROMPT_VERSION,
                                      "provider_cost_microdollars": 20_000, "operation.cost": 0.02}
 
 

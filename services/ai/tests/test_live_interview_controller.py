@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 from live_interviews.controller import (
-    NO_FEEDBACK_AFTER_RECONNECT,
     AnswerNotSaved,
     AskFollowUp,
     CandidateJoined,
@@ -44,6 +43,7 @@ from live_interviews.controller import (
     Tick,
     ToolResult,
 )
+from prompts.live_interviewer_turns import NO_FEEDBACK_AFTER_RECONNECT
 
 
 def started_controller(position=0, total=5, answer_cap=2):

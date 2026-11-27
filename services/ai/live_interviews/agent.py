@@ -39,7 +39,6 @@ from live_interviews.client import (
     RailsTransportError,
 )
 from live_interviews.controller import (
-    ENDED,
     AskFollowUp,
     CandidateJoined,
     CandidateLeft,
@@ -78,6 +77,9 @@ from live_interviews.instructions import build_live_instructions
 from live_interviews.reporter import InterviewReport, LiveReporter
 from live_interviews.settings import PERSONA_VOICES, REALTIME_MODEL, TRANSCRIPTION_MODEL
 from live_interviews.usage import LiveUsageTotals
+from prompts.live_interviewer_instructions import LIVE_INTERVIEWER_PROMPT_VERSION
+from prompts.live_interviewer_turns import ENDED
+from telemetry.tracing import record_prompt_version
 
 logger = logging.getLogger(__name__)
 
@@ -487,8 +489,9 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
     span = claim = None
     try:
         dispatch = LiveDispatch.model_validate_json(ctx.job.metadata)
-        span = tracer.start_span("live_interview.session", attributes={
-            "interview_id": dispatch.interview_session_id, "live_connection_id": dispatch.live_connection_id})
+        with record_prompt_version(LIVE_INTERVIEWER_PROMPT_VERSION):  # framing and turn texts are one prompt
+            span = tracer.start_span("live_interview.session", attributes={
+                "interview_id": dispatch.interview_session_id, "live_connection_id": dispatch.live_connection_id})
         # LiveKit's session spans and our tasks join this trace.
         with trace.use_span(span, end_on_exit=False):
             claim = await rails.claim(dispatch.live_connection_id, room_name=ctx.job.room.name)

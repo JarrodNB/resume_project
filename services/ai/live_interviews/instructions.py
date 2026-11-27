@@ -14,13 +14,9 @@ from interviews.conversation import ContextLimitExceeded, data_block, format_rol
 from privacy.contact_mask import contact_scope, mask_outbound
 from privacy.known_contact import KnownContact
 from prompts.interview_style import live_style
-from prompts.live_interviewer_instructions import LIVE_INTERVIEWER_INSTRUCTIONS
+from prompts.live_interviewer_instructions import JOB_UNAVAILABLE, LIVE_INTERVIEWER_INSTRUCTIONS
 from schemas.interview_setup import InterviewSetup
 from text_limits import MAX_PROMPT_TEXT
-
-JOB_UNAVAILABLE = ("# Saved job\n"
-                   "This interview was prepared for one of the candidate's saved jobs, but the job details are no "
-                   "longer available. Carry on with the question plan and do not invent details about the job.")
 
 
 @dataclass(frozen=True)

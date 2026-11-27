@@ -310,7 +310,9 @@ each dispatched job it:
    runs (an agent taking over), it carries on without the job text: the instructions say the job
    details are no longer available instead of failing the start.
 3. builds prose instructions (`live_interviews/instructions.py`, framing in
-   `prompts/live_interviewer_instructions.py`): practice-interviewer framing that marks coaching
+   `prompts/live_interviewer_instructions.py`; the controller's turn instructions and tool results
+   are in `prompts/live_interviewer_turns.py`, and `LIVE_INTERVIEWER_PROMPT_VERSION` labels both
+   as one prompt on the session span): practice-interviewer framing that marks coaching
    with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question
    plan, all inside escaped data sections with contact masked. These instructions, including
    the saved job text read here, are deliberately not screened: the live interviewer's only

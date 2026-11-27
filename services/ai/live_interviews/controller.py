@@ -5,7 +5,8 @@ adapter (live_interviews.agent) feeds it events (someone finished speaking, the 
 tool, a room button, a Rails receipt, the clock) and carries out the actions it returns (speak,
 report to Rails, update the room, leave). Rails owns every saved record and refuses anything
 stale; the controller only keeps the conversation's place. Every tool call gets exactly one
-`ToolResult`, its last action, and question positions are zero-based like Rails'.
+`ToolResult`, its last action, and question positions are zero-based like Rails'. The words
+of its turn instructions and tool results live in prompts/live_interviewer_turns.py.
 
 The behaviour it implements (answers, coaching menu, clock and allowance, dropped connections,
 takeovers) is described in docs/architecture/interview-sessions.md, "Live conversation mode".
@@ -15,6 +16,41 @@ import math
 from dataclasses import dataclass
 from typing import Literal
 
+from prompts.live_interviewer_turns import (
+    ANSWER_SAVED,
+    ASK_FOLLOW_UP,
+    CHOOSING,
+    CLOSING,
+    ENDED,
+    FEEDBACK_AGAIN,
+    FEEDBACK_AT_END,
+    FEEDBACK_FIRST,
+    FEEDBACK_SO_FAR,
+    HINT,
+    HINT_AT_MENU,
+    IDLE_GOODBYE,
+    MENU,
+    MENU_AGAIN,
+    NO_FEEDBACK_AFTER_RECONNECT,
+    NO_RETRIES_ANSWERING,
+    NO_RETRIES_AT_MENU,
+    NOT_ANSWERED,
+    NOT_ASKED,
+    NOT_STARTED,
+    NOTHING_TO_COACH,
+    NUDGE,
+    REPEAT,
+    REPEAT_FROM_MENU,
+    RESUME_AT_MENU,
+    RETRY,
+    TIME_UP,
+    TIME_WARNING,
+    WELCOME_BACK_TO,
+    WRAP_UP,
+    ask_question_instructions,
+    opening_instructions,
+    resume_instructions,
+)
 from text_limits import MAX_PROSE_TEXT
 
 Phase = Literal["asking", "answering", "feedback", "menu", "closing", "ended"]
@@ -317,107 +353,17 @@ LiveAction = (GenerateReply | ReportPromptAsked | ReportAnswerFinished | ReportQ
               | ToolResult)
 
 
-def _ask_question_instructions(question_position: int) -> str:
-    return (f"question {question_position + 1} from the question plan. Keep its meaning and ask it as one "
-            "clear question in your own natural spoken words. Then stop and let the candidate answer.")
-
-
-def _resume_instructions(question_position: int) -> str:
-    return (f"Greet the candidate briefly and say you will continue the interview, then repeat question "
-            f"{question_position + 1} from the question plan clearly, with the same meaning. Then stop and let the "
-            "candidate answer.")
-
-
-def _opening_instructions(question_position: int) -> str:
-    greeting = ("Greet the candidate warmly in one short sentence in your interviewer style, "
-                "then ask " if question_position == 0 else
-                "Greet the candidate briefly and say you will continue the interview, then ask ")
-    return greeting + _ask_question_instructions(question_position)
-
-
-NOT_STARTED = "The interview has not started yet. Wait."
-ENDED = "The interview has ended. Do not ask anything else."
-NOT_ANSWERED = "The candidate has not answered yet. Let them answer before you continue."
-ANSWER_SAVED = ("The answer is saved. Ask one follow-up with ask_follow_up if it would help, "
-                "or call next_question to move on.")
-ASK_FOLLOW_UP = ("Ask that follow-up now in one short, natural spoken question. Then stop and let the "
-                 "candidate answer.")
-REPEAT = ("Repeat the current question or follow-up now, clearly and with the same meaning. You may "
-          "rephrase it slightly. Do not ask anything new.")
 FEEDBACK_LIMIT = 1_500  # characters Rails keeps for one question's feedback
 ANSWER_LIMIT = MAX_PROSE_TEXT  # characters Rails accepts for one answer (TextLimits::PROSE)
-FEEDBACK_AT_END = ("This question is done. Step out of the interviewer role now: start with \"Quick feedback:\" "
-                   "and, in about 20 seconds, give one specific strength and one specific fix for the candidate's "
-                   "answers to this question. Give only the feedback in this turn: do not offer choices yet and do "
-                   "not ask the next question.")
-FEEDBACK_SO_FAR = ("Step out of the interviewer role now: start with \"Quick feedback:\" and, in about 20 seconds, "
-                   "give one specific strength and one specific fix for the candidate's answer so far. Then invite "
-                   "them to carry on with their answer. Do not ask anything new.")
-FEEDBACK_AGAIN = ("Start with \"Quick feedback:\" and, in about 20 seconds, give the candidate one specific strength "
-                  "and one specific fix for their answers to this question. Give only the feedback in this turn.")
-NOTHING_TO_COACH = "The candidate has not answered yet, so there is nothing to give feedback on. Let them answer."
-NO_FEEDBACK_AFTER_RECONNECT = (
-    "You reconnected partway through this question and did not hear the candidate's earlier answers. Say briefly "
-    "that you can't give feedback on that part after the reconnect, then offer their choices in one short sentence: "
-    "try the question again, hear the question again, get a hint, or move on. Wait for their choice.")
-FEEDBACK_FIRST = "Give your quick feedback first. The candidate then chooses what to do next."
-MENU = ("Now offer the candidate their choices in one short, friendly sentence: try the question again, hear the "
-        "question again, get a hint, or move on. Then stop and wait for their choice. Never move on until they "
-        "choose.")
-CHOOSING = ("The candidate is choosing what to do next: try the question again, hear the question again, get a "
-            "hint, or move on. Do not ask anything new; wait for their choice.")
-MENU_AGAIN = ("Offer the candidate their choices again in one short sentence: try the question again, hear the "
-              "question again, get a hint, or move on. Then wait for their choice.")
-REPEAT_FROM_MENU = ("Repeat the core question clearly, with the same meaning; you may rephrase it slightly. Then "
-                    "offer the choices again (try again, get a hint, or move on) and wait for their choice.")
 RETRY_LIMIT = 2  # retries per question; Rails refuses a third too
-NOT_ASKED = "The question has not been asked yet. Ask it first."
-RETRY = ("Tell the candidate in a few words that they can start this question again from the beginning, then ask "
-         "{question}")
-NO_RETRIES_AT_MENU = ("The candidate has already used both retries for this question. Say so politely, then offer the "
-                      "other choices: hear the question again, get a hint, or move on. Wait for their choice.")
-NO_RETRIES_ANSWERING = ("The candidate has already used both retries for this question. Say so politely and let them "
-                        "carry on with their answer; they can also ask for a hint or move on.")
-HINT_RULE = ("Give one short hint that points to an approach, such as a structure to follow or the kind of example "
-             "to pick. Never give a finished answer or words for them to recite.")
-HINT = HINT_RULE + " Then let them answer."
-HINT_AT_MENU = HINT_RULE + (" Then ask whether they would like to try the question again or choose something else, "
-                            "and wait for their choice.")
 MENU_EVENTS = {"retry": RetryQuestion, "repeat": RepeatQuestion, "hint": GiveHint, "next": NextQuestion,
                "feedback": GiveFeedback}
 NUDGE_AFTER_SECONDS = 180  # of answering one prompt
 MENU_IDLE_SECONDS = 180  # of the menu waiting for a choice
 CLOSING_WAIT_SECONDS = 20  # the closing finishes the interview by then even if it was never heard as a turn
-NUDGE = ("The candidate has been answering this for about three minutes. Politely cut in once, in one short "
-         "sentence, and ask them to wrap that answer up in a sentence or two.")
-IDLE_GOODBYE = ("The candidate has not chosen anything for three minutes. Say in one or two short sentences that you "
-                "will stop here for now, thank them and say goodbye. Do not ask anything else.")
-CLOSING = ("That was the last question. Thank the candidate warmly in one or two short sentences and "
-           "say goodbye. Do not ask anything else or give feedback.")
-RESUME_AT_MENU = ("Greet the candidate briefly and say you will pick up where you left off. Then offer their choices in "
-                  "one short sentence: try the question again, hear the question again, get a hint, or move on. Wait "
-                  "for their choice.")
 AWAY_GRACE_SECONDS = 120  # how long the agent waits for a candidate whose connection dropped
-WELCOME_BACK = "The candidate's connection dropped and they are back. Welcome them back in one short sentence, then "
-WELCOME_BACK_TO = {
-    "asking": WELCOME_BACK + ("ask the current question or follow-up clearly, with the same meaning, and let them "
-                              "answer."),
-    "answering": WELCOME_BACK + ("repeat the current question or follow-up clearly, with the same meaning, and let "
-                                 "them answer."),
-    "feedback": WELCOME_BACK + "give your quick feedback. " + FEEDBACK_AGAIN,
-    "menu": WELCOME_BACK + MENU_AGAIN[0].lower() + MENU_AGAIN[1:],
-}
 WARNING_SECONDS = 120  # counted seconds left when the interviewer warns once
 CLOCK_PUBLISH_SECONDS = 5  # the room's time left is refreshed about this often
-TIME_WARNING = ("In one short sentence, tell the candidate there are about two minutes left, so they can start to "
-                "wrap up. Then carry on where you were.")
-TIME_UP = "Time is up and the interview is closing. Do not ask anything new."
-WRAP_UP = {
-    "time_limit": ("We are out of time for this practice interview. In one or two short sentences, say that time is "
-                   "up, thank the candidate warmly and say goodbye. Do not ask anything else."),
-    "allowance": ("The candidate has used their live minutes for now. In one or two short sentences, say that their "
-                  "live minutes are used up for now, thank them warmly and say goodbye. Do not ask anything else."),
-}
 
 
 def _bounded_answer(transcript: str) -> str:
@@ -545,7 +491,7 @@ class LiveInterviewController:
         self._sequence = event.heartbeat_sequence
         if event.current_prompt_kind is None:
             self._reporting = "opening"
-            return [self._room_state(), GenerateReply(_opening_instructions(event.question_position))]
+            return [self._room_state(), GenerateReply(opening_instructions(event.question_position))]
         # A fresh agent never heard the conversation so far. It can repeat a saved opening (the
         # question plan has it), but not a follow-up it never asked, so then it offers the menu.
         self._answered_prompts = event.answer_count
@@ -557,7 +503,7 @@ class LiveInterviewController:
         self._prompt = (event.question_position, None)
         self._saved_answer = "" if event.current_prompt_answered else None  # Rails has an answer; new words replace it
         self._unheard_is_current = self._unheard_answers and event.answer_count <= 1
-        return [self._room_state(), GenerateReply(_resume_instructions(event.question_position))]
+        return [self._room_state(), GenerateReply(resume_instructions(event.question_position))]
 
     def _interviewer_turn_finished(self, event: InterviewerTurnFinished) -> list[LiveAction]:
         text = event.text.strip()
@@ -763,7 +709,7 @@ class LiveInterviewController:
                                     if prompt[0] != self._question_position}
         self._new_prompt("opening")
         return [ReportQuestionRetried(self._question_position, self._retries), self._room_state(),
-                ToolResult(RETRY.format(question=_ask_question_instructions(self._question_position)))]
+                ToolResult(RETRY.format(question=ask_question_instructions(self._question_position)))]
 
     def _feedback(self, instructions: str, *, then: Literal["answering", "menu"]) -> list[LiveAction]:
         actions = self._save_answer()
@@ -782,7 +728,7 @@ class LiveInterviewController:
         self._question_position = position + 1
         self._answered_prompts, self._retries, self._unheard_answers = 0, 0, False
         self._new_prompt("opening")
-        return [*actions, self._room_state(), ToolResult("Now ask " + _ask_question_instructions(position + 1))]
+        return [*actions, self._room_state(), ToolResult("Now ask " + ask_question_instructions(position + 1))]
 
     def _finish(self, reason: FinishReason) -> list[LiveAction]:
         heartbeat = self._heartbeat(final=True)

@@ -3954,6 +3954,11 @@ input StartInterviewInput {
   """
   conversationMode: ConversationModeEnum = TURN_BASED
   executionMode: String = "real"
+
+  """
+  An owned interview whose setup, saved job and career focus the new one copies; not combined with the other settings.
+  """
+  fromInterviewId: ID
   jobId: ID
   setup: InterviewSetupInput
 }

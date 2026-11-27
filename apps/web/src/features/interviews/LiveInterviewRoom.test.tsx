@@ -7,10 +7,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPage } from './InterviewPage'
 
-const { state, start, live } = vi.hoisted(() => ({
+const { state, start, startFrom, live } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null, subscriptionError: null, busy: false, error: null, errorCode: null, unresolved: null, skipPending: false,
     transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
   start: vi.fn(),
+  startFrom: vi.fn(),
   live: { hook: vi.fn(), value: {} as Record<string, unknown> },
 }))
 const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false }
@@ -19,7 +20,7 @@ function liveRoom(change: Record<string, unknown> = {}) {
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),
     rejoin: vi.fn().mockResolvedValue(undefined), leaveForTurnBased: vi.fn().mockResolvedValue(undefined), ...change }
 }
-vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
+vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, startFrom, loading: false, error: null }) }))
 vi.mock('./useLiveInterviewRoom', () => ({ useLiveInterviewRoom: (id: string) => { live.hook(id); return live.value } }))
 vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => null }))
 vi.mock('./InterviewCareerReferences', () => ({ InterviewCareerReferences: ({ message, disabled }: { message: { id: string; content: string }; disabled: boolean }) =>
@@ -42,6 +43,7 @@ beforeEach(() => {
   state.interview = structuredClone(snapshot)
   live.value = liveRoom()
   start.mockResolvedValue('turn-based-session')
+  startFrom.mockResolvedValue('turn-based-session')
 })
 afterEach(() => { vi.useRealTimers() })
 
@@ -84,16 +86,17 @@ it('offers a turn-based interview with the same setup when no interviewer joins 
   vi.useRealTimers()
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(router.state.location.pathname).toBe('/practice/interviews/turn-based-session'))
-  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'behavioral', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, undefined, 'TURN_BASED')
+  expect(startFrom).toHaveBeenCalledWith('session', 'TURN_BASED') // Rails copies the setup, job and career focus
+  expect(start).not.toHaveBeenCalled()
   expect(live.value.leaveForTurnBased).toHaveBeenCalledOnce() // the abandoned live room never stays active
 })
 
 it('keeps the live room when the turn-based interview could not start', async () => {
-  start.mockResolvedValue(null)
+  startFrom.mockResolvedValue(null)
   live.value = liveRoom({ status: 'failed', error: 'Live interviews are not configured.' })
   renderInterview()
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
-  await vi.waitFor(() => expect(start).toHaveBeenCalled())
+  await vi.waitFor(() => expect(startFrom).toHaveBeenCalled())
   expect(live.value.leaveForTurnBased).not.toHaveBeenCalled()
 })
 
@@ -116,13 +119,12 @@ it('offers to rejoin the same interview after the connection dropped', () => {
   expect(screen.getByRole('button', { name: 'End interview' })).toBeVisible()
 })
 
-it('offers the fallback at once when joining fails, keeping a saved job', async () => {
-  state.interview = { ...structuredClone(snapshot), jobContext: { __typename: 'InterviewJobContext', id: 'job-1', title: 'Technician', company: null, description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
+it('offers the fallback at once when joining fails, starting from this session', async () => {
   live.value = liveRoom({ status: 'failed', error: 'Live interviews are not configured.' })
   renderInterview()
   expect(screen.getByRole('alert')).toHaveTextContent('Live interviews are not configured.')
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
-  await vi.waitFor(() => expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'TURN_BASED'))
+  await vi.waitFor(() => expect(startFrom).toHaveBeenCalledWith('session', 'TURN_BASED'))
 })
 
 it('says the interviewer left and offers the fallback again if no interviewer returns within 15 seconds', () => {

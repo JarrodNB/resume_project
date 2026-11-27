@@ -21,6 +21,23 @@ RSpec.describe "Live interview GraphQL" do
     expect(refused.dig("data", "startInterview", "errors")).to eq([ "Live interviews use 5 or 8 questions" ])
   end
 
+  it "starts a turn-based interview with a live session's own setup, job and career focus, for its owner only" do
+    job = create(:job, user: user)
+    setup = { "question_count" => 5, "question_format" => "behavioral", "difficulty" => "stretch", "interviewer" => "maya", "focus_areas" => [ "leadership" ] }
+    source = Interviews::StartPreparationService.call(user: user, setup: setup, job: job, career_focus: "Calibration", conversation_mode: "live").value
+    query = 'mutation($input: StartInterviewInput!) { startInterview(input: $input) { interview { id conversationMode jobContext { id } } errors } }'
+    variables = { input: { fromInterviewId: source.id, conversationMode: "TURN_BASED" } }
+    expect(execute_graphql(query, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(query, user: user, variables: variables)
+    expect(result.dig("data", "startInterview")).to include("errors" => [],
+      "interview" => include("conversationMode" => "TURN_BASED", "jobContext" => { "id" => job.id }))
+    started = user.interview_sessions.find(result.dig("data", "startInterview", "interview", "id"))
+    expect(started).to have_attributes(setup_config: source.setup_config, career_focus: "Calibration", job: job)
+    mixed = execute_graphql(query, user: user, variables: { input: { fromInterviewId: source.id, setup: { questionCount: 8 } } })
+    expect(mixed.dig("data", "startInterview")).to include("interview" => nil,
+      "errors" => [ "Start from an earlier interview or with new settings, not both" ])
+  end
+
   describe "joinLiveInterview" do
     let(:join) { 'mutation($input: JoinLiveInterviewInput!) { joinLiveInterview(input: $input) { url token roomName expiresAt interview { id status messages { id } } errors } }' }
 

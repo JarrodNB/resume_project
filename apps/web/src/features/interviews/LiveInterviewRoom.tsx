@@ -140,17 +140,17 @@ function EndLiveInterviewButton({ room }: { room: LiveRoom }) {
   </>
 }
 
-/** Starts a turn-based preparation with this session's saved setup and opens it like a normal
- * start, then ends the live room as failed (not awaited, so the page moves on at once). */
+/** Starts a turn-based preparation from this session (Rails copies its setup, saved job and career
+ * focus) and opens it like a normal start, then ends the live room as failed (not awaited, so the
+ * page moves on at once). */
 function TurnBasedFallback({ interview, room, reason }: { interview: InterviewSnapshotFragment; room: LiveRoom; reason: string | null }) {
-  const { start, loading, error, errorCode } = useStartInterview()
+  const { startFrom, loading, error, errorCode } = useStartInterview()
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
   async function startTurnBased() {
     setPending(true)
     try {
-      const { questionCount, questionFormat, difficulty, interviewer, focusAreas } = interview.setup
-      const id = await start('', { questionCount, questionFormat, difficulty, interviewer, focusAreas }, interview.jobContext?.id ?? undefined, 'TURN_BASED')
+      const id = await startFrom(interview.id, 'TURN_BASED')
       if (!id) return
       void room.leaveForTurnBased()
       await navigate(`/practice/interviews/${id}`)

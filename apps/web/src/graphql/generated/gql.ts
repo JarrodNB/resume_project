@@ -86,6 +86,7 @@ type Documents = {
     "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n": typeof types.InterviewSessionDocument,
     "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n": typeof types.InterviewSessionUpdatedDocument,
     "\n  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: ConversationModeEnum) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n": typeof types.StartInterviewDocument,
+    "\n  mutation StartInterviewFrom($fromInterviewId: ID!, $conversationMode: ConversationModeEnum) { startInterview(input: {fromInterviewId: $fromInterviewId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n": typeof types.StartInterviewFromDocument,
     "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": typeof types.AuthorizeInterviewRecordingDocument,
     "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.RegisterInterviewRecordingDocument,
     "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.SubmitInterviewTurnDocument,
@@ -211,6 +212,7 @@ const documents: Documents = {
     "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n": types.InterviewSessionDocument,
     "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n": types.InterviewSessionUpdatedDocument,
     "\n  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: ConversationModeEnum) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n": types.StartInterviewDocument,
+    "\n  mutation StartInterviewFrom($fromInterviewId: ID!, $conversationMode: ConversationModeEnum) { startInterview(input: {fromInterviewId: $fromInterviewId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n": types.StartInterviewFromDocument,
     "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": types.AuthorizeInterviewRecordingDocument,
     "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.RegisterInterviewRecordingDocument,
     "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.SubmitInterviewTurnDocument,
@@ -566,6 +568,10 @@ export function graphql(source: "\n  subscription InterviewSessionUpdated($id: I
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: ConversationModeEnum) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n"): (typeof documents)["\n  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: ConversationModeEnum) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation StartInterviewFrom($fromInterviewId: ID!, $conversationMode: ConversationModeEnum) { startInterview(input: {fromInterviewId: $fromInterviewId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n"): (typeof documents)["\n  mutation StartInterviewFrom($fromInterviewId: ID!, $conversationMode: ConversationModeEnum) { startInterview(input: {fromInterviewId: $fromInterviewId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

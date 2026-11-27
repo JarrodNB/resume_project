@@ -671,7 +671,10 @@ recovery's quiet-connection close. A 404 (the connection was destroyed with its 
 cuts off the interviewer and leaves at once, without calling `finish` again.
 
 **Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same
-setup", the room first starts the new preparation, then calls
+setup", the room first starts the new preparation with
+`startInterview(fromInterviewId, conversationMode: TURN_BASED)`: the browser sends only the live
+session's ID, and `Interviews::StartFromInterviewService` copies its setup, saved job and career
+focus (owner-scoped; refused if the saved job was deleted). It then calls
 `endLiveInterview(interviewId, liveUnavailable: true)`, which finishes the live room as `failed`
 by the same rule, so the abandoned live session never stays active. If Rails never opened a room
 (the first join was refused, for example too few live minutes or LiveKit not configured), the

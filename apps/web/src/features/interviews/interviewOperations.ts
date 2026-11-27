@@ -21,6 +21,10 @@ export const INTERVIEW_UPDATED = graphql(`
 export const START_INTERVIEW = graphql(`
   mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: ConversationModeEnum) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }
 `)
+/** Starts with the same setup, saved job and career focus as an earlier owned interview; Rails copies them. */
+export const START_INTERVIEW_FROM = graphql(`
+  mutation StartInterviewFrom($fromInterviewId: ID!, $conversationMode: ConversationModeEnum) { startInterview(input: {fromInterviewId: $fromInterviewId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }
+`)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {
     authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }

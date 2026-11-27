@@ -87,7 +87,7 @@ module Interviews
 
     def quiet?
       @connection.status != "ended" &&
-        (@connection.last_heartbeat_at || @connection.connected_at || @connection.created_at) <= @stale_before
+        (@connection.last_heartbeat_at || @connection.connected_at || @connection.authorized_at || @connection.created_at) <= @stale_before
     end
 
     def close_only

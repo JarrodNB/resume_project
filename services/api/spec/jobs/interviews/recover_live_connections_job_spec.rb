@@ -67,6 +67,30 @@ RSpec.describe Interviews::RecoverLiveConnectionsJob do
     end
   end
 
+  it "counts the claim wait from the latest join, so a rejoin's fresh token gets its full 10 minutes" do
+    connection
+    travel 9.minutes do
+      with_livekit_env { Interviews::JoinLiveService.call(interview: interview) }
+      expect(interview.reload.live_connections.sole).to eq(connection)
+    end
+    travel 10.minutes + 30.seconds do
+      described_class.perform_now
+      expect(connection.reload.status).to eq("authorized")
+      claimed = Interviews::ClaimLiveConnectionService.call(connection: connection, room_name: connection.room_name)
+      expect(claimed).to be_success
+      expect(connection.reload.status).to eq("connected")
+    end
+  end
+
+  it "ends a rejoined room the agent never claimed once the rejoin's token has expired" do
+    connection
+    travel(9.minutes) { with_livekit_env { Interviews::JoinLiveService.call(interview: interview) } }
+    travel 19.minutes + 1.second do
+      described_class.perform_now
+      expect(connection.reload).to have_attributes(status: "ended", end_reason: "failed")
+    end
+  end
+
   it "does not finish a connection that a late heartbeat revived after it was picked" do
     claim_and_answer
     travel 3.minutes do

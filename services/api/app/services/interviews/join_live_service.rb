@@ -39,7 +39,9 @@ module Interviews
           refusal = LiveAllowance.start_refusal(@interview.user)
           next failure(refusal, code: :live_allowance_low) if refusal
         end
-        connection ||= @interview.live_connections.create!(room_name: "interview-#{@interview.id}-#{SecureRandom.urlsafe_base64(16)}")
+        connection ||= @interview.live_connections.build(room_name: "interview-#{@interview.id}-#{SecureRandom.urlsafe_base64(16)}")
+        # Every join signs a fresh token, so the wait for the agent's claim starts again (recovery).
+        connection.update!(authorized_at: Time.current)
         @interview.update!(status: "active", revision: @interview.revision + 1) if @interview.ready?
         success(join_details(connection))
       end

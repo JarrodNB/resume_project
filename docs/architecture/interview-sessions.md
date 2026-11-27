@@ -652,7 +652,8 @@ against a real LiveKit server.
 ([background jobs](background-jobs.md#interview-cutover-and-maintenance)) and calls
 `RecoverLiveConnectionsService`. A `connected` connection whose last heartbeat (or claim) is
 older than 150 seconds lost its agent and ends as `disconnected`; an `authorized` connection the
-agent never claimed within the token's 10 minutes ends as `failed`. Both go through
+agent never claimed within the latest join token's 10 minutes ends as `failed` (a rejoin reuses
+the connection with a fresh token and records `authorized_at`, so the wait starts again). Both go through
 `FinishLiveService` without `final_sequence`, so the provider bill stays unknown, and the
 session is completed or abandoned by the usual rule. The finish re-checks under the user,
 interview and connection locks that the connection is still open and still quiet, so a late

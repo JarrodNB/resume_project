@@ -1,6 +1,9 @@
 /** The room for a live interview: the candidate and the interviewer talk in real time through
  * LiveKit (see useLiveInterviewRoom). It shows the connection state, then captions (which the
- * candidate can hide), "Question N of M" from the interviewer agent and a mute button. The
+ * candidate can hide), "Question N of M" from the interviewer agent and a mute button. After the
+ * interviewer's spoken feedback on a question, it shows the coaching choices (Try again, Hear the
+ * question again, Get a hint, Move on) while the agent says the menu is offered; while the
+ * candidate answers it offers "How was that?". Each button sends the same choice as saying it. The
  * career references panel works exactly as in the turn-based room, for the prompt the agent
  * saved. If the interviewer hasn't joined within 15 seconds, or joining fails, it offers to
  * start a new turn-based interview with the same setup (a fresh preparation, so new questions).
@@ -19,7 +22,7 @@ import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
 import { InterviewCareerReferences } from './InterviewCareerReferences'
 import { LiveCaptions } from './LiveCaptions'
-import { useLiveInterviewRoom, type LiveInterviewRoom as LiveRoom } from './useLiveInterviewRoom'
+import { useLiveInterviewRoom, type LiveInterviewRoom as LiveRoom, type LiveMenuOption } from './useLiveInterviewRoom'
 import { useStartInterview } from './useInterviewSession'
 
 /** How long the room waits for the interviewer agent before offering the turn-based fallback. */
@@ -53,17 +56,39 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
   </section>
 }
 
-/** Progress from the agent's attributes (zero-based position shown as "Question N of M"), mute and captions. */
+/** Progress from the agent's attributes (zero-based position shown as "Question N of M"), mute,
+ * the coaching choices and captions. */
 function LiveRoomControls({ room }: { room: LiveRoom }) {
-  const { questionPosition, questionTotal } = room.progress
+  const { questionPosition, questionTotal, phase, menuOffered } = room.progress
   return <div className="grid gap-3">
     <div className="flex flex-wrap items-center justify-center gap-3">
       {questionPosition !== null && questionTotal !== null && <p className="text-sm font-medium">Question {questionPosition + 1} of {questionTotal}</p>}
       <Button variant="outline" className="min-h-11" aria-pressed={room.muted} onClick={() => void room.mute(!room.muted)}>
         {room.muted ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}Mute microphone
       </Button>
+      {phase === 'answering' && <Button variant="outline" className="min-h-11" disabled={room.choosing} onClick={() => void room.choose('feedback')}>How was that?</Button>}
     </div>
+    {menuOffered && <CoachingMenu room={room} />}
+    {room.chooseError && <p role="alert" className="text-sm text-destructive">{room.chooseError}</p>}
     <LiveCaptions captions={room.captions} />
+  </div>
+}
+
+const MENU_CHOICES: { option: LiveMenuOption; label: string }[] = [
+  { option: 'retry', label: 'Try again' },
+  { option: 'repeat', label: 'Hear the question again' },
+  { option: 'hint', label: 'Get a hint' },
+  { option: 'next', label: 'Move on' },
+]
+
+/** The choices after the interviewer's feedback; the interviewer waits until one is made. */
+function CoachingMenu({ room }: { room: LiveRoom }) {
+  const headingId = useId()
+  return <div role="group" aria-labelledby={headingId} className="grid justify-items-center gap-2">
+    <p id={headingId} className="text-sm font-medium">What would you like to do next?</p>
+    <div className="flex flex-wrap justify-center gap-2">
+      {MENU_CHOICES.map(({ option, label }) => <Button key={option} type="button" className="min-h-11" variant={option === 'next' ? 'default' : 'outline'} disabled={room.choosing} onClick={() => void room.choose(option)}>{label}</Button>)}
+    </div>
   </div>
 }
 

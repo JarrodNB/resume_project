@@ -4,10 +4,11 @@
  * whether the interviewer agent has joined, live captions for both sides (from LiveKit's
  * `lk.transcription` text streams), the interview progress the agent publishes as participant
  * attributes, and lets the candidate mute. Leaving the page disconnects the room.
- * `end()` asks the agent to end the interview (RPC `interview.choose` with `{"option":"end"}`),
- * waiting at most 5 seconds, then calls Rails' `endLiveInterview`. That finishes the interview
- * itself when the agent is gone or failed, and otherwise just returns the finished snapshot.
- * Later tickets add the other menu choices.
+ * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
+ * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`); the agent then
+ * speaks the choice. `end()` asks the agent to end the interview (`{"option":"end"}`), waiting at
+ * most 5 seconds, then calls Rails' `endLiveInterview`. That finishes the interview itself when
+ * the agent is gone or failed, and otherwise just returns the finished snapshot.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@apollo/client/react'
@@ -18,20 +19,28 @@ import { END_LIVE_INTERVIEW, INTERVIEW_QUERY, JOIN_LIVE_INTERVIEW } from './inte
 export type LiveRoomStatus = 'joining' | 'connecting' | 'connected' | 'failed'
 /** One caption line. A segment's interim text is replaced by its later or final text. */
 export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer'; text: string }
-/** Where the interview stands, as the agent last published it. `questionPosition` is zero-based. */
-export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null }
-interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null }
+/** Where the interview stands, as the agent last published it. `questionPosition` is zero-based;
+ * `menuOffered` is true while the interviewer waits for the candidate's coaching-menu choice. */
+export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; menuOffered: boolean }
+/** A coaching-menu button or "How was that?" (`feedback`). */
+export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
+interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
 export interface LiveInterviewRoom extends LiveRoomState {
   mute: (on: boolean) => Promise<void>
+  /** Sends a menu choice to the interviewer; resolves true once the agent accepted it. */
+  choose: (option: LiveMenuOption) => Promise<boolean>
   /** Ends the interview; resolves true once Rails has finished it (completed or abandoned). */
   end: () => Promise<boolean>
 }
 
 /** Keep the screen and memory bounded in a long interview. */
 const MAX_CAPTIONS = 50
-const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null }
+const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false }
 /** How long End interview waits for the agent before finishing through Rails directly. */
 export const LIVE_END_AGENT_TIMEOUT_MS = 5_000
+/** How long a menu choice waits for the agent before it is reported as not received. */
+const LIVE_CHOICE_TIMEOUT_MS = 8_000
+const CHOICE_FAILED = 'Your interviewer didn’t get that choice. Try again or say it out loud.'
 
 /** Rejects if `promise` hasn't settled within `ms` (LiveKit clamps its own RPC timeout to 8 s or more). */
 function within<T>(promise: Promise<T>, ms: number) {
@@ -45,15 +54,20 @@ function wholeNumber(value: string | undefined) {
   return Number.isInteger(number) && number >= 0 ? number : null
 }
 
-/** The agent publishes `cd.question_position`, `cd.question_total` and `cd.phase` as strings. */
+/** The agent publishes `cd.question_position`, `cd.question_total`, `cd.phase` and `cd.menu_offered` as strings. */
 function agentProgress(attributes: Record<string, string>): LiveRoomProgress {
-  return { questionPosition: wholeNumber(attributes['cd.question_position']), questionTotal: wholeNumber(attributes['cd.question_total']), phase: attributes['cd.phase'] ?? null }
+  return { questionPosition: wholeNumber(attributes['cd.question_position']), questionTotal: wholeNumber(attributes['cd.question_total']), phase: attributes['cd.phase'] ?? null,
+    menuOffered: attributes['cd.menu_offered'] === 'true' }
+}
+
+function agentIn(livekit: Room | null) {
+  return livekit ? [...livekit.remoteParticipants.values()].find((participant) => participant.isAgent) : undefined
 }
 
 export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const [join] = useMutation(JOIN_LIVE_INTERVIEW)
   const [endLive] = useMutation(END_LIVE_INTERVIEW)
-  const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null })
+  const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
   const livekitRef = useRef<Room | null>(null)
   useEffect(() => {
     let cancelled = false
@@ -124,10 +138,24 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     await livekit.localParticipant.setMicrophoneEnabled(!on)
     setRoom((previous) => ({ ...previous, muted: on }))
   }, [])
+  const choose = useCallback(async (option: LiveMenuOption) => {
+    setRoom((previous) => ({ ...previous, choosing: true, chooseError: null }))
+    const livekit = livekitRef.current
+    const agent = agentIn(livekit)
+    let sent = false
+    if (livekit && agent) {
+      try {
+        await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload: JSON.stringify({ option }) }), LIVE_CHOICE_TIMEOUT_MS)
+        sent = true
+      } catch { /* Reported below; the candidate can retry or say the choice. */ }
+    }
+    setRoom((previous) => ({ ...previous, choosing: false, chooseError: sent ? null : CHOICE_FAILED }))
+    return sent
+  }, [])
   const end = useCallback(async () => {
     setRoom((previous) => ({ ...previous, ending: true, endError: null }))
     const livekit = livekitRef.current
-    const agent = livekit ? [...livekit.remoteParticipants.values()].find((participant) => participant.isAgent) : undefined
+    const agent = agentIn(livekit)
     if (livekit && agent) {
       try {
         await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload: JSON.stringify({ option: 'end' }) }), LIVE_END_AGENT_TIMEOUT_MS)
@@ -150,5 +178,5 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     setRoom((previous) => ({ ...previous, ending: false, endError }))
     return endError === null
   }, [endLive, interviewId])
-  return { ...room, mute, end }
+  return { ...room, mute, choose, end }
 }

@@ -1,6 +1,7 @@
 /** Verifies live sessions open the live room, its connection states, captions, progress, mute,
- * End interview, the career references panel, the turn-based fallback and the completed review
- * of a live session, against a fake live room hook (no LiveKit). */
+ * the coaching menu and "How was that?", End interview, the career references panel, the
+ * turn-based fallback and the completed review of a live session (with the interviewer's saved
+ * feedback), against a fake live room hook (no LiveKit). */
 import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
@@ -12,10 +13,10 @@ const { state, start, live } = vi.hoisted(() => ({
   start: vi.fn(),
   live: { hook: vi.fn(), value: {} as Record<string, unknown> },
 }))
-const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null }
+const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false }
 function liveRoom(change: Record<string, unknown> = {}) {
   return { status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
-    mute: vi.fn().mockResolvedValue(undefined), end: vi.fn().mockResolvedValue(true), ...change }
+    choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true), ...change }
 }
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
 vi.mock('./useLiveInterviewRoom', () => ({ useLiveInterviewRoom: (id: string) => { live.hook(id); return live.value } }))
@@ -28,7 +29,7 @@ const setup = { __typename: 'InterviewSetup', questionCount: 5, questionFormat: 
 const snapshot = {
   __typename: 'InterviewSession', id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'live', executionMode: 'real', speechPlaybackMode: 'browser',
   preparedRole: { title: 'Laboratory technician', responsibilities: [], requirements: [] }, revision: 1, answerCap: 3, currentQuestionPosition: 0, expiresAt: '2099-10-27',
-  feedback: null, setup, jobContext: null, questions: [{ id: 'question', content: 'Describe a project.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false }], messages: [], operations: [],
+  feedback: null, setup, jobContext: null, questions: [{ id: 'question', content: 'Describe a project.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false, liveFeedback: null }], messages: [], operations: [],
 }
 
 function renderInterview() {
@@ -125,7 +126,7 @@ it('shows question progress from the agent and nothing before the agent publishe
   const view = renderInterview()
   expect(screen.queryByText(/Question \d+ of/)).not.toBeInTheDocument()
   view.unmount()
-  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { questionPosition: 0, questionTotal: 5, phase: 'answering' } })
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { questionPosition: 0, questionTotal: 5, phase: 'answering', menuOffered: false } })
   renderInterview()
   expect(screen.getByText('Question 1 of 5')).toBeVisible()
 })
@@ -206,4 +207,67 @@ it('shows the completed review of a live session with its questions, latest answ
   expect(saved).toHaveTextContent('Fewer failed runs.')
   fireEvent.click(screen.getByRole('button', { name: 'Interview feedback' }))
   expect(screen.getByRole('button', { name: 'Generate feedback' })).toBeEnabled()
+})
+
+const MENU_BUTTONS = ['Try again', 'Hear the question again', 'Get a hint', 'Move on']
+const menuProgress = { questionPosition: 0, questionTotal: 5, phase: 'menu', menuOffered: true }
+
+it('shows the four coaching choices only while the interviewer offers the menu', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'answering', menuOffered: false } })
+  const view = renderInterview()
+  expect(screen.queryByRole('group', { name: 'What would you like to do next?' })).not.toBeInTheDocument()
+  MENU_BUTTONS.forEach((name) => expect(screen.queryByRole('button', { name })).not.toBeInTheDocument())
+  view.unmount()
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: menuProgress })
+  renderInterview()
+  const group = screen.getByRole('group', { name: 'What would you like to do next?' })
+  expect([...group.querySelectorAll('button')].map((button) => button.textContent)).toEqual(MENU_BUTTONS)
+})
+
+it.each([['Try again', 'retry'], ['Hear the question again', 'repeat'], ['Get a hint', 'hint'], ['Move on', 'next']] as const)(
+  'sends %s to the interviewer', (name, option) => {
+    live.value = liveRoom({ status: 'connected', agentJoined: true, progress: menuProgress })
+    renderInterview()
+    fireEvent.click(screen.getByRole('button', { name }))
+    expect(live.value.choose).toHaveBeenCalledWith(option)
+  })
+
+it('disables the choices while one is being sent and shows a failed choice', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: menuProgress, choosing: true })
+  const view = renderInterview()
+  MENU_BUTTONS.forEach((name) => expect(screen.getByRole('button', { name })).toBeDisabled())
+  view.unmount()
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: menuProgress, chooseError: 'Your interviewer didn’t get that choice. Try again or say it out loud.' })
+  renderInterview()
+  expect(screen.getByRole('alert')).toHaveTextContent('didn’t get that choice')
+  MENU_BUTTONS.forEach((name) => expect(screen.getByRole('button', { name })).toBeEnabled())
+})
+
+it('offers "How was that?" while the candidate is answering', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'asking', menuOffered: false } })
+  const view = renderInterview()
+  expect(screen.queryByRole('button', { name: 'How was that?' })).not.toBeInTheDocument()
+  view.unmount()
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'answering', menuOffered: false } })
+  renderInterview()
+  fireEvent.click(screen.getByRole('button', { name: 'How was that?' }))
+  expect(live.value.choose).toHaveBeenCalledWith('feedback')
+})
+
+it('shows the interviewer\'s saved feedback under the question\'s latest answer in the completed review', () => {
+  state.interview = { ...structuredClone(snapshot), status: 'completed', messages: [
+    opening,
+    { ...opening, id: 'answer-1', kind: 'answer', position: 1, content: 'I rebuilt our lab scheduler.' },
+  ], questions: [
+    { ...snapshot.questions[0], acceptedAnswerCount: 1, liveFeedback: 'Quick feedback: clear example. Lead with the result.' },
+    { ...snapshot.questions[0], id: 'question-2', position: 1, content: 'Second question?', liveFeedback: null },
+  ] }
+  renderInterview()
+  fireEvent.click(screen.getByRole('button', { name: /Core question 1/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Core question 2/ }))
+  const saved = screen.getByLabelText('Saved questions and answers')
+  const feedback = screen.getAllByRole('region', { name: 'Interviewer feedback' })
+  expect(feedback).toHaveLength(1)
+  expect(feedback[0]).toHaveTextContent('Quick feedback: clear example. Lead with the result.')
+  expect(saved.textContent!.indexOf('I rebuilt our lab scheduler.')).toBeLessThan(saved.textContent!.indexOf('Interviewer feedback'))
 })

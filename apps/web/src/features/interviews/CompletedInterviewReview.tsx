@@ -1,5 +1,7 @@
 /** Presents retained interview dialogue grouped by core question, with editable copies to Career context.
  * It uses retained text only; completion never starts speech or exposes live answer controls.
+ * For live interviews, the interviewer's latest spoken feedback on a question appears under its
+ * latest answer; turn-based questions have none.
  */
 import { Link } from 'react-router'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
@@ -60,6 +62,10 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
               <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content || 'Saved text is unavailable.'}</p>
               <SaveInterviewAnswer interview={interview} message={message} />
             </li>)}</ol> : <p className="text-sm text-muted-foreground">No saved answer for this question.</p>}
+            {question.liveFeedback && <section aria-label="Interviewer feedback" className="grid gap-1 border-t pt-3">
+              <p className="text-xs font-medium text-muted-foreground">Interviewer feedback</p>
+              <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{question.liveFeedback}</p>
+            </section>}
           </div>
         </ReviewSection>
       })}

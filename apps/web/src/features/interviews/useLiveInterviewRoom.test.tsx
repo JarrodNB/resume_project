@@ -86,10 +86,10 @@ it('shows captions for both sides, replacing interim text with the final text pe
 
 it('reads question progress and phase from the agent participant attributes', async () => {
   const { view, room } = await connectedRoom()
-  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null })
-  const agent = { isAgent: true, attributes: { 'cd.question_position': '0', 'cd.question_total': '5', 'cd.phase': 'asking' } }
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, menuOffered: false })
+  const agent = { isAgent: true, attributes: { 'cd.question_position': '0', 'cd.question_total': '5', 'cd.phase': 'asking', 'cd.menu_offered': 'false' } }
   act(() => room.handlers.get('participantConnected')!(agent))
-  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking' })
+  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', menuOffered: false })
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'answering' }, { ...agent, attributes: { ...agent.attributes, 'cd.phase': 'answering' } }))
   expect(view.result.current.progress.phase).toBe('answering')
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'x' }, { isAgent: false, attributes: { 'cd.phase': 'x' } }))
@@ -163,4 +163,37 @@ it('reports a Rails refusal to end', async () => {
   await act(async () => { ended = await view.result.current.end() })
   expect(ended).toBe(false)
   expect(view.result.current).toMatchObject({ ending: false, endError: 'Interview expired' })
+})
+
+it('reads whether the agent offers the coaching menu', async () => {
+  const { view, room } = await connectedRoom()
+  act(() => room.handlers.get('participantConnected')!({ isAgent: true, attributes: { 'cd.phase': 'menu', 'cd.menu_offered': 'true' } }))
+  expect(view.result.current.progress).toMatchObject({ phase: 'menu', menuOffered: true })
+  act(() => room.handlers.get('participantAttributesChanged')!({}, { isAgent: true, attributes: { 'cd.phase': 'asking', 'cd.menu_offered': 'false' } }))
+  expect(view.result.current.progress.menuOffered).toBe(false)
+})
+
+it('sends a menu choice to the agent and reports a failed choice', async () => {
+  const { view, room } = await connectedRoom()
+  room.remoteParticipants.set(agent.identity, agent)
+  room.performRpc.mockResolvedValue('accepted')
+  let sent = false
+  await act(async () => { sent = await view.result.current.choose('retry') })
+  expect(sent).toBe(true)
+  expect(room.performRpc).toHaveBeenCalledWith(expect.objectContaining({ destinationIdentity: 'agent-1', method: 'interview.choose', payload: JSON.stringify({ option: 'retry' }) }))
+  expect(view.result.current).toMatchObject({ choosing: false, chooseError: null })
+
+  room.performRpc.mockRejectedValue(new Error('Application error'))
+  await act(async () => { sent = await view.result.current.choose('hint') })
+  expect(sent).toBe(false)
+  expect(view.result.current).toMatchObject({ choosing: false, chooseError: 'Your interviewer didn’t get that choice. Try again or say it out loud.' })
+  room.performRpc.mockResolvedValue('accepted')
+  await act(async () => { await view.result.current.choose('next') })
+  expect(view.result.current.chooseError).toBeNull()
+})
+
+it('reports a choice made while the interviewer is not in the room', async () => {
+  const { view } = await connectedRoom()
+  await act(async () => { await view.result.current.choose('feedback') })
+  expect(view.result.current.chooseError).toMatch(/didn’t get that choice/)
 })

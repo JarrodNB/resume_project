@@ -16,7 +16,7 @@ it('hides saved coaching and its controls at session expiry even without a netwo
     id: 'session', status: 'completed', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'real', speechPlaybackMode: 'browser',
     revision: 1, answerCap: 2, currentQuestionPosition: 0, expiresAt: new Date(Date.now() + 1000).toISOString(), preparedRole: {}, jobContext: null,
     setup: { questionCount: 1, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-    questions: [{ id: 'question', content: 'How did you help?', questionType: 'behavioral', position: 0, acceptedAnswerCount: 1, skipped: false }], messages: [], operations: [],
+    questions: [{ id: 'question', content: 'How did you help?', questionType: 'behavioral', position: 0, acceptedAnswerCount: 1, skipped: false, liveFeedback: null }], messages: [], operations: [],
     feedback: { id: 'feedback', status: 'completed', content: { summary: 'Explain your outcome.', questions: [{ question_id: 'question', strengths: ['Specific action'], improvements: ['Add the outcome'], example_answer: 'I tested it.' }] }, attemptCount: 1, aiTaskId: 'task', deadline: new Date(Date.now() + 1000).toISOString() },
   }
   render(<MockedProvider><MemoryRouter><CompletedInterviewReview interview={interview} /></MemoryRouter></MockedProvider>)
@@ -35,7 +35,7 @@ function reviewSnapshot(): InterviewSnapshotFragment {
     id: 'session', status: 'completed', interviewType: 'basic', conversationMode: 'turn_based', executionMode: 'real', speechPlaybackMode: 'browser',
     revision: 1, answerCap: 2, currentQuestionPosition: 0, expiresAt: new Date(Date.now() + 60_000).toISOString(), preparedRole: {}, jobContext: null,
     setup: { questionCount: 1, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-    questions: [{ id: 'question', content: 'Describe your migration.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 2, skipped: false }],
+    questions: [{ id: 'question', content: 'Describe your migration.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 2, skipped: false, liveFeedback: null }],
     messages: [message('opening', 0, 'opening', 'Describe your migration.'), message('first', 1, 'answer', 'Migrated the release pipeline.'),
       message('followup', 2, 'follow_up', 'What was the outcome?'), message('second', 3, 'answer', 'Reduced release delays.')], operations: [], feedback: null,
   }

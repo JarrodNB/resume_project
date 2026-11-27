@@ -20,7 +20,7 @@ class Socket {
   receive(value: unknown) { act(() => this.onmessage?.({ data: JSON.stringify(value) })) }
 }
 const event = (type: string, extra = {}) => ({ type, version: 1, feature: 'interviews', operation_id: 'turn', attempt_id: 'attempt', claim_generation: 1, ...extra })
-const question = { __typename: 'InterviewSessionQuestion' as const, id: 'question', content: 'Describe a project.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false }
+const question = { __typename: 'InterviewSessionQuestion' as const, id: 'question', content: 'Describe a project.', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false, liveFeedback: null }
 const lastQuestion = { ...question, id: 'last-question', content: 'Tell me about a conflict.', position: 1 }
 const message = (id: string, kind: string, content: string, acknowledgement: string | null = null) => ({
   __typename: 'InterviewSessionMessage' as const, id, questionId: 'question', kind, position: 0, content, avoided: false, acknowledgement,

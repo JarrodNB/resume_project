@@ -14,8 +14,7 @@ module Interviews
       return LiveConnectionAccess.invalid_request("Invalid answer report") unless @prompt_message_id.is_a?(String) && @transcript.is_a?(String)
       return failure("Enter the answer within #{TextLimits::PROSE} characters") unless valid_transcript?
 
-      LiveConnectionAccess.with_locked(@connection) do |interview|
-        next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
+      LiveConnectionAccess.with_locked(@connection, claimed: true) do |interview|
         prompt = interview.messages.where(kind: %w[opening follow_up]).find_by(id: @prompt_message_id)
         question = prompt && interview.questions.lock.find(prompt.question_id)
         next failure("Prompt is no longer current") unless question && question.position == interview.current_question_position

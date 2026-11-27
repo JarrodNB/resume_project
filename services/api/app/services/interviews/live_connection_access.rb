@@ -31,15 +31,21 @@ module Interviews
     end
 
     # Runs the block under the user, interview and connection locks with the access check done.
+    # With `claimed: true` the agent must also have claimed the connection (connected, with its
+    # bill open); every callback after the claim needs that.
     # @yieldparam interview [InterviewSession]
-    # @return [ServiceResult] the block's result, or a `connection_ended` failure naming the refusal
-    def self.with_locked(connection)
+    # @return [ServiceResult] the block's result, a `connection_ended` failure naming the refusal,
+    #   or a plain failure for an unclaimed connection
+    def self.with_locked(connection, claimed: false)
       interview = connection.interview_session
       interview.user.with_lock do
         interview.lock!
         connection.lock!
         reason = refusal(interview, connection)
         next ServiceResult.new(success: false, value: nil, errors: [ reason ], code: ENDED_CODE) if reason
+        if claimed && !(connection.status == "connected" && connection.ai_task_id)
+          next ServiceResult.new(success: false, value: nil, errors: [ "The live agent has not claimed this connection" ])
+        end
         yield interview
       end
     end

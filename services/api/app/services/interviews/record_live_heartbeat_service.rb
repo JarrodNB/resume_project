@@ -23,8 +23,7 @@ module Interviews
       end
       return LiveConnectionAccess.invalid_request("Invalid heartbeat") unless valid?
 
-      LiveConnectionAccess.with_locked(@connection) do |interview|
-        next failure("Live connection has not been claimed") unless @connection.status == "connected" && @connection.ai_task
+      LiveConnectionAccess.with_locked(@connection, claimed: true) do |interview|
         next failure("Heartbeat sequence is stale") if @sequence < @connection.heartbeat_sequence
         if @sequence > @connection.heartbeat_sequence
           @connection.update!(heartbeat_sequence: @sequence, last_heartbeat_at: Time.current,

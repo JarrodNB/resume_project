@@ -708,6 +708,22 @@ RSpec.describe "Internal live interview connections", type: :request do
     end
   end
 
+  it "refuses every callback after the claim while the connection is unclaimed, with no ended code" do
+    [
+      [ "prompt_asked", { question_position: 0, kind: "opening", text: "Hi." } ],
+      [ "answer_finished", { prompt_message_id: SecureRandom.uuid, transcript: "An answer." } ],
+      [ "question_advanced", { question_position: 0 } ],
+      [ "feedback_given", { question_position: 0, text: "Quick feedback: good." } ],
+      [ "question_retried", { question_position: 0, retry_number: 1 } ],
+      [ "heartbeat", { sequence: 1, billed_seconds_delta: 30, usage: [] } ]
+    ].each do |action, body|
+      post "#{base}/#{action}", params: body, headers: headers, as: :json
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to eq("errors" => [ "The live agent has not claimed this connection" ])
+    end
+    expect(connection.reload.status).to eq("authorized")
+  end
+
   describe "malformed requests" do
     def expect_invalid_request
       expect(response).to have_http_status(:unprocessable_content)

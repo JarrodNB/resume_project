@@ -14,8 +14,7 @@ module Interviews
     def call
       return LiveConnectionAccess.invalid_request("Invalid question position") unless LiveConnectionAccess.count?(@question_position)
 
-      LiveConnectionAccess.with_locked(@connection) do |interview|
-        next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
+      LiveConnectionAccess.with_locked(@connection, claimed: true) do |interview|
         questions = interview.questions.lock.to_a
         current = interview.current_question_position
         next success(receipt(interview)) if @question_position == current - 1 && advanced?(questions, current - 1)

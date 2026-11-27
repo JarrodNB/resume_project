@@ -15,8 +15,7 @@ module Interviews
       return LiveConnectionAccess.invalid_request("Invalid retry report") unless
         LiveConnectionAccess.count?(@question_position) && LiveConnectionAccess.count?(@retry_number)
 
-      LiveConnectionAccess.with_locked(@connection) do |interview|
-        next failure("The live agent has not claimed this connection") unless @connection.status == "connected"
+      LiveConnectionAccess.with_locked(@connection, claimed: true) do |interview|
         question = interview.questions.lock.find_by(position: @question_position)
         next failure("Question is no longer current") unless question && question.position == interview.current_question_position
         next success(receipt(question, interview)) if @retry_number == question.live_retry_count && @retry_number.positive?

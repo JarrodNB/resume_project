@@ -7,11 +7,9 @@
 # cost reports, and still count toward the site-wide trial budget (SiteDailySpend).
 module AiUsage
   module DailySpend
-    EXCLUDED_TASK_TYPES = %w[interview_live_conversation].freeze
-
     def self.known_microdollars(user)
       day_start = Time.now.utc.beginning_of_day
-      user.ai_tasks.where(created_at: day_start..).where.not(task_type: EXCLUDED_TASK_TYPES).sum(:cost_microdollars) +
+      user.ai_tasks.where(created_at: day_start..).where.not(task_type: AiTask::LIVE_BILL_TASK_TYPES).sum(:cost_microdollars) +
         user.ai_embedding_requests.where(created_at: day_start..).sum(:cost_microdollars)
     end
   end

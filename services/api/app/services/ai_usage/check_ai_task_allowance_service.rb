@@ -13,9 +13,6 @@ module AiUsage
   class CheckAiTaskAllowanceService < ApplicationService
     # Queued tasks older than this are treated as stuck, so they don't block the user forever.
     IN_FLIGHT_WINDOW = 15.minutes
-    # A live interview's bill stays queued for the whole live connection but runs no work, so it
-    # never takes an in-flight slot (spend and hourly admission still count it).
-    NOT_IN_FLIGHT_TASK_TYPES = %w[interview_live_conversation].freeze
     PLAN_ENDED_MESSAGE = "Your free trial has ended. Subscribe to keep using AI features."
     DAILY_LIMIT_MESSAGE = "You've reached today's usage limit. Try again tomorrow."
     SITE_LIMIT_MESSAGE = "AI features have reached today's limit for all of Careerdrafter. They'll be back after midnight UTC."
@@ -76,7 +73,8 @@ module AiUsage
           .where("deadline > ?", Time.current).select(:ai_task_id)
         pool = pool.where(id: live_attempts)
       end
-      tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..).where.not(task_type: NOT_IN_FLIGHT_TASK_TYPES)
+      # A live interview's bill stays queued for the whole connection but runs no work of its own.
+      tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..).where.not(task_type: AiTask::LIVE_BILL_TASK_TYPES)
       tasks = tasks.where.not(id: @existing_task.id) if @existing_task
       tasks.count >= limit
     end

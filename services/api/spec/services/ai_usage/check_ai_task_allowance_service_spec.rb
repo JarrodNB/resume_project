@@ -256,5 +256,14 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
 
       expect(described_class.call(user: user)).to be_success
     end
+
+    it "doesn't count a live interview's bill, which stays queued for the whole live connection" do
+      create_list(:ai_task, DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS - 1, user: user, task_type: "interview_turn")
+      create(:ai_task, user: user, task_type: "interview_live_conversation")
+
+      expect(described_class.call(user: user, interview: true)).to be_success
+      create(:ai_task, user: user, task_type: "interview_turn")
+      expect(described_class.call(user: user, interview: true).errors.first).to start_with("You already have interview operations running")
+    end
   end
 end

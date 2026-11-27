@@ -718,7 +718,17 @@ RSpec.describe "Internal live interview connections", type: :request do
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       finish("completed")
       expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to include("code" => "connection_ended") # the agent leaves, as for other callbacks
       expect(interview.reload.status).to eq("active")
+    end
+
+    it "refuses a finish for a session that is no longer active with the connection_ended code" do
+      claim
+      interview.update_columns(status: "abandoned")
+      finish("completed")
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to include("code" => "connection_ended")
+      expect(connection.reload.status).to eq("connected")
     end
   end
 

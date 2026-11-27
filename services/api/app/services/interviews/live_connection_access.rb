@@ -21,6 +21,11 @@ module Interviews
       value.is_a?(Integer) && value >= 0
     end
 
+    # @return [ServiceResult] the `connection_ended` failure for a refusal from `refusal`
+    def self.ended(reason)
+      ServiceResult.new(success: false, value: nil, errors: [ reason ], code: ENDED_CODE)
+    end
+
     # @return [String, nil] why the agent may not act for this connection, or nil when it may
     def self.refusal(interview, connection)
       return "Live connection has ended" if connection.status == "ended"
@@ -42,7 +47,7 @@ module Interviews
         interview.lock!
         connection.lock!
         reason = refusal(interview, connection)
-        next ServiceResult.new(success: false, value: nil, errors: [ reason ], code: ENDED_CODE) if reason
+        next ended(reason) if reason
         if claimed && !(connection.status == "connected" && connection.ai_task_id)
           next ServiceResult.new(success: false, value: nil, errors: [ "The live agent has not claimed this connection" ])
         end

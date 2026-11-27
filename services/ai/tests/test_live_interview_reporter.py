@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from live_interviews.client import HeartbeatReply, RailsClientError
+from live_interviews.client import HeartbeatReply, LiveConnectionEnded, RailsClientError
 from live_interviews.controller import (
     AnswerNotSaved,
     ConnectionEnded,
@@ -200,3 +200,16 @@ def test_a_reply_names_the_action_rails_wants():
     harness.rails.heartbeat_reply = HeartbeatReply(action="wrap_up", reason="allowance", allowance_seconds_left=0,
                                                    session_seconds_left=900)
     assert run(harness.reporter.heartbeat(SendHeartbeat(1, 30))).action == "wrap_up"
+
+
+def test_a_finish_refused_as_connection_ended_marks_the_connection_ended():
+    """Rails answers a finish for an ended connection or a no-longer-active session with `connection_ended`."""
+    harness = Harness()
+
+    async def finish_ended(connection_id, **values):
+        harness.rails.calls.append(("finish", connection_id, values))
+        raise LiveConnectionEnded(409, "connection_ended")
+
+    harness.rails.finish = finish_ended
+    assert run(harness.reporter.finish(ReportFinish("ended_by_candidate", final_sequence=1))) is False
+    assert harness.reporter.ended and harness.events == [ConnectionEnded()]

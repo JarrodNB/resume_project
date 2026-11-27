@@ -591,7 +591,8 @@ connection the same close-only way (`FinishLiveService.close_open`; bill unknown
 running, or the owner ended the room, the agent's later calls are refused with 409 and
 `code: "connection_ended"` (any refusal because the connection ended or the session is no longer
 a live, active, unexpired session; other refusals, such as a follow-up past the cap, carry no
-code). A 404 (the connection was destroyed with its interview) means the same. The agent then
+code). `finish` follows the same rule through the shared `LiveConnectionAccess` check, apart from
+recovery's quiet-connection close. A 404 (the connection was destroyed with its interview) means the same. The agent then
 cuts off the interviewer and leaves at once, without calling `finish` again.
 
 **Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same

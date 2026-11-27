@@ -13,7 +13,9 @@
 # Recovery passes `stale_before`: the finish then goes ahead only while the connection's last
 # sign of life (heartbeat, claim or join) is still that old, so a late heartbeat wins the race.
 # For recovery only, a quiet connection whose interview already finished or expired is just
-# closed (bill unknown), leaving the interview as it is. `close_open` closes the same way the
+# closed (bill unknown), leaving the interview as it is. Otherwise an ended connection or a session
+# that is no longer live and active is refused with the shared `connection_ended` code
+# (Interviews::LiveConnectionAccess), like every other agent callback. `close_open` closes the same way the
 # open connection of an interview that ends another way (abandoned or expired).
 module Interviews
   class FinishLiveService < ApplicationService
@@ -61,7 +63,7 @@ module Interviews
         next failure("Live connection is not quiet") if @stale_before && !quiet?
         refusal = LiveConnectionAccess.refusal(interview, @connection)
         next close_only if refusal && @stale_before && @connection.status != "ended"
-        next failure(refusal) if refusal
+        next LiveConnectionAccess.ended(refusal) if refusal # the agent leaves, as for every live callback
 
         @connection.update!(status: "ended", ended_at: Time.current, end_reason: @reason)
         LiveConversationBill.close(@connection, known: @final_sequence.is_a?(Integer) && @final_sequence == @connection.heartbeat_sequence)

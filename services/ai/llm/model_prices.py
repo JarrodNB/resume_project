@@ -2,9 +2,12 @@
 Description: Per-model token prices and the cost estimate reported with every task result
 (Rails sums these to enforce each user's monthly budget).
 Index:
-    - ModelPrice: USD per 1M tokens for uncached input, cached input, and output
+    - ModelPrice: USD per 1M tokens for uncached input, cached input, and output (audio rates
+      only for realtime speech models, whose plain rates are then their text rates)
     - MODEL_PRICES: price table keyed by the Pydantic AI model name (e.g. "openai:gpt-6-luna")
     - estimate_cost_microdollars: cost of one run's usage, in millionths of a dollar
+    - RealtimeUsage / estimate_realtime_cost_microdollars: the same for a realtime speech model's
+      separately billed audio and text tokens
     - build_model_usage: the ModelUsage entry a result message reports for one agent run
     - reported_model_name: the priced name to bill (the response's model, or the setting)
 """
@@ -19,12 +22,26 @@ from schemas.model_usage import ModelUsage
 
 
 class ModelPrice(NamedTuple):
-    """USD per 1M tokens."""
+    """USD per 1M tokens. A realtime speech model also has audio rates; its plain rates are text."""
 
     input: float
     cached_input: float
     output: float
     cache_write: float | None = None
+    audio_input: float | None = None
+    cached_audio_input: float | None = None
+    audio_output: float | None = None
+
+
+class RealtimeUsage(NamedTuple):
+    """Token counts of a realtime speech model. Cached counts are separate from uncached ones."""
+
+    text_input_tokens: int = 0
+    cached_text_input_tokens: int = 0
+    audio_input_tokens: int = 0
+    cached_audio_input_tokens: int = 0
+    text_output_tokens: int = 0
+    audio_output_tokens: int = 0
 
 
 # Standard (non-batch) rates from https://developers.openai.com/api/docs/pricing, checked
@@ -37,6 +54,10 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-6.1-terra": ModelPrice(input=1.00, cached_input=0.05, output=5.00, cache_write=1.25),
     "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
+    # The live interviewer's realtime speech model. Rates from the OpenAI model page as of about
+    # 2026-11; NOT yet verified by a human (genai-prices matches them via gpt-realtime-mini).
+    "openai:gpt-realtime-2.1-mini": ModelPrice(input=0.60, cached_input=0.06, output=2.40, audio_input=10.00,
+                                               cached_audio_input=0.30, audio_output=20.00),
     # Embeddings bill input tokens only.
     "openai:text-embedding-3-small": ModelPrice(input=0.02, cached_input=0.02, output=0.0),
     # TypeSafe Jev, https://docs.typesafe.ai/models checked 2026-10-05: $0.042 per 1M input
@@ -114,3 +135,22 @@ def build_model_usage(model: str, usage: RunUsage) -> ModelUsage:
         output_tokens=usage.output_tokens,
         cost_microdollars=cost,
     )
+
+
+def estimate_realtime_cost_microdollars(model: str, usage: RealtimeUsage) -> int:
+    """Returns the cost of a realtime model's usage in micro-dollars, rounded up. Raises KeyError
+    for a model without a price and ValueError for one without audio rates or invalid counts."""
+    price = MODEL_PRICES[model]
+    if price.audio_input is None or price.cached_audio_input is None or price.audio_output is None:
+        raise ValueError("Audio prices are unknown")
+    if min(usage) < 0:
+        raise ValueError("Invalid provider token counts")
+    cost = (
+        usage.text_input_tokens * price.input
+        + usage.cached_text_input_tokens * price.cached_input
+        + usage.audio_input_tokens * price.audio_input
+        + usage.cached_audio_input_tokens * price.cached_audio_input
+        + usage.text_output_tokens * price.output
+        + usage.audio_output_tokens * price.audio_output
+    )
+    return math.ceil(cost)

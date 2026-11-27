@@ -33,10 +33,13 @@ module Interviews
 
     # Destroys every message of the question except its opening. Unfinished reference or
     # clarification work for those prompts is failed first so no task waits on a deleted prompt.
+    # Locks follow the documented order: messages, then their help records, then each task.
     def remove_attempt(interview, question)
       messages = interview.messages.where(question: question).where.not(kind: "opening").order(:position).lock.to_a
-      tasks = interview.career_references.where(message_id: messages.map(&:id)).map(&:ai_task) +
-        interview.clarifications.where(message_id: messages.map(&:id)).map(&:ai_task)
+      message_ids = messages.map(&:id)
+      records = interview.career_references.where(message_id: message_ids).order(:id).lock.to_a +
+        interview.clarifications.where(message_id: message_ids).order(:id).lock.to_a
+      tasks = records.map(&:ai_task)
       tasks.compact.reject(&:finished?).each do |task|
         task.with_lock do
           AiTasks::UpdateTaskService.call(task: task, attributes: { status: "failed", error_message: "question_retried", completed_at: Time.current })

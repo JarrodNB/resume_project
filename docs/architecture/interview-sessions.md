@@ -661,6 +661,14 @@ including any next question it may introduce. New messages and speech work come 
 accounting and media code must preserve owner → interview → question → operation → linked
 usage records → message/recording order. Never perform provider or storage I/O under locks.
 
+Live callbacks (`LiveConnectionAccess.with_locked`) and `FinishLiveService` lock owner →
+interview → live connection, then questions and messages, then prompt-help records (career
+references, clarifications) and tasks. `RetryLiveQuestionService` follows that order: it locks
+the question, the messages it removes, their reference and clarification records, and only then
+each unfinished task, the same record → task order the queued-result consumer uses
+(`CurrentPromptWork#with_result_lock`). Every one of these paths takes the owner lock first, so
+they are also serialized by it.
+
 Postgres enforces required fields, valid states, nonnegative counters and the three-answer
 maximum. Saved session caps still determine advancement. Unique indexes protect ordered question/message positions, semantic message
 identity, one opening per question, one speech operation per saved message, submission keys,

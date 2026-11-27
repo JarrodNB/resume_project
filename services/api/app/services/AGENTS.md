@@ -176,8 +176,8 @@ All business logic, as service objects grouped by domain folder.
   library-informed preparation and atomic ready-state role/question acceptance,
   reference-only execution claims, scalar preparation choices and no preparation screening,
   claim-bound speech, transactional delivery for every operation/retry, exact-lease
-  watchdogs, explicit startup adoption of legacy work, and bounded scheduled cleanup. Lock owner, interview, ordered questions,
-  then operation/task/media; perform object/provider I/O outside locks and recheck
+  watchdogs, explicit startup adoption of legacy work, and bounded scheduled cleanup. Lock owner, interview, live connection,
+  ordered questions, messages, then operation/prompt-help record/task/media; perform object/provider I/O outside locks and recheck
   authority before committing. Submission requires owned ready unexpired audio for
   the current question. Keep deletion tombstones for delayed-write reaping and preserve
   billing records when scrubbing expired dialogue. See `docs/architecture/interview-sessions.md`.
@@ -187,6 +187,10 @@ All business logic, as service objects grouped by domain folder.
   `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
   root link. Interview in-flight checks include every spoken stage,
   independently of general AI limits; daily spend is one shared total across both scopes.
+  A live connection's provider bill (`AiTask::LIVE_BILL_TASK_TYPES`, opened by
+  `interviews/live_conversation_bill.rb`) stays queued for the whole conversation, so it is
+  excluded from in-flight checks and from the hidden daily spend; the live allowance
+  (`interviews/live_allowance.rb`) is its limit.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
 

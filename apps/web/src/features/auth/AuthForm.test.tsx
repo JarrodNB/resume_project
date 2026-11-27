@@ -12,6 +12,8 @@ it('describes new passwords and shows the value without submitting or losing it'
   const password = screen.getByLabelText('Password')
   expect(password).toHaveAccessibleDescription(/at least 15 characters/i)
   expect(password).toHaveAttribute('autocomplete', 'new-password')
+  // The browser stops a too-short new password before it reaches the server.
+  expect(password).toHaveAttribute('minlength', '15')
   await user.type(password, 'a quiet orchard after rain')
   await user.click(screen.getByRole('button', { name: 'Show password' }))
   expect(password).toHaveAttribute('type', 'text')

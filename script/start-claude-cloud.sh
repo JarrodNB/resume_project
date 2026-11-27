@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Start the native development stack in a Claude cloud (claude.ai/code) session, or
-# leave it alone if it is already healthy. Run install-claude-cloud.sh first.
+# leave it alone if it is already healthy. It first refreshes the copied proxy CA bundle and
+# restarts the stack if that changed. Run install-claude-cloud.sh first.
 # Run as root; the stack itself runs as the unprivileged `claude` user.
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 state="$root/.native"
+
+if [[ $(id -u) -ne 0 ]]; then
+  echo 'Run this script as root (it switches to the claude user itself).' >&2
+  exit 1
+fi
 
 run_as_claude() {
   runuser -u claude -- env HOME="$state/home" PATH="$PATH" "$@"
@@ -24,9 +30,27 @@ if [[ -f $postmaster_pid_file ]]; then
   fi
 fi
 
+# A resumed container can get a new proxy CA. Services still trusting the old copy fail every
+# HTTPS call (AI providers, screening, telemetry) while their health checks pass, so a changed
+# bundle forces a restart even when the stack looks healthy.
+source "$root/script/claude-cloud-ca.sh"
+ca_changed=false
+ca_status=0
+refresh_proxy_ca_bundle "$state" || ca_status=$?
+if [[ $ca_status -eq 2 ]]; then
+  echo 'Could not copy the proxy CA bundle into .native.' >&2
+  exit 1
+elif [[ $ca_status -eq 0 ]]; then
+  ca_changed=true
+  echo 'Refreshed the proxy CA bundle.'
+fi
+
 if run_as_claude python3 script/claude_cloud.py check > /dev/null 2>&1; then
-  echo 'Native services are already healthy.'
-  exit 0
+  if [[ $ca_changed == false ]]; then
+    echo 'Native services are already healthy.'
+    exit 0
+  fi
+  echo 'Restarting native services so they trust the new proxy CA.'
 fi
 
 if compgen -G '.native/*.pid' > /dev/null || [[ -f .native/postgres/postmaster.pid ]]; then

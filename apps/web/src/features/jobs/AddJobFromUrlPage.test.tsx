@@ -47,3 +47,8 @@ it('shows why a link was rejected', async () => {
 
   expect(await screen.findByText('You already saved this job')).toBeInTheDocument()
 })
+
+it('offers pasting the job ad for sites that block reading', () => {
+  renderAddJobPage([])
+  expect(screen.getByRole('link', { name: 'paste the job ad instead' })).toHaveAttribute('href', '/jobs/paste')
+})

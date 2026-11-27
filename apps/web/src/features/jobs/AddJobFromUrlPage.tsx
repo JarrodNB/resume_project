@@ -1,11 +1,11 @@
 /**
  * Description: Add a job from a posting link (/jobs/new). Starts scraping, then moves to the task
- * page, where progress shows live.
+ * page, where progress shows live. Links to pasting the job ad (/jobs/paste) for sites that block reading.
  * Index:
  *   - AddJobFromUrlPage: page component
  */
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,7 +47,7 @@ export function AddJobFromUrlPage() {
           <CardTitle>Job posting link</CardTitle>
           <CardDescription>
             Open the specific job and copy its address. If the website requires login or blocks access,
-            you can paste the job description instead.
+            you can <Link to="/jobs/paste" className="font-medium text-foreground underline underline-offset-4">paste the job ad instead</Link>.
           </CardDescription>
         </CardHeader>
         <CardContent>

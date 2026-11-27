@@ -1,4 +1,6 @@
-/** Automatically verifies a captured email link; never signs in, and supports resend after refresh. */
+/** Automatically verifies a captured email link; never signs in, and supports resend after refresh.
+ * After verifying, the Sign in button carries the confirmed email (returned by the API) in router
+ * state, never the URL, so the sign-in form starts filled in. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -14,6 +16,7 @@ export function VerifyEmailPage() {
   const [token, setToken] = useState(readConfirmationToken)
   const [pending, setPending] = useState(false)
   const [verified, setVerified] = useState(false)
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const started = useRef(false)
   const inFlight = useRef(false)
@@ -22,8 +25,8 @@ export function VerifyEmailPage() {
     inFlight.current = true
     setPending(true); setErrors([])
     try {
-      await verifyEmailRequest(token, csrfToken)
-      forgetConfirmationToken(); setToken(null); setVerified(true)
+      const { email } = await verifyEmailRequest(token, csrfToken)
+      forgetConfirmationToken(); setToken(null); setVerified(true); setVerifiedEmail(typeof email === 'string' ? email : null)
     } catch (error) { setErrors(error instanceof AuthRequestError ? error.messages : ['Could not reach the server. Try again, or request a new link if verification already completed.']) }
     finally { inFlight.current = false; setPending(false) }
   }, [token, csrfToken])
@@ -33,11 +36,11 @@ export function VerifyEmailPage() {
     started.current = true
     void verify()
   }, [token, verify])
-  return <AuthPageShell title={verified ? 'Email verified' : token ? 'Verify your email' : 'Get a verification email'} description={verified ? 'Your account is ready. Continue your job search.' : 'Finish creating your Careerdrafter account.'}
+  return <AuthPageShell title={verified ? 'Email verified' : token ? 'Verify your email' : 'Get a verification email'} description={verified ? 'Your account is ready. Sign in to start your job search.' : 'Finish creating your Careerdrafter account.'}
     footer={verified ? 'Grounded in your experience. Refined with you.' : <Link to="/sign-in" className="font-medium text-foreground underline underline-offset-4">Sign in</Link>}>
     <div className="grid gap-4">
       {errors.length > 0 && <ErrorAlert messages={errors} />}
-      {verified ? <><p role="status">Email verified. You can now sign in.</p><Button asChild size="lg" className="min-h-11"><Link to="/sign-in">Sign in</Link></Button></> : token ? <>
+      {verified ? <><p role="status" className="sr-only">Email verified. You can now sign in.</p><Button asChild size="lg" className="min-h-11"><Link to="/sign-in" state={verifiedEmail ? { email: verifiedEmail } : undefined}>Sign in</Link></Button></> : token ? <>
         <p role="status">{pending ? 'Verifying your email…' : 'Verification could not be completed. Try again or request a new link.'}</p>
         <Button size="lg" className="min-h-11" disabled={pending} onClick={verify}>{pending ? 'Verifying…' : 'Try again'}</Button>
         <Button variant="ghost" size="lg" className="min-h-11" disabled={pending} onClick={() => { forgetConfirmationToken(); setToken(null); setErrors([]) }}>Cancel</Button>

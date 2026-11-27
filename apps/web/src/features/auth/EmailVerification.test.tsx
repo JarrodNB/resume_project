@@ -1,12 +1,13 @@
 /** Confirmation links are captured before auth bootstrap and verify automatically after bootstrap. */
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthProvider'
 import { VerifyEmailPage } from './VerifyEmailPage'
 import { captureConfirmationToken } from './confirmationLink'
 import { SignUpPage } from './SignUpPage'
+import { SignInPage } from './SignInPage'
 import { StrictMode } from 'react'
 
 vi.mock('./TurnstileWidget', async () => {
@@ -34,6 +35,25 @@ it('clears the fragment before bootstrap, verifies automatically and does not si
     method: 'POST', credentials: 'include', body: JSON.stringify({ confirmation_token: 'token-from-email' }),
   }))
   expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/sign-in')
+})
+
+it('says it is verified once and fills in the sign-in email without putting it in the URL', async () => {
+  history.replaceState(null, '', '/verify-email#confirmation_token=token-from-email')
+  captureConfirmationToken()
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('/auth/session')
+    ? { user: null, csrfToken: 'csrf' } : { message: 'Email verified. You can now sign in.', email: 'new@example.com' }))))
+  render(<MemoryRouter initialEntries={['/verify-email']}><AuthProvider><Routes>
+    <Route path="/verify-email" element={<VerifyEmailPage />} />
+    <Route path="/sign-in" element={<SignInPage />} />
+  </Routes></AuthProvider></MemoryRouter>)
+  expect(await screen.findByRole('heading', { name: 'Email verified' })).toBeInTheDocument()
+  // The visible page says it once (heading and subtitle); the status line is for screen readers.
+  expect(screen.getByRole('status')).toHaveClass('sr-only')
+  const signIn = screen.getByRole('link', { name: 'Sign in' })
+  expect(signIn).toHaveAttribute('href', '/sign-in')
+  await userEvent.setup().click(signIn)
+  expect(await screen.findByLabelText('Email')).toHaveValue('new@example.com')
+  expect(screen.getByLabelText('Password')).toHaveValue('')
 })
 
 it('shows signup next steps without creating an authenticated session', async () => {

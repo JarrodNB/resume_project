@@ -1,6 +1,7 @@
 /**
  * Collects login or signup credentials and shows server errors. Signup explains
- * the server's new-password policy; login leaves existing passwords unrestricted.
+ * the server's new-password policy and lets the browser stop a too-short password
+ * before sending it; login leaves existing passwords unrestricted.
  */
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthRequestError, type AuthCredentials } from './authApi'
 import { PasswordInput } from './PasswordInput'
-import { PasswordGuidance } from './PasswordGuidance'
+import { NEW_PASSWORD_MIN_LENGTH, PasswordGuidance } from './PasswordGuidance'
 
 interface AuthFormProps {
   submitLabel: string
@@ -18,12 +19,14 @@ interface AuthFormProps {
   /** Shown just above the submit button, such as a bot check. */
   beforeSubmit?: ReactNode
   submitDisabled?: boolean
+  /** Fills the email field at first render, such as after verifying an email link. */
+  initialEmail?: string
 }
 
 /** Collects credentials, calls `onSubmit`, and lists any errors it throws. */
-export function AuthForm({ submitLabel, includeName = false, onSubmit, beforeSubmit, submitDisabled = false }: AuthFormProps) {
+export function AuthForm({ submitLabel, includeName = false, onSubmit, beforeSubmit, submitDisabled = false, initialEmail = '' }: AuthFormProps) {
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(initialEmail)
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -69,6 +72,7 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit, beforeSub
           aria-describedby={[includeName && 'password-guidance', errors.length > 0 && 'auth-errors'].filter(Boolean).join(' ') || undefined}
           aria-invalid={errors.some((message) => /^password\b/i.test(message)) || undefined}
           required
+          minLength={includeName ? NEW_PASSWORD_MIN_LENGTH : undefined}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />

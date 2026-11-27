@@ -76,3 +76,8 @@ it('stays on the form when the ad is empty', async () => {
   expect(screen.getByRole('button', { name: 'Add job' })).toBeDisabled()
   expect(router.state.location.pathname).toBe('/jobs/paste')
 })
+
+it('offers adding the job from its posting link instead', () => {
+  renderPastePage([])
+  expect(screen.getByRole('link', { name: 'Add it from the link' })).toHaveAttribute('href', '/jobs/new')
+})

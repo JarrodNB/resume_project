@@ -1,11 +1,11 @@
 /**
  * Description: Add a job by pasting the advertisement (/jobs/paste). Starts parsing, then moves
- * to the task page, where progress shows live.
+ * to the task page, where progress shows live. Links to adding from a posting link (/jobs/new).
  * Index:
  *   - AddJobFromTextPage: page component
  */
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,7 +36,10 @@ export function AddJobFromTextPage() {
       <Card>
         <CardHeader>
           <CardTitle>Job advertisement</CardTitle>
-          <CardDescription>Copy the posting from the job site and paste it here, including the title. The company can be unknown.</CardDescription>
+          <CardDescription>
+            Copy the posting from the job site and paste it here, including the title. The company can be unknown.
+            Have a link to a public posting? <Link to="/jobs/new" className="font-medium text-foreground underline underline-offset-4">Add it from the link</Link>.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form noValidate className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>

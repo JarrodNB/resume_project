@@ -3,7 +3,9 @@
 # library and fills blank profile fields (contact, summary). Saves generated search titles
 # from the owned task only when acceptance commits, separately from reviewed career facts. Experiences, projects, and
 # educations and certifications that match an existing entry are merged into it instead of duplicated; the counts
-# are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
+# are stored on the task as result["import_summary"] = { "added", "merged", "added_by_section" }: "added"
+# and "merged" count roles, projects, educations and certifications together, and "added_by_section"
+# splits what was added by section, including new skills (which "added" leaves out). Each parse_resume
 # task can be imported once. The library's embeddings are re-synced after the import commits.
 # Index:
 #   - call: checks the JSON shape, then imports library records and fills the profile in one
@@ -11,6 +13,8 @@
 module ResumeImports
   class ImportParsedResumeService < ApplicationService
     PARTIAL_DATE = /\A(?<year>\d{4})(?:-(?<month>\d{2}))?\z/
+    # Sections counted in import_summary["added_by_section"], in display order.
+    SUMMARY_SECTIONS = %w[experiences projects educations certifications skills].freeze
     # Parsed contact keys and the User columns they fill.
     CONTACT_COLUMNS = {
       "full_name" => :name, "email" => :contact_email, "phone" => :phone, "location" => :location, "links" => :links
@@ -57,12 +61,12 @@ module ResumeImports
 
     # Fills the profile, then adds or merges the library records.
     def import_everything
-      @summary = { "added" => 0, "merged" => 0 }
+      @summary = { "added" => 0, "merged" => 0, "added_by_section" => SUMMARY_SECTIONS.index_with(0) }
       fill_blank_profile_fields(@parsed_resume["contact"] || {}, @parsed_resume["summary"])
-      add_or_merge_records(@user.experiences, items("experiences")) { |record, item| assign_experience(record, item) }
-      add_or_merge_records(@user.projects, items("projects")) { |record, item| assign_project(record, item) }
-      add_or_merge_records(@user.educations, items("educations")) { |record, item| assign_education(record, item) }
-      add_or_merge_records(@user.certifications, items("certifications")) { |record, item| assign_certification(record, item) }
+      add_or_merge_records(@user.experiences, "experiences") { |record, item| assign_experience(record, item) }
+      add_or_merge_records(@user.projects, "projects") { |record, item| assign_project(record, item) }
+      add_or_merge_records(@user.educations, "educations") { |record, item| assign_education(record, item) }
+      add_or_merge_records(@user.certifications, "certifications") { |record, item| assign_certification(record, item) }
       create_new_skills
       save_job_title_suggestions
     end
@@ -103,13 +107,13 @@ module ResumeImports
       Array(@parsed_resume[key])
     end
 
-    # Builds one record per item (the block fills it in). A record matching an existing entry,
-    # including one saved earlier in this import, is merged into it; otherwise it is saved after
-    # the user's existing entries.
-    def add_or_merge_records(association, list)
+    # Builds one record per item under `section` (the block fills it in). A record matching an
+    # existing entry, including one saved earlier in this import, is merged into it; otherwise it is
+    # saved after the user's existing entries.
+    def add_or_merge_records(association, section)
       existing = association.scope.to_a
       next_position = (existing.map(&:position).max || -1) + 1
-      list.each do |item|
+      items(section).each do |item|
         record = association.klass.new(user: @user)
         yield(record, item)
         match = CareerLibrary::FindMatchingLibraryRecordService.call(record: record, candidates: existing).value
@@ -120,6 +124,7 @@ module ResumeImports
           next_position += 1
           existing << record
           @summary["added"] += 1
+          @summary["added_by_section"][section] += 1
         end
       end
     end
@@ -195,6 +200,7 @@ module ResumeImports
       new_skills.each_with_index do |skill, offset|
         @user.skills.create!(skill.slice("name", "category").merge(position: first_position + offset))
       end
+      @summary["added_by_section"]["skills"] = new_skills.size
     end
 
     # Turns "YYYY-MM" or "YYYY" into the first day of that month or year; nil otherwise.

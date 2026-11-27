@@ -20,8 +20,8 @@ sets the default section order for new resumes.
   runs `clearCareerLibrary` and refetches
 - `LibraryTabs.tsx` — sticky section tabs: jump links, the section in view, section dragging, and a
   link to the first waiting review question; `librarySectionLinks.ts` — section anchors
-- `ProfileSection.tsx` (contact line, always first), `SummarySection.tsx` (summary, with the persisted Include summary default for new resumes in its heading row), `LibrarySection.tsx` (heading on an ink rule, an Add button
-  and an empty state), `LibraryEntry.tsx` (`LibraryEntry`, a ruled entry with an `actions` slot, and
+- `ProfileSection.tsx` (contact line, always first), `SummarySection.tsx` (summary, with the persisted Include summary default for new resumes in its heading row once a summary exists), `LibrarySection.tsx` (heading on an ink rule, an Add button
+  and an empty state; Review shows only once the section has entries), `LibraryEntry.tsx` (`LibraryEntry`, a ruled entry with an `actions` slot, and
   `CareerStop`, a role as a stop on the dated line) — display pieces
 - `ExperienceSection.tsx`, `ProjectSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`,
   `CareerContextSection.tsx` — one section each, owning its add/edit dialog
@@ -53,8 +53,10 @@ sets the default section order for new resumes.
   highlights follow the pointer across roles during the drag (`highlightsOf`) and are saved on
   drop
 - `importSummary.ts` — reads `import_summary` from an AiTask result and from navigation state;
-  `ImportSummaryNotice.tsx` — "N added, M merged" notice after an import. It hides after a few
-  seconds or when dismissed, and the navigation state is cleared so a refresh does not show it again
+  `ImportSummaryNotice.tsx` — "Added 2 roles, 1 education entry and 5 skills" notice after an import
+  (per-section counts from Rails, merges in words). With no saved jobs it adds a "Next: save a job"
+  pointer and stays until dismissed; otherwise it hides after a few seconds. The navigation state is
+  cleared so a refresh does not show it again
 - `groupSkillsByCategory.ts` — skill grouping helper (also defines the skill order sent when
   skills are reordered)
 - `*.test.ts(x)` — page, actions (add, edit, merge, delete, and delete all), highlight saving, and grouping tests

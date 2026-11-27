@@ -18,6 +18,8 @@ RSpec.describe "Email verification", type: :request do
     expect(response).to have_http_status(:unauthorized)
     post "/auth/confirmation/verify", params: { confirmation_token: user.confirmation_token }, as: :json
     expect(response).to have_http_status(:ok)
+    # The token holder gets the email back so the sign-in form can be filled in; no session starts.
+    expect(response.parsed_body["email"]).to eq(credentials[:email])
     expect(user.reload).to be_confirmed
     get "/auth/session"
     expect(response.parsed_body["user"]).to be_nil
@@ -74,6 +76,7 @@ RSpec.describe "Email verification", type: :request do
     expect(response).to have_http_status(:ok)
     post "/auth/confirmation/verify", params: { confirmation_token: current }, as: :json
     expect(response).to have_http_status(:unprocessable_content)
+    expect(response.parsed_body).not_to have_key("email")
   end
 
   it "does not expose tokens or email addresses in debug mail logs and uses configured URLs" do

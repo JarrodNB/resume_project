@@ -26,7 +26,10 @@ Source of the web app, organized by feature.
   then "Library" (`LibraryHealthPanel`: what the library holds, a grade bar and the next step, from saved section
   reviews; hidden while the library is empty) and "This week" (`WeekPanel`: jobs saved, applications sent,
   interviews practiced and resumes edited in the last seven days, counted from saved dates in `weekActivity.ts`),
-  plus four starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
+  With no saved jobs, or one saved job before a tailored resume is written or the job moves past Not applied, Home shows
+  the four starting steps (`FirstRunGuide`: steps tick off as done, step 3 links to the saved job, the current step holds
+  the one filled button, the page header has no buttons, and the AI work strip sits above it once a job exists); with
+  more jobs, a resume or an application, the dashboard (with jobs but an empty library, a red note points to importing)
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
 - `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, a collapsible, remembered Filters panel under the keyword box (closed by default, with an active-filter count) holding date, remote, sort, location, experience level and employment type (dropdown multi-selects) and more filters, with results underneath, plus a local hide-saved toggle; results shown as numbered pages of 20 over the loaded roles, plus one unloaded page number while a continuation cursor remains (selecting it or "Next page" at the end fetches one provider batch), title-triggered accessible desktop side/mobile full-screen previews with plain-text details and safe source links, and explicit import into private Jobs; up to five submitted searches (200 provider rows each) retain pages, scroll, save feedback within the Apollo session; larger visits reload after departure (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching

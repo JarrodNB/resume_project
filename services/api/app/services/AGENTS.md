@@ -134,7 +134,8 @@ All business logic, as service objects grouped by domain folder.
 - `resume_imports/import_parsed_resume_service.rb` — imports a reviewed `ParsedResume` into
   the career library and fills blank user profile fields (contact, summary) once per task
   (`accepted_at`, row lock, one transaction); entries matching the library are merged, with
-  the counts in `result["import_summary"]`; creates no resume
+  the counts (added, merged, and added per section including skills) in
+  `result["import_summary"]`; creates no resume
 - `resume_imports/validate_parsed_resume_shape_service.rb` — rejects client JSON whose
   structure the import can't walk (wrong object/list types) with error messages, not a 500
 

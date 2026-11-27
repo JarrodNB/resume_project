@@ -23,7 +23,8 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(described_class.call(ai_task: second, parsed_resume: { "certifications" => items })).to be_success
     expect(user.certifications.count).to eq(2)
     expect(user.certifications.find_by!(issued_date: Date.new(2024, 2, 1)).description).to eq("Exam passed")
-    expect(second.reload.result["import_summary"]).to eq("added" => 1, "merged" => 1)
+    expect(second.reload.result["import_summary"]).to include("added" => 1, "merged" => 1)
+    expect(second.result.dig("import_summary", "added_by_section", "certifications")).to eq(1)
     expect(described_class.call(ai_task: second, parsed_resume: { "certifications" => items })).not_to be_success
     expect(user.certifications.count).to eq(2)
     expect(user.educations.sole).to eq(education)

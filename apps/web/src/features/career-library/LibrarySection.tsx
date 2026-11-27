@@ -5,7 +5,8 @@
  * Career context is drawn "off the line" with a dashed rule because it supports wording rather than appearing as a separate resume section.
  * Index:
  *   - LibrarySectionFrame: heading row and records for any section
- *   - LibrarySection: the same frame with a count-based empty state and an add button
+ *   - LibrarySection: the same frame with a count-based empty state and an add button; AI review
+ *     appears only once the section has something to review, so an empty library stays calm
  */
 import type { ReactNode } from 'react'
 import { Plus } from 'lucide-react'
@@ -49,11 +50,11 @@ interface LibrarySectionProps extends Omit<LibrarySectionFrameProps, 'actions'> 
   note?: string
 }
 
-/** Renders a section with an add button. Add stays available when the section is empty. */
+/** Renders a section with an add button. Add stays available when the section is empty; review waits for content. */
 export function LibrarySection({ count, emptyText, addLabel, onAdd, reviewActions, note, children, ...frame }: LibrarySectionProps) {
   return (
     <LibrarySectionFrame {...frame} actions={<>
-      {reviewActions}
+      {count > 0 && reviewActions}
       <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={onAdd}>
         <Plus /> {addLabel}
       </Button>

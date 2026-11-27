@@ -19,7 +19,11 @@ Both setups run the same stack through `script/native.py`.
   hand the checkout to `claude` and run everything through `runuser`. Because of that, the
   checkout's files are owned by `claude` after install.
 - **The proxy CA bundle and `uv` are copied** to places the `claude` user can read, since
-  `/root` is private.
+  `/root` is private. The session proxy can issue a new CA when a container resumes, so
+  `start-claude-cloud.sh` refreshes `.native/ca-bundle.crt` every time and restarts the
+  stack when it changed. Without that, every HTTPS call from the stack fails certificate
+  checks while health checks still pass (resume import, for example, reports that it
+  couldn't check the resume).
 
 ## Setup
 

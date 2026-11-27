@@ -9,7 +9,12 @@ interview tools (`ask_follow_up`, `finish_answer`, `repeat_question`, `next_ques
 and the room's `interview.choose` RPC (`{"option": ...}` with `retry`, `repeat`, `hint`, `next`,
 `feedback` or `end`; a button interrupts whatever the interviewer is saying), whether either
 side is speaking (so a time warning or wrap-up never talks over a turn) and a heartbeat about
-every 30 seconds. It carries out the actions the controller returns: speak, report to Rails,
+every 30 seconds. A tool call waits (up to 3 seconds) for the final transcript of each candidate
+turn that has ended (`user_state_changed` from `speaking`) but not yet been transcribed: with the
+realtime model the provider may send it after the reply it prompted has started generating, and
+LiveKit runs tools during generation (livekit-agents `voice/agent_activity.py`,
+`_on_input_audio_transcription_completed` and `_realtime_generation_task_impl`). The controller
+then decides on the answer the candidate actually gave. It carries out the actions the controller returns: speak, report to Rails,
 publish progress and the clock as agent participant attributes and leave. When Rails refuses a
 call with `connection_ended` (recovery or the owner already finished the interview), the
 interviewer is cut off and the agent leaves without reporting or finishing anything else. A heartbeat adds the
@@ -45,6 +50,7 @@ from livekit.agents import (
     Agent,
     AgentStateChangedEvent,
     ConversationItemAddedEvent,
+    RunContext,
     UserStateChangedEvent,
     function_tool,
     llm,
@@ -101,6 +107,7 @@ from live_interviews.controller import (
     SpeakingChanged,
     Started,
     Tick,
+    ToolEvent,
     ToolResult,
 )
 from live_interviews.instructions import build_live_instructions
@@ -130,6 +137,7 @@ def realtime_model_options(persona: str) -> dict:
 
 
 MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
+TRANSCRIPT_WAIT_SECONDS = 3.0  # how long a tool call waits for the candidate's late final transcript
 _LOST = object()  # a heartbeat sent without a trustworthy answer
 
 
@@ -146,9 +154,12 @@ class _PendingHeartbeat:
 class LiveInterviewRunner:
     """Feed one session's events to the controller and carry out its actions in order."""
 
-    def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic):
+    def __init__(self, *, session, rails, connection_id: str, room, leave, clock=time.monotonic,
+                 transcript_wait_seconds: float = TRANSCRIPT_WAIT_SECONDS):
         self._session, self._rails, self._connection_id, self._room = session, rails, connection_id, room
-        self._leave, self._clock = leave, clock
+        self._leave, self._clock, self._transcript_wait_seconds = leave, clock, transcript_wait_seconds
+        self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
+        self._turn_heard = asyncio.Event()
         self._controller = LiveInterviewController()
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
@@ -174,7 +185,10 @@ class LiveInterviewRunner:
         self._spawn(SpeakingChanged("interviewer", event.new_state in ("thinking", "speaking")))
 
     def on_user_state_changed(self, event: UserStateChangedEvent) -> None:
-        """LiveKit callback: the candidate started or stopped speaking."""
+        """LiveKit callback: the candidate started or stopped speaking. A turn that ended still owes
+        its final transcript, which the provider may send after the reply it prompted has started."""
+        if event.old_state == "speaking" and event.new_state != "speaking":
+            self._unheard_turns += 1
         self._spawn(SpeakingChanged("candidate", event.new_state == "speaking"))
 
     def on_participant_connected(self, participant: rtc.RemoteParticipant) -> None:
@@ -190,9 +204,42 @@ class LiveInterviewRunner:
     def on_conversation_item_added(self, event: ConversationItemAddedEvent) -> None:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
         item = event.item
-        if isinstance(item, llm.ChatMessage) and item.role in ("assistant", "user"):
-            text = item.text_content or ""
-            self._spawn(InterviewerTurnFinished(text) if item.role == "assistant" else CandidateTurnFinished(text))
+        if isinstance(item, llm.ChatMessage) and item.role == "assistant":
+            self._spawn(InterviewerTurnFinished(item.text_content or ""))
+        elif isinstance(item, llm.ChatMessage) and item.role == "user":
+            task = asyncio.create_task(self._candidate_turn_heard(item.text_content or ""))
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
+
+    async def _candidate_turn_heard(self, text: str) -> None:
+        """Hand the controller a final transcript, then let any tool call waiting for it go on."""
+        await self.handle(CandidateTurnFinished(text))
+        self._unheard_turns = max(self._unheard_turns - 1, 0)
+        self._turn_heard.set()
+
+    async def tool(self, event: ToolEvent) -> str:
+        """Run one tool call once the candidate's ended turns are transcribed (at most a few seconds).
+
+        The tool's decision (save, follow up, move on) is about the answer the candidate just
+        gave, so it waits for that answer's final transcript. If it does not come in time (the
+        transcription failed), the call goes on with what was heard; words that arrive later still
+        join the current answer, or are dropped while the next prompt is being asked."""
+        await self._wait_for_candidate_transcripts()
+        return await self.handle(event) or ""
+
+    async def _wait_for_candidate_transcripts(self) -> None:
+        deadline = asyncio.get_running_loop().time() + self._transcript_wait_seconds
+        while self._unheard_turns:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                logger.warning("Live candidate transcript did not arrive in time; the tool call goes on")
+                self._unheard_turns = 0
+                return
+            self._turn_heard.clear()
+            try:
+                await asyncio.wait_for(self._turn_heard.wait(), remaining)
+            except TimeoutError:
+                pass
 
     async def handle(self, event: LiveEvent) -> str | None:
         """Carry out the event's actions; returns the tool result text for tool events."""
@@ -345,63 +392,65 @@ class LiveInterviewerAgent(Agent):
         self._runner = runner
 
     @function_tool
-    async def ask_follow_up(self, question_text: str) -> str:
+    async def ask_follow_up(self, context: RunContext, question_text: str) -> str:
         """Ask one follow-up about the candidate's answer to the current question. Call this before
         you speak the follow-up; the result says whether to ask it or to move on instead.
 
         Args:
             question_text: The follow-up question you want to ask, in a few words.
         """
-        return await self._runner.handle(AskFollowUp(question_text)) or ""
+        return await self._runner.tool(AskFollowUp(question_text))
 
     @function_tool
-    async def finish_answer(self) -> str:
+    async def finish_answer(self, context: RunContext) -> str:
         """Record that the candidate has finished answering the current question or follow-up."""
-        return await self._runner.handle(FinishAnswer()) or ""
+        return await self._runner.tool(FinishAnswer())
 
     @function_tool
-    async def repeat_question(self) -> str:
+    async def repeat_question(self, context: RunContext) -> str:
         """Use when the candidate asks to hear the current question or follow-up again."""
-        return await self._runner.handle(RepeatQuestion()) or ""
+        return await self._runner.tool(RepeatQuestion())
 
     @function_tool
-    async def next_question(self) -> str:
+    async def next_question(self, context: RunContext) -> str:
         """Move on from the current question when you have no more follow-ups for it. The result says
         which question to ask next, or how to close the interview after the last one."""
-        return await self._runner.handle(NextQuestion()) or ""
+        return await self._runner.tool(NextQuestion())
 
     @function_tool
-    async def give_feedback(self) -> str:
+    async def give_feedback(self, context: RunContext) -> str:
         """Use when the candidate asks how they did ("How was that?"). The result says how to give the
         quick feedback; the words you then speak are saved as the feedback."""
-        return await self._runner.handle(GiveFeedback()) or ""
+        return await self._runner.tool(GiveFeedback())
 
     @function_tool
-    async def offer_menu(self) -> str:
+    async def offer_menu(self, context: RunContext) -> str:
         """Use when the candidate is done with the current question or asks what they can do next. The
         result says whether to give feedback first or which choices to offer."""
-        return await self._runner.handle(OfferMenu()) or ""
+        return await self._runner.tool(OfferMenu())
 
     @function_tool
-    async def give_hint(self) -> str:
+    async def give_hint(self, context: RunContext) -> str:
         """Use when the candidate asks for a hint. The result says how to hint without giving an answer."""
-        return await self._runner.handle(GiveHint()) or ""
+        return await self._runner.tool(GiveHint())
 
     @function_tool
-    async def retry_question(self) -> str:
+    async def retry_question(self, context: RunContext) -> str:
         """Use when the candidate wants to try the whole question again. The result says whether a retry
         is left and what to ask."""
-        return await self._runner.handle(RetryQuestion()) or ""
+        return await self._runner.tool(RetryQuestion())
 
 
 async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=time.monotonic,
-                             tick_seconds: float = 1.0, heartbeat_seconds: float = 30.0, tracer=None) -> None:
+                             tick_seconds: float = 1.0, heartbeat_seconds: float = 30.0,
+                             transcript_wait_seconds: float = TRANSCRIPT_WAIT_SECONDS, tracer=None) -> None:
     """Run one dispatched live interview job.
 
     `rails` is a RailsLiveInterviewClient, `read_inputs(interview_id=, user_id=, connection_id=)`
     loads LiveInterviewInputs, and `make_session(persona)` builds the AgentSession. `clock`,
     `tick_seconds` and `heartbeat_seconds` drive the controller's clock and heartbeats (tests pass
-    a fake clock). `tracer` makes the job's root span (the global tracer by default).
+    a fake clock); `transcript_wait_seconds` bounds how long a tool call waits for a late final
+    transcript. `tracer` makes the job's root span (the global tracer by default).
     A refused or unreadable start ends the job without starting the model.
     """
     ctx.add_shutdown_callback(rails.aclose)
@@ -430,7 +479,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
         session = make_session(inputs.setup.interviewer)
         runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id,
                                      room=ctx.room, leave=lambda: ctx.shutdown(reason="live interview finished"),
-                                     clock=clock)
+                                     clock=clock, transcript_wait_seconds=transcript_wait_seconds)
         session.on("conversation_item_added", runner.on_conversation_item_added)
         session.on("agent_state_changed", runner.on_agent_state_changed)
         session.on("user_state_changed", runner.on_user_state_changed)

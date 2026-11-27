@@ -9,7 +9,12 @@ from types import SimpleNamespace
 
 import pytest
 from livekit import rtc
-from livekit.agents import AgentStateChangedEvent, ConversationItemAddedEvent, llm
+from livekit.agents import (
+    AgentStateChangedEvent,
+    ConversationItemAddedEvent,
+    UserStateChangedEvent,
+    llm,
+)
 from livekit.agents.metrics import LLMModelUsage
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -94,6 +99,22 @@ class FakeSpeechHandle:
             callback(self)
 
 
+class FakeToolSpeech:
+    """The speech whose model response called a tool: LiveKit's SpeechHandle records every chat
+    item of that response, and counts a step for each tool round."""
+
+    def __init__(self):
+        self.chat_items, self.num_steps = [], 1
+
+    def done(self):
+        return False
+
+
+def tool_call(speech=None):
+    """The RunContext LiveKit passes a tool: only its speech handle is used."""
+    return SimpleNamespace(speech_handle=speech or FakeToolSpeech())
+
+
 class FakeSession:
     def __init__(self):
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
@@ -119,9 +140,15 @@ class FakeSession:
         self.handles.append(FakeSpeechHandle())
         return self.handles[-1]
 
-    def emit_item(self, role, text):
-        self.handlers["conversation_item_added"](
-            ConversationItemAddedEvent(item=llm.ChatMessage(role=role, content=[text])))
+    def emit_item(self, role, text, speech=None):
+        item = llm.ChatMessage(role=role, content=[text])
+        if speech is not None:  # LiveKit records the item on its speech just before announcing it
+            speech.chat_items.append(item)
+        self.handlers["conversation_item_added"](ConversationItemAddedEvent(item=item))
+
+    def candidate_stops_speaking(self):
+        """The provider heard the end of a candidate turn; its final transcript comes later."""
+        self.handlers["user_state_changed"](UserStateChangedEvent(old_state="speaking", new_state="listening"))
 
 
 class FakeRails:
@@ -265,32 +292,32 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         await settle()
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
-        assert "follow-up" in (await agent.ask_follow_up("What changed?")).lower()
+        assert "follow-up" in (await agent.ask_follow_up(tool_call(), "What changed?")).lower()
         session.emit_item("assistant", "What changed for the team?")
         await settle()
         session.emit_item("user", "Fewer failed runs.")
         await settle()
-        assert "Quick feedback:" in await agent.ask_follow_up("Anything else?")  # the cap is reached
+        assert "Quick feedback:" in await agent.ask_follow_up(tool_call(), "Anything else?")  # the cap is reached
         session.emit_item("assistant", "Quick feedback: clear story. Lead with the result.")
         await settle()
         assert ctx.room.local_participant.attributes[-1] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.menu_offered": "true",
             "cd.seconds_left": "1500", "cd.time_warning": "false"}
         assert "hint" in session.replies[-1].lower()  # the menu is offered
-        assert "finished answer" in (await agent.give_hint()).lower()
-        assert "repeat" in (await agent.repeat_question()).lower()
-        assert "question 1" in (await agent.retry_question()).lower()
+        assert "finished answer" in (await agent.give_hint(tool_call())).lower()
+        assert "repeat" in (await agent.repeat_question(tool_call())).lower()
+        assert "question 1" in (await agent.retry_question(tool_call())).lower()
         session.emit_item("assistant", "Let's try again: tell me about a project.")
         await settle()
         session.emit_item("user", "A sharper answer.")
         await settle()
-        assert "Quick feedback:" in await agent.offer_menu()
+        assert "Quick feedback:" in await agent.offer_menu(tool_call())
         session.emit_item("assistant", "Quick feedback: much sharper.")
         await settle()
-        assert "question 2" in (await agent.next_question()).lower()
+        assert "question 2" in (await agent.next_question(tool_call())).lower()
         session.emit_item("assistant", "Next question: how do you handle conflict?")
         await settle()
-        assert "thank" in (await agent.next_question()).lower()
+        assert "thank" in (await agent.next_question(tool_call())).lower()
         session.emit_item("assistant", "Thank you, goodbye!")
         await settle()
 
@@ -334,7 +361,7 @@ def test_menu_buttons_interrupt_and_have_the_interviewer_speak_the_choice():
         assert session.interrupted == 1 and "answer so far" in session.replies[-1]
         session.emit_item("assistant", "Quick feedback: good start.")
         await settle()
-        await session.agent.next_question()
+        await session.agent.next_question(tool_call())
         session.emit_item("assistant", "Quick feedback: clear.")
         await settle()
         assert await choose(rpc("hint")) == "accepted"
@@ -440,7 +467,7 @@ def test_a_heartbeat_refused_as_connection_ended_stops_speaking_and_leaves_witho
         assert session.interrupted == 1
         assert ctx.shutdown_reason
         replies = len(session.replies)
-        assert "ended" in (await session.agent.next_question()).lower()
+        assert "ended" in (await session.agent.next_question(tool_call())).lower()
         assert len(session.replies) == replies
 
     asyncio.run(scenario())
@@ -474,7 +501,7 @@ def test_a_report_refused_as_connection_ended_leaves_and_skips_the_rest():
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
         rails.ended = True
-        assert "ended" in (await session.agent.next_question()).lower()  # the answer save is refused first
+        assert "ended" in (await session.agent.next_question(tool_call())).lower()  # the answer save is refused first
         assert ctx.shutdown_reason and session.interrupted == 1
 
     asyncio.run(scenario())
@@ -693,7 +720,7 @@ def test_a_fresh_agent_resumes_from_the_claim():
         assert "repeat question 1" in session.replies[0].lower()
         session.emit_item("user", "A fuller answer.")
         await settle()
-        await session.agent.finish_answer()
+        await session.agent.finish_answer(tool_call())
         await session.agent._runner.heartbeat()
 
     asyncio.run(scenario())
@@ -717,3 +744,58 @@ def test_a_fresh_agent_in_an_empty_room_says_nothing_and_finishes_as_disconnecte
 
     asyncio.run(scenario())
     assert rails.calls[-1] == ("finish", "live", {"reason": "disconnected", "final_sequence": 1})
+
+
+async def answer_then_call_a_tool_before_the_transcript(session, call, transcript="I rebuilt the scheduler."):
+    """The candidate stops speaking and the model calls a tool before the provider sends their
+    final transcript (the provider may hold it back until its reply has finished generating)."""
+    session.emit_item("assistant", "Tell me about a project.")
+    await settle()
+    session.candidate_stops_speaking()
+    tool = asyncio.create_task(call)
+    await settle()
+    assert not tool.done()  # the decision waits for the turn that prompted it
+    session.emit_item("user", transcript)
+    return await tool
+
+
+@pytest.mark.parametrize("tool", ["next_question", "ask_follow_up", "finish_answer"])
+def test_a_tool_called_before_the_candidates_final_transcript_waits_for_it(tool):
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        call = getattr(session.agent, tool)
+        arguments = ("Anything else?",) if tool == "ask_follow_up" else ()
+        result = await answer_then_call_a_tool_before_the_transcript(session, call(tool_call(), *arguments))
+        expected = {"next_question": "Quick feedback:", "ask_follow_up": "follow-up", "finish_answer": "saved"}[tool]
+        assert expected in result  # never "not answered yet" or a skipped question
+
+    asyncio.run(scenario())
+    assert ("answer_finished", "live", {"prompt_message_id": "opening-0",
+                                        "transcript": "I rebuilt the scheduler."}) in rails.calls
+    assert ("question_advanced", "live", {"question_position": 0}) not in rails.calls
+
+
+def test_a_transcript_that_never_comes_stops_holding_tools_back_after_a_short_wait(caplog):
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions, transcript_wait_seconds=0.01)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.candidate_stops_speaking()
+        assert "not answered" in (await session.agent.finish_answer(tool_call())).lower()
+        assert "repeat" in (await session.agent.repeat_question(tool_call())).lower()
+        assert len([record for record in caplog.records if "did not arrive" in record.getMessage()]) == 1  # once
+        session.emit_item("user", "A late answer.")  # it still joins the answer it belongs to
+        await settle()
+        assert "saved" in await session.agent.finish_answer(tool_call())
+
+    asyncio.run(scenario())
+    assert rails.calls[-1] == ("answer_finished", "live", {"prompt_message_id": "opening-0",
+                                                           "transcript": "A late answer."})

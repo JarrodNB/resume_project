@@ -324,8 +324,14 @@ and the candidate's End interview. Every tool call gets one tool result; LiveKit
 realtime model speak in reply to it, so the result says what to say next (ask the follow-up,
 repeat the prompt, give quick feedback, offer the choices, ask question N, close) or why the
 call was refused. A room button has no tool call, so its choice ends with a `generate_reply`
-carrying the same words instead (after interrupting the interviewer). On start it publishes room state and asks the model to greet and ask the
-current question. Each question then runs like this:
+carrying the same words instead (after interrupting the interviewer). With the realtime model the
+provider may send the candidate's final transcript after the reply it prompted has started, and
+LiveKit runs tools while that reply is generating. So the adapter holds a tool call until every
+candidate turn that has ended (`user_state_changed` from `speaking`) has its final transcript, for
+at most 3 seconds; the decision (save, follow up, move on) then sees the answer the candidate
+gave. A transcript that arrives later joins the open answer, or is dropped while the next prompt
+is being asked, never saved to it. On start it publishes room state and asks the model to greet
+and ask the current question. Each question then runs like this:
 
 1. The first final interviewer turn after a question or accepted follow-up is reported through
    `POST /internal/interviews/live_connections/:id/prompt_asked` (`question_position`, `kind`,

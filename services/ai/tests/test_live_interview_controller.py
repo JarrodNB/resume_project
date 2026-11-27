@@ -131,6 +131,19 @@ def test_candidate_speech_while_the_question_is_being_asked_is_not_an_answer():
     assert "not answered" in tool_text(controller.handle(FinishAnswer())).lower()
 
 
+def test_a_transcript_the_adapter_stopped_waiting_for_is_never_saved_to_the_next_prompt():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    controller.handle(AskFollowUp(question_text="What changed?"))
+    controller.handle(CandidateTurnFinished(text="Late words from the first answer."))  # while the follow-up is asked
+    controller.handle(InterviewerTurnFinished(text="What changed for the team?"))
+    controller.handle(PromptRecorded(question_position=0, message_id="follow-1"))
+    controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
+    assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(prompt_message_id="follow-1",
+                                                                        transcript="Fewer failed runs.")
+
+
 def test_a_follow_up_is_refused_before_any_answer():
     controller, _ = started_controller()
     asked_and_recorded(controller)

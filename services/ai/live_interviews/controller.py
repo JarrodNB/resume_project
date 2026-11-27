@@ -12,6 +12,13 @@ transcripts may arrive in several pieces and are joined), and the interviewer ma
 follow-ups until the question has `answer_cap` answers. Moving on saves the pending answer for
 the current prompt; more words for an already saved prompt replace its answer.
 
+Tool decisions see the whole answer: the realtime provider may send the candidate's final
+transcript after the reply (and tool call) it prompted has started, so the adapter holds a tool
+call until the candidate's ended turns are transcribed, for a few seconds at most. A transcript
+that still arrives after a tool event is one the adapter stopped waiting for: it joins the
+answer that is open, and is dropped while a new prompt is being asked, so it is never saved as
+the answer to the next prompt.
+
 The coaching loop: when the question is done (the interviewer would move on, or no follow-up
 is left), the interviewer steps out of role with "Quick feedback:" (one strength, one fix). The
 next interviewer turn is that feedback, and its spoken words are what Rails saves. Then the

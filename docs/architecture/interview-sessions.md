@@ -313,9 +313,12 @@ each dispatched job it:
    `prompts/live_interviewer_instructions.py`): practice-interviewer framing that marks coaching
    with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question
    plan, all inside escaped data sections with contact masked. These instructions, including
-   the saved job text read here, are deliberately not screened: the live interviewer has no
-   tools with side effects (its tools only steer the interview through the controller), so
-   injected text can only change what this candidate hears. Contact masking, owner scoping and
+   the saved job text read here, are deliberately not screened: the live interviewer's only
+   actions are moving, restarting or ending the owner's current interview through
+   Rails-checked callbacks, and it reads nothing beyond these owner-scoped inputs, so injected
+   text can only change what this candidate hears or steer their own current interview. The
+   exception ends if an interview agent gains a tool that reads other records or acts outside
+   the current interview. Contact masking, owner scoping and
    the input bounds still apply.
 4. starts an `AgentSession` on the OpenAI realtime model `gpt-realtime-2.1-mini` with the
    persona's fixed voice (maya `marin`, daniel `cedar`, priya `shimmer`), server VAD and input
@@ -479,8 +482,10 @@ Every write bumps the revision (so the snapshot is published) and is refused wit
 connection is unclaimed or ended, the session is not a live, active, unexpired one, or the
 question or prompt is no longer current. Because prompts and answers are normal messages, the
 career references panel, the completed review and session feedback work exactly as for
-turn-based interviews. Live speech is saved as spoken, without a screen, by design: neither
-the interviewer nor the feedback agent has tools or side effects. Room state reaches the
+turn-based interviews. Live speech is saved as spoken, without a screen, by design: the
+interview agents' only actions are moving, restarting or ending the owner's current interview
+through these Rails-checked callbacks (the feedback agent has none), and they read nothing beyond
+the dispatched owner-scoped inputs (see `services/ai/screening/AGENTS.md`). Room state reaches the
 browser as the agent participant's attributes
 `cd.question_position` (zero-based), `cd.question_total`, `cd.phase` (`asking`, `answering`,
 `feedback`, `menu`, `closing`, `ended`) and `cd.menu_offered` (`true` only in `menu`). The claim
@@ -1582,7 +1587,8 @@ only the feedback record identity. The authenticated internal feedback claim ret
 session/feedback identities and the once-only claim timestamp. Python reads canonical accepted
 dialogue and generated fictional-role context through a scoped owned database query; duplicate claims perform no
 provider work. The dialogue, turn-based or live, is trusted without a fresh screen
-(`trust_interview_dialogue`) because the feedback agent has no tools or side effects; contact
+(`trust_interview_dialogue`) because the feedback agent has no tools and reads only this owner's
+dialogue (the interview-dialogue exception in `services/ai/screening/AGENTS.md`); contact
 masking and the prompt length bound still apply. Preparation-backed sessions reuse their root hourly admission and all feedback
 usage belongs to the independent interview allowance.
 

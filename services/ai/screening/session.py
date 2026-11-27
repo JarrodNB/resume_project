@@ -101,11 +101,15 @@ def trust_interview_dialogue(source: str) -> None:
     """Cover saved interview dialogue for interview coaching, in this execution only.
 
     Interview dialogue (the candidate's answers, turn-based or live, and the interviewer's
-    questions and follow-ups) is deliberately not screened here: the interviewer and
-    feedback agents have no tools or side effects, so injected text can only change the
-    coaching the same user reads. Use it only for immutable dialogue read through an
-    authenticated, owner-scoped grant and only for an agent without tools. Contact masking
-    and context bounds still apply. Never use it for editable records or other workflows.
+    questions and follow-ups) is deliberately not screened here. The interview agents' only
+    actions are moving, restarting or ending the owner's current interview through
+    Rails-checked callbacks, and they read nothing beyond the dispatched owner-scoped inputs,
+    so injected text can only change what the same user hears or reads, or steer their own
+    current interview. The exception ends if an interview agent gains a tool that reads other
+    records or acts outside the current interview. Use it only for immutable dialogue read
+    through an authenticated, owner-scoped grant and only for an agent without tools (session
+    feedback). Contact masking and context bounds still apply. Never use it for editable
+    records or other workflows.
     """
     if source and (session := _current.get()) is not None:
         session.interview_dialogue_sources.add(mask_outbound(source))

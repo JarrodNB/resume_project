@@ -121,7 +121,7 @@ def test_prompt_contains_readable_dialogue_and_reuses_screening(task_dependencie
 
 
 def test_live_answers_are_trusted_without_a_screen(task_dependencies, monkeypatch):
-    """Interview agents have no tools or side effects, so live speech is not screened."""
+    """Live speech is not screened: interview agents only act on the owner's current interview (screening/AGENTS.md)."""
     from screening.session import current_session, prompt_is_covered
     from worker import interview_session_feedback_handler as handler
     grant = saved_grant()

@@ -95,13 +95,17 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Scoped Exceptions
 
-- Interview dialogue and the live interviewer's instructions are deliberately not screened:
-  the interviewer and feedback agents have no tools or side effects, so injected text can
-  only change what the same user hears or reads. This covers live speech (saved as it is
-  spoken), session feedback over turn-based or live answers, and the saved job or role text
-  the live agent reads into its instructions at start. Contact masking, context bounds and
-  owner scoping still apply. Do not flag these paths for missing screening; a new tool or
-  side effect on these agents would end the exception.
+- Interview dialogue and the live interviewer's instructions are deliberately not screened
+  (a product decision). The interview agents' only actions are moving, restarting or ending
+  the owner's current interview through Rails-checked callbacks (the live interviewer's
+  tools; the feedback agent has none), and they read nothing beyond the owner-scoped inputs
+  dispatched for that interview. So injected text can only change what the same user hears
+  or reads, or steer that user's own current interview, which Rails still checks. This
+  covers live speech (saved as it is spoken), session feedback over turn-based or live
+  answers, and the saved job or role text the live agent reads into its instructions at
+  start. Contact masking, context bounds and owner scoping still apply. Do not flag these
+  paths for missing screening. The exception ends if an interview agent gains a tool that
+  reads other records or acts outside the current interview.
 
 - Job study-guide generation uses bounded frozen descriptions and prior generated questions
   without injection classification. Its input guard enforces text bounds only. It reads no

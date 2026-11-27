@@ -213,7 +213,48 @@ the saved state without duplicate messages or speech. Begin can also replay afte
 or completion. Expired and not-yet-ready sessions cannot begin; role review alone creates no
 speech or recording.
 
+Public snapshots expose the prepared fictional role and safe preparation progress, never
+raw personal source snapshots or execution credentials. Question type is persisted separately
+from its position. Existing fixture sessions, their two-answer caps and saved configurations
+are preserved; the fixture service remains available to deterministic tests.
+
+Seven-day expiry retires preparation and scrubs generated role along with
+dialogue/history, retaining the existing accounting markers. Preparation does not create
+career-career context entries, saved jobs, coaching or assessment. Automated interview-quality
+evaluators remain deferred; offline tests establish contracts rather than generated quality.
+
 ### Live conversation mode
+
+In a live interview the candidate and an AI interviewer talk out loud in real time. The browser
+and the `ai-live` worker meet in a LiveKit room; `ai-live` talks to OpenAI's realtime model
+directly. Unlike turn-based interviews, where Rails accepts each finished turn, nothing waits
+for Rails to approve a turn. Instead the agent **records events** to Rails as they happen
+over the internal `live_connections` endpoints below, and Rails stays the source of truth. It
+saves each prompt, answer, feedback and progress step, refuses stale or ended connections, owns
+the time limits and the live allowance, and finishes or recovers the session. Production uses
+LiveKit Cloud (`ai-live` connects out; the server opens no media ports); local Compose runs a
+dev LiveKit server. Setup and keys:
+[production compose](../../infra/compose/README.md#secrets),
+[native development](../native-development.md).
+
+| Step | Who calls | Interface |
+| --- | --- | --- |
+| Join or rejoin a room | Browser | `joinLiveInterview` (returns `LIVEKIT_URL` and a token) |
+| Take the dispatched job | `ai-live` | `POST /internal/interviews/live_connections/:id/claim` |
+| Record the spoken prompt | `ai-live` | `.../prompt_asked` |
+| Record the candidate's answer | `ai-live` | `.../answer_finished` |
+| Record spoken quick feedback | `ai-live` | `.../feedback_given` |
+| Try the question again | `ai-live` | `.../question_retried` |
+| Move on to the next question | `ai-live` | `.../question_advanced` |
+| Count time and usage, check limits | `ai-live` | `.../heartbeat` (about every 30 seconds) |
+| End the connection | `ai-live` | `.../finish` |
+| End from the page | Browser | `endLiveInterview` |
+| End quiet connections | Rails job | `Interviews::RecoverLiveConnectionsJob` (every minute) |
+
+All internal calls use the `INTERVIEW_SERVICE_SECRET` bearer like other interview callbacks,
+are safe to repeat, and are refused with 409 once the connection or session is over.
+
+#### Joining a room
 
 Each session saves a readonly `conversation_mode` column: `turn_based` (the default, and every
 older session) or `live`, chosen by `startInterview(conversationMode:)`. Live preparations accept
@@ -229,14 +270,19 @@ ten-minute LiveKit token signed with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`: ide
 `live_connection_id`. Missing LiveKit settings fail the join with a configuration error. Rails
 makes no LiveKit request. Live connections are destroyed with their session.
 
+#### The `ai-live` agent
+
 The `ai-live` Compose service (same `services/ai` image, `python -m livekit.agents start
 live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explicit dispatch as
 `careerdrafter-live-interviewer` (`live_interviews/settings.py`; it must match
-`JoinLiveService::AGENT_NAME`). It serves no HTTP. For each dispatched job it:
+`JoinLiveService::AGENT_NAME`). It serves no HTTP. On SIGTERM it takes no new jobs and waits
+for its running interviews to end; production Compose gives it 30 minutes
+(`stop_grace_period`), after which a cut-off interview is finished by recovery (below). For
+each dispatched job it:
 
 1. reads the job metadata (the two IDs only) and calls
-   `POST /internal/interviews/live_connections/:id/claim` with the LiveKit room name, using the
-   `INTERVIEW_SERVICE_SECRET` bearer like other interview callbacks. `ClaimLiveConnectionService`
+   `POST /internal/interviews/live_connections/:id/claim` with the LiveKit room name.
+   `ClaimLiveConnectionService`
    requires the same room, an open connection and a live, active, unexpired session; it marks
    the connection `connected` (the first `connected_at` is kept, `last_heartbeat_at` moves) and
    returns the session, connection and user IDs, `question_total`,
@@ -258,6 +304,8 @@ live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explic
    `gpt-realtime-2.1-mini`) with the persona's fixed voice (maya `marin`, daniel `cedar`, priya
    `shimmer`), server VAD and input transcription (`LIVE_INTERVIEW_TRANSCRIPTION_MODEL`,
    default `gpt-live-transcribe`), with LiveKit recording off.
+
+#### Questions, answers and coaching
 
 The pure `LiveInterviewController` (`live_interviews/controller.py`) takes events and returns
 actions; the adapter (`live_interviews/agent.py`) only forwards and executes them. Events are the
@@ -356,6 +404,8 @@ turn-based interviews. Room state reaches the browser as the agent participant's
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
 turn-based questions), and seven-day expiry clears it with the rest of the dialogue.
 
+#### Ending the interview
+
 The room's End interview button asks for confirmation, then calls the agent's LiveKit RPC method
 `interview.choose` with `{"option": "end"}` (the menu options above answer `accepted`; unknown
 options are RPC errors). The agent saves
@@ -365,6 +415,23 @@ owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiv
 session's open (or latest) connection: it finishes the session when the agent is gone or failed,
 and otherwise returns the finished snapshot. The page then shows the completed review, or the
 usual abandoned state.
+
+#### In the browser
+
+In the web app, an active live session (or a ready one after "Enter interview room") renders
+`LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
+`livekit-client`. The hook exposes captions from the `lk.transcription` text streams (both
+sides; a segment's interim text is replaced by its later text), the agent's progress attributes
+(including `menuOffered`, `secondsLeft` and `timeWarning`), `mute(on)`, `choose(option)` and
+`end()`. The room shows hideable captions, "Question N of M", the time left as `m:ss left`, a
+mute toggle, End interview and the references panel for the current saved prompt. Once
+`timeWarning` is on, the time left turns red and an alert ("About 2 minutes left. Start
+wrapping up.") is shown and announced. While the agent offers the menu it shows a labelled group of four buttons
+(Try again, Hear the question again, Get a hint, Move on); while the candidate answers it shows
+"How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
+choice the agent didn't get shows a short alert. The completed review shows a question's
+`liveFeedback` under its latest answer as "Interviewer feedback". If no agent joins within 15 seconds, or joining
+fails, the room offers a new turn-based preparation with the same setup.
 
 #### Dropped connections, rejoin and recovery
 
@@ -473,7 +540,9 @@ never blocks the user's other AI work: the allowance is live mode's only limit.
 **Cost.** Live usage goes through the provider ledger; see
 [provider accounting](interview-provider-accounting.md#live-interviews).
 
-**Tracing.** Each job is one Logfire trace: the adapter starts a root `live_interview.session`
+#### Tracing
+
+Each job is one Logfire trace: the adapter starts a root `live_interview.session`
 span (only `interview_session_id` and `live_connection_id`) and runs the session inside it, and
 the worker routes LiveKit Agents' own OpenTelemetry spans to the same tracer provider
 (`livekit.agents.telemetry.set_tracer_provider(..., allow_pii=False)`). `live_interviews/telemetry.py`
@@ -485,31 +554,6 @@ GenAI message events, and exception messages and stack traces. LiveKit's own PII
 nothing here because Logfire's tracer provider is a proxy, so this processor is what keeps
 content out. At shutdown the root records the session's known provider cost
 (`provider_cost_microdollars`, and `operation.cost` in US dollars) and the worker flushes.
-
-In the web app, an active live session (or a ready one after "Enter interview room") renders
-`LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
-`livekit-client`. The hook exposes captions from the `lk.transcription` text streams (both
-sides; a segment's interim text is replaced by its later text), the agent's progress attributes
-(including `menuOffered`, `secondsLeft` and `timeWarning`), `mute(on)`, `choose(option)` and
-`end()`. The room shows hideable captions, "Question N of M", the time left as `m:ss left`, a
-mute toggle, End interview and the references panel for the current saved prompt. Once
-`timeWarning` is on, the time left turns red and an alert ("About 2 minutes left. Start
-wrapping up.") is shown and announced. While the agent offers the menu it shows a labelled group of four buttons
-(Try again, Hear the question again, Get a hint, Move on); while the candidate answers it shows
-"How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
-choice the agent didn't get shows a short alert. The completed review shows a question's
-`liveFeedback` under its latest answer as "Interviewer feedback". If no agent joins within 15 seconds, or joining
-fails, the room offers a new turn-based preparation with the same setup.
-
-Public snapshots expose the prepared fictional role and safe preparation progress, never
-raw personal source snapshots or execution credentials. Question type is persisted separately
-from its position. Existing fixture sessions, their two-answer caps and saved configurations
-are preserved; the fixture service remains available to deterministic tests.
-
-Seven-day expiry retires preparation and scrubs generated role along with
-dialogue/history, retaining the existing accounting markers. Preparation does not create
-career-career context entries, saved jobs, coaching or assessment. Automated interview-quality
-evaluators remain deferred; offline tests establish contracts rather than generated quality.
 
 ### Begin and active-turn interfaces
 

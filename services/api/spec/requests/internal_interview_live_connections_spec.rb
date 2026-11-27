@@ -57,7 +57,7 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
           "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
-          "current_question_retry_count" => 0
+          "current_question_retry_count" => 0, "session_seconds_left" => 1_500, "allowance_seconds_left" => 600
         )
         expect(connection.reload).to have_attributes(status: "connected", connected_at: Time.current, last_heartbeat_at: Time.current)
       end
@@ -71,6 +71,27 @@ RSpec.describe "Internal live interview connections", type: :request do
       interview.questions.find_by!(position: 0).update!(live_retry_count: 2)
       claim # a restarted agent learns the retries the current question already used
       expect(response.parsed_body["current_question_retry_count"]).to eq(2)
+    end
+
+    it "opens one live conversation bill per connection: a task, a reserved observation and an unfinished usage report" do
+      claim
+      claim
+      task = connection.reload.ai_task
+      expect(task).to have_attributes(user_id: user.id, task_type: "interview_live_conversation", subject: interview,
+        hourly_admission_task: interview.operations.preparation.first.ai_task, cost_microdollars: 0)
+      expect(user.ai_tasks.where(task_type: "interview_live_conversation").count).to eq(1)
+      expect(InterviewVerificationReservation.find_by!(observation_id: connection.observation_id))
+        .to have_attributes(reserved_microdollars: 2_000_000, actual_microdollars: nil)
+      expect(task.ai_usage_attempts.sole).to have_attributes(attempt_id: connection.observation_id, finalized: false, incomplete: true)
+    end
+
+    it "is not stopped by the hidden daily spend cap; the live allowance is its limit" do
+      connection # prepared and joined before the cap is spent
+      user.update!(daily_ai_spend_cap_microdollars: 1)
+      user.ai_tasks.create!(task_type: "interview_turn", cost_microdollars: 10, status: "completed")
+      claim
+      expect(response).to have_http_status(:ok)
+      expect(connection.reload.ai_task).to be_present
     end
 
     it "refuses a foreign room, an ended connection and a finished session" do
@@ -419,9 +440,122 @@ RSpec.describe "Internal live interview connections", type: :request do
     end
   end
 
+  describe "heartbeat" do
+    let(:realtime_usage) do
+      { model: "gpt-realtime-2.1-mini", input_tokens: 1_000, cached_input_tokens: 400, output_tokens: 300, cost_microdollars: 9_000 }
+    end
+
+    def heartbeat(sequence, billed_seconds_delta: 30, usage: [ realtime_usage ])
+      post "#{base}/heartbeat", params: { sequence: sequence, billed_seconds_delta: billed_seconds_delta, usage: usage },
+        headers: headers, as: :json
+    end
+
+    it "adds billed seconds and usage once per sequence, replays a repeat and refuses an older one" do
+      claim
+      travel 30.seconds do
+        heartbeat(1)
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq("action" => "continue", "allowance_seconds_left" => 570, "session_seconds_left" => 1_470)
+        expect(connection.reload).to have_attributes(billed_seconds: 30, heartbeat_sequence: 1, last_heartbeat_at: Time.current)
+      end
+      receipt = response.parsed_body
+      heartbeat(1)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq(receipt)
+      heartbeat(2, billed_seconds_delta: 12, usage: [ realtime_usage, { model: "gpt-live-transcribe", audio_milliseconds: 12_000, cost_microdollars: 3_400 } ])
+      heartbeat(1)
+      expect(response).to have_http_status(:conflict)
+      expect(connection.reload).to have_attributes(billed_seconds: 42, heartbeat_sequence: 2)
+      task = connection.ai_task.reload
+      expect(task).to have_attributes(input_tokens: 2_000, cached_input_tokens: 800, output_tokens: 600, cost_microdollars: 21_400)
+      expect(AiUsage::AttemptEntries.as_hashes(task.ai_usage_attempts.sole)).to contain_exactly(
+        { "stage" => "live_conversation", "provider" => "openai", "model" => "gpt-realtime-2.1-mini", "input_tokens" => 2_000,
+          "cached_input_tokens" => 800, "output_tokens" => 600, "cost_microdollars" => 18_000 },
+        { "stage" => "live_conversation", "provider" => "openai", "model" => "gpt-live-transcribe", "audio_milliseconds" => 12_000,
+          "cost_microdollars" => 3_400 }
+      )
+      expect(AiUsage::DailySpend.known_microdollars(user)).to be >= 21_400
+    end
+
+    it "warns at 2 minutes of live allowance left and says wrap up with the reason once it runs out" do
+      claim
+      heartbeat(1, billed_seconds_delta: 470)
+      expect(response.parsed_body).to include("action" => "continue", "allowance_seconds_left" => 130)
+      heartbeat(2, billed_seconds_delta: 10)
+      expect(response.parsed_body).to include("action" => "warn", "allowance_seconds_left" => 120)
+      heartbeat(3, billed_seconds_delta: 120)
+      expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "allowance", "allowance_seconds_left" => 0, "session_seconds_left" => 900)
+    end
+
+    it "says wrap up with time_limit once the session's 25 counted minutes are used" do
+      create(:billing_subscription, user: user)
+      claim
+      heartbeat(1, billed_seconds_delta: 1_500)
+      expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "allowance_seconds_left" => 2_100, "session_seconds_left" => 0)
+    end
+
+    it "keeps an unpriced usage report unknown rather than free" do
+      claim
+      heartbeat(1, usage: [ realtime_usage.except(:cost_microdollars) ])
+      expect(response).to have_http_status(:ok)
+      entry = AiUsage::AttemptEntries.as_hashes(connection.reload.ai_task.ai_usage_attempts.sole).sole
+      expect(entry).to include("input_tokens" => 1_000)
+      expect(entry).not_to have_key("cost_microdollars")
+      heartbeat(2)
+      expect(AiUsage::AttemptEntries.as_hashes(connection.ai_task.ai_usage_attempts.sole).sole).not_to have_key("cost_microdollars")
+    end
+
+    it "refuses an unclaimed or ended connection and invalid reports without changes" do
+      heartbeat(1)
+      expect(response).to have_http_status(:conflict)
+      claim
+      [ { sequence: 0 }, { billed_seconds_delta: -1 }, { billed_seconds_delta: 2_000 }, { usage: [ realtime_usage.merge(model: "gpt-6-luna") ] },
+        { usage: [ realtime_usage.merge(input_tokens: -5) ] }, { usage: [ realtime_usage.merge(prompt: "text") ] }, { usage: "lots" } ].each do |invalid|
+        post "#{base}/heartbeat", params: { sequence: 1, billed_seconds_delta: 30, usage: [ realtime_usage ] }.merge(invalid), headers: headers, as: :json
+        expect(response).to have_http_status(:conflict)
+      end
+      expect(connection.reload).to have_attributes(billed_seconds: 0, heartbeat_sequence: 0)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
+      heartbeat(1)
+      expect(response).to have_http_status(:conflict)
+    end
+  end
+
   describe "finish" do
-    def finish(reason)
-      post "#{base}/finish", params: { reason: reason }, headers: headers, as: :json
+    def finish(reason, **extra)
+      post "#{base}/finish", params: { reason: reason, **extra }, headers: headers, as: :json
+    end
+
+    it "finishes at the time limit or when the allowance runs out by the same completed/abandoned rule" do
+      answer_finished(prompt_message_id: asked_opening)
+      finish("time_limit")
+      expect(response.parsed_body).to include("status" => "completed", "end_reason" => "time_limit")
+      other = ready_live_interview(user)
+      with_livekit_env { Interviews::JoinLiveService.call(interview: other) }
+      other_connection = other.reload.live_connections.sole
+      post "/internal/interviews/live_connections/#{other_connection.id}/claim", params: { room_name: other_connection.room_name }, headers: headers, as: :json
+      post "/internal/interviews/live_connections/#{other_connection.id}/finish", params: { reason: "allowance" }, headers: headers, as: :json
+      expect(response.parsed_body).to include("status" => "abandoned", "end_reason" => "allowance")
+    end
+
+    it "closes the bill as known when the agent's final heartbeat was the last one applied" do
+      answer_finished(prompt_message_id: asked_opening)
+      post "#{base}/heartbeat", params: { sequence: 1, billed_seconds_delta: 30, usage: [ { model: "gpt-realtime-2.1-mini",
+        input_tokens: 10, cached_input_tokens: 0, output_tokens: 5, cost_microdollars: 120 } ] }, headers: headers, as: :json
+      finish("completed", final_sequence: 1)
+      task = connection.reload.ai_task
+      expect(task).to have_attributes(status: "completed", cost_microdollars: 120)
+      expect(task.ai_usage_attempts.sole).to have_attributes(finalized: true, incomplete: false)
+      expect(InterviewVerificationReservation.find_by!(observation_id: connection.observation_id).actual_microdollars).to eq(120)
+    end
+
+    it "keeps the bill unknown when a final heartbeat is missing or the owner ends without the agent" do
+      answer_finished(prompt_message_id: asked_opening)
+      finish("completed", final_sequence: 3)
+      report = connection.reload.ai_task.ai_usage_attempts.sole
+      expect(report).to have_attributes(finalized: true, incomplete: true)
+      expect(InterviewVerificationReservation.find_by!(observation_id: connection.observation_id).actual_microdollars).to be_nil
+      expect(connection.ai_task.status).to eq("completed")
     end
 
     it "ends the connection and completes an interview that has an answer, once" do
@@ -460,7 +594,7 @@ RSpec.describe "Internal live interview connections", type: :request do
 
     it "refuses reasons that are not used yet and an ended connection of a still-active interview" do
       claim
-      %w[time_limit disconnected nonsense].each do |reason|
+      %w[disconnected nonsense].each do |reason|
         finish(reason)
         expect(response).to have_http_status(:conflict)
       end

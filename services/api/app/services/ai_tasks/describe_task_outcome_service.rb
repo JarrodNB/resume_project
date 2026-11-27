@@ -11,7 +11,8 @@ module AiTasks
       "generate_interview_memory_anchor" => "Memory anchor", "review_interview_answer" => "Answer feedback", "review_library_section" => "Library review",
       "improve_library_entry" => "Library improvement", "interview_preparation" => "Interview preparation",
       "interview_turn" => "Interview response", "interview_speech" => "Interview audio",
-      "interview_session_feedback" => "Interview feedback", "interview_transcription" => "Answer transcription", "interview_clarification" => "Question clarification", "interview_references" => "Career references"
+      "interview_session_feedback" => "Interview feedback", "interview_transcription" => "Answer transcription", "interview_clarification" => "Question clarification", "interview_references" => "Career references",
+      "interview_live_conversation" => "Live interview"
     }.freeze
 
     # Which job workspace tab shows each job task's result; gap analysis opens the default Fit tab.

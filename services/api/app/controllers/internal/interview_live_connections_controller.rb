@@ -37,8 +37,14 @@ module Internal
         question_position: params.require(:question_position), retry_number: params.require(:retry_number))
     end
 
+    def heartbeat
+      respond Interviews::RecordLiveHeartbeatService.call(connection: @connection, sequence: params.require(:sequence),
+        billed_seconds_delta: params.require(:billed_seconds_delta), usage: params.to_unsafe_h["usage"])
+    end
+
     def finish
-      respond Interviews::FinishLiveService.call(connection: @connection, reason: params.require(:reason))
+      respond Interviews::FinishLiveService.call(connection: @connection, reason: params.require(:reason),
+        final_sequence: params[:final_sequence])
     end
 
     private

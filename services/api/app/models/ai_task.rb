@@ -16,9 +16,11 @@
 class AiTask < ApplicationRecord
   # Removed preference and reranking types remain readable only for historical usage and queue retirement.
   TASK_TYPES = %w[elicit_job_preferences generate_summary chat_reply check_job_preferences rerank_job_listings improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
-                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer generate_interview_memory_anchor interview_turn interview_speech interview_preparation interview_transcription interview_clarification interview_references interview_session_feedback].freeze
+                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer generate_interview_memory_anchor interview_turn interview_speech interview_preparation interview_transcription interview_clarification interview_references interview_session_feedback
+                  interview_live_conversation].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
-  SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification interview_references interview_session_feedback].freeze
+  SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification interview_references interview_session_feedback
+                                   interview_live_conversation].freeze
 
   belongs_to :user
   belongs_to :subject, polymorphic: true, optional: true
@@ -54,7 +56,8 @@ class AiTask < ApplicationRecord
     root = hourly_admission_task
     unless root&.persisted? && root.hourly_admission_task_id.nil? && root.task_type == "interview_preparation" &&
         root.user_id == user_id && root.subject_type == "InterviewSession" && root.subject_id == subject_id &&
-        subject_type == "InterviewSession" && %w[interview_turn interview_speech interview_transcription interview_clarification interview_references interview_session_feedback].include?(task_type)
+        subject_type == "InterviewSession" && %w[interview_turn interview_speech interview_transcription interview_clarification interview_references interview_session_feedback
+          interview_live_conversation].include?(task_type)
       errors.add(:hourly_admission_task, "must be this interview's owned preparation admission")
     end
   end

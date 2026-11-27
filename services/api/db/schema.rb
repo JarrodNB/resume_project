@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_27_100100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -137,7 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_100100) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text, 'interview_session_feedback'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying, 'interview_session_feedback'::character varying, 'interview_live_conversation'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -441,11 +441,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_100100) do
     t.string "end_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "heartbeat_sequence", default: 0, null: false
+    t.uuid "observation_id"
+    t.uuid "ai_task_id"
+    t.index ["ai_task_id"], name: "index_interview_live_connections_on_ai_task_id", unique: true
     t.index ["interview_session_id", "created_at"], name: "idx_on_interview_session_id_created_at_d5f0267dcc"
     t.index ["interview_session_id"], name: "index_interview_live_connections_one_open_per_session", unique: true, where: "((status)::text <> 'ended'::text)"
+    t.index ["observation_id"], name: "index_interview_live_connections_on_observation_id", unique: true
     t.index ["room_name"], name: "index_interview_live_connections_on_room_name", unique: true
     t.check_constraint "billed_seconds >= 0", name: "interview_live_connection_billed_seconds"
     t.check_constraint "end_reason IS NULL OR (end_reason::text = ANY (ARRAY['completed'::character varying, 'time_limit'::character varying, 'allowance'::character varying, 'ended_by_candidate'::character varying, 'disconnected'::character varying, 'failed'::character varying, 'idle'::character varying]::text[]))", name: "interview_live_connection_end_reason"
+    t.check_constraint "heartbeat_sequence >= 0", name: "interview_live_connection_heartbeat_sequence"
     t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'connected'::character varying, 'ended'::character varying]::text[])", name: "interview_live_connection_status"
   end
 
@@ -1089,6 +1095,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_100100) do
   add_foreign_key "interview_clarifications", "interview_session_messages", column: "message_id"
   add_foreign_key "interview_clarifications", "interview_sessions"
   add_foreign_key "interview_execution_attempts", "interview_session_operations", column: "operation_id", on_delete: :cascade
+  add_foreign_key "interview_live_connections", "ai_tasks"
   add_foreign_key "interview_live_connections", "interview_sessions"
   add_foreign_key "interview_provider_attempts", "interview_execution_attempts", column: "execution_attempt_id", on_delete: :cascade
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade

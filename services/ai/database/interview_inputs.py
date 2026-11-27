@@ -23,7 +23,7 @@ OPERATION_QUERY = """
 SELECT o.kind, o.question_id::text, o.message_id::text, o.recording_id::text,
        o.expected_revision, o.candidate_transcript, o.transcription_mode,
        s.status AS session_status, s.execution_mode, s.revision, s.current_question_position,
-       s.preparation_kind, s.setup_config
+       s.preparation_kind, s.setup_config, s.answer_cap
 FROM interview_session_operations o
 JOIN interview_sessions s ON s.id = o.interview_session_id
 WHERE o.id = %(operation_id)s AND s.id = %(interview_id)s AND s.user_id = %(user_id)s
@@ -173,7 +173,7 @@ def read_interview_input(connection, claim):
             payload = SpeechPayload(text=_spoken(message), message_id=row["message_id"])
         else:
             question = cursor.execute(
-                """SELECT q.content, q.position FROM interview_session_questions q
+                """SELECT q.content, q.position, q.accepted_answer_count FROM interview_session_questions q
                 JOIN interview_sessions s ON s.id = q.interview_session_id
                 WHERE s.user_id = %(user_id)s AND q.id = %(question_id)s AND q.interview_session_id = %(interview_id)s""",
                 {**params, **row},
@@ -246,6 +246,8 @@ def read_interview_input(connection, claim):
                     recording_id=row["recording_id"],
                     expected_revision=row["expected_revision"],
                     question=question["content"],
+                    # Mirrors Interviews::AcceptTurnService.final_answer?; both test the same cases.
+                    final_answer=question["accepted_answer_count"] + 1 >= row["answer_cap"],
                     current_dialogue=current,
                     earlier_dialogue=EarlierDialogue(
                         version=1,

@@ -1,5 +1,7 @@
 /** Prefer a British English voice and short speaking phrases from saved dialogue.
  * Voice availability belongs to the browser; text is only split, never rewritten.
+ * A blank line always ends a phrase, so an acknowledgement without closing punctuation keeps the
+ * same first phrase while streamed text grows behind it.
  */
 export function selectInterviewVoice(voices: SpeechSynthesisVoice[]) {
   const english = voices.filter((voice) => /^en(?:[-_]|$)/i.test(voice.lang))
@@ -10,7 +12,7 @@ export function selectInterviewVoice(voices: SpeechSynthesisVoice[]) {
 }
 
 export function interviewSpeechChunks(text: string): string[] {
-  const sentences = text.trim().match(/[\s\S]+?(?:[.!?]+["'’”)\]]*(?=\s|$)|$)/g) ?? []
+  const sentences = text.trim().split(/\n\s*\n/).flatMap((paragraph) => paragraph.match(/[\s\S]+?(?:[.!?]+["'’”)\]]*(?=\s|$)|$)/g) ?? [])
   const chunks: string[] = []
   for (const sentence of sentences) {
     let rest = sentence.trim()

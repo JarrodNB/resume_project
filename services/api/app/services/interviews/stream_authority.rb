@@ -1,9 +1,11 @@
 # Resolve observer authority from current Rails state, never a browser-supplied topic.
+# Only answer turns publish provisional interviewer text, so only the owner's turn
+# operations can be observed; preparation, transcription and speech never stream.
 module Interviews
   module StreamAuthority
     def self.operation(operation_id, user)
       operation = InterviewSessionOperation.find_by(id: operation_id)
-      operation if operation&.interview_session&.user_id == user.id
+      operation if operation&.turn? && operation.interview_session.user_id == user.id
     rescue ArgumentError
       nil
     end

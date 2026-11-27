@@ -181,6 +181,7 @@ export function useInterviewAnswerCapture({ session, abandoned, onModeChange, ..
       status: recorder.status, recording: recorder.recording, error: recorder.error,
       transcript: recorder.transcript, candidateTranscript: recorder.candidateTranscript,
       effectiveMode: recorder.effectiveMode, fallbackReason: recorder.fallbackReason,
+      limitReached: recorder.limitReached, microphoneStream: recorder.microphoneStream,
     },
     review: {
       operation, pending, saving, reviewed,

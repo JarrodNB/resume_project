@@ -2,8 +2,8 @@
 
 Normal interview work starts through the shared HTTP executor immediately after Rails
 commits the operation and its fallback job. No discovery interval precedes execution.
-Interviews keep final-result delivery; future chat can use optional streamed output on
-the same runner. Measurements are engineering evidence, not model-quality scores.
+Interview answer turns publish optional streamed spoken text on the same runner as chat;
+saved results still arrive as final results. Measurements are engineering evidence, not model-quality scores.
 
 ## Separate the clock domains
 
@@ -42,13 +42,21 @@ clock, so do not join them to Rails or Python timestamps.
 | `speech-end-to-transcript` | Pause recording in a live mode | Final recognized text is in the answer box | `browser` / `streaming` |
 | `recording-to-transcript` | Transcribe recording (includes upload) | Transcript fills the answer box | `recorded` |
 | `submit-to-reply` | Submit answer | The next interviewer prompt appears | `all` |
-| `reply-to-audio` | The next prompt appears | Its automatic playback makes sound | `browser` / `provider` |
-| `submit-to-audio` | Submit answer | The next prompt's automatic playback makes sound | `browser` / `provider` |
+| `reply-to-audio` | The next prompt appears | Its automatic playback makes sound | `browser` / `browser-streamed` / `provider` |
+| `submit-to-audio` | Submit answer | The next prompt's automatic playback makes sound | `browser` / `browser-streamed` / `provider` |
 
 A failed recognition, failed submission or manual (non-automatic) playback records nothing for
 that stage, so the numbers never include reading or thinking time. In provider mode,
 `reply-to-audio` includes speech generation, storage and the playback grant. Browser "sound" is
 the first sentence's `onstart` event, which some voice engines fire slightly early.
+
+`browser-streamed` marks turns whose voice started from
+[streamed interviewer speech](architecture/interview-sessions.md#browser-speech-default) rather
+than the saved reply. Its `submit-to-audio` ends at the first streamed sentence, whether that
+starts before or after the saved reply appears. Its `reply-to-audio` is recorded only when the
+saved reply appeared first; when the voice started earlier there was no wait after the reply.
+If streaming fails before any sound and the saved reply plays instead, the turn counts as
+`browser`. Compare `browser-streamed` with `browser` to see what streaming saves.
 
 To collect numbers, run several turns at `/practice/interviews`, then in the DevTools console:
 

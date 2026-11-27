@@ -7,6 +7,13 @@ module Interviews
   class AcceptTurnService < ApplicationService
     CLOSING = "Thank you. This interview is complete.".freeze
 
+    # Whether this answer uses the question's last allowed answer, so the interview moves on whatever
+    # the model decides. Mirrored in services/ai/database/interview_inputs.py (`final_answer`), which
+    # stops streamed speech from voicing a follow-up that would be discarded; both test the same cases.
+    def self.final_answer?(accepted_answer_count:, answer_cap:)
+      accepted_answer_count + 1 >= answer_cap
+    end
+
     def initialize(operation:, attempt_id:, claim_generation:, transcript:, decision:, reply: nil,
       acknowledgement: nil)
       @operation = operation
@@ -69,7 +76,8 @@ module Interviews
     private
 
     def save_response(interview, question, position)
-      if @decision == "advance" || question.accepted_answer_count + 1 >= interview.answer_cap
+      if @decision == "advance" ||
+          self.class.final_answer?(accepted_answer_count: question.accepted_answer_count, answer_cap: interview.answer_cap)
         next_question = @questions.find { |candidate| candidate.position == question.position + 1 }
         if next_question
           interview.current_question_position = next_question.position

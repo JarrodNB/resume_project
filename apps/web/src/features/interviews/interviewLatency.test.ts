@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cancelInterviewTiming, finishInterviewTiming, interviewLatencyReport, keyInterviewTiming, startInterviewTiming } from './interviewLatency'
+import { cancelInterviewTiming, finishInterviewTiming, interviewLatencyReport, keyInterviewTiming, startInterviewTiming, STREAMED_SPEECH_TIMING } from './interviewLatency'
 
 afterEach(() => {
   performance.clearMeasures()
@@ -32,6 +32,15 @@ describe('interview latency timing', () => {
     keyInterviewTiming('submit-to-audio', 'message-2')
     expect(finishInterviewTiming('submit-to-audio', 'message-1')).toBeNull()
     expect(finishInterviewTiming('submit-to-audio', 'message-2')).toBe(500)
+  })
+
+  it('can switch a keyed stage to the mode that will actually play it', () => {
+    clock(0, 700)
+    startInterviewTiming('submit-to-audio', { mode: 'browser' })
+    keyInterviewTiming('submit-to-audio', 'stream:turn', STREAMED_SPEECH_TIMING)
+    expect(finishInterviewTiming('submit-to-audio', 'stream:turn')).toBe(700)
+    const [entry] = performance.getEntriesByName('interview:submit-to-audio')
+    expect((entry as PerformanceMeasure).detail).toEqual({ mode: 'browser-streamed' })
   })
 
   it('records nothing for a cancelled stage', () => {

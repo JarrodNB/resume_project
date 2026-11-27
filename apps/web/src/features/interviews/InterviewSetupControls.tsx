@@ -10,10 +10,10 @@ export function SetupRow({ title, children, group = true }: { title: ReactNode; 
 }
 
 /** One pick from a short list, drawn as joined switch buttons over a native radio group. */
-export function Switch({ name, options, value, change, columns = options.length === 3 ? 3 : 2 }: { name: string; options: { value: string; label: string }[]; value: string; change: (value: string) => void; columns?: number }) {
+export function Switch({ name, options, value, change, columns = options.length === 3 ? 3 : 2, disabled = false }: { name: string; options: { value: string; label: string }[]; value: string; change: (value: string) => void; columns?: number; disabled?: boolean }) {
   return <div className="interview-setup-switch" style={{ '--switch-columns': columns } as CSSProperties}>
     {options.map((option) => <label key={option.value}>
-      <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => change(option.value)} />{option.label}
+      <input type="radio" name={name} value={option.value} checked={value === option.value} disabled={disabled} onChange={() => change(option.value)} />{option.label}
     </label>)}
   </div>
 }

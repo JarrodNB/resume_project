@@ -1,10 +1,13 @@
-/** Observe one owned chat attempt without starting or retrying model execution.
- * Capabilities travel in the first frame, never a URL. Lost buffers restore saved state;
- * reconnect only reattaches an observer with its cursor and a fresh capability.
+/** Observe one owned AI attempt's provisional text without starting or retrying model execution.
+ * Chat and interview turns share it; the feature name must match every event. Capabilities
+ * travel in the first frame, never a URL. Lost buffers restore saved state; reconnect only
+ * reattaches an observer with its cursor and a fresh capability. When the saved snapshot does
+ * not show the attempt (interviews), the first `attached` frame pins it and later frames must match.
  */
-export interface ChatStreamOperation { id: string; attemptId: string | null; claimGeneration: number }
+export interface AiStreamOperation { id: string; attemptId?: string | null; claimGeneration?: number }
 interface Options {
-  operation: ChatStreamOperation
+  feature: string
+  operation: AiStreamOperation
   authorize: () => Promise<string | null>
   onText: (text: string) => void
   onReconcile: () => void
@@ -12,13 +15,14 @@ interface Options {
 }
 const cursorPattern = /^(0|[1-9][0-9]{0,19})-(0|[1-9][0-9]{0,19})$/
 
-export function observeChatOutput({ operation, authorize, onText, onReconcile, createSocket = (url) => new WebSocket(url) }: Options): () => void {
+export function observeAiOutput({ feature, operation, authorize, onText, onReconcile, createSocket = (url) => new WebSocket(url) }: Options): () => void {
   let stopped = false
   let socket: WebSocket | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let retries = 0
   let cursor = '0-0'
   let text = ''
+  let pinned = operation.attemptId === undefined ? null : { attemptId: operation.attemptId, claimGeneration: operation.claimGeneration }
 
   function detach() {
     if (!socket) return
@@ -58,7 +62,10 @@ export function observeChatOutput({ operation, authorize, onText, onReconcile, c
           if (!event || typeof event !== 'object' || Array.isArray(event)) { finish(true); return }
           const value = event as Record<string, unknown>
           if (value.type === 'reset' || value.type === 'error') { finish(true); return }
-          if (value.feature !== 'chat' || value.operation_id !== operation.id || value.attempt_id !== operation.attemptId || value.claim_generation !== operation.claimGeneration) { finish(true); return }
+          if (!pinned && value.type === 'attached' && typeof value.attempt_id === 'string' && typeof value.claim_generation === 'number') {
+            pinned = { attemptId: value.attempt_id, claimGeneration: value.claim_generation }
+          }
+          if (!pinned || value.feature !== feature || value.operation_id !== operation.id || value.attempt_id !== pinned.attemptId || value.claim_generation !== pinned.claimGeneration) { finish(true); return }
           if (value.type === 'attached') return
           if (typeof value.cursor !== 'string' || !cursorPattern.test(value.cursor)) { finish(true); return }
           const nextCursor = value.cursor.split('-').map(BigInt)

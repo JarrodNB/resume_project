@@ -31,3 +31,8 @@ it('uses another British voice before a named US voice, including underscore loc
   expect(selectInterviewVoice([us])).toBe(us)
   expect(selectInterviewVoice([{ name: 'French', lang: 'fr-FR' } as SpeechSynthesisVoice])).toBeNull()
 })
+it('ends a chunk at a blank line, so an acknowledgement without punctuation stays its own chunk as text grows', () => {
+  expect(interviewSpeechChunks('Thanks for that\n\n')).toEqual(['Thanks for that'])
+  expect(interviewSpeechChunks('Thanks for that\n\nHow did you measure it? Who checked it?')).toEqual(['Thanks for that', 'How did you measure it?', 'Who checked it?'])
+  expect(interviewSpeechChunks('You cut it by 15%\n\nTell me about a conflict.')).toEqual(['You cut it by 15%', 'Tell me about a conflict.'])
+})

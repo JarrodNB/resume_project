@@ -123,6 +123,22 @@ It does not count as an accepted answer or advance the interview.
 The candidate's editable answer before submission, written by typing or from a reviewed
 transcription. It becomes an accepted answer only after submission and acceptance.
 
+**Hands-free mode**:
+An optional, off-by-default interview setting that ends a spoken answer when the candidate
+stops talking for the chosen silence length (Quick 1.5 s, Normal 2.5 s or Patient 4 s), then
+offers an auto-send countdown. It needs live transcription and automatic microphone capture,
+and is remembered in this browser for the signed-in account.
+
+**Auto-send countdown**:
+The short "Sending in 3…" notice after a hands-free answer ends. When it finishes, the
+reviewed text is submitted like a normal Submit. Keep editing stops it, Send now skips it,
+and speaking again stops it and continues the same recording.
+
+**Streamed interviewer speech**:
+Browser-voice playback of the interviewer's reply while the model is still writing it,
+before the reply is saved. It is provisional: in rare cases the saved reply differs, and
+then the voice stops and the saved text is shown without repeating what was already said.
+
 **Interviewer acknowledgement**:
 A brief factual response to a detail in the candidate's previous answer, before the
 interviewer asks a follow-up, moves to the next question, or closes the interview.

@@ -5,7 +5,12 @@ RSpec.describe "Execution stream authorization", type: :request do
   let(:headers) { { "CONTENT_TYPE" => "application/json", "ACCEPT" => "application/json", "HTTP_ORIGIN" => "http://localhost:5173" } }
   let(:user) { create(:user) }
   let(:interview) { Interviews::CreateFixtureService.call(user: user).value }
-  let(:operation) { interview.operations.speech.first }
+  # Interview observers attach only to answer turns.
+  let(:operation) do
+    Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
+      recording_id: nil, expected_revision: 0, submission_key: "streamed-turn",
+      candidate_transcript: "I rebuilt the scheduler.", transcription_mode: "typed").value
+  end
   let(:query) { "mutation($input: AuthorizeAiExecutionStreamInput!) { authorizeAiExecutionStream(input: $input) { token expiresAt errors } }" }
 
   around do |example|

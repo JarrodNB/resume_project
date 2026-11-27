@@ -6,7 +6,7 @@ import { useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import type { ChatOperationQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { PLAN_ENDED_FAILURE_CODE, PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
-import { observeChatOutput } from './chatOutputStream'
+import { observeAiOutput } from '@/lib/aiOutputStream'
 import { AUTHORIZE_CHAT_OUTPUT, CHAT_CONVERSATION_UPDATED, CHAT_OPERATION_QUERY, RETRY_CHAT_MESSAGE, SEND_CHAT_MESSAGE } from './chatTurnOperations'
 
 export type ChatOperation = NonNullable<ChatOperationQuery['chatConversation']['latestOperation']>
@@ -77,7 +77,7 @@ export function useChatTurn(conversationId: string, onAccepted: (operationId: st
   })
   useEffect(() => {
     if (!running || !operationId || !attemptId) return
-    return observeChatOutput({ operation: { id: operationId, attemptId, claimGeneration },
+    return observeAiOutput({ feature: 'chat', operation: { id: operationId, attemptId, claimGeneration },
       authorize: async () => {
         const result = await authorize({ variables: { input: { feature: 'chat', operationId } } })
         const payload = result.data?.authorizeAiExecutionStream

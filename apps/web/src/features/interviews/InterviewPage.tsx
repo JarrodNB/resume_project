@@ -3,15 +3,16 @@
  * and briefly announces "Next question ready" when the next reply lands; reloads announce nothing.
  * While the interview is active the workspace enters focus mode: its navigation steps aside.
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
- * Saved server state controls progression; recording, review and submission remain explicit.
+ * Saved server state controls progression; recording, review and submission remain explicit, except that
+ * optional hands-free mode pauses on silence and sends after a countdown the candidate can stop.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { SaveInterviewAnswer } from './SaveInterviewAnswer'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
 import { InterviewRoleStep } from './InterviewRoleStep'
-import { TRANSCRIPTION_HELP } from './transcriptionHelp'
+import { handsFreeAvailable, TRANSCRIPTION_HELP } from './transcriptionHelp'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { interviewerOptions } from './interviewSetupOptions'
 import { PageHeading } from '@/components/PageHeading'
@@ -39,8 +40,10 @@ import { BrowserInterviewSpeech } from './BrowserInterviewSpeech'
 import { InterviewAudio } from './InterviewAudio'
 import { useAutomaticMicrophone } from './useAutomaticMicrophone'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
+import { useHandsFreeAnswer } from './useHandsFreeAnswer'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
-import { finishInterviewTiming, keyInterviewTiming, startInterviewTiming } from './interviewLatency'
+import { useStreamedInterviewSpeech } from './useStreamedInterviewSpeech'
+import { finishInterviewTiming, keyInterviewTiming, startInterviewTiming, STREAMED_SPEECH_TIMING } from './interviewLatency'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewStreaming } from './useInterviewStreaming'
@@ -84,7 +87,10 @@ function OwnedInterview({ id }: { id: string }) {
   const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
   const startStreaming = useInterviewStreaming(state.interview)
   const [abandoned, setAbandoned] = useState(false)
-  const answer = useInterviewAnswerCapture({ session: state, abandoned, mode: transcriptionMode, startStreaming, onModeChange: setTranscriptionMode })
+  const microphone = useInterviewMicSettings(user?.id ?? '')
+  // The saved hands-free choice is kept but inactive while recorded transcription is chosen.
+  const handsFreeActive = microphone.handsFree && handsFreeAvailable(transcriptionMode)
+  const answer = useInterviewAnswerCapture({ session: state, abandoned, mode: transcriptionMode, startStreaming, pauseAtLimit: handsFreeActive, onModeChange: setTranscriptionMode })
   const { recorder, text: draftText, terminal, start: startCapture } = answer
   const { operation: reviewOperation, pending: reviewPending, saving: savingRecording } = answer.review
   const [muted, setMuted] = useState(false)
@@ -93,7 +99,7 @@ function OwnedInterview({ id }: { id: string }) {
   const [careerContextOpen, setCareerContextOpen] = useState(false)
   const [pendingTranscriptionMode, setPendingTranscriptionMode] = useState<TranscriptionMode | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
-  const microphone = useInterviewMicSettings(user?.id ?? '')
+  const handsFree = useHandsFreeAnswer({ enabled: handsFreeActive, silenceSeconds: microphone.silenceSeconds, recorder, stop: answer.stop, resume: answer.resume })
   const [pageVisible, setPageVisible] = useState(!document.hidden)
   useEffect(() => {
     const changed = () => setPageVisible(!document.hidden)
@@ -107,6 +113,7 @@ function OwnedInterview({ id }: { id: string }) {
   }, [])
   const interview = state.interview
   const newSpeech = useNewInterviewSpeech(interview)
+  const { speech: streamedSpeech, speechStarted: streamedSpeechStarted } = useStreamedInterviewSpeech(interview, newSpeech.consume)
   useFocusMode(interview?.status === 'active' && !state.loadError)
   const recordingWarning = <RecordingUnsavedChanges textDraft={Boolean(draftText)} dirty={!terminal && (Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing')} />
   const autoPrompt = interview ? currentInterviewPrompt(interview).reply : undefined
@@ -127,12 +134,16 @@ function OwnedInterview({ id }: { id: string }) {
     if (autoPrompt?.id && answerSubmitted) { setAnswerSubmitted(false); setNextQuestionReady(true) }
   }
   // A new prompt after a submission in this page ends the reply wait and starts the wait for sound.
+  // When streamed speech carries on with the saved reply, its player (not the reply's) finishes both waits.
   const autoPromptId = autoPrompt?.id
   const playbackMode = interview?.speechPlaybackMode
+  const streamedSpeechKey = useEffectEvent(() => streamedSpeech?.key)
   useEffect(() => {
     if (!autoPromptId || finishInterviewTiming('submit-to-reply') === null) return
-    startInterviewTiming('reply-to-audio', { mode: playbackMode ?? 'unknown' }, autoPromptId)
-    keyInterviewTiming('submit-to-audio', autoPromptId)
+    const streamedKey = streamedSpeechKey()
+    const detail = streamedKey ? STREAMED_SPEECH_TIMING : { mode: playbackMode ?? 'unknown' }
+    startInterviewTiming('reply-to-audio', detail, streamedKey ?? autoPromptId)
+    keyInterviewTiming('submit-to-audio', streamedKey ?? autoPromptId, detail)
   }, [autoPromptId, playbackMode])
   useEffect(() => {
     if (!nextQuestionReady) return
@@ -198,7 +209,7 @@ function OwnedInterview({ id }: { id: string }) {
             <DialogTitle>Interview settings</DialogTitle>
             <DialogDescription>Choose when the microphone opens and how your answers are transcribed. These settings are remembered for future interviews.</DialogDescription>
           </DialogHeader>
-          <InterviewMicrophoneSettings microphone={microphone} />
+          <InterviewMicrophoneSettings microphone={microphone} mode={transcriptionMode} />
           <label className="grid max-w-md gap-2 text-sm" htmlFor="interview-transcription-mode">Answer transcription
             <select id="interview-transcription-mode" aria-describedby="interview-transcription-help interview-transcription-recovery" className="min-h-11 rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={transcriptionSettingsLocked} onChange={(event) => {
               const mode = event.target.value as TranscriptionMode
@@ -244,7 +255,7 @@ function OwnedInterview({ id }: { id: string }) {
       {interview.status === 'active' && interview.executionMode === 'real' && <InterviewClarification key={`clarification:${reply.id}`} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
       {interview.status === 'active' && interview.executionMode === 'real' && (reply.kind === 'opening' || reply.kind === 'follow_up') && <AvoidInterviewPromptButton key={`avoid:${reply.id}`} interviewId={id} messageId={reply.id} avoided={reply.avoided} disabled={turnActive || state.busy} />}
       {interview.status === 'active' && <SkipInterviewQuestionButton pending={state.skipPending} dirty={Boolean(draftText) || Boolean(recorder.recording)} disabled={(!canRecord && !state.skipPending) || turnActive || state.loading || Boolean(state.loadError) || Boolean(state.unresolved) || speechPlaying || reviewPending || savingRecording || recorder.status === "recording" || recorder.status === "requesting" || recorder.status === "finalizing"} busy={state.busy} error={state.error} skip={state.skipQuestion} onOpenChange={setSkipOpen} onSkipped={answer.clear} />}
-      {browserSpeech && <BrowserInterviewSpeech key={reply.id} messageId={reply.id} text={reply.spokenContent ?? reply.content} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
+      {browserSpeech && <BrowserInterviewSpeech key={streamedSpeech?.key ?? reply.id} messageId={streamedSpeech?.key ?? reply.id} text={streamedSpeech?.text ?? reply.spokenContent ?? reply.content} streaming={streamedSpeech?.streaming} automatic={Boolean(streamedSpeech) || newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== (streamedSpeech?.key ?? reply.id)} onPlayingChange={playbackChanged} onSpeechStart={streamedSpeechStarted} />}
       {!browserSpeech && speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       <Button variant="ghost" size="icon" className="size-11" aria-label={muted ? 'Unmute interviewer' : 'Mute interviewer'} title={muted ? 'Unmute interviewer' : 'Mute interviewer'} aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</Button>
       </div>
@@ -254,8 +265,9 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p><PlanEndedHint failureCode={currentTurn.failureCode} />{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
-      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
+      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="outline" onClick={answer.stop}><Pause size={20} aria-hidden="true" />Pause recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || savingRecording || reviewPending || recorder.limitReached} onClick={recorder.status === 'ready' ? answer.resume : startCapture}><Mic size={20} aria-hidden="true" />{recorder.status === 'finalizing' ? 'Pausing recording…' : recorder.status === 'requesting' ? 'Requesting microphone…' : recorder.status === 'ready' ? 'Continue recording' : 'Record answer'}</Button>} text={draftText} onTextChange={(text) => { handsFree.endCountdown(); answer.edit(text) }}
         capturing={answer.capturing}
+        autoSend={handsFree.countingDown} onAutoSendEnd={handsFree.endCountdown}
         disabled={!canRecord}
         onSubmit={async (text) => { const saved = await answer.submit(text); if (saved) setAnswerSubmitted(true); return saved }} />
       {recorder.recording && <div className="flex flex-wrap gap-3 [&_button]:min-h-11">
@@ -263,7 +275,7 @@ function OwnedInterview({ id }: { id: string }) {
           <Button variant="outline" disabled={recordingLocked} onClick={answer.discardRecording}>Discard recording</Button>
           <Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button>
       </div>}
-      {recorder.status === 'ready' && <p className="text-sm text-muted-foreground">{answer.review.canTranscribe && !draftText ? 'Continue recording to add more, or transcribe your recording to review the words.' : 'Continue recording to add more, or review and submit your answer.'}</p>}
+      {recorder.status === 'ready' && <p className="text-sm text-muted-foreground">{recorder.limitReached ? 'This answer reached the 2-minute recording limit. Review and submit it, or re-record.' : answer.review.canTranscribe && !draftText ? 'Continue recording to add more, or transcribe your recording to review the words.' : 'Continue recording to add more, or review and submit your answer.'}</p>}
       {recorder.status === 'finalizing' && <p role="status">Finishing transcription before review…</p>}
       {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={answer.cancelReview}>Cancel transcription</Button></div>}
       {answer.review.canRestore && <Button variant="outline" onClick={answer.reviewSavedTranscript}>Review saved transcript</Button>}

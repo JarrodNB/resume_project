@@ -3,7 +3,7 @@
 # Streaming needs two halves that must both exist: the feature's AI adapter sets
 # `stream_output` (the AI service only emits output for such features), and the feature
 # has a stream_authority in REGISTRY below (Rails only authorizes observers for those).
-# Interviews retain final-only execution; chat opts into streaming. See docs/architecture/ai-streaming.md.
+# Chat streams replies; interviews stream only answer turns' spoken text. See docs/architecture/ai-streaming.md.
 module AiExecutions
   module Features
     # One fixed registration owns a feature's lifecycle and optional observer authority.

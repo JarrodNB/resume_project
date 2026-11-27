@@ -30,7 +30,8 @@ Decision rationale lives beside the behavior it explains in these guides.
 - Long-running AI work goes through queues. Interactive interviews and chat are scoped exceptions: the shared
   FastAPI runtime claims durable Rails operations over internal HTTP; browser requests
   do not wait for execution. Both features use the same execution runner and durable
-  fallback/recovery layer; chat enables its optional streaming output. Both transports
+  fallback/recovery layer; chat and interview answer turns enable its optional streaming
+  output. Both transports
   must tolerate repeated work and results.
 - LLM calls run in the AI service and are traced in Logfire. Rails background jobs embed career-library entries and saved interview Q&A as an explicit exception; see [embedding ownership](architecture/career-library.md#decisions).
 - Secrets come from per-service environment variables.

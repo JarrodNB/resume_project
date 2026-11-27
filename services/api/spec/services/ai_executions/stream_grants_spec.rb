@@ -10,7 +10,12 @@ RSpec.describe "AI execution stream grants" do
       data: { "warden.user.user.key" => User.serialize_into_session(user), "authenticated_at" => Time.current.to_i })
   end
   let(:interview) { Interviews::CreateFixtureService.call(user: user).value }
-  let(:operation) { interview.operations.speech.first }
+  # Only answer turns publish interviewer text, so observers attach to a running turn.
+  let(:operation) do
+    Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
+      recording_id: nil, expected_revision: 0, submission_key: "streamed-turn",
+      candidate_transcript: "I rebuilt the scheduler.", transcription_mode: "typed").value
+  end
 
   before do
     allow(ENV).to receive(:[]).and_call_original
@@ -33,6 +38,14 @@ RSpec.describe "AI execution stream grants" do
       attempt_id: operation.attempt_id, claim_generation: operation.claim_generation)
     expect(operation.reload.execution_count).to eq(before)
     expect(AiExecutionStreamGrant.first.token_digest).not_to eq(grant.value[:token])
+  end
+
+  it "does not authorize observers for an owned running operation that is not a turn" do
+    speech = interview.operations.speech.first
+    expect(Interviews::ClaimOperationService.call(operation: speech).success?).to be(true)
+    expect(AiExecutions::AuthorizeStreamService.call(user: user, session_id: session_id,
+      feature: "interviews", operation_id: speech.id).success?).to be(false)
+    expect(AiExecutionStreamGrant.count).to eq(0)
   end
 
   it "does not authorize another owner or an unrelated browser session" do

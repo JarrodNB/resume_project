@@ -496,3 +496,180 @@ def test_executor_accepts_and_restores_public_history_without_acknowledgement(mo
     run(client, models, resumed)
     assert len(client.accepted) == 2
     assert "measure the shorter wait" in models.prompts[-1][1]
+
+
+class Sink:
+    """Record public stream events the way the shared output buffer would receive them."""
+
+    def __init__(self, client=None):
+        self.events = []
+        self.client = client
+
+    async def emit(self, kind, **payload):
+        accepted = len(self.client.accepted) if self.client else None
+        self.events.append((kind, payload, accepted))
+        return True
+
+    def kinds(self):
+        return [kind for kind, _, _ in self.events]
+
+    def text(self):
+        return "".join(payload["text"] for kind, payload, _ in self.events if kind == "delta")
+
+
+class StreamingModels(Models):
+    """Stream the interviewer's structured reply as small JSON fragments."""
+
+    def __init__(self, chunks, *, pause=0.0, **kwargs):
+        super().__init__(**kwargs)
+        self.chunks, self.pause = chunks, pause
+
+    def accounted(self, rails, request, stage, name):
+        from pydantic_ai.models.function import DeltaToolCall
+
+        async def stream(messages, info):
+            self.prompts.append((name, str(messages)))
+            yield {0: DeltaToolCall(name=info.output_tools[0].name)}
+            for chunk in self.chunks:
+                # A pause longer than the publish interval lets each chunk publish separately.
+                await asyncio.sleep(self.pause)
+                yield {0: DeltaToolCall(json_args=chunk)}
+
+        return InterviewModel(FunctionModel(stream_function=stream, model_name=name), rails, request, stage,
+                              "openai", name)
+
+
+def stream_run(client, models, sink, request=None, audio_provider=None):
+    from interviews.execution_adapter import InterviewExecutionAdapter
+
+    request = request or claim()
+    request = request.model_copy(update={"execution_mode": "real", "execution_config": REAL_CONFIGURATION})
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, content=audio()))) as storage:
+        executor = RealInterviewExecutor(client, audio=audio_provider or Audio(), models=models,
+            storage_client=storage, allowed_origins={"http://storage"}, allow_http=True)
+        asyncio.run(InterviewExecutionAdapter(client, executor).execute(request, sink))
+
+
+FOLLOW_UP_CHUNKS = ['{"acknowledgement": "You cut the wait', ' by fifteen minutes.", "decis', 'ion": "continue", ',
+                    '"reply": "How did you', ' measure it? Who', ' checked it?"}']
+
+
+def test_follow_up_streams_spoken_text_in_order_and_completes_after_acceptance():
+    client = Client()
+    sink = Sink(client)
+    stream_run(client, StreamingModels(FOLLOW_UP_CHUNKS, pause=0.06), sink)
+    assert not client.failed and len(client.accepted) == 1
+    saved = client.accepted[0]
+    assert [payload["text"] for kind, payload, _ in sink.events if kind == "delta"] == [
+        "You cut the wait", " by fifteen minutes.\n\n", "How did you", " measure it? Who", " checked it?"]
+    assert saved["reply"] == "How did you measure it? Who checked it?"
+    assert saved["acknowledgement"] == "You cut the wait by fifteen minutes."
+    assert sink.text() == saved["acknowledgement"] + "\n\n" + saved["reply"]
+    assert sink.kinds()[0] == "started" and sink.kinds()[-1] == "completed"
+    assert sink.kinds().count("completed") == 1
+    # Completion is published only after Rails accepted the turn.
+    assert sink.events[-1][2] == 1
+    assert all(accepted == 0 for kind, _, accepted in sink.events if kind != "completed")
+
+
+def test_streamed_turn_keeps_interviewer_accounting():
+    client = Client()
+    stream_run(client, StreamingModels(FOLLOW_UP_CHUNKS), Sink())
+    starts = [call for call in client.calls if call[0] == "start"]
+    assert [call[2] for call in starts] == ["interviewer"]
+    receipts = [call for call in client.calls if call[0] == "usage" and call[1] == starts[0][1]]
+    assert len(receipts) == 1 and receipts[0][2][0]["cost_microdollars"] > 0
+
+
+def test_streamed_text_holds_and_restores_contact_placeholders():
+    request = claim()
+    request.payload.fixture_context["names"] = ["Morgan Sample"]
+    client, sink = Client(), Sink()
+    chunks = ['{"acknowledgement": null, "decision": "continue", "reply": "Thanks, «na', 'me». What next?"}']
+    stream_run(client, StreamingModels(chunks, pause=0.06), sink, request)
+    assert client.accepted[0]["reply"] == "Thanks, Morgan Sample. What next?"
+    assert [payload["text"] for kind, payload, _ in sink.events if kind == "delta"] == [
+        "Thanks, ", "Morgan Sample. What next?"]
+    assert all("«" not in payload.get("text", "") for _, payload, _ in sink.events)
+
+
+def test_advance_streams_only_the_acknowledgement_with_its_blank_line_even_when_chunks_arrive_together():
+    # Chunks inside one publish interval must still end with the blank line that marks the acknowledgement whole.
+    client, sink = Client(), Sink()
+    chunks = ['{"acknowledgement": "You checked the schedule.", ', '"decision": "advance", "reply": null}']
+    stream_run(client, StreamingModels(chunks), sink)
+    assert client.accepted[0]["decision"] == "advance"
+    assert sink.text() == "You checked the schedule.\n\n"
+    assert sink.kinds()[-1] == "completed"
+
+
+def test_finished_acknowledgement_streams_with_a_blank_line_before_the_decision_is_known():
+    # The blank line tells listeners the acknowledgement is whole, so it can be spoken at once.
+    client, sink = Client(), Sink()
+    chunks = ['{"acknowledgement": "You checked the schedule.", ', '"decision": "advance", "reply": null}']
+    stream_run(client, StreamingModels(chunks, pause=0.06), sink)
+    assert client.accepted[0]["decision"] == "advance"
+    assert [payload["text"] for kind, payload, _ in sink.events if kind == "delta"] == ["You checked the schedule.\n\n"]
+    assert sink.kinds()[-1] == "completed"
+
+
+def test_failed_streamed_turn_emits_failed_without_completion():
+    client, sink = Client(), Sink()
+    chunks = ['{"acknowledgement": "Noted.", "decision": "continue", "reply": "  "}']
+    stream_run(client, StreamingModels(chunks), sink)
+    assert not client.accepted and client.failed
+    assert sink.kinds()[-1] == "failed" and "completed" not in sink.kinds()
+
+
+def test_rejected_answer_before_generation_emits_failed():
+    async def blank(*args):
+        return "   "
+
+    client, sink = Client(), Sink()
+
+    class BlankAudio(Audio):
+        transcribe = blank
+
+    stream_run(client, StreamingModels(FOLLOW_UP_CHUNKS), sink, audio_provider=BlankAudio())
+    assert client.failed == [("empty_audio", False)]
+    assert sink.kinds() == ["failed"]
+
+
+def test_speech_operation_emits_nothing():
+    class SpeechAudio:
+        async def speak(self, request, text):
+            return audio()
+
+    client, sink = Client(), Sink()
+    stream_run(client, StreamingModels(FOLLOW_UP_CHUNKS), sink,
+               claim(kind="speech", text="Exactly the saved reply."), audio_provider=SpeechAudio())
+    assert ("complete", "speech") in client.calls
+    assert sink.events == []
+
+
+def test_continue_on_the_final_allowed_answer_streams_only_the_acknowledgement():
+    # Rails moves on after the final allowed answer, so a follow-up would never be saved or shown.
+    client = Client()
+    sink = Sink(client)
+    request = claim()
+    request = request.model_copy(update={"payload": request.payload.model_copy(update={"final_answer": True})})
+    stream_run(client, StreamingModels(FOLLOW_UP_CHUNKS, pause=0.06), sink, request)
+    assert client.accepted[0]["decision"] == "continue"
+    assert sink.text() == "You cut the wait by fifteen minutes.\n\n"
+    assert sink.kinds()[-1] == "completed"
+
+
+def test_a_retry_that_disagrees_with_published_text_adds_nothing_to_it():
+    from interviews.spoken_stream import SpokenTextStream
+
+    async def scenario():
+        sink = Sink()
+        stream = SpokenTextStream(sink)
+        await stream._publish("You cut the wait.\n\n")
+        # A validation retry wrote a different acknowledgement; contradicting text is never appended.
+        await stream._publish("You shortened the queue.\n\n")
+        await stream._publish("You cut the wait.\n\nHow did you measure it?")
+        return sink
+
+    sink = asyncio.run(scenario())
+    assert sink.text() == "You cut the wait.\n\nHow did you measure it?"

@@ -29,7 +29,7 @@ async def test_failure_pauses_new_starts_before_rails_can_schedule_recovery():
     try:
         await asyncio.wait_for(failed.wait(), timeout=1)
         original_fail.assert_awaited_once_with(claim, "provider_unavailable", True)
-        executor.execute.assert_awaited_once_with(claim, deadline_managed=True)
+        executor.execute.assert_awaited_once_with(claim, deadline_managed=True, output=None)
         client.claim.assert_awaited_once_with("operation")
         assert not runner.ready
         assert runner.start("interviews", "another") == "overloaded"

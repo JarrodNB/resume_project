@@ -116,6 +116,7 @@
 @media (hover: hover) and (pointer: fine) { .interview-setup-tags button:hover { background: var(--muted); } }
 .interview-setup-tags button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .interview-setup-fields:disabled :is(.interview-setup-switch label, .interview-setup-person, .interview-setup-tags button) { cursor: not-allowed; }
+.interview-setup-switch label:has(input:disabled) { cursor: not-allowed; opacity: .6; }
 .interview-setup-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 /* Settings step: narrower, bold row labels, and the page intro steps aside because it was read on the first step. */
 .interview-setup-settings { max-width: 760px; }

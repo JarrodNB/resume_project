@@ -50,7 +50,37 @@ until the user enables it; the browser remembers this choice for the signed-in a
 After interviewer playback stops, the countdown runs before opening the microphone.
 The Record answer button starts sooner. Typing or manually recording cancels the
 automatic start for that prompt. Playback, settings, a hidden tab, and pending work
-pause the countdown. The microphone never submits an answer automatically.
+pause the countdown. Without hands-free mode, the microphone never submits an answer
+automatically.
+
+## Hands-free mode
+
+Hands-free mode is an optional, off-by-default setting shown next to automatic capture in
+setup and in the room's settings. Turning it on also turns on automatic capture; turning
+automatic capture off turns it off. It works only with live transcription (Browser or
+Streaming); in Recorded mode the switch is disabled with a reason and the saved choice is
+kept. It is a browser-only preference stored with the other microphone settings for the
+signed-in account, so Rails, GraphQL and the AI service do not change.
+
+- The browser reads loudness from the microphone the recorder already opened (a Web Audio
+  analyser, no second permission prompt). It starts listening for silence only after live
+  transcription has recognised a word in this recording.
+- After the chosen silence length (Quick 1.5 s, Normal 2.5 s by default, or Patient 4 s),
+  capture pauses through the normal Pause path and waits for the final transcript.
+- If the final transcript has words, a 3-second auto-send countdown appears ("Sending in 3…",
+  announced politely to screen readers) with Keep editing and Send now. When it finishes, the
+  text is submitted exactly like Submit. A failed submit keeps the text and is not retried.
+- Speaking during the countdown (sound above the silence level for about 0.3 s) cancels it
+  and continues the same recording; new words are added after the earlier text. Pausing a
+  recording mutes its own audio tracks, so the countdown listens to switched-on copies of
+  those tracks from the same open microphone and stops them when the countdown ends.
+- A blank final transcript means nothing usable was said, so recording simply continues.
+- In hands-free mode, reaching the 2-minute or 10 MiB limit pauses the recording instead of
+  discarding it, then starts the same countdown. That recording cannot be continued, so
+  speaking does not cancel this countdown and Continue recording is disabled.
+- The microphone stays off while the interviewer speaks; it reopens on its own after
+  playback ends and the thinking time runs. Hands-free mode does not let the candidate
+  interrupt the interviewer.
 
 ## Browser recognition
 

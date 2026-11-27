@@ -43,6 +43,8 @@ class Recorder {
 }
 beforeEach(() => {
   localStorage.clear()
+  localStorage.setItem('Careerdrafter:interview-microphone:owner', JSON.stringify({ automatic: false }))
+  localStorage.setItem('Careerdrafter:interview-transcription:owner', 'browser')
   vi.clearAllMocks()
   vi.stubGlobal('MediaRecorder', Recorder)
   vi.stubGlobal('SpeechRecognition', Recognition)

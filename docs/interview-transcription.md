@@ -1,8 +1,8 @@
 # Interview answer transcription
 
 The input selector controls how a candidate's recorded answer becomes text. It is
-independent of browser/provider playback of the interviewer's saved reply. Browser
-recognition is the default; the browser remembers the signed-in owner's choice.
+independent of browser/provider playback of the interviewer's saved reply. Streaming
+transcription is the default; the browser remembers the signed-in owner's choice.
 Choose another mode between answers in Interview settings. Recorded-audio fallback
 messages remain beside the answer controls.
 
@@ -45,8 +45,8 @@ Real-device listening checks are still needed to assess noise, distortion, and v
 The interview lives at `/practice/interviews` (the Mock interview tab); older `/interviews` links redirect there.
 Interview settings contain transcription mode, automatic microphone capture, and a
 thinking pause of 0, 3, 5, or 10 seconds. Turning automatic capture off also sets
-the thinking pause to Off and disables its selector. Automatic capture starts off
-until the user enables it; the browser remembers this choice for the signed-in account.
+the thinking pause to Off and disables its selector. Automatic capture starts on with a
+3-second thinking pause; the browser remembers the user's choices for the signed-in account.
 After interviewer playback stops, the countdown runs before opening the microphone.
 The Record answer button starts sooner. Typing or manually recording cancels the
 automatic start for that prompt. Playback, settings, a hidden tab, and pending work
@@ -55,10 +55,10 @@ automatically.
 
 ## Hands-free mode
 
-Hands-free mode is an optional, off-by-default setting shown next to automatic capture in
+Hands-free mode is an optional setting, on by default, shown next to automatic capture in
 setup and in the room's settings. Turning it on also turns on automatic capture; turning
-automatic capture off turns it off. It works only with live transcription (Browser or
-Streaming); in Recorded mode the switch is disabled with a reason and the saved choice is
+automatic capture off turns it off. It works only with live transcription (Streaming or
+Browser); in Recorded mode the switch is disabled with a reason and the saved choice is
 kept. It is a browser-only preference stored with the other microphone settings for the
 signed-in account, so Rails, GraphQL and the AI service do not change.
 

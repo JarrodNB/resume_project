@@ -1,6 +1,7 @@
 /** Remember microphone preferences for this account without saving any answer content.
  * Hands-free mode needs automatic capture, so turning it on turns automatic capture on, and
- * turning automatic capture off turns hands-free off. Older saved values load with the defaults.
+ * turning automatic capture off turns hands-free off. New accounts start with the automatic
+ * microphone, 3 seconds of thinking time and hands-free mode on. Choices someone already saved are kept.
  */
 import { useState } from 'react'
 import { PRODUCT_NAME } from '@/lib/productName'
@@ -8,20 +9,22 @@ import { PRODUCT_NAME } from '@/lib/productName'
 /** How long the candidate must stay quiet before hands-free mode ends an answer. */
 export const SILENCE_LENGTH_OPTIONS = [{ seconds: 1.5, name: 'Quick' }, { seconds: 2.5, name: 'Normal' }, { seconds: 4, name: 'Patient' }] as const
 export const DEFAULT_SILENCE_SECONDS = 2.5
+const DEFAULT_THINKING_SECONDS = 3
+const DEFAULT_MIC_SETTINGS: MicSettings = { automatic: true, seconds: DEFAULT_THINKING_SECONDS, handsFree: true, silenceSeconds: DEFAULT_SILENCE_SECONDS }
 
 interface MicSettings { automatic: boolean; seconds: number; handsFree: boolean; silenceSeconds: number }
 
 function loadMicSettings(key: string): MicSettings {
   try {
     const saved = JSON.parse(localStorage.getItem(key) ?? '{}')
-    const automatic = saved.automatic === true
+    const automatic = saved.automatic !== false
     return {
       automatic,
-      seconds: automatic ? ([0, 3, 5, 10].includes(saved.seconds) ? Number(saved.seconds) : 5) : 0,
-      handsFree: automatic && saved.handsFree === true,
+      seconds: automatic ? ([0, 3, 5, 10].includes(saved.seconds) ? Number(saved.seconds) : DEFAULT_THINKING_SECONDS) : 0,
+      handsFree: automatic && saved.handsFree !== false,
       silenceSeconds: SILENCE_LENGTH_OPTIONS.some((option) => option.seconds === saved.silenceSeconds) ? Number(saved.silenceSeconds) : DEFAULT_SILENCE_SECONDS,
     }
-  } catch { return { automatic: false, seconds: 0, handsFree: false, silenceSeconds: DEFAULT_SILENCE_SECONDS } }
+  } catch { return DEFAULT_MIC_SETTINGS }
 }
 
 export function useInterviewMicSettings(ownerId: string) {

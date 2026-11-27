@@ -3,13 +3,13 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, expect, it } from 'vitest'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 beforeEach(() => localStorage.clear())
-it('defaults to browser and restores the owner-scoped saved choice', () => {
+it('defaults to streaming and restores the owner-scoped saved choice', () => {
   const first = renderHook(() => useTranscriptionPreference('first'))
-  expect(first.result.current[0]).toBe('browser')
-  act(() => first.result.current[1]('streaming'))
+  expect(first.result.current[0]).toBe('streaming')
+  act(() => first.result.current[1]('browser'))
   first.unmount()
   const restored = renderHook(() => useTranscriptionPreference('first'))
-  expect(restored.result.current[0]).toBe('streaming')
+  expect(restored.result.current[0]).toBe('browser')
   const other = renderHook(() => useTranscriptionPreference('second'))
-  expect(other.result.current[0]).toBe('browser')
+  expect(other.result.current[0]).toBe('streaming')
 })

@@ -217,7 +217,7 @@ function OwnedInterview({ id }: { id: string }) {
               if (draftText || recorder.recording) setPendingTranscriptionMode(mode)
               else switchTranscriptionMode(mode)
             }}>
-              <option value="browser">Browser recognition</option><option value="streaming">Streaming transcription</option><option value="recorded">Recorded audio transcription</option>
+              <option value="streaming">Streaming transcription</option><option value="browser">Browser recognition</option><option value="recorded">Recorded audio transcription</option>
             </select>
           </label>
           <p id="interview-transcription-help" className="text-sm leading-relaxed text-muted-foreground">{TRANSCRIPTION_HELP[transcriptionMode]}</p>

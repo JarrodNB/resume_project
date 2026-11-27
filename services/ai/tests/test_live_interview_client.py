@@ -143,3 +143,33 @@ def test_answer_advance_and_finish_post_only_ids_positions_and_text():
         (base + "question_advanced", {"question_position": 0}),
         (base + "finish", {"reason": "completed"}),
     ]
+
+
+def test_claim_carries_the_current_question_retry_count_defaulting_to_none_used():
+    async def check(body):
+        async with client_for(lambda _request: httpx.Response(200, json=body)) as client:
+            return await client.claim("live", room_name="room")
+
+    assert run(check({**CLAIM, "current_question_retry_count": 2})).current_question_retry_count == 2
+    assert run(check(CLAIM)).current_question_retry_count == 0
+    with pytest.raises(RailsTransportError):
+        run(check({**CLAIM, "current_question_retry_count": 3}))
+
+
+def test_feedback_and_retry_post_only_positions_numbers_and_the_spoken_feedback():
+    seen, respond = recorded_calls([
+        {"question_position": 0, "revision": 6},
+        {"question_position": 0, "retry_count": 1, "revision": 7},
+    ])
+
+    async def check():
+        async with client_for(respond) as client:
+            await client.feedback_given("live", question_position=0, text="Quick feedback: clear. Lead with the result.")
+            return await client.question_retried("live", question_position=0, retry_number=1)
+
+    assert run(check()) == {"question_position": 0, "retry_count": 1, "revision": 7}
+    base = "http://api:3000/internal/interviews/live_connections/live/"
+    assert [(str(r.url), json.loads(r.content)) for r in seen] == [
+        (base + "feedback_given", {"question_position": 0, "text": "Quick feedback: clear. Lead with the result."}),
+        (base + "question_retried", {"question_position": 0, "retry_number": 1}),
+    ]

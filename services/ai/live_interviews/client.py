@@ -1,10 +1,11 @@
 """Call Rails for the live interview agent over the private internal HTTP boundary.
 
 Uses the same fixed-origin, bearer-authenticated and size-bounded transport as the other
-interview callbacks. Requests carry only IDs, positions, the interviewer's spoken follow-ups
-and the candidate's answers; Rails decides whether each one still applies. Every call is
-idempotent on the Rails side (a follow-up through its fresh `prompt_key`), so an ambiguous
-network failure retries the identical request once.
+interview callbacks. Requests carry only IDs, positions and retry numbers, the interviewer's
+spoken follow-ups and feedback, and the candidate's answers; Rails decides whether each one
+still applies. Every call is idempotent on the Rails side (a follow-up through its fresh
+`prompt_key`, a retry through its number), so an ambiguous network failure retries the
+identical request once.
 """
 
 from urllib.parse import quote
@@ -31,6 +32,7 @@ class LiveConnectionClaim(BaseModel):
     question_total: int = Field(ge=1)
     current_question_position: int = Field(ge=0)
     answer_cap: int = Field(ge=1, le=3)
+    current_question_retry_count: int = Field(default=0, ge=0, le=2)
 
 
 class RailsLiveInterviewClient(RailsExecutionClient):
@@ -74,6 +76,16 @@ class RailsLiveInterviewClient(RailsExecutionClient):
         """Move past the current question; returns `{current_question_position, revision}`."""
         return await self._request("POST", self._live_path(connection_id, "question_advanced"),
                                    {"question_position": question_position})
+
+    async def feedback_given(self, connection_id: str, *, question_position: int, text: str) -> dict:
+        """Save or replace the spoken feedback for the current question; returns `{question_position, revision}`."""
+        return await self._request("POST", self._live_path(connection_id, "feedback_given"),
+                                   {"question_position": question_position, "text": text})
+
+    async def question_retried(self, connection_id: str, *, question_position: int, retry_number: int) -> dict:
+        """Restart the current question (retry 1 or 2); returns `{question_position, retry_count, revision}`."""
+        return await self._request("POST", self._live_path(connection_id, "question_retried"),
+                                   {"question_position": question_position, "retry_number": retry_number})
 
     async def finish(self, connection_id: str, *, reason: str) -> dict:
         """End the connection and complete or abandon the interview; returns `{status, end_reason, revision}`."""

@@ -1,4 +1,4 @@
-# Begins a reviewed interview once. The first question is saved under the owner lock;
+# Begins a reviewed turn-based interview once (live interviews start with JoinLiveService). The first question is saved under the owner lock;
 # provider speech is reserved only when explicitly enabled, and executes later.
 module Interviews
   class BeginService < ApplicationService
@@ -11,6 +11,7 @@ module Interviews
       @interview.user.with_lock do
         @interview.lock!
         next failure("Interview expired") if @interview.expired? || @interview.expires_at <= Time.current
+        next failure("Live interviews start from the live room") if @interview.conversation_live?
         opening = @interview.messages.find_by(kind: "opening", position: 0)
         next success(@interview) if opening && (@interview.active? || @interview.completed?)
         next failure("Interview is not ready") unless @interview.ready?

@@ -129,6 +129,16 @@ class AnswerNotSaved:
 
 
 @dataclass(frozen=True)
+class ProgressNotSaved:
+    """Rails refused (or failed on) moving past or restarting the question at `question_position`.
+    Rails answers a repeat of a move it already made with success, so this means Rails stayed where
+    it was while the conversation moved on: every later report would be refused as no longer
+    current. The interview cannot carry on in step with Rails, so it finishes as `failed`."""
+
+    question_position: int
+
+
+@dataclass(frozen=True)
 class AskFollowUp:
     """Tool call: the interviewer wants to ask this follow-up about the candidate's answer."""
 
@@ -256,6 +266,7 @@ class SessionClosed:
 
 
 LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | PromptNotSaved | AnswerNotSaved
+             | ProgressNotSaved
              | AskFollowUp | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
              | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken
              | CandidateLeft | CandidateJoined | ConnectionEnded | SessionClosed)
@@ -481,6 +492,8 @@ class LiveInterviewController:
             return self._prompt_not_saved(event)
         if self._question_position is None or self._phase == "ended":
             return []
+        if isinstance(event, ProgressNotSaved):  # out of step with Rails: anything said now would be lost
+            return self._finish("failed")
         if isinstance(event, HeartbeatDue):
             return [self._heartbeat()]
         if isinstance(event, CandidateJoined):

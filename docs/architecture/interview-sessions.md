@@ -432,10 +432,18 @@ and ask the current question. Each question then runs like this:
    transport error, so it may or may not have been saved, or a 503 that two retries after a short
    wait, 0.5 and 2 seconds, did not get past: Rails' 503 after a database wait means "rolled back,
    retry the same request") stays first and is resent unchanged
-   before any newer report, and before each heartbeat and the finish. A report or heartbeat still
-   answered 503 after five delivery rounds is dropped with an error log; any other 5xx after the
-   retries is an unhandled Rails error that would fail every time, so it is logged as an error and
-   dropped like a refusal. Neither can hold up the reports and heartbeats behind it. Repeats are safe because
+   before any newer report, and before each heartbeat and the finish (a heartbeat still goes when the
+   resend is lost again). A prompt, answer, feedback or heartbeat still answered 503 after five
+   delivery rounds is dropped with an error log; any other 5xx after the retries is an unhandled
+   Rails error that would fail every time, so it is logged as an error and dropped like a refusal.
+   Neither can hold up the reports behind it for long. An advance or retry is the exception: until
+   Rails saves it, Rails stays on the old question or attempt and refuses every later report as
+   "Question is no longer current", so it is never dropped on 503s and stays first. Rails answers a
+   repeat of a move it already made with success, so if it refuses an advance or retry outright, or
+   fails on it with another 5xx, the agent and Rails disagree about where the interview is: the
+   reporter sends no more interview reports, the interviewer stops talking, and the controller
+   finishes the interview as `failed` (`ProgressNotSaved`). Refused feedback only loses its spoken
+   words, so it is just logged. Repeats are safe because
    openings, prompt keys and answer replacement make them idempotent. An answer to a prompt whose
    receipt has not arrived waits and is reported with it. A report Rails refuses outright (409 or 422) is
    stale and dropped; a refused answer is not counted as saved, so the next save reports it again.

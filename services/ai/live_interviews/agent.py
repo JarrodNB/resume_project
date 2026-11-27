@@ -61,6 +61,7 @@ from live_interviews.controller import (
     MenuChoice,
     NextQuestion,
     OfferMenu,
+    ProgressNotSaved,
     PublishRoomState,
     RepeatQuestion,
     ReportFinish,
@@ -367,10 +368,10 @@ class LiveInterviewRunner:
         return ENDED if self._reporter.ended and result is not None else result
 
     async def _rails_event(self, event: LiveEvent) -> list:
-        """What a Rails answer means for the controller (a prompt's receipt, a refused prompt or answer, or the
-        connection ended); returns the reports it raises, which the reporter sends next. Called by
+        """What a Rails answer means for the controller (a prompt's receipt, a refused prompt, answer,
+        advance or retry, or the connection ended); returns the reports it raises, which the reporter sends next. Called by
         the delivery task, never while the lock is held."""
-        if isinstance(event, ConnectionEnded):
+        if isinstance(event, ConnectionEnded | ProgressNotSaved):
             self._interrupt()  # the interviewer stops talking; the controller leaves
         held: list = []
         async with self._lock:

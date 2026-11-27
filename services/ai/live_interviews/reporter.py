@@ -7,12 +7,17 @@ anything newer; a lost heartbeat is resent unchanged before the next one. A Rail
 Rails sees a call that keeps failing three times per delivery round; this is the only layer that
 retries a 5xx (the client only resends once at once after a lost connection).
 Only a 503 (Rails' answer after a database wait: "rolled back, retry the same request") then
-counts as lost, and only for a few delivery rounds before it is dropped with an error; any other
-5xx is an unhandled error that would fail every time, so it is logged as an error and dropped like
-a refusal. Either way one bad request never blocks the reports and heartbeats behind it. Rails' answers that
-matter to the controller (a prompt's receipt, a refused prompt or answer, the connection ending) go back
-to it as events. Only counts and the controller's report fields are sent, and spoken text is
-never logged. The rules are in docs/architecture/interview-sessions.md, "Questions, answers and
+counts as lost; any other 5xx is an unhandled error that would fail every time, so it is logged as
+an error and dropped like a refusal. A prompt, answer, feedback or heartbeat on 503s is resent for
+a few delivery rounds and then dropped with an error, so it never blocks the reports behind it for
+long (the controller hears about a lost prompt or answer; lost feedback only loses its words).
+An advance or retry is never dropped on 503s: until Rails saves it, every later report would be
+refused as no longer current, so it stays first (heartbeats still go). If Rails refuses one (it
+answers a replay of a move it made with success, so this is a real disagreement) or fails on it,
+nothing more is reported and the controller finishes the interview as `failed`.
+Rails' answers that matter to the controller (a prompt's receipt, a refused prompt, answer,
+advance or retry, the connection ending) go back to it as events. Only counts and the
+controller's report fields are sent, and spoken text is never logged. The rules are in docs/architecture/interview-sessions.md, "Questions, answers and
 coaching" and "Time, live minutes and heartbeats".
 """
 
@@ -31,6 +36,7 @@ from live_interviews.controller import (
     AnswerNotSaved,
     ConnectionEnded,
     LiveEvent,
+    ProgressNotSaved,
     PromptNotSaved,
     PromptRecorded,
     ReportAnswerFinished,
@@ -51,7 +57,9 @@ _LOST = object()  # a call sent without a trustworthy answer
 _BUSY = object()  # Rails still answered 503 (rolled back) after the retries
 _BUG_CODES = frozenset({"unknown_usage_model", "invalid_request"})  # refusals that mean the agent and Rails disagree
 SERVER_ERROR_DELAYS = (0.5, 2.0)  # seconds before each retry of a call Rails answered with a 5xx
-MAX_BUSY_ROUNDS = 5  # delivery rounds a report or heartbeat may stay unsaved on 503s before it is dropped
+MAX_BUSY_ROUNDS = 5  # delivery rounds a report (not an advance or retry) or heartbeat may get only 503s before it is dropped
+# Moves Rails must not miss: a lost one leaves Rails on another question, so it is never dropped on 503s.
+_PROGRESS_REPORTS = (ReportQuestionAdvanced, ReportQuestionRetried)
 
 
 @dataclass(frozen=True)
@@ -68,7 +76,8 @@ class LiveReporter:
     """Send one connection's interview reports, heartbeats and finish to Rails.
 
     `on_event(event)` hears what Rails' answers mean for the controller (`PromptRecorded`,
-    `PromptNotSaved`, `AnswerNotSaved`, `ConnectionEnded`) and returns the reports that raises, to send next.
+    `PromptNotSaved`, `AnswerNotSaved`, `ProgressNotSaved`, `ConnectionEnded`) and returns the
+    reports that raises, to send next.
     `usage_totals()` returns the session's running provider usage for heartbeats.
     """
 
@@ -79,6 +88,7 @@ class LiveReporter:
         self._server_error_delays = server_error_delays
         self._usage_totals, self._on_event = usage_totals, on_event
         self.ended = False  # Rails said the connection or interview is over; nothing more is sent
+        self.out_of_step = False  # Rails refused an advance or retry: no more interview reports are sent
         self._reports: list = []  # interview reports not yet answered by Rails, oldest first
         self._flushing = False
         self._acknowledged = LiveUsageTotals()  # usage Rails has acknowledged in heartbeats
@@ -88,6 +98,8 @@ class LiveReporter:
 
     async def send(self, report) -> None:
         """Queue an interview report behind any unanswered ones and send what can be sent."""
+        if self.out_of_step:  # Rails would refuse it (or save it to the wrong attempt); the finish still goes
+            return
         self._reports.append(report)
         await self.flush()
 
@@ -97,19 +109,26 @@ class LiveReporter:
             return
         self._flushing = True
         try:
-            while self._reports and not self.ended:
+            while self._reports and not self.ended and not self.out_of_step:
                 report = self._reports[0]
                 outcome = await self._post_report(report)
                 if outcome is _BUSY:
                     self._report_busy_rounds += 1
-                    outcome = self._give_up_when_busy_too_long(type(report).__name__, self._report_busy_rounds)
-                if outcome is _LOST:
+                    if not isinstance(report, _PROGRESS_REPORTS):
+                        outcome = self._give_up_when_busy_too_long(type(report).__name__, self._report_busy_rounds)
+                if outcome is _LOST or outcome is _BUSY:
                     return
                 self._reports.pop(0)
                 self._report_busy_rounds = 0
+                if isinstance(report, _PROGRESS_REPORTS) and outcome is None:
+                    logger.error("Live report %s was not saved, so Rails stayed on its question; "
+                                 "the interview ends as failed", type(report).__name__)
+                    self.out_of_step, self._reports = True, []
                 event = _report_outcome(report, outcome)
                 if event is not None and not self.ended:
-                    self._reports[0:0] = await self._on_event(event)
+                    raised = await self._on_event(event)
+                    if not self.out_of_step:
+                        self._reports[0:0] = raised
         finally:
             self._flushing = False
 
@@ -221,11 +240,14 @@ class LiveReporter:
 
 
 def _report_outcome(report, outcome) -> LiveEvent | None:
-    """The controller hears when Rails records a prompt, and when it refuses a prompt or an answer."""
+    """The controller hears when Rails records a prompt, and when it refuses a prompt, an answer, an
+    advance or a retry. Refused feedback only loses its words (the refusal is logged), so it is not raised."""
     if isinstance(report, ReportPromptAsked) and outcome and isinstance(outcome.get("message_id"), str):
         return PromptRecorded(report.question_position, outcome["message_id"], prompt_key=report.prompt_key)
     if isinstance(report, ReportPromptAsked) and outcome is None:
         return PromptNotSaved(report.question_position, prompt_key=report.prompt_key)
     if isinstance(report, ReportAnswerFinished) and outcome is None:
         return AnswerNotSaved(report.prompt_message_id, report.transcript)
+    if isinstance(report, _PROGRESS_REPORTS) and outcome is None:
+        return ProgressNotSaved(report.question_position)
     return None

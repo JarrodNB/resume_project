@@ -8,12 +8,15 @@ from live_interviews.client import HeartbeatReply, LiveConnectionEnded, RailsCli
 from live_interviews.controller import (
     AnswerNotSaved,
     ConnectionEnded,
+    ProgressNotSaved,
     PromptNotSaved,
     PromptRecorded,
     ReportAnswerFinished,
+    ReportFeedbackGiven,
     ReportFinish,
     ReportPromptAsked,
     ReportQuestionAdvanced,
+    ReportQuestionRetried,
     SendHeartbeat,
 )
 from live_interviews.reporter import MAX_BUSY_ROUNDS, LiveReporter
@@ -143,14 +146,90 @@ def test_a_report_rails_keeps_failing_on_stays_first_and_is_resent_with_the_next
 
 def test_a_report_rails_refuses_as_stale_is_still_dropped_at_once():
     harness = Harness()
-    failing_question_advanced(harness, failures=1, status=422)
+    harness.rails.refuse_reports.add("feedback_given")
+
+    async def scenario():
+        await harness.reporter.send(ReportFeedbackGiven(question_position=0, text="Good structure."))
+        await harness.reporter.send(OPENING)
+
+    run(scenario())
+    assert len(harness.calls("feedback_given")) == 1  # lost feedback words only: logged, nothing else changes
+    assert harness.events == [PromptRecorded(question_position=0, message_id="opening-0")]
+
+
+@pytest.mark.parametrize("status", [422, 500])
+@pytest.mark.parametrize("report", [ReportQuestionAdvanced(question_position=0),
+                                    ReportQuestionRetried(question_position=0, retry_number=1)])
+def test_a_move_rails_refuses_puts_the_agent_out_of_step_so_nothing_after_it_is_sent(status, report):
+    """Rails answers a replayed advance or retry with success, so a refusal (or an unhandled error)
+    means Rails stayed where it was: every later report would be refused as no longer current."""
+    harness = Harness()
+    name = "question_advanced" if isinstance(report, ReportQuestionAdvanced) else "question_retried"
+
+    async def refuse(connection_id, **values):
+        harness.rails.calls.append((name, connection_id, values))
+        raise RailsClientError(status, None)
+
+    setattr(harness.rails, name, refuse)
+
+    async def scenario():
+        await harness.reporter.send(report)
+        await harness.reporter.send(OPENING)
+        await harness.reporter.heartbeat(SendHeartbeat(1, 30))
+        return await harness.reporter.finish(ReportFinish("failed", final_sequence=2))
+
+    assert run(scenario()) is True
+    assert harness.events == [ProgressNotSaved(question_position=0)]
+    assert [call[0] for call in harness.calls() if call[0] != name] == ["heartbeat", "finish"]
+
+
+class CurrentQuestionRails(FakeRails):
+    """Rails that keeps the current question and refuses reports for any other, as the real services
+    do ("Question is no longer current"); an advance answers 503 (rolled back) the first `busy` times."""
+
+    def __init__(self, busy=0):
+        super().__init__()
+        self.current, self.busy = 0, busy
+
+    def _check(self, position):
+        if position != self.current:
+            raise RailsClientError(422, None)
+
+    async def question_advanced(self, connection_id, **values):
+        self.calls.append(("question_advanced", connection_id, values))
+        if self.busy:
+            self.busy -= 1
+            raise RailsClientError(503, None)
+        if values["question_position"] == self.current - 1:  # a replay of the move just made
+            return {"current_question_position": self.current, "revision": 4}
+        self._check(values["question_position"])
+        self.current += 1
+        return {"current_question_position": self.current, "revision": 4}
+
+    async def prompt_asked(self, connection_id, **values):
+        self._check(values["question_position"])
+        return await super().prompt_asked(connection_id, **values)
+
+    async def feedback_given(self, connection_id, **values):
+        self._check(values["question_position"])
+        return await super().feedback_given(connection_id, **values)
+
+
+def test_an_advance_rails_keeps_answering_with_a_503_is_never_dropped_so_later_reports_stay_in_step():
+    rounds = MAX_BUSY_ROUNDS + 2
+    harness = Harness(rails=CurrentQuestionRails(busy=3 * rounds))
+    next_opening = ReportPromptAsked(question_position=1, kind="opening", text="Tell me about a conflict.")
 
     async def scenario():
         await harness.reporter.send(ReportQuestionAdvanced(question_position=0))
-        await harness.reporter.flush()
+        for _ in range(rounds - 1):
+            await harness.reporter.heartbeat(SendHeartbeat(len(harness.calls("heartbeat")) + 1, 30))
+        await harness.reporter.send(next_opening)  # the advance finally goes through first
 
     run(scenario())
-    assert harness.calls("question_advanced") == [{"question_position": 0}]
+    assert harness.calls("question_advanced") == [{"question_position": 0}] * (3 * rounds + 1)
+    assert len(harness.calls("heartbeat")) == rounds - 1  # heartbeats are not held up by it
+    assert harness.events == [PromptRecorded(question_position=1, message_id="opening-1")]
 
 
 def test_connection_ended_stops_everything_and_is_reported_once():
@@ -304,20 +383,26 @@ def test_a_report_rails_keeps_answering_with_a_500_is_dropped_as_a_bug_and_later
     assert any(record.levelname == "ERROR" and "500" in record.getMessage() for record in caplog.records)
 
 
-def test_a_report_rails_keeps_answering_with_a_503_is_dropped_after_a_bounded_number_of_rounds(caplog):
+def test_a_prompt_rails_keeps_answering_with_a_503_is_dropped_after_a_bounded_number_of_rounds(caplog):
+    """A prompt whose loss the controller handles (`PromptNotSaved`) may be dropped after the cap."""
     harness = Harness()
-    failing_question_advanced(harness, failures=1_000)
+
+    async def prompt_asked(connection_id, **values):
+        harness.rails.calls.append(("prompt_asked", connection_id, values))
+        raise RailsClientError(503, None)
+
+    harness.rails.prompt_asked = prompt_asked
 
     async def scenario():
-        await harness.reporter.send(ReportQuestionAdvanced(question_position=0))
+        await harness.reporter.send(OPENING)
         for _ in range(MAX_BUSY_ROUNDS - 1):
             await harness.reporter.flush()
-        await harness.reporter.send(OPENING)
+        await harness.reporter.send(ReportQuestionAdvanced(question_position=0))
 
     with caplog.at_level("ERROR", logger="live_interviews.reporter"):
         run(scenario())
-    assert [call[0] for call in harness.calls()] == ["question_advanced"] * 3 * MAX_BUSY_ROUNDS + ["prompt_asked"]
-    assert harness.events == [PromptRecorded(question_position=0, message_id="opening-0")]
+    assert [call[0] for call in harness.calls()] == ["prompt_asked"] * 3 * MAX_BUSY_ROUNDS + ["question_advanced"]
+    assert harness.events == [PromptNotSaved(question_position=0)]
     assert any(record.levelname == "ERROR" for record in caplog.records)
 
 

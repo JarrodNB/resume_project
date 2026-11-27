@@ -714,6 +714,27 @@ def test_a_report_refused_as_connection_ended_leaves_and_skips_the_rest():
     assert [call[0] for call in rails.calls] == ["claim", "prompt_asked", "answer_finished"]
 
 
+def test_an_advance_rails_refuses_stops_speaking_and_finishes_as_failed_without_more_reports():
+    rails, sessions = FakeRails(), []
+    rails.refuse_reports.add("question_advanced")
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        await session.agent.next_question(tool_call())  # no answer: straight on to question 2
+        await settle()
+        session.emit_item("assistant", "Next: how do you handle conflict?")  # Rails would refuse it
+        await settle()
+        assert ctx.shutdown_reason and session.interrupted == 1
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "prompt_asked", "question_advanced", "heartbeat", "finish"]
+    assert rails.calls[-1] == ("finish", "live", {"reason": "failed", "final_sequence": 1})
+
+
 def test_the_end_button_after_rails_ended_the_connection_leaves_without_finishing_again():
     rails, sessions = FakeRails(), []
     ctx, go = run_interview(rails, sessions)

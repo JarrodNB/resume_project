@@ -27,6 +27,7 @@ from live_interviews.controller import (
     MenuChoice,
     NextQuestion,
     OfferMenu,
+    ProgressNotSaved,
     PromptNotSaved,
     PromptRecorded,
     PublishRoomState,
@@ -390,6 +391,25 @@ def test_a_session_closed_while_the_candidate_is_away_still_finishes_as_failed()
     controller.handle(CandidateLeft(now=0.0))
     actions = controller.handle(SessionClosed())
     assert ReportFinish(reason="failed", final_sequence=1) in actions and actions[-1] == EndSession()
+
+
+def test_a_move_rails_did_not_save_finishes_as_failed_without_saving_more():
+    """Rails stayed on question 1 while the conversation moved to question 2, so nothing said now
+    could be saved where it belongs: the interview finishes as failed, once."""
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(Tick(now=0.0))
+    controller.handle(NextQuestion())
+    controller.handle(InterviewerTurnFinished(text="Next: how do you handle conflict?"))
+    controller.handle(CandidateTurnFinished(text="Calmly."))
+    controller.handle(Tick(now=20.0))
+    assert controller.handle(ProgressNotSaved(question_position=0)) == [
+        SendHeartbeat(sequence=1, billed_seconds_delta=20, final=True),
+        ReportFinish(reason="failed", final_sequence=1),
+        Shown(seconds_left=1_480, question_position=1, question_total=5, phase="ended"),
+        EndSession(),
+    ]
+    assert controller.handle(ProgressNotSaved(question_position=0)) == []
 
 
 def test_tool_calls_before_the_interview_starts_are_refused():

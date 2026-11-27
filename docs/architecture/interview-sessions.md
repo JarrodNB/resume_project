@@ -288,7 +288,9 @@ live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explic
 `careerdrafter-live-interviewer` (`live_interviews/settings.py`; it must match
 `JoinLiveService::AGENT_NAME`). It serves no HTTP. On SIGTERM it takes no new jobs and waits
 for its running interviews to end; production Compose gives it 30 minutes
-(`stop_grace_period`), after which a cut-off interview is finished by recovery (below). For
+(`stop_grace_period`). That covers a normal session of 25 counted minutes; uncounted menu waits
+can stretch a legitimate session to the 45-minute wall-clock cap, and one still running after 30
+minutes is cut off and ended by recovery as disconnected (below). For
 each dispatched job it:
 
 1. reads the job metadata (the two IDs only) and calls

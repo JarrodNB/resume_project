@@ -10,6 +10,9 @@ to ECR tagged with the commit, copies these compose files to the server, restart
 and checks the three public addresses. One image serves `ai-worker`, `ai-http`, `ai-mcp` and
 `ai-live`, so a change under `services/ai` restarts all four. `ai-live` waits for its running
 live interviews to end before it stops (up to 30 minutes, `stop_grace_period` in `compose.yml`).
+That covers a normal session of 25 counted minutes. Coaching-menu waits are not counted, so a
+longer legitimate session can last up to the 45-minute wall-clock cap; one still running after
+30 minutes is cut off by the deploy, and the recovery job ends it as disconnected.
 While it drains, the deploy job can wait that whole time, and a new live interview gets no
 interviewer: after 15 seconds the room offers the turn-based interview instead. New live
 interviews work again once the new `ai-live` is up. AWS access is a role GitHub assumes for runs on master

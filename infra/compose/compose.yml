@@ -213,8 +213,9 @@ services:
       LOGFIRE_ENVIRONMENT: production
     # On SIGTERM the worker stops taking new interviews and waits for the running ones to end
     # (livekit-agents 1.9 drains for up to an hour, DRAIN_TIMEOUT in livekit/agents/worker.py).
-    # 30 minutes covers a live session's 25 counted minutes plus waits; an interview still
-    # running after that is cut off, and the recovery job finishes it as disconnected.
+    # 30 minutes covers a normal session (25 counted minutes plus short waits). Menu waits are not
+    # counted, so a longer legitimate session can run up to the 45-minute wall-clock cap; one still
+    # running after 30 minutes is cut off on deploy, and the recovery job ends it as disconnected.
     stop_grace_period: 30m
     depends_on:
       db:

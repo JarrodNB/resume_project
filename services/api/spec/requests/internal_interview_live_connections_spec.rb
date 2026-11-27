@@ -57,7 +57,9 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
           "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
-          "current_question_retry_count" => 0, "session_seconds_left" => 1_500, "allowance_seconds_left" => 600
+          "current_question_retry_count" => 0, "session_seconds_left" => 1_500, "allowance_seconds_left" => 600,
+          "heartbeat_sequence" => 0, "current_prompt_message_id" => nil, "current_prompt_kind" => nil,
+          "current_prompt_answered" => false, "current_question_answer_count" => 0, "current_question_feedback_given" => false
         )
         expect(connection.reload).to have_attributes(status: "connected", connected_at: Time.current, last_heartbeat_at: Time.current)
       end
@@ -71,6 +73,27 @@ RSpec.describe "Internal live interview connections", type: :request do
       interview.questions.find_by!(position: 0).update!(live_retry_count: 2)
       claim # a restarted agent learns the retries the current question already used
       expect(response.parsed_body["current_question_retry_count"]).to eq(2)
+    end
+
+    it "tells a fresh agent that takes over where the current question stands, with no text" do
+      interview.update_columns(answer_cap: 2)
+      opening_id = asked_opening
+      claim
+      expect(response.parsed_body).to include("current_prompt_message_id" => opening_id, "current_prompt_kind" => "opening",
+        "current_prompt_answered" => false, "current_question_answer_count" => 0, "current_question_feedback_given" => false)
+      answer_finished(prompt_message_id: opening_id)
+      prompt_asked(kind: "follow_up", text: "What changed?", prompt_key: "q0-r0-f1")
+      follow_up_id = response.parsed_body.fetch("message_id")
+      post "#{base}/heartbeat", params: { sequence: 3, billed_seconds_delta: 30, usage: [] }, headers: headers, as: :json
+      claim
+      expect(response.parsed_body).to include("heartbeat_sequence" => 3, "current_prompt_message_id" => follow_up_id,
+        "current_prompt_kind" => "follow_up", "current_prompt_answered" => false, "current_question_answer_count" => 1)
+      answer_finished(prompt_message_id: follow_up_id, transcript: "Fewer failed runs.")
+      post "#{base}/feedback_given", params: { question_position: 0, text: "Quick feedback: clear." }, headers: headers, as: :json
+      claim
+      expect(response.parsed_body).to include("current_prompt_answered" => true, "current_question_answer_count" => 2,
+        "current_question_feedback_given" => true)
+      expect(response.parsed_body.values.grep(String)).not_to include(a_string_including("changed", "Fewer", "Quick"))
     end
 
     it "opens one live conversation bill per connection: a task, a reserved observation and an unfinished usage report" do
@@ -592,12 +615,17 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(connection.reload).to have_attributes(status: "ended", end_reason: "idle")
     end
 
-    it "refuses reasons that are not used yet and an ended connection of a still-active interview" do
+    it "finishes a candidate who stayed away as disconnected by the same completed/abandoned rule" do
+      answer_finished(prompt_message_id: asked_opening)
+      finish("disconnected")
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to include("status" => "completed", "end_reason" => "disconnected")
+    end
+
+    it "refuses unknown reasons and an ended connection of a still-active interview" do
       claim
-      %w[disconnected nonsense].each do |reason|
-        finish(reason)
-        expect(response).to have_http_status(:conflict)
-      end
+      finish("nonsense")
+      expect(response).to have_http_status(:conflict)
       expect(connection.reload.status).to eq("connected")
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       finish("completed")

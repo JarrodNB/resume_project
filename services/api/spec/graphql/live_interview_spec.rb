@@ -126,12 +126,17 @@ RSpec.describe "Live interview GraphQL" do
       expect(again.dig("data", "endLiveInterview", "interview", "status")).to eq("completed")
     end
 
-    it "ends a room the candidate leaves for the turn-based fallback as failed, so it never stays active" do
+    it "ends a room the candidate leaves for the turn-based fallback as failed in the same start, so it never stays active" do
       interview = ready_live_interview(user)
       Interviews::JoinLiveService.call(interview: interview)
-      result = execute_graphql(end_live, user: user, variables: { input: { interviewId: interview.id, liveUnavailable: true } })
-      expect(result.dig("data", "endLiveInterview", "interview", "status")).to eq("abandoned")
+      start = 'mutation($input: StartInterviewInput!) { startInterview(input: $input) { interview { id conversationMode } errors } }'
+      result = execute_graphql(start, user: user, variables: { input: { fromInterviewId: interview.id } })
+      expect(result.dig("data", "startInterview")).to include("errors" => [], "interview" => include("conversationMode" => "TURN_BASED"))
+      expect(interview.reload.status).to eq("abandoned")
       expect(interview.live_connections.sole).to have_attributes(status: "ended", end_reason: "failed")
+      never_joined = ready_live_interview(user)
+      expect(execute_graphql(start, user: user, variables: { input: { fromInterviewId: never_joined.id } }).dig("data", "startInterview", "errors")).to eq([])
+      expect(never_joined.reload.status).to eq("abandoned")
     end
 
     it "refuses ending an interview that is no longer active with a message, never the agent's internal code" do
@@ -150,7 +155,7 @@ RSpec.describe "Live interview GraphQL" do
       result = execute_graphql(end_live, user: user, variables: { input: { interviewId: interview.id } })
       expect(result.dig("data", "endLiveInterview", "interview", "status")).to eq("abandoned")
       never_joined = ready_live_interview(user)
-      result = execute_graphql(end_live, user: user, variables: { input: { interviewId: never_joined.id, liveUnavailable: true } })
+      result = execute_graphql(end_live, user: user, variables: { input: { interviewId: never_joined.id } })
       expect(result.dig("data", "endLiveInterview")).to include("interview" => include("status" => "abandoned"), "errors" => [])
     end
   end

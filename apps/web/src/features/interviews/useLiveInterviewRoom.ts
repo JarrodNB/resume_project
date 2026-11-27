@@ -17,10 +17,9 @@
  * `disconnected` if it gives up. `rejoin()` then asks Rails to join again (the same room, with a
  * fresh token; the interviewer waits about 2 minutes for the candidate) and connects again. If
  * Rails refuses because the interview has meanwhile finished, the open interview query is
- * refetched so the page shows its review or abandoned state. `leaveForTurnBased()` ends the live
- * room as failed through Rails when the candidate switches to a turn-based interview (a live
- * session whose room Rails never opened is abandoned). `roomOpened` says whether Rails ever signed
- * a join token, so whether there is a room End interview can finish.
+ * refetched so the page shows its review or abandoned state. (Switching to a turn-based interview
+ * needs nothing here: Rails ends the live room when it starts that interview.) `roomOpened` says
+ * whether Rails ever signed a join token, so whether there is a room End interview can finish.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation } from '@apollo/client/react'
@@ -63,7 +62,6 @@ export interface LiveInterviewRoom extends LiveRoomState {
   /** After a dropped connection, joins the same room again. */
   rejoin: () => Promise<void>
   /** Ends the live room as failed (the candidate is switching to turn-based); errors are ignored. */
-  leaveForTurnBased: () => Promise<void>
 }
 
 /** Keep the screen and memory bounded in a long interview. */
@@ -250,10 +248,5 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     void client.refetchQueries({ include: [INTERVIEW_QUERY] })
     setRoom((previous) => ({ ...previous, status: 'disconnected' }))
   }, [client])
-  const leaveForTurnBased = useCallback(async () => {
-    try {
-      await endLive({ variables: { interviewId, liveUnavailable: true } })
-    } catch { /* The turn-based interview starts anyway; recovery ends a forgotten room. */ }
-  }, [endLive, interviewId])
-  return { ...room, mute, choose, end, rejoin, leaveForTurnBased }
+  return { ...room, mute, choose, end, rejoin }
 }

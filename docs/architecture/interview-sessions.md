@@ -671,15 +671,16 @@ recovery's quiet-connection close. A 404 (the connection was destroyed with its 
 cuts off the interviewer and leaves at once, without calling `finish` again.
 
 **Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same
-setup", the room first starts the new preparation with
-`startInterview(fromInterviewId, conversationMode: TURN_BASED)`: the browser sends only the live
-session's ID, and `Interviews::StartFromInterviewService` copies its setup, saved job and career
-focus (owner-scoped; refused if the saved job was deleted). It then calls
-`endLiveInterview(interviewId, liveUnavailable: true)`, which finishes the live room as `failed`
-by the same rule, so the abandoned live session never stays active. If Rails never opened a room
-(the first join was refused, for example too few live minutes or LiveKit not configured), the
-session is still `ready` with no connection and no answers, so `endLiveInterview` abandons it
-through `AbandonService` rather than leaving it resumable for seven days. The room hides End
+setup", the room makes one call, `startInterview(fromInterviewId, conversationMode: TURN_BASED)`:
+the browser sends only the live session's ID, and `Interviews::StartFromInterviewService` copies
+its setup, saved job and career focus (owner-scoped; refused if the saved job was deleted). Once
+the new preparation has started, the same request finishes the unfinished live session through
+`FinishLiveService.for_owner(live_unavailable: true)`: a joined room ends as `failed` by the same
+rule as any finish, so the abandoned live session never stays active. If Rails never opened a
+room (the first join was refused, for example too few live minutes or LiveKit not configured),
+the session is still `ready` with no connection and no answers, so it is abandoned through
+`AbandonService` rather than left resumable for seven days. A refused start leaves the live
+session as it was. The room hides End
 interview until Rails has opened a room.
 
 #### Time, live minutes and heartbeats

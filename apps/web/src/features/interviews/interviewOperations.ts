@@ -70,8 +70,8 @@ export const LIVE_INTERVIEW_ALLOWANCE = graphql(`
 `)
 
 export const END_LIVE_INTERVIEW = graphql(`
-  mutation EndLiveInterview($interviewId: ID!, $liveUnavailable: Boolean) {
-    endLiveInterview(input: {interviewId: $interviewId, liveUnavailable: $liveUnavailable}) { interview { ...InterviewSnapshot } errors errorCode }
+  mutation EndLiveInterview($interviewId: ID!) {
+    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 

@@ -1465,11 +1465,6 @@ input EndLiveInterviewInput {
   """
   clientMutationId: String
   interviewId: ID!
-
-  """
-  True when the live room failed and the candidate is switching to a turn-based interview.
-  """
-  liveUnavailable: Boolean = false
 }
 
 """

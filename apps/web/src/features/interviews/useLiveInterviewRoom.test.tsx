@@ -290,15 +290,6 @@ it('stays disconnected with the reason when Rails refuses the rejoin', async () 
   expect(view.result.current).toMatchObject({ status: 'disconnected', error: 'Interview has ended' })
 })
 
-it('ends the live room as failed through Rails, without the agent, when the candidate switches to turn-based', async () => {
-  const result = vi.fn(() => ({ data: { endLiveInterview: { __typename: 'EndLiveInterviewPayload', interview: null, errors: [], errorCode: null } } }))
-  const { view, room } = await connectedRoom({ request: { query: END_LIVE_INTERVIEW, variables: { interviewId: 'session', liveUnavailable: true } }, result })
-  room.remoteParticipants.set(agent.identity, agent)
-  await act(async () => { await view.result.current.leaveForTurnBased() })
-  expect(result).toHaveBeenCalledOnce()
-  expect(room.performRpc).not.toHaveBeenCalled()
-})
-
 // docs/architecture/interview-sessions.md ("Room contract") lists these literals; the agent's test
 // (services/ai/tests/test_live_interview_agent.py) checks the same ones.
 it('reads the documented cd.* attributes and sends each documented interview.choose option', async () => {

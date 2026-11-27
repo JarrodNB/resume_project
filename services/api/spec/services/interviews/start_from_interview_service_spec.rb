@@ -36,6 +36,38 @@ RSpec.describe Interviews::StartFromInterviewService do
     expect(user.interview_sessions.count).to eq(1)
   end
 
+  describe "leaving an unfinished live session for the turn-based fallback" do
+    around { |example| with_livekit_env { example.run } }
+
+    it "abandons a live session whose room was never joined, in the same request" do
+      source = ready_live_interview(user)
+      result = described_class.call(user: user, source: source, conversation_mode: "turn_based")
+      expect(result).to be_success
+      expect(source.reload.status).to eq("abandoned")
+      expect(result.value.reload.status).to eq("preparing")
+    end
+
+    it "ends a joined room as failed by the usual finish rule" do
+      source = ready_live_interview(user)
+      Interviews::JoinLiveService.call(interview: source)
+      expect(described_class.call(user: user, source: source, conversation_mode: "turn_based")).to be_success
+      expect(source.live_connections.sole).to have_attributes(status: "ended", end_reason: "failed")
+      expect(source.reload.status).to eq("abandoned")
+    end
+
+    it "leaves a finished live session and the live session of a refused start as they are" do
+      finished = ready_live_interview(user)
+      finished.update_columns(status: "completed")
+      expect(described_class.call(user: user, source: finished, conversation_mode: "turn_based")).to be_success
+      expect(finished.reload.status).to eq("completed")
+      job = create(:job, user: user)
+      refused = live_source(job: job)
+      job.destroy!
+      expect(described_class.call(user: user, source: refused.reload, conversation_mode: "turn_based")).not_to be_success
+      expect(refused.reload.status).to eq("preparing")
+    end
+  end
+
   it "refuses someone else's interview as not found" do
     source = live_source
     result = described_class.call(user: create(:user), source: source, conversation_mode: "turn_based")

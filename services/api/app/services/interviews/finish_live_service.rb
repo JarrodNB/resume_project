@@ -23,7 +23,8 @@ module Interviews
 
     # The owner ending the interview from the room: finishes its open connection (or, on a repeat,
     # the latest one) as `ended_by_candidate`, or as `failed` when the live room was unavailable
-    # and the candidate is switching to a turn-based interview with the same setup.
+    # and the candidate is switching to a turn-based interview with the same setup
+    # (Interviews::StartFromInterviewService).
     #
     # The agent's refusal codes (`connection_ended`, `invalid_request`) are for the agent, so the
     # owner's failure carries only the message.

@@ -18,7 +18,7 @@ const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, 
 function liveRoom(change: Record<string, unknown> = {}) {
   return { status: 'joining', roomOpened: true, agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),
-    rejoin: vi.fn().mockResolvedValue(undefined), leaveForTurnBased: vi.fn().mockResolvedValue(undefined), ...change }
+    rejoin: vi.fn().mockResolvedValue(undefined), ...change }
 }
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, startFrom, loading: false, error: null }) }))
 vi.mock('./useLiveInterviewRoom', () => ({ useLiveInterviewRoom: (id: string) => { live.hook(id); return live.value } }))
@@ -86,9 +86,10 @@ it('offers a turn-based interview with the same setup when no interviewer joins 
   vi.useRealTimers()
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(router.state.location.pathname).toBe('/practice/interviews/turn-based-session'))
-  expect(startFrom).toHaveBeenCalledWith('session', 'TURN_BASED') // Rails copies the setup, job and career focus
+  // Rails copies the setup, job and career focus, and ends the live room in the same request.
+  expect(startFrom).toHaveBeenCalledWith('session', 'TURN_BASED')
   expect(start).not.toHaveBeenCalled()
-  expect(live.value.leaveForTurnBased).toHaveBeenCalledOnce() // the abandoned live room never stays active
+  expect(live.value.end).not.toHaveBeenCalled()
 })
 
 it('keeps the live room when the turn-based interview could not start', async () => {
@@ -97,7 +98,7 @@ it('keeps the live room when the turn-based interview could not start', async ()
   renderInterview()
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(startFrom).toHaveBeenCalled())
-  expect(live.value.leaveForTurnBased).not.toHaveBeenCalled()
+  expect(await screen.findByRole('button', { name: 'Start a turn-based interview with the same setup' })).toBeEnabled()
 })
 
 it('shows reconnecting while the connection recovers, with the room controls still in place', () => {

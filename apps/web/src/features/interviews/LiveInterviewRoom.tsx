@@ -60,7 +60,7 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
   return <section aria-labelledby="live-interview-title" className="interview-stage grid gap-4">
     <h2 id="live-interview-title" className="text-xl font-semibold">Live interview</h2>
     {!showFallback && <p role="status" className="text-sm">{message}</p>}
-    {showFallback && <TurnBasedFallback interview={interview} room={room} reason={room.status === 'failed' ? room.error : null} />}
+    {showFallback && <TurnBasedFallback interview={interview} reason={room.status === 'failed' ? room.error : null} />}
     {room.status === 'disconnected' && <div className="grid gap-2">
       {room.error && <p role="alert" className="text-sm text-destructive">{room.error}</p>}
       <Button type="button" className="min-h-11 justify-self-start" onClick={() => void room.rejoin()}>Rejoin interview</Button>
@@ -141,9 +141,8 @@ function EndLiveInterviewButton({ room }: { room: LiveRoom }) {
 }
 
 /** Starts a turn-based preparation from this session (Rails copies its setup, saved job and career
- * focus) and opens it like a normal start, then ends the live room as failed (not awaited, so the
- * page moves on at once). */
-function TurnBasedFallback({ interview, room, reason }: { interview: InterviewSnapshotFragment; room: LiveRoom; reason: string | null }) {
+ * focus, and ends this live room as failed in the same request) and opens it like a normal start. */
+function TurnBasedFallback({ interview, reason }: { interview: InterviewSnapshotFragment; reason: string | null }) {
   const { startFrom, loading, error, errorCode } = useStartInterview()
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
@@ -152,7 +151,6 @@ function TurnBasedFallback({ interview, room, reason }: { interview: InterviewSn
     try {
       const id = await startFrom(interview.id, 'TURN_BASED')
       if (!id) return
-      void room.leaveForTurnBased()
       await navigate(`/practice/interviews/${id}`)
     } finally { setPending(false) }
   }

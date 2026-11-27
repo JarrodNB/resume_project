@@ -301,7 +301,7 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.state_seq": "1",
-            "cd.menu_offered": "false", "cd.seconds_left": "1500", "cd.time_warning": "false"}
+            "cd.menu_offered": "false", "cd.seconds_left": "600", "cd.time_warning": "false"}  # the allowance is smaller
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -357,7 +357,7 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         await settle()
         assert ctx.room.local_participant.attributes[-1] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.state_seq": "6",
-            "cd.menu_offered": "true", "cd.seconds_left": "1500", "cd.time_warning": "false"}
+            "cd.menu_offered": "true", "cd.seconds_left": "600", "cd.time_warning": "false"}
         assert "hint" in session.replies[-1].lower()  # the menu is offered
         assert "finished answer" in (await agent.give_hint(tool_call())).lower()
         assert "repeat" in (await agent.repeat_question(tool_call())).lower()
@@ -561,7 +561,7 @@ def test_the_clock_nudges_a_long_answer_once():
         session.emit_item("assistant", "Tell me about a project.")
         await settle()
         replies = len(session.replies)
-        now[0] = 500.0
+        now[0] = 300.0
         await settle()
         assert len(session.replies) == replies + 1 and "wrap" in session.replies[-1].lower()
 
@@ -821,6 +821,7 @@ def test_a_warn_reply_is_shown_and_said_once():
         await session.agent._runner.heartbeat()
         await settle()
         assert ctx.room.local_participant.attributes[-1]["cd.time_warning"] == "true"
+        assert ctx.room.local_participant.attributes[-1]["cd.seconds_left"] == "100"  # Rails' allowance
         assert not any("two minutes" in reply for reply in session.replies)  # not while the opening is asked
         session.emit_item("assistant", "Tell me about a project.")
         await session.agent._runner.heartbeat()
@@ -1077,7 +1078,7 @@ def test_a_rails_call_that_never_answers_does_not_hold_up_tools_room_choices_or_
         session.emit_item("assistant", "Quick feedback: good start.")
         await settle()
         replies = len(session.replies)
-        now[0] = 500.0  # the clock still runs: the long answer is nudged
+        now[0] = 300.0  # the clock still runs: the long answer is nudged
         await settle()
         assert len(session.replies) == replies + 1
 
@@ -1263,7 +1264,8 @@ def test_a_room_state_publish_that_hangs_holds_up_no_tool_or_heartbeat_and_the_n
     async def scenario():
         room.local_participant.hold = asyncio.Event()
         await asyncio.wait_for(runner.handle(
-            Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500)), 1)
+            Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500,
+                    allowance_seconds_left=3_600)), 1)
         await settle()  # the first state's publish has started, and hangs
         await asyncio.wait_for(runner.handle(InterviewerTurnFinished("Tell me about a project.")), 1)
         await asyncio.wait_for(runner.handle(InterviewerTurnFinished("Take your time.")), 1)
@@ -1291,7 +1293,8 @@ def test_a_candidate_join_delivered_before_the_start_is_not_lost():
     async def scenario():
         await runner.handle(CandidateLeft(0.0))
         await runner.handle(CandidateJoined(1.0))
-        await runner.handle(Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500))
+        await runner.handle(Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500,
+                                    allowance_seconds_left=3_600))
         await runner.handle(Tick(500.0))
 
     asyncio.run(scenario())

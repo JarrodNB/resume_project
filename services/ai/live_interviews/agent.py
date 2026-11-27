@@ -399,7 +399,8 @@ class LiveInterviewRunner:
         if isinstance(action, SendHeartbeat):
             reply = await self._reporter.heartbeat(action)
             if reply is not None and not action.final:
-                await self.handle(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason))
+                await self.handle(HeartbeatReplied(reply.action, reply.allowance_seconds_left, reply.reason,
+                                                    sequence=action.sequence))
         elif isinstance(action, ReportFinish):
             if not self._reporter.ended:  # Rails already ended it while this waited: nothing to finish
                 self.finished = await self._reporter.finish(action)
@@ -604,6 +605,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             await runner.handle(Started(question_position=claim.current_question_position,
                                         question_total=claim.question_total, answer_cap=claim.answer_cap,
                                         session_seconds_left=claim.session_seconds_left,
+                                        allowance_seconds_left=claim.allowance_seconds_left,
                                         retry_count=claim.current_question_retry_count,
                                         heartbeat_sequence=claim.heartbeat_sequence,
                                         current_prompt_message_id=claim.current_prompt_message_id,

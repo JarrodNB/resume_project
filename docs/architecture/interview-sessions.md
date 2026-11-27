@@ -687,18 +687,25 @@ interview until Rails has opened a room.
 **Session clock.** Each live session has 25 minutes of counted time
 (`Interviews::LiveAllowance::SESSION_SECONDS`, shared by all its connections). The claim
 response carries `session_seconds_left` (25 minutes minus the session's billed seconds) and
-`allowance_seconds_left`; the controller counts down from the former. Time counts between clock
+`allowance_seconds_left`; the controller counts both down the same way. Time counts between clock
 ticks in every phase except `menu`: while the coaching menu waits quietly for a choice nothing is
 counted, for the session clock or the allowance. At the menu, time still counts while the
 interviewer is busy (speaking or thinking of a reply, such as a hint or a repeated question),
-because the model is running then. The counted seconds left reach the room as
-`cd.seconds_left` with each phase change and about every 5 seconds. With 2 minutes left the
+because the model is running then. Each heartbeat answer refreshes the allowance: the controller
+takes Rails' `allowance_seconds_left` (as of the seconds that heartbeat billed) less the time
+counted since that heartbeat left, so another session's use or a plan change shows up within a
+heartbeat. The room shows the smaller of the two, so a trial user with 10 live minutes sees
+10:00, not 25:00. Those seconds reach the room as `cd.seconds_left` with each phase change and
+about every 5 seconds (or when a refresh moves them). With 2 minutes left on either, the
 controller sets `cd.time_warning` `true` and the interviewer says so once, at the next quiet
-moment. While a question or follow-up is still to be asked, or feedback is still to be given,
+moment; Rails' heartbeat `warn` for the allowance leads to the same single warning, whichever
+comes first. While a question or follow-up is still to be asked, or feedback is still to be given,
 it waits until that turn has been heard, because the next interviewer turn then is saved as the
 prompt or the feedback. The nudge is only said while answering and the menu prompt only at the
 menu, where nothing is saved; a welcome-back in those saved phases is itself the turn (it asks
-the question or gives the feedback), so it is saved as intended. At zero it wraps up:
+the question or gives the feedback), so it is saved as intended. When the session clock reaches
+zero it wraps up (an allowance at zero waits for Rails' heartbeat `wrap_up`, since Rails decides
+when the allowance is used up):
 tools are refused ("time is up"), menu buttons are ignored, and once neither side is speaking
 (the adapter reports LiveKit's `agent_state_changed`, where `thinking` and `speaking` count as
 busy, and `user_state_changed`) it saves the pending answer, publishes `closing` and asks for a

@@ -349,7 +349,13 @@ and ask the current question. Each question then runs like this:
    that took over after a crash and asks at the same point, returns the saved follow-up rather
    than saving a second one. It is refused
    until the latest prompt of the current question has an answer and once the question has
-   `answer_cap` answers. The receipt's `message_id` is fed back to the controller.
+   `answer_cap` answers. The receipt's `message_id` is fed back to the controller, naming the
+   opening or the follow-up's key. Reports go to Rails in order: one whose answer was lost (a
+   transport error, so it may or may not have been saved) stays first and is resent unchanged
+   before any newer report, and before each heartbeat and the finish; repeats are safe because
+   openings, prompt keys and answer replacement make them idempotent. An answer to a prompt whose
+   receipt has not arrived waits and is reported with it. A report Rails refuses outright is
+   stale and dropped; a refused answer is not counted as saved, so the next save reports it again.
 2. The candidate's final transcripts for the current prompt are joined and reported through
    `answer_finished` (`prompt_message_id`, `transcript`) when the interviewer moves on (an
    accepted follow-up, the next question, `finish_answer` or End interview).

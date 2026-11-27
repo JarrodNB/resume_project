@@ -156,6 +156,7 @@ class FakeRails:
         self.claim_result, self.refuse, self.calls, self.closed = claim, refuse, [], False
         self.refuse_finish = self.refuse_heartbeat = self.ended = False
         self.heartbeat_error = None
+        self.lose, self.refuse_reports = {}, set()  # call name -> answers still to lose; names to refuse
         self.heartbeat_reply = HeartbeatReply(action="continue", allowance_seconds_left=500, session_seconds_left=1_400)
 
     async def claim(self, connection_id, *, room_name):
@@ -167,27 +168,32 @@ class FakeRails:
     async def prompt_asked(self, connection_id, **values):
         self.calls.append(("prompt_asked", connection_id, values))
         self._refuse_if_ended()
+        self._lose_or_refuse("prompt_asked")
         position = values["question_position"]
         return {"message_id": f"{values['kind']}-{position}", "question_position": position, "revision": 2}
 
     async def answer_finished(self, connection_id, **values):
         self.calls.append(("answer_finished", connection_id, values))
         self._refuse_if_ended()
+        self._lose_or_refuse("answer_finished")
         return {"message_id": "answer", "question_position": 0, "accepted_answer_count": 1, "revision": 3}
 
     async def question_advanced(self, connection_id, **values):
         self.calls.append(("question_advanced", connection_id, values))
         self._refuse_if_ended()
+        self._lose_or_refuse("question_advanced")
         return {"current_question_position": values["question_position"] + 1, "revision": 4}
 
     async def feedback_given(self, connection_id, **values):
         self.calls.append(("feedback_given", connection_id, values))
         self._refuse_if_ended()
+        self._lose_or_refuse("feedback_given")
         return {"question_position": values["question_position"], "revision": 6}
 
     async def question_retried(self, connection_id, **values):
         self.calls.append(("question_retried", connection_id, values))
         self._refuse_if_ended()
+        self._lose_or_refuse("question_retried")
         return {"question_position": values["question_position"], "retry_count": values["retry_number"], "revision": 7}
 
     async def heartbeat(self, connection_id, **values):
@@ -208,6 +214,13 @@ class FakeRails:
 
     async def aclose(self):
         self.closed = True
+
+    def _lose_or_refuse(self, name):
+        if self.lose.get(name):
+            self.lose[name] -= 1
+            raise RailsTransportError("lost")  # Rails may or may not have saved it
+        if name in self.refuse_reports:
+            raise RailsClientError(422, None)  # a definite no: stale
 
     def _refuse_if_ended(self):
         if self.ended:  # recovery or the owner ended the connection
@@ -840,3 +853,75 @@ def test_words_spoken_with_a_tool_call_are_a_preamble_and_the_reply_after_its_re
         ("finish", "live", {"reason": "completed", "final_sequence": 1}),
     ]
     assert ctx.shutdown_reason
+
+
+def test_a_lost_prompt_report_is_resent_and_its_answer_reported_once_rails_records_it():
+    rails, sessions = FakeRails(), []
+    rails.lose["prompt_asked"] = 1
+    _ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        assert "saved" in await session.agent.finish_answer(tool_call())
+        await session.agent._runner.heartbeat()  # reports waiting behind a lost one are resent too
+
+    asyncio.run(scenario())
+    opening = ("prompt_asked", "live", {"question_position": 0, "kind": "opening", "text": "Tell me about a project."})
+    assert rails.calls[1:] == [
+        opening,
+        opening,
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
+        ("heartbeat", "live", {"sequence": 1, "billed_seconds_delta": 0, "usage": []}),
+    ]
+
+
+def test_a_lost_answer_report_is_resent_before_the_follow_up_that_needs_it():
+    rails, sessions = FakeRails(), []
+    rails.lose["answer_finished"] = 1
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await session.agent.ask_follow_up(tool_call(), "What changed?")
+        session.emit_item("assistant", "What changed for the team?")
+        await settle()
+
+    asyncio.run(scenario())
+    answer = ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."})
+    assert rails.calls[2:] == [
+        answer,
+        answer,
+        ("prompt_asked", "live", {"question_position": 0, "kind": "follow_up", "text": "What changed for the team?",
+                                  "prompt_key": "q0-r0-f1"}),
+    ]
+
+
+def test_an_answer_rails_refused_is_not_treated_as_saved():
+    rails, sessions = FakeRails(), []
+    rails.refuse_reports.add("answer_finished")
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        await session.agent.finish_answer(tool_call())
+        rails.refuse_reports.clear()
+        await session.agent.finish_answer(tool_call())
+
+    asyncio.run(scenario())
+    answer = ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."})
+    assert rails.calls[2:] == [answer, answer]  # not resent on its own, but reported again at the next save

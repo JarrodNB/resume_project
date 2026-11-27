@@ -20,7 +20,12 @@ the tool has run; it is passed on marked as a preamble, so only the reply to the
 counts as the follow-up, feedback or closing. It carries out the actions the controller returns: speak, report to Rails,
 publish progress and the clock as agent participant attributes and leave. When Rails refuses a
 call with `connection_ended` (recovery or the owner already finished the interview), the
-interviewer is cut off and the agent leaves without reporting or finishing anything else. A heartbeat adds the
+interviewer is cut off and the agent leaves without reporting or finishing anything else. Interview reports
+(prompt, answer, advance, feedback, retry) go to Rails in order: one whose answer was lost stays
+first and is resent unchanged before any newer report, and again before each heartbeat and the
+finish (Rails treats repeats as the same report). A report Rails refused outright was stale and
+is dropped; a refused answer is passed back so the controller does not count it as saved. A
+prompt's receipt is passed back with its key, so an answer waiting for it can be reported. A heartbeat adds the
 provider usage that is new since Rails last acknowledged one (from LiveKit's running
 `AgentSession.usage`, priced in live_interviews.usage). A heartbeat whose answer is lost may
 still have been applied, so it is resent unchanged (same sequence, same counts) before any newer
@@ -74,6 +79,7 @@ from live_interviews.client import (
 )
 from live_interviews.controller import (
     ENDED,
+    AnswerNotSaved,
     AskFollowUp,
     CandidateJoined,
     CandidateLeft,
@@ -173,6 +179,8 @@ class LiveInterviewRunner:
         self._acknowledged = LiveUsageTotals()  # usage Rails has acknowledged in heartbeats
         self._unsent_seconds = 0  # billed seconds no applied heartbeat has carried yet
         self._pending: _PendingHeartbeat | None = None  # sent, but Rails' answer was lost
+        self._reports: list[LiveAction] = []  # interview reports not yet answered by Rails, oldest first
+        self._front: int | None = None  # where reports raised by a receipt go: ahead of the later ones
 
     def usage_totals(self) -> LiveUsageTotals:
         """The session's running provider usage so far."""
@@ -334,8 +342,65 @@ class LiveInterviewRunner:
             logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
             return lost
 
+    async def _send_report(self, action: LiveAction) -> None:
+        """Send an interview report after any earlier one whose answer was lost.
+
+        Rails needs them in order (a follow-up needs the answer before it, an answer needs its
+        prompt), so a report whose answer was lost stays first and is resent unchanged before
+        anything newer; repeats are safe (prompt keys and answer replacement make them
+        idempotent). A report Rails refused outright was stale and is dropped."""
+        if self._front is None:
+            self._reports.append(action)
+            await self._flush_reports()
+        else:  # raised by an earlier report's receipt, while that flush is running
+            self._reports.insert(self._front, action)
+            self._front += 1
+
+    async def _flush_reports(self) -> None:
+        while self._reports and self._front is None and not self._ended_by_rails:
+            action = self._reports[0]
+            outcome = await self._post_report(action)
+            if outcome is _LOST:
+                return
+            self._reports.pop(0)
+            event = self._report_outcome(action, outcome)
+            if event is not None and not self._ended_by_rails:
+                self._front = 0
+                try:
+                    await self._dispatch(event)
+                finally:
+                    self._front = None
+
+    async def _post_report(self, action: LiveAction):
+        if isinstance(action, ReportPromptAsked):
+            return await self._report(self._rails.prompt_asked, lost=_LOST, question_position=action.question_position,
+                                      kind=action.kind, text=action.text,
+                                      **({"prompt_key": action.prompt_key} if action.prompt_key else {}))
+        if isinstance(action, ReportAnswerFinished):
+            return await self._report(self._rails.answer_finished, lost=_LOST,
+                                      prompt_message_id=action.prompt_message_id, transcript=action.transcript)
+        if isinstance(action, ReportQuestionAdvanced):
+            return await self._report(self._rails.question_advanced, lost=_LOST,
+                                      question_position=action.question_position)
+        if isinstance(action, ReportFeedbackGiven):
+            return await self._report(self._rails.feedback_given, lost=_LOST,
+                                      question_position=action.question_position, text=action.text)
+        return await self._report(self._rails.question_retried, lost=_LOST,
+                                  question_position=action.question_position, retry_number=action.retry_number)
+
+    @staticmethod
+    def _report_outcome(action: LiveAction, outcome) -> LiveEvent | None:
+        """The controller hears when Rails records a prompt, and when it refuses an answer."""
+        if isinstance(action, ReportPromptAsked) and outcome and isinstance(outcome.get("message_id"), str):
+            return PromptRecorded(action.question_position, outcome["message_id"], prompt_key=action.prompt_key)
+        if isinstance(action, ReportAnswerFinished) and outcome is None:
+            return AnswerNotSaved(action.prompt_message_id, action.transcript)
+        return None
+
     async def _send_heartbeat(self, action: SendHeartbeat) -> None:
-        """Report counted seconds and new priced usage, after resending a lost heartbeat unchanged."""
+        """Report counted seconds and new priced usage, after resending a lost heartbeat unchanged.
+        Interview reports still waiting behind a lost one are retried first."""
+        await self._flush_reports()
         if self._pending is not None and await self._post_heartbeat(self._pending) is _LOST:
             self._unsent_seconds += action.billed_seconds_delta
             return
@@ -373,23 +438,11 @@ class LiveInterviewRunner:
             speech.add_done_callback(lambda _speech: self._spawn(ClosingSpoken()))
         elif isinstance(action, SendHeartbeat):
             await self._send_heartbeat(action)
-        elif isinstance(action, ReportPromptAsked):
-            receipt = await self._report(self._rails.prompt_asked, question_position=action.question_position,
-                                         kind=action.kind, text=action.text,
-                                         **({"prompt_key": action.prompt_key} if action.prompt_key else {}))
-            if receipt and isinstance(receipt.get("message_id"), str):
-                await self._dispatch(PromptRecorded(action.question_position, receipt["message_id"]))
-        elif isinstance(action, ReportAnswerFinished):
-            await self._report(self._rails.answer_finished, prompt_message_id=action.prompt_message_id,
-                               transcript=action.transcript)
-        elif isinstance(action, ReportQuestionAdvanced):
-            await self._report(self._rails.question_advanced, question_position=action.question_position)
-        elif isinstance(action, ReportFeedbackGiven):
-            await self._report(self._rails.feedback_given, question_position=action.question_position, text=action.text)
-        elif isinstance(action, ReportQuestionRetried):
-            await self._report(self._rails.question_retried, question_position=action.question_position,
-                               retry_number=action.retry_number)
+        elif isinstance(action, ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdvanced
+                        | ReportFeedbackGiven | ReportQuestionRetried):
+            await self._send_report(action)
         elif isinstance(action, ReportFinish):
+            await self._flush_reports()  # a last try for reports whose answer was lost
             self.finished = await self._report(self._rails.finish, reason=action.reason,
                                                final_sequence=action.final_sequence) is not None
         elif isinstance(action, PublishRoomState):

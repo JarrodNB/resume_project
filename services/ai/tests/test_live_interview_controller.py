@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from live_interviews.controller import (
+    AnswerNotSaved,
     AskFollowUp,
     CandidateJoined,
     CandidateLeft,
@@ -138,7 +139,7 @@ def test_a_transcript_the_adapter_stopped_waiting_for_is_never_saved_to_the_next
     controller.handle(AskFollowUp(question_text="What changed?"))
     controller.handle(CandidateTurnFinished(text="Late words from the first answer."))  # while the follow-up is asked
     controller.handle(InterviewerTurnFinished(text="What changed for the team?"))
-    controller.handle(PromptRecorded(question_position=0, message_id="follow-1"))
+    controller.handle(PromptRecorded(question_position=0, message_id="follow-1", prompt_key="q0-r0-f1"))
     controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
     assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(prompt_message_id="follow-1",
                                                                         transcript="Fewer failed runs.")
@@ -167,7 +168,7 @@ def test_an_accepted_follow_up_saves_the_answer_and_reports_the_spoken_follow_up
                           prompt_key="q0-r0-f1"),
         PublishRoomState(seconds_left=1_500, question_position=0, question_total=5, phase="answering"),
     ]
-    controller.handle(PromptRecorded(question_position=0, message_id="follow-1"))
+    controller.handle(PromptRecorded(question_position=0, message_id="follow-1", prompt_key="q0-r0-f1"))
     controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
     assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(prompt_message_id="follow-1",
                                                                         transcript="Fewer failed runs.")
@@ -179,7 +180,7 @@ def test_follow_ups_stop_at_the_answer_cap_and_the_question_goes_to_feedback():
     controller.handle(CandidateTurnFinished(text="First answer."))
     controller.handle(AskFollowUp(question_text="Why?"))
     controller.handle(InterviewerTurnFinished(text="Why did that work?"))
-    controller.handle(PromptRecorded(question_position=0, message_id="follow-1"))
+    controller.handle(PromptRecorded(question_position=0, message_id="follow-1", prompt_key="q0-r0-f1"))
     controller.handle(CandidateTurnFinished(text="Because we measured it."))
     actions = controller.handle(AskFollowUp(question_text="Anything else?"))
     # The pending answer still saves, and no third prompt is asked.
@@ -824,7 +825,7 @@ def test_a_resumed_answered_opening_counts_toward_the_cap_and_keys_its_follow_up
     controller.handle(AskFollowUp(question_text="Why?"))
     assert controller.handle(InterviewerTurnFinished(text="Why did it matter?"))[0] == ReportPromptAsked(
         question_position=1, kind="follow_up", text="Why did it matter?", prompt_key="q1-r0-f1")
-    controller.handle(PromptRecorded(question_position=1, message_id="follow-1"))
+    controller.handle(PromptRecorded(question_position=1, message_id="follow-1", prompt_key="q1-r0-f1"))
     controller.handle(CandidateTurnFinished(text="Deadlines."))
     actions = controller.handle(FinishAnswer())  # the second answer reaches the cap of 2
     assert actions[0] == ReportAnswerFinished(prompt_message_id="follow-1", transcript="Deadlines.")
@@ -891,3 +892,43 @@ def test_a_preamble_before_give_feedback_is_not_saved_as_the_feedback():
     actions = controller.handle(InterviewerTurnFinished(text="Quick feedback: clear example."))
     assert actions[0] == ReportFeedbackGiven(question_position=0, text="Quick feedback: clear example.")
     assert isinstance(actions[-1], GenerateReply) and "hint" in actions[-1].instructions  # the menu follows it
+
+
+def test_answers_to_a_prompt_rails_has_not_recorded_yet_are_reported_once_it_is():
+    controller, _ = started_controller()
+    controller.handle(InterviewerTurnFinished(text="Tell me about a project."))  # its report was lost
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    actions = controller.handle(AskFollowUp(question_text="What changed?"))
+    assert not any(isinstance(action, ReportAnswerFinished) for action in actions)
+    assert "ask" in tool_text(actions).lower()
+    controller.handle(InterviewerTurnFinished(text="What changed for the team?"))
+    # The adapter resends the opening first; its receipt releases the answer, ahead of the follow-up.
+    assert controller.handle(PromptRecorded(question_position=0, message_id="opening-0")) == [
+        ReportAnswerFinished(prompt_message_id="opening-0", transcript="I rebuilt the scheduler.")]
+    assert controller.handle(PromptRecorded(question_position=0, message_id="opening-0")) == []
+    controller.handle(PromptRecorded(question_position=0, message_id="follow-1", prompt_key="q0-r0-f1"))
+    controller.handle(CandidateTurnFinished(text="Fewer failed runs."))
+    assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(prompt_message_id="follow-1",
+                                                                        transcript="Fewer failed runs.")
+
+
+def test_a_retry_drops_an_answer_still_waiting_for_its_prompt_to_be_recorded():
+    controller, _ = started_controller()
+    controller.handle(InterviewerTurnFinished(text="Tell me about a project."))
+    controller.handle(CandidateTurnFinished(text="Abandoned words."))
+    controller.handle(FinishAnswer())
+    controller.handle(RetryQuestion())
+    controller.handle(InterviewerTurnFinished(text="Let's try again: tell me about a project."))
+    assert controller.handle(PromptRecorded(question_position=0, message_id="opening-0")) == []
+
+
+def test_an_answer_rails_refused_is_not_counted_as_saved():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    report = ReportAnswerFinished(prompt_message_id="opening-0", transcript="My answer.")
+    assert controller.handle(FinishAnswer())[0] == report
+    assert controller.handle(AnswerNotSaved(prompt_message_id="opening-0", transcript="My answer.")) == []
+    assert controller.handle(FinishAnswer())[0] == report  # still unsaved, so it is reported again
+    controller.handle(AskFollowUp(question_text="Why?"))
+    assert controller.handle(InterviewerTurnFinished(text="Why?"))[0].prompt_key == "q0-r0-f1"  # counted once

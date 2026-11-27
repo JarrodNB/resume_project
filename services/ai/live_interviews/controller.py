@@ -53,6 +53,13 @@ the interviewer welcomes them back and carries on from the same place: it repeat
 prompt, or offers the menu choices again. After 2 minutes away the pending answer is saved and
 the interview finishes with `disconnected`.
 
+Rails' answers to reports: the adapter sends reports in order and resends one whose answer was
+lost before anything newer. A prompt is known by its Rails message only once its receipt
+(`PromptRecorded`, naming the opening or the follow-up's key) arrives; an answer to a prompt
+without one waits and is reported when the receipt comes. An answer counts as saved when it is
+reported; if Rails refuses it outright (`AnswerNotSaved`) it is not saved, so it is reported
+again at the next save.
+
 When Rails says the connection or its interview is over (`ConnectionEnded`: recovery or the owner
 ended it while this agent was still running), the agent leaves at once. Rails has already finished
 the interview, so nothing is saved, reported or finished again.
@@ -123,10 +130,21 @@ class CandidateTurnFinished:
 
 @dataclass(frozen=True)
 class PromptRecorded:
-    """Rails saved the prompt reported for `question_position` as message `message_id`."""
+    """Rails saved the prompt reported for `question_position` as message `message_id`: the
+    question's opening, or the follow-up named `prompt_key`. The receipt can come late, after a
+    lost report was resent, so it names its prompt."""
 
     question_position: int
     message_id: str
+    prompt_key: str | None = None
+
+
+@dataclass(frozen=True)
+class AnswerNotSaved:
+    """Rails refused this answer report outright (it was stale), so it was not saved."""
+
+    prompt_message_id: str
+    transcript: str
 
 
 @dataclass(frozen=True)
@@ -240,7 +258,7 @@ class ConnectionEnded:
     ended it, or the session finished). Leave at once: Rails already finished it."""
 
 
-LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AskFollowUp
+LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AnswerNotSaved | AskFollowUp
              | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
              | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken
              | CandidateLeft | CandidateJoined | ConnectionEnded)
@@ -463,9 +481,12 @@ class LiveInterviewController:
         self._answer_cap = 1
         self._phase: Phase = "asking"
         self._reporting: Literal["opening", "follow_up"] | None = None  # the next interviewer turn's kind
+        self._prompt: tuple[int, str | None] | None = None  # the current prompt's position and follow-up key
         self._prompt_message_id: str | None = None
         self._answer_pieces: list[str] = []
         self._saved_answer: str | None = None  # what Rails last got for the current prompt
+        self._saved_before: str | None = None  # what Rails had for it before that report
+        self._unrecorded_answers: dict[tuple[int, str | None], str] = {}  # answers waiting for their prompt's receipt
         self._answered_prompts = 0  # prompts of the current question with a saved answer
         self._after_feedback: Literal["answering", "menu"] = "menu"  # where the spoken feedback leads
         self._retries = 0  # retries the current question has used
@@ -540,8 +561,12 @@ class LiveInterviewController:
                 self._answer_pieces.append(event.text.strip())
             return []
         if isinstance(event, PromptRecorded):
-            if event.question_position == self._question_position and self._prompt_message_id is None:
-                self._prompt_message_id = event.message_id
+            return self._prompt_recorded(event)
+        if isinstance(event, AnswerNotSaved):
+            if event.prompt_message_id == self._prompt_message_id and event.transcript == self._saved_answer:
+                self._saved_answer = self._saved_before
+                if self._saved_answer is None:
+                    self._answered_prompts -= 1
             return []
         return [*self._save_answer(), *self._finish("ended_by_candidate")]
 
@@ -562,6 +587,7 @@ class LiveInterviewController:
             self._phase = "menu"
             return [self._room_state(), GenerateReply(RESUME_AT_MENU)]
         self._phase, self._prompt_message_id = "answering", event.current_prompt_message_id
+        self._prompt = (event.question_position, None)
         self._saved_answer = "" if event.current_prompt_answered else None  # Rails has an answer; new words replace it
         return [self._room_state(), GenerateReply(_resume_instructions(event.question_position))]
 
@@ -582,7 +608,16 @@ class LiveInterviewController:
         # A follow-up's key comes from where it is asked (question, retry, answers so far), so an
         # agent that takes over after a crash cannot save the same follow-up twice.
         key = f"q{self._question_position}-r{self._retries}-f{self._answered_prompts}" if kind == "follow_up" else None
+        self._prompt = (self._question_position, key)
         return [ReportPromptAsked(self._question_position, kind, text, prompt_key=key), self._room_state()]
+
+    def _prompt_recorded(self, event: PromptRecorded) -> list[LiveAction]:
+        """Note the current prompt's message, and report an answer that was waiting for it."""
+        prompt = (event.question_position, event.prompt_key)
+        if prompt == self._prompt and self._prompt_message_id is None:
+            self._prompt_message_id = event.message_id
+        transcript = self._unrecorded_answers.pop(prompt, None)
+        return [ReportAnswerFinished(event.message_id, transcript)] if transcript else []
 
     def _tick(self, now: float) -> list[LiveAction]:
         """Count session time, then time the one nudge per answer and the menu's idle close."""
@@ -746,6 +781,8 @@ class LiveInterviewController:
             return [ToolResult(refusal)]
         self._retries += 1
         self._answered_prompts = 0
+        self._unrecorded_answers = {prompt: transcript for prompt, transcript in self._unrecorded_answers.items()
+                                    if prompt[0] != self._question_position}
         self._new_prompt("opening")
         return [ReportQuestionRetried(self._question_position, self._retries), self._room_state(),
                 ToolResult(RETRY.format(question=_ask_question_instructions(self._question_position)))]
@@ -779,18 +816,23 @@ class LiveInterviewController:
         return self._answered_prompts + int(pending_new)
 
     def _save_answer(self) -> list[LiveAction]:
-        """Report the current prompt's answer if Rails doesn't have these exact words yet."""
+        """Report the current prompt's answer if Rails doesn't have these exact words yet. Until
+        Rails has recorded the prompt (its report was lost and is being resent), the answer waits
+        and is reported with the prompt's receipt."""
         transcript = " ".join(self._answer_pieces)
-        if not transcript or self._prompt_message_id is None or transcript == self._saved_answer:
+        if not transcript or self._prompt is None or transcript == self._saved_answer:
             return []
         if self._saved_answer is None:
             self._answered_prompts += 1
-        self._saved_answer = transcript
+        self._saved_before, self._saved_answer = self._saved_answer, transcript
+        if self._prompt_message_id is None:
+            self._unrecorded_answers[self._prompt] = transcript
+            return []
         return [ReportAnswerFinished(self._prompt_message_id, transcript)]
 
     def _new_prompt(self, kind: Literal["opening", "follow_up"]) -> None:
         self._phase, self._reporting = "asking", kind
-        self._prompt_message_id, self._answer_pieces, self._saved_answer = None, [], None
+        self._prompt, self._prompt_message_id, self._answer_pieces, self._saved_answer = None, None, [], None
         self._answering_since, self._nudged = None, False
 
     def _shown_seconds(self) -> int:

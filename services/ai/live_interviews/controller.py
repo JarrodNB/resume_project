@@ -46,6 +46,10 @@ the interviewer welcomes them back and carries on from the same place: it repeat
 prompt, or offers the menu choices again. After 2 minutes away the pending answer is saved and
 the interview finishes with `disconnected`.
 
+When Rails says the connection or its interview is over (`ConnectionEnded`: recovery or the owner
+ended it while this agent was still running), the agent leaves at once. Rails has already finished
+the interview, so nothing is saved, reported or finished again.
+
 A fresh agent that takes over a running connection gets the current question's state from the
 claim (`Started`): it continues the heartbeat sequence, repeats an opening that was already
 asked (answers still go to the saved prompt), or offers the menu when feedback was given or a
@@ -214,10 +218,16 @@ class CandidateJoined:
     now: float
 
 
+@dataclass(frozen=True)
+class ConnectionEnded:
+    """Rails refused a call because this connection or its interview is over (recovery or the owner
+    ended it, or the session finished). Leave at once: Rails already finished it."""
+
+
 LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AskFollowUp
              | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
              | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken
-             | CandidateLeft | CandidateJoined)
+             | CandidateLeft | CandidateJoined | ConnectionEnded)
 ToolEvent = (AskFollowUp | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint
              | RetryQuestion)
 
@@ -471,6 +481,11 @@ class LiveInterviewController:
             if self._away_since is None and self._phase != "ended":
                 self._away_since, self._candidate_speaking = event.now, False
             return []
+        if isinstance(event, ConnectionEnded):  # Rails already finished it: nothing to save, report or say
+            if self._phase == "ended":
+                return []
+            self._phase = "ended"
+            return [EndSession()]
         if isinstance(event, Started):
             return self._start(event)
         if isinstance(event, ToolEvent):

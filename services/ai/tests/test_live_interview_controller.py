@@ -10,6 +10,7 @@ from live_interviews.controller import (
     CandidateLeft,
     CandidateTurnFinished,
     ClosingSpoken,
+    ConnectionEnded,
     EndRequested,
     EndSession,
     FinishAnswer,
@@ -263,6 +264,26 @@ def test_end_requested_saves_the_pending_answer_then_finishes_for_the_candidate(
     ]
     assert controller.handle(EndRequested()) == []
     assert controller.handle(CandidateTurnFinished(text="More.")) == []
+
+
+def test_rails_ending_the_connection_leaves_at_once_without_saving_or_finishing_again():
+    controller, _ = started_controller()
+    asked_and_recorded(controller)
+    controller.handle(Tick(now=0.0))
+    controller.handle(CandidateTurnFinished(text="Partial answer."))
+    controller.handle(Tick(now=20.0))
+    assert controller.handle(ConnectionEnded()) == [EndSession()]
+    assert controller.handle(ConnectionEnded()) == []
+    assert controller.handle(HeartbeatDue()) == []
+    assert controller.handle(Tick(now=500.0)) == []
+    assert controller.handle(EndRequested()) == []
+    assert "ended" in tool_text(controller.handle(NextQuestion())).lower()
+
+
+def test_rails_ending_the_connection_while_the_candidate_is_away_still_leaves():
+    controller, _ = started_controller()
+    controller.handle(CandidateLeft(now=0.0))
+    assert controller.handle(ConnectionEnded()) == [EndSession()]
 
 
 def test_tool_calls_before_the_interview_starts_are_refused():

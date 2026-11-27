@@ -19,6 +19,7 @@ from live_interviews.agent import LiveDispatch, realtime_model_options, run_live
 from live_interviews.client import (
     HeartbeatReply,
     LiveConnectionClaim,
+    LiveConnectionEnded,
     RailsClientError,
     RailsTransportError,
 )
@@ -126,7 +127,7 @@ class FakeSession:
 class FakeRails:
     def __init__(self, claim=CLAIM, refuse=False):
         self.claim_result, self.refuse, self.calls, self.closed = claim, refuse, [], False
-        self.refuse_finish = self.refuse_heartbeat = False
+        self.refuse_finish = self.refuse_heartbeat = self.ended = False
         self.heartbeat_reply = HeartbeatReply(action="continue", allowance_seconds_left=500, session_seconds_left=1_400)
 
     async def claim(self, connection_id, *, room_name):
@@ -137,39 +138,50 @@ class FakeRails:
 
     async def prompt_asked(self, connection_id, **values):
         self.calls.append(("prompt_asked", connection_id, values))
+        self._refuse_if_ended()
         position = values["question_position"]
         return {"message_id": f"{values['kind']}-{position}", "question_position": position, "revision": 2}
 
     async def answer_finished(self, connection_id, **values):
         self.calls.append(("answer_finished", connection_id, values))
+        self._refuse_if_ended()
         return {"message_id": "answer", "question_position": 0, "accepted_answer_count": 1, "revision": 3}
 
     async def question_advanced(self, connection_id, **values):
         self.calls.append(("question_advanced", connection_id, values))
+        self._refuse_if_ended()
         return {"current_question_position": values["question_position"] + 1, "revision": 4}
 
     async def feedback_given(self, connection_id, **values):
         self.calls.append(("feedback_given", connection_id, values))
+        self._refuse_if_ended()
         return {"question_position": values["question_position"], "revision": 6}
 
     async def question_retried(self, connection_id, **values):
         self.calls.append(("question_retried", connection_id, values))
+        self._refuse_if_ended()
         return {"question_position": values["question_position"], "retry_count": values["retry_number"], "revision": 7}
 
     async def heartbeat(self, connection_id, **values):
         self.calls.append(("heartbeat", connection_id, values))
+        self._refuse_if_ended()
         if self.refuse_heartbeat:
             raise RailsTransportError("lost")
         return self.heartbeat_reply
 
     async def finish(self, connection_id, **values):
         self.calls.append(("finish", connection_id, values))
+        self._refuse_if_ended()
         if self.refuse_finish:
             raise RailsClientError(409)
         return {"status": "completed", "end_reason": values["reason"], "revision": 5}
 
     async def aclose(self):
         self.closed = True
+
+    def _refuse_if_ended(self):
+        if self.ended:  # recovery or the owner ended the connection
+            raise LiveConnectionEnded(409, "connection_ended")
 
 
 def fake_inputs(**ids):
@@ -411,6 +423,58 @@ def test_realtime_options_use_the_persona_voice_server_vad_and_transcription():
 def realtime_usage(input_audio_tokens):
     return LLMModelUsage(provider="api.openai.com", model="gpt-realtime-2.1-mini", input_tokens=input_audio_tokens,
                          input_audio_tokens=input_audio_tokens)
+
+
+def test_a_heartbeat_refused_as_connection_ended_stops_speaking_and_leaves_without_finishing():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        rails.ended = True
+        await session.agent._runner.heartbeat()
+        assert session.interrupted == 1
+        assert ctx.shutdown_reason
+        replies = len(session.replies)
+        assert "ended" in (await session.agent.next_question()).lower()
+        assert len(session.replies) == replies
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "heartbeat"]
+
+
+def test_a_report_refused_as_connection_ended_leaves_and_skips_the_rest():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        rails.ended = True
+        assert "ended" in (await session.agent.next_question()).lower()  # the answer save is refused first
+        assert ctx.shutdown_reason and session.interrupted == 1
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "prompt_asked", "answer_finished"]
+
+
+def test_the_end_button_after_rails_ended_the_connection_leaves_without_finishing_again():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        rails.ended = True
+        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("end")) == "ended"
+
+    asyncio.run(scenario())
+    assert [call[0] for call in rails.calls] == ["claim", "heartbeat"]
+    assert ctx.shutdown_reason
 
 
 def test_heartbeats_report_counted_seconds_and_new_usage_and_carry_on_after_a_lost_one():

@@ -5,18 +5,31 @@ owns credentials, byte limits, deadlines and the shared lease/accounting callbac
 """
 import asyncio
 import json
+import re
 from typing import Any
 from urllib.parse import quote, urlsplit
 
 import httpx
 
+_ERROR_CODE = re.compile(r"[a-z_]{1,64}")
+
 
 class RailsClientError(RuntimeError):
-    """Rails rejected a request; response bodies may contain private data."""
+    """Rails rejected a request; response bodies may contain private data.
 
-    def __init__(self, status_code: int):
-        self.status_code = status_code
+    Only the body's machine-readable `code` (a short snake_case word, or None) is kept."""
+
+    def __init__(self, status_code: int, code: str | None = None):
+        self.status_code, self.code = status_code, code
         super().__init__(f"Rails interview request failed ({status_code})")
+
+
+def _refusal_code(body: bytes) -> str | None:
+    try:
+        code = json.loads(body).get("code")
+    except (ValueError, UnicodeError, AttributeError):
+        return None
+    return code if isinstance(code, str) and _ERROR_CODE.fullmatch(code) else None
 
 
 class RailsTransportError(RuntimeError):
@@ -101,7 +114,7 @@ class RailsExecutionClient:
                     if response.status_code == 503 and retry and attempt == 0:
                         continue
                     if response.status_code != 200:
-                        raise RailsClientError(response.status_code)
+                        raise RailsClientError(response.status_code, _refusal_code(chunks))
                     result = json.loads(chunks)
                     if not isinstance(result, dict) and not (
                         allow_boolean and isinstance(result, bool)

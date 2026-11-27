@@ -10,7 +10,9 @@ and the room's `interview.choose` RPC (`{"option": ...}` with `retry`, `repeat`,
 `feedback` or `end`; a button interrupts whatever the interviewer is saying), whether either
 side is speaking (so a time warning or wrap-up never talks over a turn) and a heartbeat about
 every 30 seconds. It carries out the actions the controller returns: speak, report to Rails,
-publish progress and the clock as agent participant attributes and leave. A heartbeat adds the
+publish progress and the clock as agent participant attributes and leave. When Rails refuses a
+call with `connection_ended` (recovery or the owner already finished the interview), the
+interviewer is cut off and the agent leaves without reporting or finishing anything else. A heartbeat adds the
 provider usage that is new since Rails last acknowledged one (from LiveKit's running
 `AgentSession.usage`, priced in live_interviews.usage); a lost heartbeat's seconds and usage go
 with the next one. All interview decisions live in the controller; nothing here is recorded
@@ -51,13 +53,15 @@ from psycopg import Error as DatabaseError
 from pydantic import BaseModel, ConfigDict
 
 from interviews.conversation import ContextLimitExceeded
-from live_interviews.client import RailsClientError, RailsTransportError
+from live_interviews.client import LiveConnectionEnded, RailsClientError, RailsTransportError
 from live_interviews.controller import (
+    ENDED,
     AskFollowUp,
     CandidateJoined,
     CandidateLeft,
     CandidateTurnFinished,
     ClosingSpoken,
+    ConnectionEnded,
     EndRequested,
     EndSession,
     FinishAnswer,
@@ -132,6 +136,7 @@ class LiveInterviewRunner:
         self._tasks: set[asyncio.Task] = set()
         self.finished = False  # Rails accepted the finish
         self._left = False
+        self._ended_by_rails = False  # Rails said the connection or interview is over; only leaving is left
         self._acknowledged = LiveUsageTotals()  # usage Rails has acknowledged in heartbeats
         self._unsent_seconds = 0  # billed seconds of heartbeats Rails did not get
 
@@ -204,7 +209,7 @@ class LiveInterviewRunner:
             await self.handle(MenuChoice(option))
             return "accepted"
         await self.handle(EndRequested())
-        if not self.finished:
+        if not self.finished and not self._ended_by_rails:
             raise rtc.RpcError(2002, "The interview could not be finished")
         return "ended"
 
@@ -213,14 +218,24 @@ class LiveInterviewRunner:
         for action in self._controller.handle(event):
             if isinstance(action, ToolResult):
                 result = action.text
-            else:
+            elif not self._ended_by_rails or (isinstance(action, EndSession) and not self._left):
                 await self._carry_out(action)
-        return result
+        return ENDED if self._ended_by_rails and result is not None else result
 
     async def _report(self, call, **values):
-        """Call Rails; a refusal means the report was stale, so it is logged (never its text) and skipped."""
+        """Call Rails; a refusal means the report was stale, so it is logged (never its text) and skipped.
+
+        A `connection_ended` refusal means recovery or the owner already finished the interview:
+        the interviewer stops talking and the controller leaves, with nothing else sent to Rails."""
         try:
             return await call(self._connection_id, **values)
+        except LiveConnectionEnded:
+            logger.info("Live connection ended by Rails during %s; leaving", call.__name__)
+            if not self._ended_by_rails:
+                self._ended_by_rails = True
+                self._session.interrupt()
+                await self._dispatch(ConnectionEnded())
+            return None
         except (RailsClientError, RailsTransportError) as error:
             logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
             return None

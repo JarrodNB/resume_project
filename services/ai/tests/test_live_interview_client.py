@@ -9,6 +9,7 @@ import pytest
 from live_interviews.client import (
     HeartbeatReply,
     LiveConnectionClaim,
+    LiveConnectionEnded,
     RailsClientError,
     RailsLiveInterviewClient,
     RailsTransportError,
@@ -63,6 +64,31 @@ def test_refusals_surface_as_client_errors():
     with pytest.raises(RailsClientError) as error:
         run(check())
     assert error.value.status_code == 409
+    assert not isinstance(error.value, LiveConnectionEnded)
+
+
+def test_a_refusal_saying_the_connection_ended_raises_live_connection_ended():
+    body = {"errors": ["Live connection has ended"], "code": "connection_ended"}
+
+    async def check():
+        async with client_for(lambda _request: httpx.Response(409, json=body)) as client:
+            await client.heartbeat("live", sequence=3, billed_seconds_delta=30, usage=[])
+
+    with pytest.raises(LiveConnectionEnded) as error:
+        run(check())
+    assert isinstance(error.value, RailsClientError) and error.value.status_code == 409
+
+
+def test_other_refusal_codes_stay_ordinary_client_errors():
+    body = {"errors": ["No more follow-ups for this question"], "code": "something_else"}
+
+    async def check():
+        async with client_for(lambda _request: httpx.Response(409, json=body)) as client:
+            await client.prompt_asked("live", question_position=0, kind="follow_up", text="Why?", prompt_key="k")
+
+    with pytest.raises(RailsClientError) as error:
+        run(check())
+    assert not isinstance(error.value, LiveConnectionEnded)
 
 
 def test_prompt_asked_retries_the_identical_request_once_after_a_lost_reply():

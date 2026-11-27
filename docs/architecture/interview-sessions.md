@@ -415,7 +415,10 @@ session is completed or abandoned by the usual rule. The finish re-checks under 
 interview and connection locks that the connection is still open and still quiet, so a late
 heartbeat or claim wins and a repeat run changes nothing. A quiet connection whose session
 already finished or expired is only closed. If a heartbeat merely failed while the agent kept
-running, the agent's later calls are refused and it closes at its own time limit.
+running, or the owner ended the room, the agent's later calls are refused with 409 and
+`code: "connection_ended"` (any refusal because the connection ended or the session is no longer
+a live, active, unexpired session; other refusals, such as a follow-up past the cap, carry no
+code). The agent then cuts off the interviewer and leaves at once, without calling `finish` again.
 
 **Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same
 setup", the room first starts the new preparation, then calls

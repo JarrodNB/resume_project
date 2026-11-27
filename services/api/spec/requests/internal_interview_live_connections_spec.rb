@@ -224,7 +224,7 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(interview.questions.find_by!(position: 0).accepted_answer_count).to eq(2)
       follow_up(prompt_key: "third")
       expect(response).to have_http_status(:conflict)
-      expect(response.parsed_body["errors"]).to eq([ "No more follow-ups for this question" ])
+      expect(response.parsed_body).to eq("errors" => [ "No more follow-ups for this question" ]) # no connection_ended code
       expect(interview.messages.follow_up.count).to eq(1)
     end
 
@@ -552,6 +552,36 @@ RSpec.describe "Internal live interview connections", type: :request do
       connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
       heartbeat(1)
       expect(response).to have_http_status(:conflict)
+    end
+  end
+
+  describe "after the connection or session is over" do
+    def heartbeat(sequence)
+      post "#{base}/heartbeat", params: { sequence: sequence, billed_seconds_delta: 1, usage: [] }, headers: headers, as: :json
+    end
+
+    it "refuses every agent callback with the connection_ended code once recovery or the owner ended the connection" do
+      opening_id = asked_opening
+      answer_finished(prompt_message_id: opening_id)
+      expect(Interviews::FinishLiveService.call(connection: connection, reason: "disconnected")).to be_success
+
+      heartbeat(1)
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to include("code" => "connection_ended")
+      answer_finished(prompt_message_id: opening_id, transcript: "Something new.")
+      expect(response.parsed_body).to include("code" => "connection_ended")
+      prompt_asked(kind: "follow_up", text: "Why?", prompt_key: "late")
+      expect(response.parsed_body).to include("code" => "connection_ended")
+      post "#{base}/question_advanced", params: { question_position: 0 }, headers: headers, as: :json
+      expect(response.parsed_body).to include("code" => "connection_ended")
+    end
+
+    it "uses the same code when the session itself is no longer active" do
+      claim
+      interview.update_columns(status: "abandoned")
+      heartbeat(1)
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to include("code" => "connection_ended")
     end
   end
 

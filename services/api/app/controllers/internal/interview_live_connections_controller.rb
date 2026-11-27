@@ -1,6 +1,8 @@
 # Private callbacks for the live interview agent (ai-live). The agent authenticates with the
 # interview service secret; the live connection record establishes which session it may touch.
 # Business rules live in the live connection services; this controller only maps HTTP.
+# A refusal is 409 with `errors`; when the connection or its session is over it also has
+# `code: "connection_ended"`, which tells the agent to leave (other refusals are just stale reports).
 module Internal
   class InterviewLiveConnectionsController < ActionController::API
     include ServiceCallbacks
@@ -58,7 +60,9 @@ module Internal
     end
 
     def respond(result)
-      render json: result.success? ? result.value : { errors: result.errors }, status: result.success? ? :ok : :conflict
+      return render json: result.value, status: :ok if result.success?
+
+      render json: { errors: result.errors, code: result.code&.to_s }.compact, status: :conflict
     end
   end
 end

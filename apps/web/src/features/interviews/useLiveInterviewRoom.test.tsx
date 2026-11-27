@@ -78,6 +78,14 @@ it('fails with the Rails refusal without connecting', async () => {
   const view = render(joinMock({ errors: ['This interview is not a live interview'] }))
   await waitFor(() => expect(view.result.current).toMatchObject({ status: 'failed', error: 'This interview is not a live interview' }))
   expect(rooms.every((room) => !room.connect.mock.calls.length)).toBe(true)
+  expect(view.result.current.roomOpened).toBe(false) // Rails opened no room, so there is none to end
+})
+
+it('remembers that Rails opened the room once it signed a join token', async () => {
+  const view = render(joinMock({ url: 'wss://live.test', token: 'join-token', roomName: 'room', expiresAt: '2099-01-01T00:00:00Z' }))
+  expect(view.result.current.roomOpened).toBe(false)
+  await waitFor(() => expect(view.result.current.status).toBe('connected'))
+  expect(view.result.current.roomOpened).toBe(true)
 })
 
 async function connectedRoom(...more: MockLink.MockedResponse[]) {

@@ -2,7 +2,8 @@
 # did not answer). It runs the same finish as the agent: completed with at least one saved
 # answer, abandoned otherwise. When the live room failed and the candidate leaves it for a
 # turn-based interview with the same setup (`live_unavailable`), the room ends as `failed`
-# by the same rule, so the abandoned live session never stays active.
+# by the same rule, so the abandoned live session never stays active. A live session whose room
+# was never opened (its first join was refused) is abandoned.
 module Mutations
   module Interviews
     class EndLiveInterview < BaseInterviewMutation

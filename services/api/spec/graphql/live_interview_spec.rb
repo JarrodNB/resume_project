@@ -127,13 +127,14 @@ RSpec.describe "Live interview GraphQL" do
       expect(result.dig("data", "endLiveInterview")).to eq("interview" => nil, "errors" => [ "Interview is not active" ], "errorCode" => nil)
     end
 
-    it "abandons a live interview with no answers and refuses one that never opened a room" do
+    it "abandons a live interview with no answers, also one whose room was never joined" do
       interview = ready_live_interview(user)
-      variables = { input: { interviewId: interview.id } }
-      expect(execute_graphql(end_live, user: user, variables: variables).dig("data", "endLiveInterview", "errors")).to eq([ "This interview has no live room" ])
       Interviews::JoinLiveService.call(interview: interview)
-      result = execute_graphql(end_live, user: user, variables: variables)
+      result = execute_graphql(end_live, user: user, variables: { input: { interviewId: interview.id } })
       expect(result.dig("data", "endLiveInterview", "interview", "status")).to eq("abandoned")
+      never_joined = ready_live_interview(user)
+      result = execute_graphql(end_live, user: user, variables: { input: { interviewId: never_joined.id, liveUnavailable: true } })
+      expect(result.dig("data", "endLiveInterview")).to include("interview" => include("status" => "abandoned"), "errors" => [])
     end
   end
 

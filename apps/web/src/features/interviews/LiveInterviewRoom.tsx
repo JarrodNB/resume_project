@@ -13,7 +13,8 @@
  * connection drops it shows "Reconnecting…" while LiveKit retries, and after a full disconnect a
  * Rejoin interview button (the interviewer waits about 2 minutes, then finishes the interview).
  * End interview (after a confirmation) finishes the session: completed with at least one saved
- * answer, so the page shows the usual review, or abandoned with none.
+ * answer, so the page shows the usual review, or abandoned with none. It is hidden when Rails
+ * never opened a room (the first join was refused); the fallback then abandons the live session.
  */
 import { useEffect, useId, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -65,7 +66,7 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
       <Button type="button" className="min-h-11 justify-self-start" onClick={() => void room.rejoin()}>Rejoin interview</Button>
     </div>}
     {!showFallback && (room.status === 'connected' || room.status === 'reconnecting') && <LiveRoomControls room={room} />}
-    {room.status !== 'joining' && <EndLiveInterviewButton room={room} />}
+    {room.status !== 'joining' && room.roomOpened && <EndLiveInterviewButton room={room} />}
     {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={interview.id} visitId={referenceVisitId} message={reply} disabled={false} />}
   </section>
 }

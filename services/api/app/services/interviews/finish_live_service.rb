@@ -28,14 +28,28 @@ module Interviews
     # The agent's refusal codes (`connection_ended`, `invalid_request`) are for the agent, so the
     # owner's failure carries only the message.
     #
-    # @return [ServiceResult<Hash>] as `call`, or a failure when the interview never opened a room
+    # A live interview whose room was never opened (its first join was refused, for example too few
+    # live minutes or LiveKit not configured) has no connection and no answers, so it is abandoned
+    # through AbandonService rather than staying resumable until it expires.
+    #
+    # @return [ServiceResult<Hash>] as `call`, or a failure for an interview that is not a live one
     def self.for_owner(interview:, live_unavailable: false)
       connection = interview.live_connections.open.first || interview.live_connections.order(:created_at).last
-      return ServiceResult.new(success: false, value: nil, errors: [ "This interview has no live room" ]) unless connection
+      return abandon_never_joined(interview) unless connection
 
       result = call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate")
       result.success? ? result : result.with(code: nil)
     end
+
+    def self.abandon_never_joined(interview)
+      return ServiceResult.new(success: false, value: nil, errors: [ "This interview has no live room" ]) unless interview.conversation_live?
+
+      result = AbandonService.call(interview: interview)
+      return result.with(code: nil) unless result.success?
+
+      ServiceResult.new(success: true, value: { status: result.value.status, end_reason: nil, revision: result.value.revision }, errors: [])
+    end
+    private_class_method :abandon_never_joined
 
     # Closes the interview's open live connection, if any, with the bill unknown (no final heartbeat
     # was named), so the agent's next call is refused as `connection_ended` and it leaves. Callers

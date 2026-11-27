@@ -15,7 +15,7 @@ const { state, start, live } = vi.hoisted(() => ({
 }))
 const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 function liveRoom(change: Record<string, unknown> = {}) {
-  return { status: 'joining', agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
+  return { status: 'joining', roomOpened: true, agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),
     rejoin: vi.fn().mockResolvedValue(undefined), leaveForTurnBased: vi.fn().mockResolvedValue(undefined), ...change }
 }
@@ -221,6 +221,13 @@ it('shows ending progress and a refusal to end', () => {
   live.value = liveRoom({ status: 'connected', agentJoined: true, endError: 'Interview expired' })
   renderInterview()
   expect(screen.getByRole('alert')).toHaveTextContent('Interview expired')
+})
+
+it('hides End interview when Rails never opened a room, leaving only the turn-based fallback', () => {
+  live.value = liveRoom({ status: 'failed', roomOpened: false, error: 'You need at least 5 live minutes.' })
+  renderInterview()
+  expect(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'End interview' })).not.toBeInTheDocument()
 })
 
 it('offers End interview even while the interviewer has not joined', () => {

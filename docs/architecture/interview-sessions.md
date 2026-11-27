@@ -673,7 +673,11 @@ cuts off the interviewer and leaves at once, without calling `finish` again.
 **Turn-based fallback.** When the candidate takes "Start a turn-based interview with the same
 setup", the room first starts the new preparation, then calls
 `endLiveInterview(interviewId, liveUnavailable: true)`, which finishes the live room as `failed`
-by the same rule, so the abandoned live session never stays active.
+by the same rule, so the abandoned live session never stays active. If Rails never opened a room
+(the first join was refused, for example too few live minutes or LiveKit not configured), the
+session is still `ready` with no connection and no answers, so `endLiveInterview` abandons it
+through `AbandonService` rather than leaving it resumable for seven days. The room hides End
+interview until Rails has opened a room.
 
 #### Time, live minutes and heartbeats
 

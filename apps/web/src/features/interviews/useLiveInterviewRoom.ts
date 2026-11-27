@@ -18,7 +18,9 @@
  * fresh token; the interviewer waits about 2 minutes for the candidate) and connects again. If
  * Rails refuses because the interview has meanwhile finished, the open interview query is
  * refetched so the page shows its review or abandoned state. `leaveForTurnBased()` ends the live
- * room as failed through Rails when the candidate switches to a turn-based interview.
+ * room as failed through Rails when the candidate switches to a turn-based interview (a live
+ * session whose room Rails never opened is abandoned). `roomOpened` says whether Rails ever signed
+ * a join token, so whether there is a room End interview can finish.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation } from '@apollo/client/react'
@@ -36,7 +38,21 @@ export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer';
 export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; stateSeq: number | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
 export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
-interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; agentLeft: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
+interface LiveRoomState {
+  status: LiveRoomStatus
+  /** Rails opened a live room (signed a join token) at least once, so there is a room End interview can finish. */
+  roomOpened: boolean
+  agentJoined: boolean
+  agentLeft: boolean
+  error: string | null
+  captions: LiveCaption[]
+  progress: LiveRoomProgress
+  muted: boolean
+  ending: boolean
+  endError: string | null
+  choosing: boolean
+  chooseError: string | null
+}
 export interface LiveInterviewRoom extends LiveRoomState {
   mute: (on: boolean) => Promise<void>
   /** Sends a menu choice to the interviewer; resolves true once the agent answered (accepted, or
@@ -89,7 +105,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const [join] = useMutation(JOIN_LIVE_INTERVIEW)
   const [endLive] = useMutation(END_LIVE_INTERVIEW)
   const client = useApolloClient()
-  const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
+  const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', roomOpened: false, agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
   const livekitRef = useRef<Room | null>(null)
   const connectRef = useRef<(() => Promise<boolean>) | null>(null)
   /** The candidate's mute choice, kept across a rejoin so the microphone matches the button. */
@@ -153,7 +169,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
         const payload = result.data?.joinLiveInterview
         if (!payload?.url || !payload.token) throw new Error(payload?.errors.join(' ') || 'Could not join the live interview.')
         if (cancelled) return true
-        update(() => ({ status: 'connecting' }))
+        update(() => ({ status: 'connecting', roomOpened: true }))
         await livekit.connect(payload.url, payload.token)
         if (cancelled) return true
         update(() => ({ status: 'connected' }))

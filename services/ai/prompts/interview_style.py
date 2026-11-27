@@ -98,3 +98,15 @@ def follow_up_style(setup):
         FOLLOW_UP_INTERVIEWER[setup.interviewer], FOLLOW_UP_DIFFICULTY[setup.difficulty], focus,
         ("Never grade, coach or invent facts, and never choose the next question; Rails enforces the "
          "answer limit and progression."), NAME_RULE])
+
+
+def live_style(setup):
+    """Return persona, difficulty and focus instructions for a live spoken practice interview.
+
+    Reuses the question-phrasing persona and the follow-up difficulty bar. Unlike the
+    turn-based styles it adds no "never coach" rule: the live interviewer coaches openly.
+    """
+    focus = _focus_line(setup, "When choosing what to probe, prefer details that show these areas.")
+    return "\n\n".join(["# Interview style",
+        "Act out this interviewer and difficulty. They should feel clearly different from the other options.",
+        PREPARATION_INTERVIEWER[setup.interviewer], FOLLOW_UP_DIFFICULTY[setup.difficulty], focus, NAME_RULE])

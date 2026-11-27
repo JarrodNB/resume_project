@@ -7,7 +7,7 @@
  * two-minute warning flag) the agent publishes as participant attributes, and lets the candidate mute. Leaving the page disconnects the room.
  * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
  * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`), with the
- * question position and phase the room showed for it; the agent then speaks the choice. A click
+ * room state counter (`cd.state_seq`) the room showed for it; the agent then speaks the choice. A click
  * that landed after the interview moved on by voice answers `ignored`, which is not an error. `end()` asks the agent to end the interview (`{"option":"end"}`), then calls
  * Rails' `endLiveInterview`. With no agent in the room, or when the RPC fails with an error, that
  * call comes at once; otherwise it waits for the agent's own finish (at most 35 seconds, while
@@ -33,7 +33,7 @@ export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer';
  * `menuOffered` is true while the interviewer waits for the candidate's coaching-menu choice.
  * `secondsLeft` is the session's counted time left (menu waits are free), refreshed about every
  * 5 seconds; `timeWarning` turns on once about 2 minutes (or live minutes) are left. */
-export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
+export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; stateSeq: number | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
 export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
 interface LiveRoomState { status: LiveRoomStatus; agentJoined: boolean; agentLeft: boolean; error: string | null; captions: LiveCaption[]; progress: LiveRoomProgress; muted: boolean; ending: boolean; endError: string | null; choosing: boolean; chooseError: string | null }
@@ -52,7 +52,7 @@ export interface LiveInterviewRoom extends LiveRoomState {
 
 /** Keep the screen and memory bounded in a long interview. */
 const MAX_CAPTIONS = 50
-const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
+const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 /** How long End interview waits for the agent's answer. The agent may first spend up to 30 seconds
  * delivering the last answer, usage and its finish to Rails (`DELIVERY_WAIT_SECONDS` in
  * services/ai/live_interviews/agent.py), so this is that wait plus room for the round trip. Finishing
@@ -74,10 +74,10 @@ function wholeNumber(value: string | undefined) {
   return Number.isInteger(number) && number >= 0 ? number : null
 }
 
-/** The agent publishes `cd.question_position`, `cd.question_total`, `cd.phase`, `cd.menu_offered`,
- * `cd.seconds_left` and `cd.time_warning` as strings. */
+/** The agent publishes `cd.question_position`, `cd.question_total`, `cd.phase`, `cd.state_seq`,
+ * `cd.menu_offered`, `cd.seconds_left` and `cd.time_warning` as strings. */
 function agentProgress(attributes: Record<string, string>): LiveRoomProgress {
-  return { questionPosition: wholeNumber(attributes['cd.question_position']), questionTotal: wholeNumber(attributes['cd.question_total']), phase: attributes['cd.phase'] ?? null,
+  return { questionPosition: wholeNumber(attributes['cd.question_position']), questionTotal: wholeNumber(attributes['cd.question_total']), phase: attributes['cd.phase'] ?? null, stateSeq: wholeNumber(attributes['cd.state_seq']),
     menuOffered: attributes['cd.menu_offered'] === 'true', secondsLeft: wholeNumber(attributes['cd.seconds_left']), timeWarning: attributes['cd.time_warning'] === 'true' }
 }
 
@@ -94,7 +94,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const connectRef = useRef<(() => Promise<boolean>) | null>(null)
   /** The candidate's mute choice, kept across a rejoin so the microphone matches the button. */
   const mutedRef = useRef(false)
-  /** The progress the room last showed, which a choice names so the agent can ignore a stale click. */
+  /** The progress the room last showed, whose state counter a choice echoes so the agent can ignore a stale click. */
   const shownProgressRef = useRef(NO_PROGRESS)
   useEffect(() => { shownProgressRef.current = room.progress }, [room.progress])
   useEffect(() => {
@@ -187,10 +187,10 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     const livekit = livekitRef.current
     const agent = agentIn(livekit)
     let sent = false
-    const { questionPosition, phase } = shownProgressRef.current
+    const { stateSeq } = shownProgressRef.current
     if (livekit && agent) {
       try {
-        const payload = JSON.stringify({ option, question_position: questionPosition, phase })
+        const payload = JSON.stringify({ option, state_seq: stateSeq })
         await within(livekit.localParticipant.performRpc({ destinationIdentity: agent.identity, method: 'interview.choose', payload }), LIVE_CHOICE_TIMEOUT_MS)
         sent = true
       } catch { /* Reported below; the candidate can retry or say the choice. */ }

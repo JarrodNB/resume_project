@@ -311,8 +311,8 @@ class LiveInterviewRunner:
     async def choose(self, data: rtc.RpcInvocationData) -> str:
         """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview.
 
-        A button names the question position and phase the room showed for it. One that no longer
-        matches (the interview moved on by voice while the click was on its way) answers "ignored"
+        A button echoes the room state counter (`cd.state_seq`) the room showed for it. One from an
+        older room state (the interview moved on by voice while the click was on its way) answers "ignored"
         and changes nothing: the interviewer keeps talking. Otherwise the choice cuts off the
         interviewer: whatever that speech had said is never taken as a turn, and a tool call its
         response made does nothing once it finishes."""
@@ -324,11 +324,11 @@ class LiveInterviewRunner:
         if not isinstance(option, str) or option not in MENU_OPTIONS | {"end"}:
             raise rtc.RpcError(2001, "Unknown interview option")
         if option in MENU_OPTIONS:
-            position, phase = choice.get("question_position"), choice.get("phase")
-            if not isinstance(position, int) or isinstance(position, bool) or not isinstance(phase, str):
+            state_seq = choice.get("state_seq")
+            if not isinstance(state_seq, int) or isinstance(state_seq, bool):
                 raise rtc.RpcError(2001, "Unknown interview option")
             async with self._lock:  # decided before anything is cut off, and in order with tool calls
-                actions = self._controller.handle(MenuChoice(option, position, phase))
+                actions = self._controller.handle(MenuChoice(option, state_seq))
                 if any(isinstance(action, ChoiceIgnored) for action in actions):
                     return "ignored"
                 self._cut_off_the_interviewer()
@@ -437,6 +437,7 @@ class LiveInterviewRunner:
                 "cd.question_position": str(action.question_position),
                 "cd.question_total": str(action.question_total),
                 "cd.phase": action.phase,
+                "cd.state_seq": str(action.state_seq),
                 "cd.menu_offered": "true" if action.menu_offered else "false",
                 "cd.seconds_left": str(action.seconds_left),
                 "cd.time_warning": "true" if action.time_warning else "false",

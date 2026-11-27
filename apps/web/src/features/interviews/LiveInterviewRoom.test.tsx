@@ -13,7 +13,7 @@ const { state, start, live } = vi.hoisted(() => ({
   start: vi.fn(),
   live: { hook: vi.fn(), value: {} as Record<string, unknown> },
 }))
-const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
+const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 function liveRoom(change: Record<string, unknown> = {}) {
   return { status: 'joining', agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),

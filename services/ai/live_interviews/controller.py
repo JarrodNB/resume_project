@@ -174,13 +174,14 @@ MenuOption = Literal["retry", "repeat", "hint", "next", "feedback"]
 class MenuChoice:
     """The candidate pressed a room button (LiveKit RPC `interview.choose`).
 
-    `question_position` and `phase` are what the room showed when the button was pressed. The
-    browser shows a button until the agent's next room update arrives, so a click can land after
-    the interview moved on by voice; a choice that no longer matches is ignored (`ChoiceIgnored`)."""
+    `state_seq` is the room state counter (`cd.state_seq`) the room showed when the button was
+    pressed. The browser shows a button until the agent's next room update arrives, so a click can
+    land after the interview moved on by voice, even back to the same question and phase (a menu
+    after Try again, a follow-up's answer); a choice from an older room state is ignored
+    (`ChoiceIgnored`)."""
 
     option: MenuOption
-    question_position: int
-    phase: str
+    state_seq: int
 
 
 @dataclass(frozen=True)
@@ -342,12 +343,15 @@ class SayClosing:
 @dataclass(frozen=True)
 class PublishRoomState:
     """Show the candidate's browser where the interview is (agent participant attributes),
-    including the counted seconds left and whether the time warning is showing."""
+    including the counted seconds left and whether the time warning is showing. `state_seq` goes
+    up each time the question or phase changes (so the buttons shown may have), never for a clock
+    refresh; a button press echoes it."""
 
     question_position: int
     question_total: int
     phase: Phase
     seconds_left: int
+    state_seq: int
     menu_offered: bool = False
     time_warning: bool = False
 
@@ -426,6 +430,8 @@ class LiveInterviewController:
         self._sequence = 0  # the last heartbeat's sequence number
         self._last_tick: float | None = None
         self._published_seconds = 0  # the seconds left the room last showed
+        self._published_view: tuple[int, Phase] | None = None  # the question and phase the room last showed
+        self._state_seq = 0  # counts room states with a new question or phase; button presses echo it
         self._warned = False  # the one time warning was given (shown and due to be said)
         self._warning_due = False  # the warning still has to be said at the next quiet moment
         self._wrap_reason: Literal["time_limit", "allowance"] | None = None
@@ -507,11 +513,10 @@ class LiveInterviewController:
         return [*self._save_answer(), *self._finish("ended_by_candidate")]
 
     def _choice_applies(self, choice: MenuChoice) -> bool:
-        """A button counts only where the room offers it, and only if the room still shows what it
-        showed when it was pressed: menu buttons at the menu, "How was that?" while answering."""
+        """A button counts only where the room offers it, and only if it was pressed in the room
+        state shown now: menu buttons at the menu, "How was that?" while answering."""
         offered_in = "answering" if choice.option == "feedback" else "menu"
-        return (not self._wrap_reason and choice.question_position == self._question_position
-                and choice.phase == self._phase == offered_in)
+        return not self._wrap_reason and choice.state_seq == self._state_seq and self._phase == offered_in
 
     def _start(self, event: Started) -> list[LiveAction]:
         if self._question_position is not None:
@@ -813,7 +818,13 @@ class LiveInterviewController:
         return max(math.ceil(self._seconds_left), 0)
 
     def _room_state(self) -> PublishRoomState:
+        """Every question or phase change is published here, so this is where the counter moves.
+        A follow-up or a retry passes through `asking`, so returning to the same question and
+        phase still shows a new counter."""
         self._published_seconds = self._shown_seconds()
-        return PublishRoomState(self._question_position or 0, self._question_total, self._phase,
-                                seconds_left=self._published_seconds, menu_offered=self._phase == "menu",
+        view = (self._question_position or 0, self._phase)
+        if view != self._published_view:
+            self._published_view, self._state_seq = view, self._state_seq + 1
+        return PublishRoomState(view[0], self._question_total, self._phase, seconds_left=self._published_seconds,
+                                state_seq=self._state_seq, menu_offered=self._phase == "menu",
                                 time_warning=self._warned)

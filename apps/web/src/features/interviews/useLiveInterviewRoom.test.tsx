@@ -69,7 +69,7 @@ it('clears the joined interviewer and its progress when the agent participant le
   expect(view.result.current.agentJoined).toBe(true)
   act(() => room.handlers.get('participantDisconnected')!(agent))
   expect(view.result.current).toMatchObject({ agentJoined: false, agentLeft: true })
-  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false })
   act(() => room.handlers.get('participantConnected')!(agent))
   expect(view.result.current).toMatchObject({ agentJoined: true, agentLeft: false })
 })
@@ -100,11 +100,11 @@ it('shows captions for both sides, replacing interim text with the final text pe
 
 it('reads question progress and phase from the agent participant attributes', async () => {
   const { view, room } = await connectedRoom()
-  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false })
   const agent = { isAgent: true, attributes: { 'cd.question_position': '0', 'cd.question_total': '5', 'cd.phase': 'asking', 'cd.menu_offered': 'false',
     'cd.seconds_left': '1500', 'cd.time_warning': 'false' } }
   act(() => room.handlers.get('participantConnected')!(agent))
-  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', menuOffered: false, secondsLeft: 1500, timeWarning: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', stateSeq: null, menuOffered: false, secondsLeft: 1500, timeWarning: false })
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'answering' }, { ...agent, attributes: { ...agent.attributes, 'cd.phase': 'answering' } }))
   expect(view.result.current.progress.phase).toBe('answering')
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'x' }, { isAgent: false, attributes: { 'cd.phase': 'x' } }))
@@ -196,12 +196,12 @@ it('reads whether the agent offers the coaching menu', async () => {
 it('sends a menu choice to the agent and reports a failed choice', async () => {
   const { view, room } = await connectedRoom()
   room.remoteParticipants.set(agent.identity, agent)
-  act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '0', 'cd.phase': 'menu', 'cd.menu_offered': 'true' } }))
+  act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '0', 'cd.phase': 'menu', 'cd.state_seq': '6', 'cd.menu_offered': 'true' } }))
   room.performRpc.mockResolvedValue('accepted')
   let sent = false
   await act(async () => { sent = await view.result.current.choose('retry') })
   expect(sent).toBe(true)
-  expect(room.performRpc).toHaveBeenCalledWith(expect.objectContaining({ destinationIdentity: 'agent-1', method: 'interview.choose', payload: JSON.stringify({ option: 'retry', question_position: 0, phase: 'menu' }) }))
+  expect(room.performRpc).toHaveBeenCalledWith(expect.objectContaining({ destinationIdentity: 'agent-1', method: 'interview.choose', payload: JSON.stringify({ option: 'retry', state_seq: 6 }) }))
   expect(view.result.current).toMatchObject({ choosing: false, chooseError: null })
 
   room.performRpc.mockRejectedValue(new Error('Application error'))
@@ -213,21 +213,21 @@ it('sends a menu choice to the agent and reports a failed choice', async () => {
   expect(view.result.current.chooseError).toBeNull()
 })
 
-it('names the question and phase a button was shown for, and takes a stale click quietly', async () => {
+it('echoes the room state a button was shown in, and takes a stale click quietly', async () => {
   // The candidate said "move on" while clicking Move on: the agent already advanced and answers
   // "ignored" for the click it got for question 1's menu. That is no failure to show.
   const { view, room } = await connectedRoom()
   room.remoteParticipants.set(agent.identity, agent)
-  act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '0', 'cd.phase': 'menu', 'cd.menu_offered': 'true' } }))
+  act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '0', 'cd.phase': 'menu', 'cd.state_seq': '6', 'cd.menu_offered': 'true' } }))
   room.performRpc.mockResolvedValue('ignored')
   let sent = false
   await act(async () => { sent = await view.result.current.choose('next') })
-  expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ payload: JSON.stringify({ option: 'next', question_position: 0, phase: 'menu' }) }))
+  expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ payload: JSON.stringify({ option: 'next', state_seq: 6 }) }))
   expect(sent).toBe(true)
   expect(view.result.current).toMatchObject({ choosing: false, chooseError: null })
-  act(() => room.handlers.get('participantAttributesChanged')!({}, { ...agent, attributes: { 'cd.question_position': '1', 'cd.phase': 'answering', 'cd.menu_offered': 'false' } }))
+  act(() => room.handlers.get('participantAttributesChanged')!({}, { ...agent, attributes: { 'cd.question_position': '1', 'cd.phase': 'answering', 'cd.state_seq': '8', 'cd.menu_offered': 'false' } }))
   await act(async () => { await view.result.current.choose('feedback') })
-  expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ payload: JSON.stringify({ option: 'feedback', question_position: 1, phase: 'answering' }) }))
+  expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ payload: JSON.stringify({ option: 'feedback', state_seq: 8 }) }))
 })
 
 it('reports a choice made while the interviewer is not in the room', async () => {
@@ -296,11 +296,11 @@ it('ends the live room as failed through Rails, without the agent, when the cand
 it('reads the documented cd.* attributes and sends each documented interview.choose option', async () => {
   const { view, room } = await connectedRoom()
   act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '2', 'cd.question_total': '6', 'cd.phase': 'menu',
-    'cd.menu_offered': 'true', 'cd.seconds_left': '90', 'cd.time_warning': 'true' } }))
-  expect(view.result.current.progress).toEqual({ questionPosition: 2, questionTotal: 6, phase: 'menu', menuOffered: true, secondsLeft: 90, timeWarning: true })
+    'cd.state_seq': '11', 'cd.menu_offered': 'true', 'cd.seconds_left': '90', 'cd.time_warning': 'true' } }))
+  expect(view.result.current.progress).toEqual({ questionPosition: 2, questionTotal: 6, phase: 'menu', stateSeq: 11, menuOffered: true, secondsLeft: 90, timeWarning: true })
   room.remoteParticipants.set(agent.identity, agent)
   for (const option of ['retry', 'repeat', 'hint', 'next', 'feedback'] as const) {
     await act(async () => { await view.result.current.choose(option) })
-    expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'interview.choose', payload: JSON.stringify({ option, question_position: 2, phase: 'menu' }) }))
+    expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'interview.choose', payload: JSON.stringify({ option, state_seq: 11 }) }))
   }
 })

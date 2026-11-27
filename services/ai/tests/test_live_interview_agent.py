@@ -297,8 +297,8 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "First question?" in session.started["instructions"]
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
-            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.menu_offered": "false",
-            "cd.seconds_left": "1500", "cd.time_warning": "false"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.state_seq": "1",
+            "cd.menu_offered": "false", "cd.seconds_left": "1500", "cd.time_warning": "false"}
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -315,11 +315,16 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
     assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "answering"
 
 
-def rpc(option, question_position=None, phase=None):
-    """An `interview.choose` call; a button names the question position and phase the room showed."""
+def shown_seq(ctx):
+    """The room state counter the browser shows now (the agent's latest `cd.state_seq`)."""
+    return int(ctx.room.local_participant.attributes[-1]["cd.state_seq"])
+
+
+def rpc(option, state_seq=None):
+    """An `interview.choose` call; a button echoes the room state counter it was shown with."""
     payload = {"option": option}
-    if question_position is not None:
-        payload |= {"question_position": question_position, "phase": phase}
+    if state_seq is not None:
+        payload |= {"state_seq": state_seq}
     return SimpleNamespace(request_id="r", caller_identity="user-owner", payload=json.dumps(payload),
                            response_timeout=5.0, method="interview.choose")
 
@@ -348,8 +353,8 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         session.emit_item("assistant", "Quick feedback: clear story. Lead with the result.")
         await settle()
         assert ctx.room.local_participant.attributes[-1] == {
-            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.menu_offered": "true",
-            "cd.seconds_left": "1500", "cd.time_warning": "false"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.state_seq": "6",
+            "cd.menu_offered": "true", "cd.seconds_left": "1500", "cd.time_warning": "false"}
         assert "hint" in session.replies[-1].lower()  # the menu is offered
         assert "finished answer" in (await agent.give_hint(tool_call())).lower()
         assert "repeat" in (await agent.repeat_question(tool_call())).lower()
@@ -404,16 +409,16 @@ def test_menu_buttons_interrupt_and_have_the_interviewer_speak_the_choice():
         await settle()
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
-        assert await choose(rpc("feedback", 0, "answering")) == "accepted"
+        assert await choose(rpc("feedback", shown_seq(ctx))) == "accepted"
         assert session.interrupted == 1 and "answer so far" in session.replies[-1]
         session.emit_item("assistant", "Quick feedback: good start.")
         await settle()
         await session.agent.next_question(tool_call())
         session.emit_item("assistant", "Quick feedback: clear.")
         await settle()
-        assert await choose(rpc("hint", 0, "menu")) == "accepted"
+        assert await choose(rpc("hint", shown_seq(ctx))) == "accepted"
         assert "finished answer" in session.replies[-1]
-        assert await choose(rpc("next", 0, "menu")) == "accepted"
+        assert await choose(rpc("next", shown_seq(ctx))) == "accepted"
         assert "question 2" in session.replies[-1].lower()
 
     asyncio.run(scenario())
@@ -433,7 +438,7 @@ def test_words_cut_off_by_a_room_choice_never_count_as_the_turn_the_choice_asked
         session.emit_item("user", "I rebuilt the scheduler.")
         await settle()
         chatter = session.current_speech = FakeToolSpeech()  # the interviewer is mid-sentence
-        assert await choose(rpc("feedback", 0, "answering")) == "accepted"
+        assert await choose(rpc("feedback", shown_seq(ctx))) == "accepted"
         session.current_speech = None
         # LiveKit adds the cut-off message only after its playout task ends, after the choice ran.
         session.emit_item("assistant", "Mm, and what happened", speech=chatter)
@@ -463,10 +468,11 @@ def test_a_stale_room_button_neither_moves_the_interview_nor_cuts_off_the_interv
         await session.agent.next_question(tool_call())
         session.emit_item("assistant", "Quick feedback: clear.")
         await settle()
+        menu = shown_seq(ctx)
         await session.agent.next_question(tool_call())  # "move on", said out loud
         asking = session.current_speech = FakeToolSpeech()  # question 2 is being asked
         replies = len(session.replies)
-        assert await choose(rpc("next", 0, "menu")) == "ignored"
+        assert await choose(rpc("next", menu)) == "ignored"
         assert session.interrupted == 0 and len(session.replies) == replies
         session.current_speech = None
         session.emit_item("assistant", "Tell me about a conflict.", speech=asking)
@@ -500,7 +506,7 @@ def test_a_tool_call_from_a_response_a_room_button_cut_off_is_not_carried_out():
         moving_on = FakeToolSpeech()
         tool = asyncio.create_task(session.agent.next_question(tool_call(moving_on)))
         await settle()
-        assert await choose(rpc("retry", 0, "menu")) == "accepted"  # the preamble already played
+        assert await choose(rpc("retry", shown_seq(ctx))) == "accepted"  # the preamble already played
         session.emit_item("user", "Let's move on.")
         assert "not done" in (await tool).lower()
         session.emit_item("assistant", "Tell me about a project, again.")
@@ -527,7 +533,7 @@ def test_move_on_while_the_menu_is_spoken_on_the_last_question_still_says_goodby
         session.emit_item("assistant", "Quick feedback: clear story.")
         await settle()
         menu = session.current_speech = FakeToolSpeech()  # the menu sentence is playing
-        assert await choose(rpc("next", 0, "menu")) == "accepted"
+        assert await choose(rpc("next", shown_seq(ctx))) == "accepted"
         session.current_speech = None
         session.emit_item("assistant", "You can retry, hear", speech=menu)
         await settle()
@@ -572,8 +578,10 @@ def test_the_end_option_finishes_for_the_candidate_and_unknown_options_are_error
             await choose(rpc(["retry"]))
         with pytest.raises(rtc.RpcError):
             await choose(SimpleNamespace(payload="not json"))
-        with pytest.raises(rtc.RpcError):  # a button names where it was shown
+        with pytest.raises(rtc.RpcError):  # a button echoes the room state it was shown with
             await choose(rpc("retry"))
+        with pytest.raises(rtc.RpcError):
+            await choose(rpc("retry", True))
         assert await choose(rpc("end")) == "ended"
         assert sessions[0][1].interrupted == 1
 
@@ -1012,7 +1020,7 @@ def test_a_rails_call_that_never_answers_does_not_hold_up_tools_room_choices_or_
         session.emit_item("assistant", "What changed for the team?")
         await settle()
         choose = ctx.room.local_participant.rpc_methods["interview.choose"]
-        assert await asyncio.wait_for(choose(rpc("feedback", 0, "answering")), 1) == "accepted"
+        assert await asyncio.wait_for(choose(rpc("feedback", shown_seq(ctx))), 1) == "accepted"
         session.emit_item("assistant", "Quick feedback: good start.")
         await settle()
         replies = len(session.replies)
@@ -1077,7 +1085,8 @@ def test_room_attribute_names_and_choose_options_match_the_documented_contract()
     ctx, go = run_interview(rails, sessions)
     asyncio.run(go())
     assert set(ctx.room.local_participant.attributes[0]) == {
-        "cd.question_position", "cd.question_total", "cd.phase", "cd.menu_offered", "cd.seconds_left", "cd.time_warning"}
+        "cd.question_position", "cd.question_total", "cd.phase", "cd.state_seq", "cd.menu_offered", "cd.seconds_left",
+        "cd.time_warning"}
     assert list(ctx.room.local_participant.rpc_methods) == ["interview.choose"]
     assert MENU_OPTIONS == {"retry", "repeat", "hint", "next", "feedback"}  # plus "end", handled on its own
     assert set(MENU_EVENTS) == MENU_OPTIONS
@@ -1098,7 +1107,7 @@ def test_an_unrecoverable_model_error_mid_interview_saves_the_answer_finishes_as
         await settle()
         session.close(CloseReason.ERROR)
         await settle()
-        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next", 0, "menu")) == "ignored"
+        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next", shown_seq(ctx))) == "ignored"
         now[0] = 500.0  # the clock goes on; nothing raises and nothing is said
         await settle()
 

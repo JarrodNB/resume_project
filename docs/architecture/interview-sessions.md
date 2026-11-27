@@ -398,9 +398,13 @@ later. The adapter marks a message recorded on a tool call's speech at the tool 
 preamble (same LiveKit source, `_realtime_generation_task_impl`), and the controller ignores it, so only the reply counts as the follow-up, feedback or
 closing the result asked for. The browser shows a button until the agent's next attribute update
 arrives, so a click can land after the interview already moved on by voice (the candidate said
-"move on" and clicked Move on). Each button therefore names the question position and phase the
-room showed. The controller ignores a choice that no longer matches (menu buttons only at that
-question's `menu`, "How was that?" only while it is `answering`), and the adapter decides this
+"move on" and clicked Move on). Each button therefore echoes the room state counter
+`cd.state_seq` the room showed. The controller raises it whenever the question or phase it
+publishes changes (never for a clock refresh), so a click from question 1's first menu does not
+apply to its menu after Try again, and "How was that?" pressed for the opening's answer does not
+land on the follow-up's answer: both pass through `asking` in between. It ignores a choice from an
+older room state, or one the current phase does not offer (menu buttons only at `menu`, "How was
+that?" only while `answering`), and the adapter decides this
 before it interrupts anything: a stale click answers `ignored`, is not carried out a second time
 and leaves the interviewer talking. A choice that applies interrupts the speech that is playing
 (`AgentSession.current_speech`) and any response whose tool call is still running (LiveKit's
@@ -520,7 +524,8 @@ through these Rails-checked callbacks (the feedback agent has none), and they re
 the dispatched owner-scoped inputs (see `services/ai/screening/AGENTS.md`). Room state reaches the
 browser as the agent participant's attributes
 `cd.question_position` (zero-based), `cd.question_total`, `cd.phase` (`asking`, `answering`,
-`feedback`, `menu`, `closing`, `ended`) and `cd.menu_offered` (`true` only in `menu`). The claim
+`feedback`, `menu`, `closing`, `ended`), `cd.state_seq` (the room state counter a button echoes)
+and `cd.menu_offered` (`true` only in `menu`). The claim
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
 turn-based questions), and seven-day expiry clears it with the rest of the dialogue.
 
@@ -537,10 +542,11 @@ dispatches the agent by name; `JoinLiveService` and the agent's settings are pin
 | `cd.question_position` | agent attribute → browser | zero-based integer as a string |
 | `cd.question_total` | agent attribute → browser | integer as a string |
 | `cd.phase` | agent attribute → browser | `asking`, `answering`, `feedback`, `menu`, `closing`, `ended` |
+| `cd.state_seq` | agent attribute → browser | room state counter, integer as a string; goes up whenever the question or phase changes |
 | `cd.menu_offered` | agent attribute → browser | `true` / `false` |
 | `cd.seconds_left` | agent attribute → browser | counted seconds left, integer as a string |
 | `cd.time_warning` | agent attribute → browser | `true` / `false` |
-| RPC `interview.choose` | browser → agent | `{"option", "question_position", "phase"}` for a button: `retry`, `repeat`, `hint`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.question_position` and `cd.phase` the room showed. Answers `accepted`, or `ignored` when the interview is no longer there. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
+| RPC `interview.choose` | browser → agent | `{"option", "state_seq"}` for a button: `retry`, `repeat`, `hint`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.state_seq` (an integer) the room showed. Answers `accepted`, or `ignored` when the room state has changed since. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
 
 #### Ending the interview
 

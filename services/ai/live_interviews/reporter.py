@@ -2,13 +2,17 @@
 
 The controller decides what happened; this module decides how it reaches Rails, and knows nothing
 about LiveKit. Reports go in order and one whose answer was lost is resent unchanged before
-anything newer; a lost heartbeat is resent unchanged before the next one; Rails' answers that
+anything newer; a lost heartbeat is resent unchanged before the next one. A Rails server error
+(5xx, such as the 503 after a database wait, which means "rolled back, retry the same request")
+is no answer either: the call is retried twice after a short wait (bounded, so it cannot hold up
+the finish for long), then treated as lost. Rails' answers that
 matter to the controller (a prompt's receipt, a refused prompt or answer, the connection ending) go back
 to it as events. Only counts and the controller's report fields are sent, and spoken text is
 never logged. The rules are in docs/architecture/interview-sessions.md, "Questions, answers and
 coaching" and "Time, live minutes and heartbeats".
 """
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -41,6 +45,7 @@ InterviewReport = (ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdva
                    | ReportQuestionRetried)
 _LOST = object()  # a call sent without a trustworthy answer
 _BUG_CODES = frozenset({"unknown_usage_model", "invalid_request"})  # refusals that mean the agent and Rails disagree
+SERVER_ERROR_DELAYS = (0.5, 2.0)  # seconds before each retry of a call Rails answered with a 5xx
 
 
 @dataclass(frozen=True)
@@ -62,8 +67,10 @@ class LiveReporter:
     """
 
     def __init__(self, rails, connection_id: str, *, usage_totals: Callable[[], LiveUsageTotals],
-                 on_event: Callable[[LiveEvent], Awaitable[list]]):
+                 on_event: Callable[[LiveEvent], Awaitable[list]],
+                 server_error_delays: tuple[float, ...] = SERVER_ERROR_DELAYS):
         self._rails, self._connection_id = rails, connection_id
+        self._server_error_delays = server_error_delays
         self._usage_totals, self._on_event = usage_totals, on_event
         self.ended = False  # Rails said the connection or interview is over; nothing more is sent
         self._reports: list = []  # interview reports not yet answered by Rails, oldest first
@@ -121,24 +128,39 @@ class LiveReporter:
     async def _call(self, call, *, lost=None, **values):
         """Call Rails; a refusal means the report was stale, so it is logged (never its text) and skipped.
 
-        Returns None for a refusal and `lost` when no trustworthy answer arrived."""
-        try:
-            return await call(self._connection_id, **values)
-        except LiveConnectionEnded:
+        Returns None for a refusal and `lost` when no trustworthy answer arrived (a transport error,
+        or a server error that a few short-wait retries did not get past)."""
+        for delay in (*self._server_error_delays, None):
+            try:
+                return await call(self._connection_id, **values)
+            except RailsClientError as error:
+                if error.status_code < 500:
+                    return await self._refused(call, error)
+                if delay is None:
+                    return self._lost(call, error, lost)
+                logger.warning("Live report %s got a Rails server error (%s); retrying", call.__name__,
+                               error.status_code)
+            except RailsTransportError as error:
+                return self._lost(call, error, lost)
+            await asyncio.sleep(delay)
+        return lost  # not reached: the last try always returns
+
+    def _lost(self, call, error: Exception, lost):
+        logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
+        return lost
+
+    async def _refused(self, call, error: RailsClientError) -> None:
+        """Rails said a definite no (or that the connection is over): log it and give no answer."""
+        if isinstance(error, LiveConnectionEnded):
             logger.info("Live connection ended by Rails during %s; leaving", call.__name__)
             if not self.ended:
                 self.ended = True
                 await self._on_event(ConnectionEnded())
-            return None
-        except RailsClientError as error:
-            # A heartbeat naming a model Rails does not bill, or any malformed request
-            # (`invalid_request`), is refused every time: a bug, so an error, not a stale report.
-            log = logger.error if error.code in _BUG_CODES else logger.warning
-            log("Live report %s was refused: %s", call.__name__, error.code or type(error).__name__)
-            return None
-        except RailsTransportError as error:
-            logger.warning("Live report %s was not saved: %s", call.__name__, type(error).__name__)
-            return lost
+            return
+        # A heartbeat naming a model Rails does not bill, or any malformed request
+        # (`invalid_request`), is refused every time: a bug, so an error, not a stale report.
+        log = logger.error if error.code in _BUG_CODES else logger.warning
+        log("Live report %s was refused: %s", call.__name__, error.code or type(error).__name__)
 
     async def _post_report(self, report):
         if isinstance(report, ReportPromptAsked):

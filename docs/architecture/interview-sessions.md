@@ -425,10 +425,12 @@ and ask the current question. Each question then runs like this:
    until the latest prompt of the current question has an answer and once the question has
    `answer_cap` answers. The receipt's `message_id` is fed back to the controller, naming the
    opening or the follow-up's key. The reporter sends reports to Rails in order: one whose answer was lost (a
-   transport error, so it may or may not have been saved) stays first and is resent unchanged
+   transport error, so it may or may not have been saved, or a 5xx that two retries after a short
+   wait, 0.5 and 2 seconds, did not get past: Rails' 503 after a database wait means "rolled back,
+   retry the same request") stays first and is resent unchanged
    before any newer report, and before each heartbeat and the finish; repeats are safe because
    openings, prompt keys and answer replacement make them idempotent. An answer to a prompt whose
-   receipt has not arrived waits and is reported with it. A report Rails refuses outright is
+   receipt has not arrived waits and is reported with it. A report Rails refuses outright (409 or 422) is
    stale and dropped; a refused answer is not counted as saved, so the next save reports it again.
    A refused prompt (such as a follow-up past the cap) leaves its answer nothing to be saved to:
    an answer waiting for its receipt is dropped and no longer counted, and later words to it are

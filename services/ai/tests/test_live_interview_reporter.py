@@ -37,7 +37,8 @@ class Harness:
             return list(self.raise_on.get(event, []))
 
         self.reporter = LiveReporter(self.rails, "live", on_event=on_event, usage_totals=lambda: LiveUsageTotals.from_model_usage(
-            self.usage, realtime_model=REALTIME_MODEL, transcription_model=TRANSCRIPTION_MODEL))
+            self.usage, realtime_model=REALTIME_MODEL, transcription_model=TRANSCRIPTION_MODEL),
+            server_error_delays=(0, 0))
 
     def calls(self, name=None):
         return [call[2] if name else call for call in self.rails.calls if name is None or call[0] == name]
@@ -100,6 +101,56 @@ def test_a_prompt_rails_refused_is_dropped_and_reported_back_as_not_saved():
     run(scenario())
     assert harness.events == [PromptNotSaved(question_position=0, prompt_key="q0-r0-f1")]
     assert len(harness.calls("prompt_asked")) == 1  # never resent on its own
+
+
+def failing_question_advanced(harness, failures, status=503):
+    """Rails answers `question_advanced` with `status` the first `failures` times."""
+    remaining = [failures]
+
+    async def question_advanced(connection_id, **values):
+        harness.rails.calls.append(("question_advanced", connection_id, values))
+        if remaining[0]:
+            remaining[0] -= 1
+            raise RailsClientError(status, None)
+        return {"current_question_position": values["question_position"] + 1, "revision": 4}
+
+    harness.rails.question_advanced = question_advanced
+
+
+def test_a_report_rails_could_not_save_for_a_moment_is_retried_after_a_short_wait():
+    """A 5xx (such as Rails' 503 after a database wait: rolled back, retry the same request) is not
+    a refusal: the report is sent again unchanged, a few times with a short wait in between."""
+    harness = Harness()
+    failing_question_advanced(harness, failures=2)
+
+    run(harness.reporter.send(ReportQuestionAdvanced(question_position=0)))
+    assert harness.calls("question_advanced") == [{"question_position": 0}] * 3
+    assert harness.events == []
+
+
+def test_a_report_rails_keeps_failing_on_stays_first_and_is_resent_with_the_next_delivery():
+    harness = Harness()
+    failing_question_advanced(harness, failures=4)
+
+    async def scenario():
+        await harness.reporter.send(ReportQuestionAdvanced(question_position=0))  # three tries, all 503
+        await harness.reporter.send(OPENING)  # the advance goes first, then this opening
+
+    run(scenario())
+    assert [call[0] for call in harness.calls()] == ["question_advanced"] * 5 + ["prompt_asked"]
+    assert harness.events == [PromptRecorded(question_position=0, message_id="opening-0")]
+
+
+def test_a_report_rails_refuses_as_stale_is_still_dropped_at_once():
+    harness = Harness()
+    failing_question_advanced(harness, failures=1, status=422)
+
+    async def scenario():
+        await harness.reporter.send(ReportQuestionAdvanced(question_position=0))
+        await harness.reporter.flush()
+
+    run(scenario())
+    assert harness.calls("question_advanced") == [{"question_position": 0}]
 
 
 def test_connection_ended_stops_everything_and_is_reported_once():

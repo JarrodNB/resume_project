@@ -41,7 +41,11 @@ interviews have their own start and in-flight limits (`INTERVIEW_SESSIONS_PER_HO
 `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`, fallback 3) but share the daily spend cap above. Written interview
 question practice remains general AI. Every spoken stage still has its own durable cost and unknown
 usage records; only its session's hourly admission is shared. Legacy fixture operations also
-use the interview limits, retaining their existing individual hourly admissions. See
+use the interview limits, retaining their existing individual hourly admissions. Live
+interviews add a **live allowance** in minutes (10 over the trial, 60 a UTC day paid; at least 5
+to start), which is shown to users. The hidden daily cap never stops a live session once its
+agent has claimed the room, but its provider costs still count toward daily spend. See
+[time, live minutes and heartbeats](interview-sessions.md#time-live-minutes-and-heartbeats),
 [spoken session accounting](interview-sessions.md#http-execution-accounting) and
 [cost accounting and verified receipt reconciliation](ai-cost-accounting.md). The retained
 paid verification database has an additional global allowance/unknown-receipt stop independent

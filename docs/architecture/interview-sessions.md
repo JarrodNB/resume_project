@@ -333,8 +333,8 @@ current question. Each question then runs like this:
    `skipped_at`. At the last question nothing moves and the interview stays active; a retry of
    the move just made returns the same receipt.
 5. After the last question the model closes warmly; once that turn is spoken the agent calls
-   `finish` (`reason`: `completed`, `ended_by_candidate`, `idle` or `failed` for now) and
-   leaves. `idle` was added to the connection's end-reason check constraint; it follows the
+   `finish` (`reason`: `completed`, `ended_by_candidate`, `idle`, `time_limit`, `allowance` or
+   `failed`) and leaves. `idle` was added to the connection's end-reason check constraint; it follows the
    same completed/abandoned rule.
    `FinishLiveService` ends the connection (`ended_at`, `end_reason`) and completes the session
    (`completed_at`) when at least one answer is saved, otherwise runs `AbandonService`. No
@@ -359,15 +359,77 @@ owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiv
 session's open (or latest) connection: it finishes the session when the agent is gone or failed,
 and otherwise returns the finished snapshot. The page then shows the completed review, or the
 usual abandoned state.
-Provider usage, heartbeats and the live allowance are not recorded yet.
+
+#### Time, live minutes and heartbeats
+
+**Session clock.** Each live session has 25 minutes of counted time
+(`Interviews::LiveAllowance::SESSION_SECONDS`, shared by all its connections). The claim
+response carries `session_seconds_left` (25 minutes minus the session's billed seconds) and
+`allowance_seconds_left`; the controller counts down from the former. Time counts between clock
+ticks in every phase except `menu`: while the coaching menu waits for a choice nothing is
+counted, for the session clock or the allowance. The counted seconds left reach the room as
+`cd.seconds_left` with each phase change and about every 5 seconds. With 2 minutes left the
+controller sets `cd.time_warning` `true` and the interviewer says so once. At zero it wraps up:
+tools are refused ("time is up"), menu buttons are ignored, and once neither side is speaking
+(the adapter reports LiveKit's `agent_state_changed`, where `thinking` and `speaking` count as
+busy, and `user_state_changed`) it saves the pending answer, publishes `closing` and asks for a
+short closing through its own speech handle. When that closing has played (or was cut off) the
+agent finishes with `time_limit`. So the current sentence always finishes first.
+
+**Heartbeat.** About every 30 seconds the agent posts
+`POST /internal/interviews/live_connections/:id/heartbeat` with `sequence` (increasing),
+`billed_seconds_delta` (counted seconds since the last heartbeat, never menu waits) and `usage`
+(priced provider usage deltas, below). `Interviews::RecordLiveHeartbeatService` applies each
+sequence once: it adds the billed seconds, moves `heartbeat_sequence` and `last_heartbeat_at`
+and adds the usage. Repeating the latest sequence replays the same answer without changes; an
+older one, an unclaimed or ended connection and invalid counts are refused with 409. The answer
+is `{action, allowance_seconds_left, session_seconds_left, reason?}`: `wrap_up` with reason
+`allowance` once the user's live allowance (counting this running connection) is used up, or
+`time_limit` once the session's 25 minutes are billed; `warn` at 2 minutes of allowance or
+less; otherwise `continue`. `wrap_up` gives the same clean wrap-up as the clock (finishing with
+its reason), and `warn` the same spoken warning, still only once per session. A heartbeat the
+agent could not deliver keeps its seconds and usage for the next one. On finishing, the agent
+first sends a final heartbeat with the remaining counted seconds and usage and names it in
+`finish` (`final_sequence`).
+
+**Live allowance.** `Interviews::LiveAllowance.remaining_seconds(user)` is separate from the
+hidden daily spend cap: 10 minutes over the whole trial (connections created since the trial
+started, `trial_ends_at` minus the trial length), 60 minutes a UTC day on a paid plan
+(connections created since UTC midnight, plus any connection still open, so a session running
+across midnight counts fully toward the new day) and none once the plan has ended. It sums
+`billed_seconds` of the user's live connections. `joinLiveInterview` refuses a new room with
+fewer than 5 minutes left (error code `LIVE_ALLOWANCE_LOW`; a rejoin of the open room is not
+refused), and so does `startInterview` in live mode. The viewer's remaining seconds are
+`me.liveInterviewSecondsLeft`; setup shows the minutes left when Live is chosen and disables
+Continue and Start with the reason below 5 minutes. The hidden daily spend cap never stops a
+claimed live session: live costs still count toward daily spend, but the allowance is the live
+session's limit.
+
+**Cost.** Live usage goes through the provider ledger; see
+[provider accounting](interview-provider-accounting.md#live-interviews).
+
+**Tracing.** Each job is one Logfire trace: the adapter starts a root `live_interview.session`
+span (only `interview_session_id` and `live_connection_id`) and runs the session inside it, and
+the worker routes LiveKit Agents' own OpenTelemetry spans to the same tracer provider
+(`livekit.agents.telemetry.set_tracer_provider(..., allow_pii=False)`). `live_interviews/telemetry.py`
+drops content before any exporter: every `lk.pii.*` attribute (transcripts, chat context,
+instructions, response text, tool arguments and output, RPC payloads, room name, participant
+identity), the GenAI content attributes (`gen_ai.input.messages`, `gen_ai.output.messages`,
+`gen_ai.system_instructions`, tool call arguments/results, prompt variables and similar), the
+GenAI message events, and exception messages and stack traces. LiveKit's own PII switch does
+nothing here because Logfire's tracer provider is a proxy, so this processor is what keeps
+content out. At shutdown the root records the session's known provider cost
+(`provider_cost_microdollars`, and `operation.cost` in US dollars) and the worker flushes.
 
 In the web app, an active live session (or a ready one after "Enter interview room") renders
 `LiveInterviewRoom`, whose `useLiveInterviewRoom` hook is the only module that imports
 `livekit-client`. The hook exposes captions from the `lk.transcription` text streams (both
 sides; a segment's interim text is replaced by its later text), the agent's progress attributes
-(including `menuOffered`), `mute(on)`, `choose(option)` and `end()`. The room shows hideable
-captions, "Question N of M", a mute toggle, End interview and the references panel for the
-current saved prompt. While the agent offers the menu it shows a labelled group of four buttons
+(including `menuOffered`, `secondsLeft` and `timeWarning`), `mute(on)`, `choose(option)` and
+`end()`. The room shows hideable captions, "Question N of M", the time left as `m:ss left`, a
+mute toggle, End interview and the references panel for the current saved prompt. Once
+`timeWarning` is on, the time left turns red and an alert ("About 2 minutes left. Start
+wrapping up.") is shown and announced. While the agent offers the menu it shows a labelled group of four buttons
 (Try again, Hear the question again, Get a hint, Move on); while the candidate answers it shows
 "How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
 choice the agent didn't get shows a short alert. The completed review shows a question's

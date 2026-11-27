@@ -55,6 +55,14 @@ Existing receipts are backfilled from the subscription status at migration time 
 plan changes were not recorded. This ensures a wave of fake
 signups cannot block paying customers.
 
+## Live interview minutes
+
+Live interviews have their own visible allowance, separate from the hidden cap: 10 minutes over
+the whole trial, 60 minutes per UTC day on a paid plan, none once the plan has ended
+(`Interviews::LiveAllowance`). Only counted time is billed (the coaching menu's waiting time is
+free). A new live interview needs at least 5 minutes left. See
+[time, live minutes and heartbeats](interview-sessions.md#time-live-minutes-and-heartbeats).
+
 ## Stripe
 
 - **Gateway seam.** `Billing::Gateway` is the only code that talks to Stripe. `Billing::StripeGateway`

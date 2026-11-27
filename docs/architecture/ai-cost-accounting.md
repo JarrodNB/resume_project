@@ -39,6 +39,12 @@ before vector validation or persistence. Failed jobs retry with new request IDs;
 earlier bills and unknown markers survive the library transaction rolling back.
 Keep at least one database connection available beyond concurrent sync workers.
 
+Live interviews keep one `interview_live_conversation` task per room connection. Its single usage
+report holds running totals for the realtime model and its input transcription, priced by the
+AI service per heartbeat, so daily spend sees live costs while the interview runs. It stays
+incomplete until the agent's final heartbeat closes it; see
+[provider accounting](interview-provider-accounting.md#live-interviews).
+
 ## Reconcile verified receipts
 
 Provider account-level totals cannot reliably identify an application's individual

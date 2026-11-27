@@ -286,12 +286,15 @@ makes no LiveKit request. Live connections are destroyed with their session.
 The `ai-live` Compose service (same `services/ai` image, `python -m livekit.agents start
 live_interviews/worker.py`) is a LiveKit Agents 1.9 worker registered for explicit dispatch as
 `careerdrafter-live-interviewer` (`live_interviews/settings.py`; it must match
-`JoinLiveService::AGENT_NAME`). It serves no HTTP. On SIGTERM it takes no new jobs and waits
-for its running interviews to end; production Compose gives it 30 minutes
-(`stop_grace_period`). That covers a normal session of 25 counted minutes; uncounted menu waits
-can stretch a legitimate session to the 45-minute wall-clock cap, and one still running after 30
-minutes is cut off and ended by recovery as disconnected (below). For
-each dispatched job it:
+`JoinLiveService::AGENT_NAME`). It serves no HTTP. On SIGTERM it drains: it takes no new jobs
+and exits once its running interviews end, after at most 50 minutes (`DRAIN_SECONDS` in
+`live_interviews/worker.py`: the 45-minute wall-clock cap plus a margin). LiveKit dispatch is
+pull-based, so two workers with the same agent name can run at once and a draining one refuses
+every new job. Deploys rely on that: `infra/compose/restart-changed-services.sh` starts the new
+`ai-live` first, waits until it has registered, then sends the old one a single SIGTERM and
+leaves it to drain in the background. New live interviews always find an interviewer, a running
+one is never cut off by a deploy, and the deploy does not wait (see `infra/compose/README.md`).
+For each dispatched job it:
 
 1. reads the job metadata (the two IDs only) and calls
    `POST /internal/interviews/live_connections/:id/claim` with the LiveKit room name.

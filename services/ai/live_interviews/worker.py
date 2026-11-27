@@ -7,6 +7,10 @@ calls Rails over the internal boundary (INTERVIEW_RAILS_ORIGIN, INTERVIEW_SERVIC
 reads inputs with the read-only database role and talks to OpenAI with OPENAI_API_KEY.
 Tracing uses the shared Logfire setup (exported only when LOGFIRE_TOKEN is set): each job is one
 content-free trace with its cost, flushed when the job shuts down.
+
+On SIGTERM the worker drains: it takes no new interviews and exits once its running ones end, or
+after DRAIN_SECONDS, whichever comes first. Deploys start the new worker before draining the old
+one (infra/compose/restart-changed-services.sh), so nothing waits on the drain.
 """
 
 import asyncio
@@ -43,5 +47,9 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(flush)
 
 
-server = AgentServer()
+# Rails ends every live connection 45 minutes of wall clock after its first claim
+# (LiveAllowance::CONNECTION_WALL_CLOCK); the extra 5 minutes let it wrap up.
+DRAIN_SECONDS = 50 * 60
+
+server = AgentServer(drain_timeout=DRAIN_SECONDS)
 server.rtc_session(entrypoint, agent_name=AGENT_NAME)

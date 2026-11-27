@@ -211,12 +211,13 @@ services:
       <<: *ai-db
       INTERVIEW_RAILS_ORIGIN: http://api:3000
       LOGFIRE_ENVIRONMENT: production
-    # On SIGTERM the worker stops taking new interviews and waits for the running ones to end
-    # (livekit-agents 1.9 drains for up to an hour, DRAIN_TIMEOUT in livekit/agents/worker.py).
-    # 30 minutes covers a normal session (25 counted minutes plus short waits). Menu waits are not
-    # counted, so a longer legitimate session can run up to the 45-minute wall-clock cap; one still
-    # running after 30 minutes is cut off on deploy, and the recovery job ends it as disconnected.
-    stop_grace_period: 30m
+    # On SIGTERM the worker stops taking new interviews and waits for the running ones to end, for
+    # at most 50 minutes (DRAIN_SECONDS in live_interviews/worker.py: the 45-minute wall-clock cap
+    # plus a margin). Deploys do not stop it through compose: restart-changed-services.sh starts
+    # the new ai-live first and lets the old one drain in the background. While one drains, a
+    # plain `docker compose up -d`, `restart` or `down` would stop it a second time, which makes
+    # the worker exit at once. The grace period only matters for a manual stop or down.
+    stop_grace_period: 51m
     depends_on:
       db:
         condition: service_healthy

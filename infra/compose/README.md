@@ -8,15 +8,26 @@ Runs on the single EC2 server created by `../terraform`. Reach the server with
 Merging to master (a release PR from `develop`) runs `.github/workflows/deploy.yml`: it builds the four images, pushes them
 to ECR tagged with the commit, copies these compose files to the server, restarts the stack
 and checks the three public addresses. One image serves `ai-worker`, `ai-http`, `ai-mcp` and
-`ai-live`, so a change under `services/ai` restarts all four. `ai-live` waits for its running
-live interviews to end before it stops (up to 30 minutes, `stop_grace_period` in `compose.yml`).
-That covers a normal session of 25 counted minutes. Coaching-menu waits are not counted, so a
-longer legitimate session can last up to the 45-minute wall-clock cap; one still running after
-30 minutes is cut off by the deploy, and the recovery job ends it as disconnected.
-While it drains, the deploy job can wait that whole time, and a new live interview gets no
-interviewer: after 15 seconds the room offers the turn-based interview instead. New live
-interviews work again once the new `ai-live` is up. AWS access is a role GitHub assumes for runs on master
-only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
+`ai-live`, so a change under `services/ai` restarts all four. The restart is
+`restart-changed-services.sh`: it runs `docker compose up -d` for every service except `ai-live`,
+then handles `ai-live` itself, because stopping it waits for its running live interviews:
+
+- If `ai-live`'s image or config did not change, nothing happens to it.
+- If it changed, the new `ai-live` starts next to the old one. Once the new one has registered
+  with LiveKit (within 2 minutes, or the deploy fails and the old one keeps serving), the old one
+  is renamed `...-ai-live-N-draining-<unix time>` and gets one SIGTERM. It takes no new
+  interviews, so LiveKit sends them all to the new worker, and it exits by itself when its
+  running interviews end, after 50 minutes at most (the 45-minute wall-clock cap plus a margin,
+  `DRAIN_SECONDS` in `services/ai/live_interviews/worker.py`). The deploy does not wait for it,
+  and the next deploy removes the exited container.
+
+So a deploy never leaves new live interviews without an interviewer and never cuts off a running
+one. While an old `ai-live` is draining, the two workers use more memory than one (it shows in
+`docker compose ps` as a second `ai-live`). Do not run a plain `docker compose up -d`, `restart`
+or `down` that includes `ai-live` during that time: compose would stop the draining container
+again, and a second stop signal makes the worker exit at once. AWS access is a role GitHub
+assumes for runs on master only (`../terraform/modules/github`), so no AWS keys are stored in
+GitHub.
 
 ## First-time setup on the server
 

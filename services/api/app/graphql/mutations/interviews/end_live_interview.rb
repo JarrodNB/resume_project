@@ -13,10 +13,7 @@ module Mutations
 
       def resolve(interview_id:, live_unavailable:)
         session = interview(interview_id)
-        connection = session.live_connections.open.first || session.live_connections.order(:created_at).last
-        return { interview: nil, errors: [ "This interview has no live room" ], error_code: nil } unless connection
-
-        snapshot_result(::Interviews::FinishLiveService.call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate"), session)
+        snapshot_result(::Interviews::FinishLiveService.for_owner(interview: session, live_unavailable: live_unavailable), session)
       end
     end
   end

@@ -435,7 +435,7 @@ The room's End interview button asks for confirmation, then calls the agent's Li
 options are RPC errors). The agent saves
 the pending answer, calls `finish` with `ended_by_candidate` and leaves; it answers `ended` only
 once Rails accepted the finish. The browser waits at most 5 seconds, then always calls the
-owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiveService` on the
+owner's `endLiveInterview(interviewId)` mutation, which runs the same `FinishLiveService` (its `for_owner` entry point) on the
 session's open (or latest) connection: it finishes the session when the agent is gone or failed,
 and otherwise returns the finished snapshot. The page then shows the completed review, or the
 usual abandoned state.

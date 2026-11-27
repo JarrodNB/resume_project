@@ -4,7 +4,7 @@
 # the interview (`idle` when the coaching menu waited three minutes without a choice,
 # `time_limit` after 25 counted minutes, `allowance` when the live minutes ran out,
 # `disconnected` when the candidate stayed away 2 minutes); the owner's End interview mutation
-# calls it when the agent is gone, and Interviews::RecoverLiveConnectionsService when the agent's
+# calls it when the agent is gone (through `for_owner`), and Interviews::RecoverLiveConnectionsService when the agent's
 # heartbeat stopped (`disconnected`) or a joined room was never claimed (`failed`). It also closes the
 # connection's provider bill: known only when the agent names its final heartbeat
 # (`final_sequence`) and that was the last one applied. A repeat after the interview finished
@@ -17,6 +17,18 @@
 module Interviews
   class FinishLiveService < ApplicationService
     REASONS = %w[completed ended_by_candidate idle time_limit allowance disconnected failed].freeze
+
+    # The owner ending the interview from the room: finishes its open connection (or, on a repeat,
+    # the latest one) as `ended_by_candidate`, or as `failed` when the live room was unavailable
+    # and the candidate is switching to a turn-based interview with the same setup.
+    #
+    # @return [ServiceResult<Hash>] as `call`, or a failure when the interview never opened a room
+    def self.for_owner(interview:, live_unavailable: false)
+      connection = interview.live_connections.open.first || interview.live_connections.order(:created_at).last
+      return ServiceResult.new(success: false, value: nil, errors: [ "This interview has no live room" ]) unless connection
+
+      call(connection: connection, reason: live_unavailable ? "failed" : "ended_by_candidate")
+    end
 
     def initialize(connection:, reason:, final_sequence: nil, stale_before: nil)
       @connection, @reason, @final_sequence, @stale_before = connection, reason, final_sequence, stale_before

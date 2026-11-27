@@ -16,7 +16,8 @@ const { state, start, live } = vi.hoisted(() => ({
 const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, menuOffered: false, secondsLeft: null, timeWarning: false }
 function liveRoom(change: Record<string, unknown> = {}) {
   return { status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
-    choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true), ...change }
+    choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),
+    rejoin: vi.fn().mockResolvedValue(undefined), leaveForTurnBased: vi.fn().mockResolvedValue(undefined), ...change }
 }
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
 vi.mock('./useLiveInterviewRoom', () => ({ useLiveInterviewRoom: (id: string) => { live.hook(id); return live.value } }))
@@ -84,6 +85,35 @@ it('offers a turn-based interview with the same setup when no interviewer joins 
   fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
   await vi.waitFor(() => expect(router.state.location.pathname).toBe('/practice/interviews/turn-based-session'))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'behavioral', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, undefined, 'turn_based')
+  expect(live.value.leaveForTurnBased).toHaveBeenCalledOnce() // the abandoned live room never stays active
+})
+
+it('keeps the live room when the turn-based interview could not start', async () => {
+  start.mockResolvedValue(null)
+  live.value = liveRoom({ status: 'failed', error: 'Live interviews are not configured.' })
+  renderInterview()
+  fireEvent.click(screen.getByRole('button', { name: 'Start a turn-based interview with the same setup' }))
+  await vi.waitFor(() => expect(start).toHaveBeenCalled())
+  expect(live.value.leaveForTurnBased).not.toHaveBeenCalled()
+})
+
+it('shows reconnecting while the connection recovers, with the room controls still in place', () => {
+  live.value = liveRoom({ status: 'reconnecting', agentJoined: true })
+  renderInterview()
+  expect(screen.getByRole('status')).toHaveTextContent('Reconnecting…')
+  expect(screen.queryByRole('button', { name: 'Rejoin interview' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Start a turn-based interview with the same setup' })).not.toBeInTheDocument()
+})
+
+it('offers to rejoin the same interview after the connection dropped', () => {
+  live.value = liveRoom({ status: 'disconnected', error: 'Interview service is busy.' })
+  renderInterview()
+  expect(screen.getByRole('status')).toHaveTextContent('You were disconnected. Your interviewer waits about 2 minutes.')
+  expect(screen.getByRole('alert')).toHaveTextContent('Interview service is busy.')
+  expect(screen.queryByRole('button', { name: 'Start a turn-based interview with the same setup' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Rejoin interview' }))
+  expect(live.value.rejoin).toHaveBeenCalledOnce()
+  expect(screen.getByRole('button', { name: 'End interview' })).toBeVisible()
 })
 
 it('offers the fallback at once when joining fails, keeping a saved job', async () => {

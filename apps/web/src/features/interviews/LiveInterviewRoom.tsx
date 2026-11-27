@@ -7,7 +7,10 @@
  * candidate answers it offers "How was that?". Each button sends the same choice as saying it. The
  * career references panel works exactly as in the turn-based room, for the prompt the agent
  * saved. If the interviewer hasn't joined within 15 seconds, or joining fails, it offers to
- * start a new turn-based interview with the same setup (a fresh preparation, so new questions).
+ * start a new turn-based interview with the same setup (a fresh preparation, so new questions);
+ * taking it ends the live room as failed so the live session doesn't stay active. If the
+ * connection drops it shows "Reconnecting…" while LiveKit retries, and after a full disconnect a
+ * Rejoin interview button (the interviewer waits about 2 minutes, then finishes the interview).
  * End interview (after a confirmation) finishes the session: completed with at least one saved
  * answer, so the page shows the usual review, or abandoned with none.
  */
@@ -35,23 +38,31 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
   const [referenceVisitId] = useState(() => crypto.randomUUID())
   const [timedOut, setTimedOut] = useState(false)
   useFocusMode(true)
+  const dropped = room.status === 'reconnecting' || room.status === 'disconnected'
+  const waitingForAgent = !room.agentJoined && !dropped
   useEffect(() => {
-    if (room.agentJoined) return
+    if (!waitingForAgent) return
     const timer = setTimeout(() => setTimedOut(true), LIVE_AGENT_JOIN_TIMEOUT_MS)
-    return () => clearTimeout(timer)
-  }, [room.agentJoined])
+    return () => { clearTimeout(timer); setTimedOut(false) }
+  }, [waitingForAgent])
   const message = room.status === 'joining' ? 'Joining the interview room…'
     : room.status === 'connecting' ? 'Connecting…'
+    : room.status === 'reconnecting' ? 'Reconnecting…'
+    : room.status === 'disconnected' ? 'You were disconnected. Your interviewer waits about 2 minutes.'
     : room.status === 'connected' && room.agentJoined ? 'Connected. Your interviewer is here.'
     : room.status === 'connected' ? 'Waiting for your interviewer…'
     : 'Could not connect to the live room.'
-  const showFallback = room.status === 'failed' || (timedOut && !room.agentJoined)
+  const showFallback = room.status === 'failed' || (timedOut && waitingForAgent)
   const { reply } = currentInterviewPrompt(interview)
   return <section aria-labelledby="live-interview-title" className="interview-stage grid gap-4">
     <h2 id="live-interview-title" className="text-xl font-semibold">Live interview</h2>
     {!showFallback && <p role="status" className="text-sm">{message}</p>}
-    {showFallback && <TurnBasedFallback interview={interview} reason={room.status === 'failed' ? room.error : null} />}
-    {!showFallback && room.status === 'connected' && <LiveRoomControls room={room} />}
+    {showFallback && <TurnBasedFallback interview={interview} room={room} reason={room.status === 'failed' ? room.error : null} />}
+    {room.status === 'disconnected' && <div className="grid gap-2">
+      {room.error && <p role="alert" className="text-sm text-destructive">{room.error}</p>}
+      <Button type="button" className="min-h-11 justify-self-start" onClick={() => void room.rejoin()}>Rejoin interview</Button>
+    </div>}
+    {!showFallback && (room.status === 'connected' || room.status === 'reconnecting') && <LiveRoomControls room={room} />}
     {room.status !== 'joining' && <EndLiveInterviewButton room={room} />}
     {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={interview.id} visitId={referenceVisitId} message={reply} disabled={false} />}
   </section>
@@ -126,8 +137,9 @@ function EndLiveInterviewButton({ room }: { room: LiveRoom }) {
   </>
 }
 
-/** Starts a turn-based preparation with this session's saved setup and opens it like a normal start. */
-function TurnBasedFallback({ interview, reason }: { interview: InterviewSnapshotFragment; reason: string | null }) {
+/** Starts a turn-based preparation with this session's saved setup and opens it like a normal
+ * start, then ends the live room as failed (not awaited, so the page moves on at once). */
+function TurnBasedFallback({ interview, room, reason }: { interview: InterviewSnapshotFragment; room: LiveRoom; reason: string | null }) {
   const { start, loading, error, errorCode } = useStartInterview()
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
@@ -136,7 +148,9 @@ function TurnBasedFallback({ interview, reason }: { interview: InterviewSnapshot
     try {
       const { questionCount, questionFormat, difficulty, interviewer, focusAreas } = interview.setup
       const id = await start('', { questionCount, questionFormat, difficulty, interviewer, focusAreas }, interview.jobContext?.id ?? undefined, 'turn_based')
-      if (id) await navigate(`/practice/interviews/${id}`)
+      if (!id) return
+      void room.leaveForTurnBased()
+      await navigate(`/practice/interviews/${id}`)
     } finally { setPending(false) }
   }
   const busy = loading || pending

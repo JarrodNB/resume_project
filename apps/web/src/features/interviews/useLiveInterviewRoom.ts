@@ -9,14 +9,20 @@
  * speaks the choice. `end()` asks the agent to end the interview (`{"option":"end"}`), waiting at
  * most 5 seconds, then calls Rails' `endLiveInterview`. That finishes the interview itself when
  * the agent is gone or failed, and otherwise just returns the finished snapshot.
+ * When the connection drops, the status is `reconnecting` while LiveKit retries by itself, and
+ * `disconnected` if it gives up. `rejoin()` then asks Rails to join again (the same room, with a
+ * fresh token; the interviewer waits about 2 minutes for the candidate) and connects again. If
+ * Rails refuses because the interview has meanwhile finished, the open interview query is
+ * refetched so the page shows its review or abandoned state. `leaveForTurnBased()` ends the live
+ * room as failed through Rails when the candidate switches to a turn-based interview.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useMutation } from '@apollo/client/react'
+import { useApolloClient, useMutation } from '@apollo/client/react'
 import { Room, RoomEvent, Track, type Participant, type RemoteTrack } from 'livekit-client'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { END_LIVE_INTERVIEW, INTERVIEW_QUERY, JOIN_LIVE_INTERVIEW } from './interviewOperations'
 
-export type LiveRoomStatus = 'joining' | 'connecting' | 'connected' | 'failed'
+export type LiveRoomStatus = 'joining' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'failed'
 /** One caption line. A segment's interim text is replaced by its later or final text. */
 export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer'; text: string }
 /** Where the interview stands, as the agent last published it. `questionPosition` is zero-based;
@@ -33,6 +39,10 @@ export interface LiveInterviewRoom extends LiveRoomState {
   choose: (option: LiveMenuOption) => Promise<boolean>
   /** Ends the interview; resolves true once Rails has finished it (completed or abandoned). */
   end: () => Promise<boolean>
+  /** After a dropped connection, joins the same room again. */
+  rejoin: () => Promise<void>
+  /** Ends the live room as failed (the candidate is switching to turn-based); errors are ignored. */
+  leaveForTurnBased: () => Promise<void>
 }
 
 /** Keep the screen and memory bounded in a long interview. */
@@ -70,8 +80,10 @@ function agentIn(livekit: Room | null) {
 export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const [join] = useMutation(JOIN_LIVE_INTERVIEW)
   const [endLive] = useMutation(END_LIVE_INTERVIEW)
+  const client = useApolloClient()
   const [room, setRoom] = useState<LiveRoomState>({ status: 'joining', agentJoined: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null, choosing: false, chooseError: null })
   const livekitRef = useRef<Room | null>(null)
+  const connectRef = useRef<(() => Promise<boolean>) | null>(null)
   useEffect(() => {
     let cancelled = false
     const livekit = new Room()
@@ -104,7 +116,15 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     livekit.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
       if (track.kind === Track.Kind.Audio) { const element = track.attach(); audio.push(element); document.body.append(element) }
     })
-    livekit.on(RoomEvent.Disconnected, () => update(() => ({ status: 'failed', error: 'The live room disconnected.' })))
+    livekit.on(RoomEvent.Reconnecting, () => update(() => ({ status: 'reconnecting' })))
+    livekit.on(RoomEvent.Reconnected, () => update(() => ({ status: 'connected' })))
+    livekit.on(RoomEvent.Disconnected, () => {
+      audio.splice(0).forEach((element) => element.remove())
+      update(({ status }) => status === 'connected' || status === 'reconnecting'
+        ? { status: 'disconnected', agentJoined: false, error: null }
+        : { status: 'failed', error: 'The live room disconnected.' })
+    })
+    /** Joins through Rails and connects; resolves false when either step failed. */
     async function connect() {
       try {
         const result = await join({
@@ -116,21 +136,25 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
         })
         const payload = result.data?.joinLiveInterview
         if (!payload?.url || !payload.token) throw new Error(payload?.errors.join(' ') || 'Could not join the live interview.')
-        if (cancelled) return
+        if (cancelled) return true
         update(() => ({ status: 'connecting' }))
         await livekit.connect(payload.url, payload.token)
-        if (cancelled) return
+        if (cancelled) return true
         update(() => ({ status: 'connected' }))
         livekit.remoteParticipants.forEach(noticeAgent)
         await livekit.localParticipant.setMicrophoneEnabled(true)
+        return true
       } catch (cause) {
         update(() => ({ status: 'failed', error: requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not join the live interview.') }))
+        return false
       }
     }
     void connect()
+    connectRef.current = connect
     return () => {
       cancelled = true
       livekitRef.current = null
+      connectRef.current = null
       void livekit.disconnect()
       audio.forEach((element) => element.remove())
     }
@@ -181,5 +205,19 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
     setRoom((previous) => ({ ...previous, ending: false, endError }))
     return endError === null
   }, [endLive, interviewId])
-  return { ...room, mute, choose, end }
+  const rejoin = useCallback(async () => {
+    const connect = connectRef.current
+    if (!connect) return
+    setRoom((previous) => ({ ...previous, status: 'joining', error: null }))
+    if (await connect()) return
+    // The interview may have finished meanwhile; the refreshed page then shows its outcome.
+    void client.refetchQueries({ include: [INTERVIEW_QUERY] })
+    setRoom((previous) => ({ ...previous, status: 'disconnected' }))
+  }, [client])
+  const leaveForTurnBased = useCallback(async () => {
+    try {
+      await endLive({ variables: { interviewId, liveUnavailable: true } })
+    } catch { /* The turn-based interview starts anyway; recovery ends a forgotten room. */ }
+  }, [endLive, interviewId])
+  return { ...room, mute, choose, end, rejoin, leaveForTurnBased }
 }

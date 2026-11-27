@@ -24,7 +24,7 @@ vi.mock('livekit-client', () => {
     on(event: string, handler: (...values: unknown[]) => void) { this.handlers.set(event, handler); return this }
     registerTextStreamHandler(topic: string, handler: TextHandler) { this.textHandlers.set(topic, handler) }
   }
-  return { Room, RoomEvent: { ParticipantConnected: 'participantConnected', ParticipantAttributesChanged: 'participantAttributesChanged', TrackSubscribed: 'trackSubscribed', Disconnected: 'disconnected' }, Track: { Kind: { Audio: 'audio' } } }
+  return { Room, RoomEvent: { ParticipantConnected: 'participantConnected', ParticipantAttributesChanged: 'participantAttributesChanged', TrackSubscribed: 'trackSubscribed', Disconnected: 'disconnected', Reconnecting: 'reconnecting', Reconnected: 'reconnected' }, Track: { Kind: { Audio: 'audio' } } }
 })
 
 /** A text stream that yields its chunks, like a LiveKit transcription segment. */
@@ -205,4 +205,40 @@ it('reads the counted time left and the time warning from the agent', async () =
   expect(view.result.current.progress).toMatchObject({ secondsLeft: 118, timeWarning: true })
   act(() => room.handlers.get('participantAttributesChanged')!({}, { isAgent: true, attributes: { 'cd.seconds_left': 'soon' } }))
   expect(view.result.current.progress).toMatchObject({ secondsLeft: null, timeWarning: false })
+})
+
+it('shows reconnecting while LiveKit retries and connected again once it is back', async () => {
+  const { view, room } = await connectedRoom()
+  act(() => room.handlers.get('reconnecting')!())
+  expect(view.result.current.status).toBe('reconnecting')
+  act(() => room.handlers.get('reconnected')!())
+  expect(view.result.current.status).toBe('connected')
+})
+
+it('rejoins the same room through Rails after the connection dropped', async () => {
+  const rejoin = joinMock({ url: 'wss://live.test', token: 'fresh-token', roomName: 'room', expiresAt: '2099-01-01T00:00:00Z' })
+  const { view, room } = await connectedRoom(rejoin)
+  act(() => room.handlers.get('participantConnected')!({ isAgent: true, attributes: {} }))
+  act(() => room.handlers.get('disconnected')!())
+  expect(view.result.current).toMatchObject({ status: 'disconnected', agentJoined: false })
+  await act(async () => { await view.result.current.rejoin() })
+  await waitFor(() => expect(view.result.current.status).toBe('connected'))
+  expect(room.connect).toHaveBeenLastCalledWith('wss://live.test', 'fresh-token')
+  expect(room.setMicrophoneEnabled).toHaveBeenLastCalledWith(true)
+})
+
+it('stays disconnected with the reason when Rails refuses the rejoin', async () => {
+  const { view, room } = await connectedRoom(joinMock({ errors: ['Interview has ended'] }))
+  act(() => room.handlers.get('disconnected')!())
+  await act(async () => { await view.result.current.rejoin() })
+  expect(view.result.current).toMatchObject({ status: 'disconnected', error: 'Interview has ended' })
+})
+
+it('ends the live room as failed through Rails, without the agent, when the candidate switches to turn-based', async () => {
+  const result = vi.fn(() => ({ data: { endLiveInterview: { __typename: 'EndLiveInterviewPayload', interview: null, errors: [], errorCode: null } } }))
+  const { view, room } = await connectedRoom({ request: { query: END_LIVE_INTERVIEW, variables: { interviewId: 'session', liveUnavailable: true } }, result })
+  room.remoteParticipants.set(agent.identity, agent)
+  await act(async () => { await view.result.current.leaveForTurnBased() })
+  expect(result).toHaveBeenCalledOnce()
+  expect(room.performRpc).not.toHaveBeenCalled()
 })

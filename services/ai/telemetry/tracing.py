@@ -45,7 +45,8 @@ class ChatFallbackSpanProcessor(SpanProcessor):
 
 
 class OperationCostSpanProcessor(SpanProcessor):
-    """Copies the sum of priced model-call spans onto each trace root."""
+    """Copies the sum of priced model-call spans onto each trace root, plus any cost the root
+    recorded itself."""
 
     def __init__(self):
         self._cost_by_trace: dict[int, float] = {}
@@ -70,7 +71,9 @@ class OperationCostSpanProcessor(SpanProcessor):
 
         with self._lock:
             total = self._cost_by_trace.pop(trace_id, 0.0)
-        attributes["operation.cost"] = total
+        # A root may record its own provider cost (the live interview session span does).
+        own = attributes.get("operation.cost")
+        attributes["operation.cost"] = total + (own if isinstance(own, (int, float)) else 0.0)
         span._attributes = attributes
 
     def shutdown(self):

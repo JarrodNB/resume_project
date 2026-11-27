@@ -193,10 +193,10 @@ class ConnectionEnded:
 
 @dataclass(frozen=True)
 class SessionClosed:
-    """LiveKit closed the realtime session on its own (an unrecoverable model error, or the candidate
-    leaving when LiveKit closes on disconnect). Nothing can be said any more: save and finish."""
-
-    reason: Literal["failed", "disconnected"]
+    """LiveKit closed the realtime session after an unrecoverable model error. Nothing can be said
+    any more: save and finish as `failed`. (Other closes we did not cause, such as the job shutting
+    down when the agent's room connection drops, never reach the controller: the adapter leaves
+    without finishing so the candidate can rejoin or a fresh agent can take over.)"""
 
 
 LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AnswerNotSaved | AskFollowUp
@@ -262,7 +262,8 @@ FinishReason = Literal["completed", "ended_by_candidate", "idle", "time_limit", 
 class ReportFinish:
     """Tell Rails the interview is over and why (`idle`: the menu waited too long for a choice;
     `time_limit` / `allowance`: the session clock or the live allowance ran out; `disconnected`:
-    the candidate stayed away for 2 minutes; `failed`: LiveKit closed the realtime session). `final_sequence`
+    the candidate stayed away for 2 minutes; `failed`: an unrecoverable model error closed the realtime
+    session). `final_sequence`
     names the final heartbeat sent just before, so Rails knows all usage was reported."""
 
     reason: FinishReason
@@ -486,7 +487,7 @@ class LiveInterviewController:
             self._phase = "ended"
             return [EndSession()]
         if isinstance(event, SessionClosed):  # nothing can be spoken: save what was heard and finish
-            return [] if self._phase == "ended" else [*self._save_answer(), *self._finish(event.reason)]
+            return [] if self._phase == "ended" else [*self._save_answer(), *self._finish("failed")]
         if isinstance(event, Started):
             return self._start(event)
         if isinstance(event, ToolEvent):

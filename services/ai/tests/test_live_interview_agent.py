@@ -238,6 +238,8 @@ class FakeRails:
     async def _wait_if_held(self, name):
         if name in self.holds:
             await self.holds[name].wait()
+        if self.closed:  # the HTTP client was closed while this call waited
+            raise RailsTransportError("client closed")
 
     def _lose_or_refuse(self, name):
         if self.lose.get(name):
@@ -947,10 +949,41 @@ def test_room_attribute_names_and_choose_options_match_the_documented_contract()
     assert set(Phase.__args__) == {"asking", "answering", "feedback", "menu", "closing", "ended"}
 
 
-@pytest.mark.parametrize(("close_reason", "finish_reason"), [
-    (CloseReason.ERROR, "failed"), (CloseReason.PARTICIPANT_DISCONNECTED, "disconnected")])
-def test_a_session_livekit_closes_mid_interview_saves_the_answer_finishes_and_leaves(close_reason, finish_reason):
+def test_an_unrecoverable_model_error_mid_interview_saves_the_answer_finishes_as_failed_and_leaves():
     rails, sessions = FakeRails(), []
+    now = [0.0]
+    ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Tell me about a project.")
+        await settle()
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await settle()
+        session.close(CloseReason.ERROR)
+        await settle()
+        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next")) == "accepted"
+        now[0] = 500.0  # the clock goes on; nothing raises and nothing is said
+        await settle()
+
+    asyncio.run(scenario())
+    assert rails.calls[-3:] == [
+        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
+        ("heartbeat", "live", {"sequence": 1, "billed_seconds_delta": 0, "usage": []}),
+        ("finish", "live", {"reason": "failed", "final_sequence": 1}),
+    ]
+    assert ctx.shutdown_reason
+
+
+@pytest.mark.parametrize("close_reason", [
+    CloseReason.JOB_SHUTDOWN, CloseReason.PARTICIPANT_DISCONNECTED, CloseReason.USER_INITIATED])
+def test_a_close_we_did_not_cause_and_is_no_model_error_leaves_without_finishing(close_reason):
+    """LiveKit shuts the job down when the agent's room connection drops or the room closes. The
+    interview stays open for a rejoin or a takeover (recovery ends it after a quiet spell), so the
+    agent only delivers what was already on its way to Rails, then leaves."""
+    rails, sessions = FakeRails(), []
+    rails.holds["prompt_asked"] = asyncio.Event()
     now = [0.0]
     ctx, go = run_interview(rails, sessions, clock=lambda: now[0], tick_seconds=0, heartbeat_seconds=3600)
 
@@ -963,17 +996,17 @@ def test_a_session_livekit_closes_mid_interview_saves_the_answer_finishes_and_le
         await settle()
         session.close(close_reason)
         await settle()
-        assert await ctx.room.local_participant.rpc_methods["interview.choose"](rpc("next")) == "accepted"
-        now[0] = 500.0  # the clock goes on; nothing raises and nothing is said
+        now[0] = 2_000.0  # past the session clock: a running clock would wrap up and finish
         await settle()
+        shutdown = asyncio.gather(*(callback() for callback in ctx.shutdown_callbacks))
+        await settle()
+        rails.holds["prompt_asked"].set()  # the report already queued still reaches Rails
+        await shutdown
 
     asyncio.run(scenario())
-    assert rails.calls[-3:] == [
-        ("answer_finished", "live", {"prompt_message_id": "opening-0", "transcript": "I rebuilt the scheduler."}),
-        ("heartbeat", "live", {"sequence": 1, "billed_seconds_delta": 0, "usage": []}),
-        ("finish", "live", {"reason": finish_reason, "final_sequence": 1}),
-    ]
-    assert ctx.shutdown_reason
+    assert [call[0] for call in rails.calls] == ["claim", "prompt_asked"]
+    assert sessions[0][1].agent._runner._controller._prompt_message_id == "opening-0"  # Rails answered it
+    assert ctx.shutdown_reason and rails.closed  # the client closes only after the delivery
 
 
 def test_our_own_shutdown_closing_the_session_finishes_nothing_twice():

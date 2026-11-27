@@ -335,21 +335,21 @@ def test_a_closed_session_saves_the_answer_and_finishes_with_its_reason_once():
     controller.handle(Tick(now=0.0))
     controller.handle(CandidateTurnFinished(text="Partial answer."))
     controller.handle(Tick(now=20.0))
-    assert controller.handle(SessionClosed(reason="failed")) == [
+    assert controller.handle(SessionClosed()) == [
         ReportAnswerFinished(prompt_message_id="opening-0", transcript="Partial answer."),
         SendHeartbeat(sequence=1, billed_seconds_delta=20, final=True),
         ReportFinish(reason="failed", final_sequence=1),
         PublishRoomState(seconds_left=1_480, question_position=0, question_total=5, phase="ended"),
         EndSession(),
     ]
-    assert controller.handle(SessionClosed(reason="failed")) == []
+    assert controller.handle(SessionClosed()) == []
 
 
-def test_a_session_closed_while_the_candidate_is_away_finishes_as_disconnected():
+def test_a_session_closed_while_the_candidate_is_away_still_finishes_as_failed():
     controller, _ = started_controller()
     controller.handle(CandidateLeft(now=0.0))
-    actions = controller.handle(SessionClosed(reason="disconnected"))
-    assert ReportFinish(reason="disconnected", final_sequence=1) in actions and actions[-1] == EndSession()
+    actions = controller.handle(SessionClosed())
+    assert ReportFinish(reason="failed", final_sequence=1) in actions and actions[-1] == EndSession()
 
 
 def test_tool_calls_before_the_interview_starts_are_refused():

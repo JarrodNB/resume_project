@@ -334,10 +334,18 @@ with `failed` before it shuts down, so Rails completes or abandons the interview
 leaving the candidate waiting. Later, LiveKit can close the `AgentSession` on its own: an
 unrecoverable realtime model error closes it (livekit-agents `voice/agent_session.py`,
 `AgentSession._on_error`) while the room stays open, and later speech calls would raise. The
-adapter listens for the session's `close` event (ignoring the close its own leaving causes),
-saves the pending answer, finishes with `failed` (`disconnected` when LiveKit closed it because
-the participant left) and leaves. Speech calls on a closed session are skipped, and one failed
-action never stops the clock or heartbeat loops (logged by error type, never content).
+adapter listens for the session's `close` event (ignoring the close its own leaving causes).
+Only that model error (`CloseReason.ERROR`) saves the pending answer, finishes with `failed` and
+leaves. Every other close the agent did not cause leaves **without** finishing. The main one is
+`CloseReason.JOB_SHUTDOWN`: LiveKit shuts the job down, closing the session, when the agent's own
+room connection drops or the room closes (livekit-agents `ipc/job_proc_lazy_main.py`, the room's
+`disconnected` handler and `_run_job_task`'s shutdown). The clock and heartbeats stop, reports
+already queued for Rails are still delivered within the same bounded wait (the job's shutdown
+callback waits for them before closing the Rails client), and nothing new is saved or counted.
+The connection stays `connected`, so the candidate can rejoin and a fresh agent take over; if
+nobody does, recovery ends it as disconnected after 150 seconds without a heartbeat. Speech
+calls on a closed session are skipped, and one failed action never stops the clock or heartbeat
+loops (logged by error type, never content).
 
 #### Questions, answers and coaching
 

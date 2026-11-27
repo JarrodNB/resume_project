@@ -166,15 +166,25 @@ class LiveInterviewRunner:
             self._spawn(CandidateLeft(self._clock()))
 
     def on_session_close(self, event: CloseEvent) -> None:
-        """LiveKit callback: the AgentSession closed. Our own leaving closes it too (job shutdown);
-        otherwise LiveKit closed it on its own (an unrecoverable realtime error closes it in
-        `AgentSession._on_error`, and the room stays), so nothing more can be said: save and finish."""
+        """LiveKit callback: the AgentSession closed. Our own leaving closes it too (job shutdown).
+
+        Only an unrecoverable model error (`CloseReason.ERROR`, closed in `AgentSession._on_error`
+        while the room stays) finishes the interview, as `failed`. Any other close we did not cause,
+        such as LiveKit shutting the job down when the agent's room connection drops or the room
+        closes, leaves without finishing: the clock and heartbeats stop, reports already on their way
+        are still delivered (a bounded wait), and the connection stays open so the candidate can
+        rejoin or a fresh agent can take over. Rails' recovery ends it if nobody comes back."""
         if self._left:
             return
         logger.warning("Live AgentSession closed: %s %s", event.reason.value,
                        type(event.error).__name__ if event.error else "")
-        reason = "disconnected" if event.reason == CloseReason.PARTICIPANT_DISCONNECTED else "failed"
-        self._spawn(SessionClosed(reason))
+        if event.reason == CloseReason.ERROR:
+            self._spawn(SessionClosed())
+            return
+        self._left = True
+        task = asyncio.create_task(self._leave_after_deliveries())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     def on_conversation_item_added(self, event: ConversationItemAddedEvent) -> None:
         """LiveKit callback: final interviewer and candidate messages become controller events."""
@@ -470,7 +480,6 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
     that fails after a successful claim finishes the connection as `failed` before the job ends,
     so Rails closes the interview instead of leaving the candidate in a silent room.
     """
-    ctx.add_shutdown_callback(rails.aclose)
     tracer = tracer or trace.get_tracer("live_interviews")
     span = claim = None
     try:
@@ -521,15 +530,18 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
         if span is not None:
             span.set_status(trace.Status(trace.StatusCode.ERROR, type(error).__name__))
             span.end()
+        ctx.add_shutdown_callback(rails.aclose)
         ctx.shutdown(reason="live interview unavailable")
         return
 
     async def stop_and_record_cost() -> None:
         for task in background:
             task.cancel()
-        runner.stop_delivering()
         cost = runner.usage_totals().cost_microdollars()
         span.set_attributes({"provider_cost_microdollars": cost, "operation.cost": cost / 1_000_000})
-        span.end()
+        span.end()  # before any wait, so the tracing flush callback that runs beside this one sees it
+        await runner.delivered()  # a shutdown we did not ask for still delivers what was queued (bounded)
+        runner.stop_delivering()
+        await rails.aclose()  # only now: shutdown callbacks run side by side
 
     ctx.add_shutdown_callback(stop_and_record_cost)

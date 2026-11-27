@@ -22,6 +22,11 @@ module Internal
         prompt_message_id: params.require(:prompt_message_id), transcript: params[:transcript])
     end
 
+    def question_advanced
+      respond Interviews::AdvanceLiveQuestionService.call(connection: @connection,
+        question_position: params.require(:question_position))
+    end
+
     private
 
     def service_busy_message

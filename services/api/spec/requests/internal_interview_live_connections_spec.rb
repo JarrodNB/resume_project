@@ -247,4 +247,63 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(interview.questions.find_by!(position: 0).accepted_answer_count).to eq(0)
     end
   end
+
+  describe "question_advanced" do
+    def question_advanced(question_position)
+      post "#{base}/question_advanced", params: { question_position: question_position }, headers: headers, as: :json
+    end
+
+    it "moves an answered question on like turn-based acceptance, saving the next opening once" do
+      answer_finished(prompt_message_id: asked_opening)
+      revision = interview.reload.revision
+      question_advanced(0)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq("current_question_position" => 1, "revision" => revision + 1)
+      interview.reload
+      expect(interview).to have_attributes(current_question_position: 1, status: "active")
+      expect(interview.questions.find_by!(position: 0).skipped_at).to be_nil
+      second = interview.questions.find_by!(position: 1)
+      opening = interview.messages.find_by!(question: second, kind: "opening")
+      expect(opening).to have_attributes(content: second.content, semantic_key: "question:#{second.id}:opening")
+
+      question_advanced(0) # a retried report of the same move changes nothing
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq("current_question_position" => 1, "revision" => revision + 1)
+      prompt_asked(question_position: 1)
+      expect(response.parsed_body["message_id"]).to eq(opening.id)
+    end
+
+    it "skips a question that has no answer" do
+      claim
+      prompt_asked
+      question_advanced(0)
+      expect(response).to have_http_status(:ok)
+      expect(interview.questions.find_by!(position: 0).skipped_at).to be_present
+      expect(interview.reload.current_question_position).to eq(1)
+    end
+
+    it "stays on the last question without completing the interview" do
+      claim
+      interview.update_columns(current_question_position: 7)
+      question_advanced(7)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["current_question_position"]).to eq(7)
+      expect(interview.reload).to have_attributes(status: "active", current_question_position: 7)
+      expect(interview.questions.find_by!(position: 7).skipped_at).to be_present
+      revision = interview.revision
+      question_advanced(7)
+      expect(response).to have_http_status(:ok)
+      expect(interview.reload.revision).to eq(revision)
+    end
+
+    it "refuses a question that is not current and an ended connection" do
+      claim
+      question_advanced(3)
+      expect(response).to have_http_status(:conflict)
+      connection.update!(status: "ended", ended_at: Time.current, end_reason: "disconnected")
+      question_advanced(0)
+      expect(response).to have_http_status(:conflict)
+      expect(interview.reload.current_question_position).to eq(0)
+    end
+  end
 end

@@ -38,6 +38,20 @@ the interview finishes with `time_limit` or `allowance`. Heartbeats (asked for a
 seconds) carry the counted seconds since the last one, so Rails bills only counted time; the
 finish first sends a final heartbeat and names its sequence.
 
+Dropped connections: when the candidate leaves the room (`CandidateLeft`) the interview pauses.
+Nothing new is said, the session clock stops counting, the nudge and menu waits stand still and
+heartbeats carry on, so Rails knows the agent is alive. A wrap-up that arrives meanwhile finishes
+straight away, with no closing. If the candidate is back (`CandidateJoined`) within 2 minutes,
+the interviewer welcomes them back and carries on from the same place: it repeats the current
+prompt, or offers the menu choices again. After 2 minutes away the pending answer is saved and
+the interview finishes with `disconnected`.
+
+A fresh agent that takes over a running connection gets the current question's state from the
+claim (`Started`): it continues the heartbeat sequence, repeats an opening that was already
+asked (answers still go to the saved prompt), or offers the menu when feedback was given or a
+follow-up it never heard is current. Follow-ups are keyed by question, retry and answers so far,
+so the same follow-up is never saved twice.
+
 Tool calls always get exactly one `ToolResult`, the last action. The realtime model speaks in
 reply to it, so the result says what to say next, or why the call was refused. Button choices
 have no tool call, so they end with a `GenerateReply` carrying the same words instead.
@@ -55,13 +69,22 @@ Phase = Literal["asking", "answering", "feedback", "menu", "closing", "ended"]
 @dataclass(frozen=True)
 class Started:
     """The agent claimed its connection; Rails says which question is current, how many exist
-    and how many answers (the opening's plus follow-ups') each question may have."""
+    and how many answers (the opening's plus follow-ups') each question may have.
+
+    A fresh agent that takes over a running connection (the first one crashed, or the room was
+    re-created) also gets where the current question stands, so it carries on from there."""
 
     question_position: int
     question_total: int
     answer_cap: int
     session_seconds_left: int  # counted seconds left on the session's clock (Rails keeps the total)
     retry_count: int = 0  # retries the current question already used (Rails keeps the count)
+    heartbeat_sequence: int = 0  # the last heartbeat Rails applied for this connection
+    current_prompt_message_id: str | None = None  # the current question's latest saved prompt
+    current_prompt_kind: Literal["opening", "follow_up"] | None = None
+    current_prompt_answered: bool = False
+    answer_count: int = 0  # answers the current question already has
+    feedback_given: bool = False  # Rails has spoken feedback for the current question
 
 
 @dataclass(frozen=True)
@@ -177,9 +200,24 @@ class ClosingSpoken:
     """The wrap-up closing asked for with `SayClosing` has finished playing (or was cut off)."""
 
 
+@dataclass(frozen=True)
+class CandidateLeft:
+    """The candidate's participant left the room (their connection dropped or they closed the page)."""
+
+    now: float
+
+
+@dataclass(frozen=True)
+class CandidateJoined:
+    """The candidate's participant (re)joined the room."""
+
+    now: float
+
+
 LiveEvent = (Started | InterviewerTurnFinished | CandidateTurnFinished | PromptRecorded | AskFollowUp
              | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint | RetryQuestion
-             | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken)
+             | MenuChoice | Tick | EndRequested | HeartbeatDue | HeartbeatReplied | SpeakingChanged | ClosingSpoken
+             | CandidateLeft | CandidateJoined)
 ToolEvent = (AskFollowUp | FinishAnswer | RepeatQuestion | NextQuestion | GiveFeedback | OfferMenu | GiveHint
              | RetryQuestion)
 
@@ -198,6 +236,7 @@ class ReportPromptAsked:
     question_position: int
     kind: Literal["opening", "follow_up"]
     text: str
+    prompt_key: str | None = None  # a follow-up's name, the same for any agent asking it at that point
 
 
 @dataclass(frozen=True)
@@ -231,13 +270,14 @@ class ReportQuestionRetried:
     retry_number: int
 
 
-FinishReason = Literal["completed", "ended_by_candidate", "idle", "time_limit", "allowance"]
+FinishReason = Literal["completed", "ended_by_candidate", "idle", "time_limit", "allowance", "disconnected"]
 
 
 @dataclass(frozen=True)
 class ReportFinish:
     """Tell Rails the interview is over and why (`idle`: the menu waited too long for a choice;
-    `time_limit` / `allowance`: the session clock or the live allowance ran out). `final_sequence`
+    `time_limit` / `allowance`: the session clock or the live allowance ran out; `disconnected`:
+    the candidate stayed away for 2 minutes). `final_sequence`
     names the final heartbeat sent just before, so Rails knows all usage was reported."""
 
     reason: FinishReason
@@ -294,6 +334,12 @@ LiveAction = (GenerateReply | ReportPromptAsked | ReportAnswerFinished | ReportQ
 def _ask_question_instructions(question_position: int) -> str:
     return (f"question {question_position + 1} from the question plan. Keep its meaning and ask it as one "
             "clear question in your own natural spoken words. Then stop and let the candidate answer.")
+
+
+def _resume_instructions(question_position: int) -> str:
+    return (f"Greet the candidate briefly and say you will continue the interview, then repeat question "
+            f"{question_position + 1} from the question plan clearly, with the same meaning. Then stop and let the "
+            "candidate answer.")
 
 
 def _opening_instructions(question_position: int) -> str:
@@ -356,6 +402,19 @@ IDLE_GOODBYE = ("The candidate has not chosen anything for three minutes. Say in
                 "will stop here for now, thank them and say goodbye. Do not ask anything else.")
 CLOSING = ("That was the last question. Thank the candidate warmly in one or two short sentences and "
            "say goodbye. Do not ask anything else or give feedback.")
+RESUME_AT_MENU = ("Greet the candidate briefly and say you will pick up where you left off. Then offer their choices in "
+                  "one short sentence: try the question again, hear the question again, get a hint, or move on. Wait "
+                  "for their choice.")
+AWAY_GRACE_SECONDS = 120  # how long the agent waits for a candidate whose connection dropped
+WELCOME_BACK = "The candidate's connection dropped and they are back. Welcome them back in one short sentence, then "
+WELCOME_BACK_TO = {
+    "asking": WELCOME_BACK + ("ask the current question or follow-up clearly, with the same meaning, and let them "
+                              "answer."),
+    "answering": WELCOME_BACK + ("repeat the current question or follow-up clearly, with the same meaning, and let "
+                                 "them answer."),
+    "feedback": WELCOME_BACK + "give your quick feedback. " + FEEDBACK_AGAIN,
+    "menu": WELCOME_BACK + MENU_AGAIN[0].lower() + MENU_AGAIN[1:],
+}
 WARNING_SECONDS = 120  # counted seconds left when the interviewer warns once
 CLOCK_PUBLISH_SECONDS = 5  # the room's time left is refreshed about this often
 TIME_WARNING = ("In one short sentence, tell the candidate there are about two minutes left, so they can start to "
@@ -398,9 +457,20 @@ class LiveInterviewController:
         self._warning_due = False  # the warning still has to be said at the next quiet moment
         self._wrap_reason: Literal["time_limit", "allowance"] | None = None
         self._interviewer_busy = self._candidate_speaking = False
+        self._away_since: float | None = None  # when the candidate's connection dropped, while they are away
 
     def handle(self, event: LiveEvent) -> list[LiveAction]:
         """Return the actions for `event`, in the order the adapter should carry them out."""
+        actions = self._handle(event)
+        if self._away_since is not None:  # nobody is there to hear it; the return says what is needed
+            actions = [action for action in actions if not isinstance(action, GenerateReply)]
+        return actions
+
+    def _handle(self, event: LiveEvent) -> list[LiveAction]:
+        if isinstance(event, CandidateLeft):  # also before the start: an agent can start in an empty room
+            if self._away_since is None and self._phase != "ended":
+                self._away_since, self._candidate_speaking = event.now, False
+            return []
         if isinstance(event, Started):
             return self._start(event)
         if isinstance(event, ToolEvent):
@@ -409,6 +479,8 @@ class LiveInterviewController:
             return []
         if isinstance(event, HeartbeatDue):
             return [self._heartbeat()]
+        if isinstance(event, CandidateJoined):
+            return self._welcome_back(event.now)
         if isinstance(event, HeartbeatReplied):
             if event.action == "warn":
                 return self._warn()
@@ -448,8 +520,19 @@ class LiveInterviewController:
         self._question_position, self._question_total = event.question_position, event.question_total
         self._answer_cap, self._retries = event.answer_cap, event.retry_count
         self._seconds_left = float(event.session_seconds_left)
-        self._reporting = "opening"
-        return [self._room_state(), GenerateReply(_opening_instructions(event.question_position))]
+        self._sequence = event.heartbeat_sequence
+        if event.current_prompt_kind is None:
+            self._reporting = "opening"
+            return [self._room_state(), GenerateReply(_opening_instructions(event.question_position))]
+        # A fresh agent never heard the conversation so far. It can repeat a saved opening (the
+        # question plan has it), but not a follow-up it never asked, so then it offers the menu.
+        self._answered_prompts = event.answer_count
+        if event.feedback_given or event.current_prompt_kind == "follow_up":
+            self._phase = "menu"
+            return [self._room_state(), GenerateReply(RESUME_AT_MENU)]
+        self._phase, self._prompt_message_id = "answering", event.current_prompt_message_id
+        self._saved_answer = "" if event.current_prompt_answered else None  # Rails has an answer; new words replace it
+        return [self._room_state(), GenerateReply(_resume_instructions(event.question_position))]
 
     def _interviewer_turn_finished(self, event: InterviewerTurnFinished) -> list[LiveAction]:
         text = event.text.strip()
@@ -465,11 +548,33 @@ class LiveInterviewController:
             return []  # chatter, a repeat, a hint or a clarification: nothing new to save
         kind, self._reporting = self._reporting, None
         self._phase = "answering"
-        return [ReportPromptAsked(self._question_position, kind, text), self._room_state()]
+        # A follow-up's key comes from where it is asked (question, retry, answers so far), so an
+        # agent that takes over after a crash cannot save the same follow-up twice.
+        key = f"q{self._question_position}-r{self._retries}-f{self._answered_prompts}" if kind == "follow_up" else None
+        return [ReportPromptAsked(self._question_position, kind, text, prompt_key=key), self._room_state()]
 
     def _tick(self, now: float) -> list[LiveAction]:
         """Count session time, then time the one nudge per answer and the menu's idle close."""
+        if self._away_since is not None:
+            self._last_tick = now  # time away is never counted
+            if now - self._away_since >= AWAY_GRACE_SECONDS:
+                return [*self._save_answer(), *self._finish("disconnected")]
+            return []
         return [*self._count(now), *self._timers(now)]
+
+    def _welcome_back(self, now: float) -> list[LiveAction]:
+        """The candidate is back: move the paused waits on by the time away and carry on from the same place."""
+        if self._away_since is None:
+            return []
+        away, self._away_since = max(now - self._away_since, 0.0), None
+        if self._last_tick is not None:
+            self._last_tick = now
+        if self._answering_since is not None:
+            self._answering_since += away
+        if self._menu_since is not None:
+            self._menu_since += away
+        welcome = WELCOME_BACK_TO.get(self._phase)
+        return [GenerateReply(welcome)] if welcome else []
 
     def _count(self, now: float) -> list[LiveAction]:
         """Count the time since the last tick unless the menu is waiting, and act on what is left."""
@@ -529,6 +634,8 @@ class LiveInterviewController:
         """Say a pending warning or wrap-up closing, but never over a turn still being spoken."""
         if self._interviewer_busy or self._candidate_speaking or self._phase in ("closing", "ended"):
             return []
+        if self._away_since is not None:  # say nothing to an empty room; a wrap-up just finishes
+            return [*self._save_answer(), *self._finish(self._wrap_reason)] if self._wrap_reason else []
         if self._wrap_reason:
             actions = self._save_answer()
             self._phase = "closing"

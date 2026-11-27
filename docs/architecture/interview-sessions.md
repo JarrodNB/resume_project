@@ -678,7 +678,9 @@ counted, for the session clock or the allowance. At the menu, time still counts 
 interviewer is busy (speaking or thinking of a reply, such as a hint or a repeated question),
 because the model is running then. The counted seconds left reach the room as
 `cd.seconds_left` with each phase change and about every 5 seconds. With 2 minutes left the
-controller sets `cd.time_warning` `true` and the interviewer says so once. At zero it wraps up:
+controller sets `cd.time_warning` `true` and the interviewer says so once, at the next quiet
+moment. While a question or follow-up is still to be asked it waits until that prompt has been
+heard, because the next interviewer turn then is saved as the prompt. At zero it wraps up:
 tools are refused ("time is up"), menu buttons are ignored, and once neither side is speaking
 (the adapter reports LiveKit's `agent_state_changed`, where `thinking` and `speaking` count as
 busy, and `user_state_changed`) it saves the pending answer, publishes `closing` and asks for a

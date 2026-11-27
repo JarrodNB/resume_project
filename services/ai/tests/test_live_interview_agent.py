@@ -790,10 +790,13 @@ def test_a_warn_reply_is_shown_and_said_once():
         await go()
         session = sessions[0][1]
         await session.agent._runner.heartbeat()
+        await settle()
+        assert ctx.room.local_participant.attributes[-1]["cd.time_warning"] == "true"
+        assert not any("two minutes" in reply for reply in session.replies)  # not while the opening is asked
+        session.emit_item("assistant", "Tell me about a project.")
         await session.agent._runner.heartbeat()
         await settle()
         assert sum("two minutes" in reply for reply in session.replies) == 1
-        assert ctx.room.local_participant.attributes[-1]["cd.time_warning"] == "true"
 
     asyncio.run(scenario())
 

@@ -847,6 +847,39 @@ def test_two_minutes_left_is_said_once_and_shown_in_the_room():
     assert controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=100)) == []  # only once overall
 
 
+def said(actions):
+    return [action for action in actions if isinstance(action, GenerateReply)]
+
+
+def test_a_warning_due_while_a_follow_up_is_being_asked_waits_until_it_has_been_heard():
+    """The next interviewer turn while asking is saved as the prompt, so the warning must not be it."""
+    controller, _ = started_controller(answer_cap=3)
+    controller.handle(Tick(now=0.0))
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I built a thing."))
+    controller.handle(AskFollowUp(question_text="What changed?"))
+    actions = controller.handle(Tick(now=1_380.0))  # two minutes left while the follow-up is still to come
+    assert clock_states(actions) == [(120, True)] and spoken(actions) == []
+    assert controller.handle(SpeakingChanged("interviewer", False)) == []
+    controller.handle(SpeakingChanged("interviewer", True))
+    actions = controller.handle(InterviewerTurnFinished(text="What changed after the launch?"))
+    assert actions[0] == ReportPromptAsked(question_position=0, kind="follow_up", text="What changed after the launch?",
+                                           prompt_key="q0-r0-f1")
+    assert said(actions) == []  # the interviewer is still talking
+    warning = said(controller.handle(SpeakingChanged("interviewer", False)))
+    assert len(warning) == 1 and "two minutes" in warning[0].instructions.lower()
+    assert controller.handle(InterviewerTurnFinished(text="About two minutes left.")) == []  # not a prompt
+
+
+def test_an_allowance_warning_while_the_opening_is_being_asked_is_said_once_it_has_been_heard():
+    controller, _ = started_controller()
+    actions = controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110))
+    assert clock_states(actions) == [(1_500, True)] and spoken(actions) == []
+    actions = controller.handle(InterviewerTurnFinished(text="Tell me about a project."))
+    assert actions[0] == ReportPromptAsked(question_position=0, kind="opening", text="Tell me about a project.")
+    assert len(said(actions)) == 1 and "two minutes" in said(actions)[0].instructions.lower()
+
+
 def test_time_up_waits_for_the_current_turn_then_closes_and_finishes_with_time_limit():
     controller, _ = started_controller()
     asked_and_recorded(controller)

@@ -578,7 +578,8 @@ class LiveInterviewController:
         # agent that takes over after a crash cannot save the same follow-up twice.
         key = f"q{self._question_position}-r{self._retries}-f{self._answered_prompts}" if kind == "follow_up" else None
         self._prompt = (self._question_position, key)
-        return [ReportPromptAsked(self._question_position, kind, text, prompt_key=key), self._room_state()]
+        return [ReportPromptAsked(self._question_position, kind, text, prompt_key=key), self._room_state(),
+                *self._speak_when_quiet()]  # a warning held back while the prompt was asked
 
     def _prompt_recorded(self, event: PromptRecorded) -> list[LiveAction]:
         """Note the current prompt's message, and report an answer that was waiting for it."""
@@ -688,7 +689,9 @@ class LiveInterviewController:
         return self._speak_when_quiet()
 
     def _speak_when_quiet(self) -> list[LiveAction]:
-        """Say a pending warning or wrap-up closing, but never over a turn still being spoken."""
+        """Say a pending warning or wrap-up closing, but never over a turn still being spoken. The
+        warning also waits while a prompt is being asked: the next interviewer turn then is saved
+        as the prompt, so it is said once the prompt has been heard."""
         if self._interviewer_busy or self._candidate_speaking or self._phase in ("closing", "ended"):
             return []
         if self._away_since is not None:  # say nothing to an empty room; a wrap-up just finishes
@@ -697,7 +700,7 @@ class LiveInterviewController:
             actions = self._save_answer()
             self._phase = "closing"
             return [*actions, self._room_state(), SayClosing(WRAP_UP[self._wrap_reason])]
-        if self._warning_due:
+        if self._warning_due and self._phase != "asking":  # the next turn while asking is saved as the prompt
             self._warning_due = False
             return [GenerateReply(TIME_WARNING)]
         return []

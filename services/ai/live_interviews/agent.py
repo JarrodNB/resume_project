@@ -122,7 +122,7 @@ def realtime_model_options(persona: str) -> dict:
     }
 
 
-MENU_OPTIONS = frozenset({"retry", "repeat", "hint", "next", "feedback"})
+MENU_OPTIONS = frozenset({"retry", "next", "feedback"})
 TRANSCRIPT_WAIT_SECONDS = 3.0  # how long a tool call waits for the candidate's late final transcript
 # How long leaving (and End interview's RPC answer) waits for reports still on their way to Rails.
 # The browser's End wait (LIVE_END_AGENT_TIMEOUT_MS in apps/web useLiveInterviewRoom.ts) must stay

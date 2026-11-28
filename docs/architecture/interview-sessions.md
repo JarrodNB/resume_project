@@ -497,16 +497,15 @@ and ask the current question. Each question then runs like this:
      (check constraint 1–1,500 characters); later feedback replaces it and a repeat of the same
      words changes nothing. Saving what was spoken, rather than a text the model passes to a
      tool, keeps the review true to what the candidate heard.
-   - **The menu.** The controller then has the model offer Try again / Hear the question again /
-     Get a hint / Move on and publishes `cd.menu_offered` `true`. From the menu it never moves on
-     without a choice: by voice the model calls `retry_question`, `repeat_question`, `give_hint`
-     or `next_question`; the room buttons send the RPC options `retry`, `repeat`, `hint`, `next`,
-     which map to the same controller events. Other tools (follow-ups, `finish_answer`) are
-     refused with "wait for their choice".
-   - **Hear the question again** repeats (or lightly rephrases) the core question and offers the
-     menu again; it does not reopen answering, because Try again does that.
-   - **Get a hint** points to an approach (a structure, the kind of example), never a finished
-     answer or wording to recite. Hints are also allowed while answering. They save nothing.
+   - **The menu.** The controller then has the model offer the two choices left, Try again or
+     Move on, and publishes `cd.menu_offered` `true`. Hearing the question again or getting a hint
+     is no use once the question's feedback is given, so neither is offered there. From the menu
+     it never moves on without a choice: by voice the model calls `retry_question` or
+     `next_question`; the room buttons send the RPC options `retry` and `next`, which map to the
+     same controller events. Other tools (follow-ups, `finish_answer`, `repeat_question`,
+     `give_hint`) are refused with "only two choices… wait for their choice".
+   - **Hints** are offered only while answering: one points to an approach (a structure, the kind
+     of example), never a finished answer or wording to recite. They save nothing.
    - **Try again** restarts the whole question: the controller drops unsaved words, reports
      `question_retried` (`question_position`, `retry_number`) and asks the question again, whose
      spoken turn is reported as the opening again (Rails returns the saved opening).
@@ -582,7 +581,7 @@ dispatches the agent by name; `JoinLiveService` and the agent's settings are pin
 | `cd.time_warning` | agent attribute → browser | `true` / `false` |
 | `cd.answer_heard` | agent attribute → browser | `true` once the candidate has said something for the current prompt; the room offers "How was that?" only then |
 | `cd.silence_seconds` | browser attribute → agent | the candidate's "Silence length" answer setting: `1.5`, `2.5` or `4` seconds of quiet end their turn (OpenAI server VAD `silence_duration_ms`). Published on connect and on every change; the agent applies it to the open realtime session and ignores other values. Normal (2.5) until it arrives |
-| RPC `interview.choose` | browser → agent | `{"option", "state_seq"}` for a button: `retry`, `repeat`, `hint`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.state_seq` (an integer) the room showed. Answers `accepted`, or `ignored` when the room state has changed since. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
+| RPC `interview.choose` | browser → agent | `{"option", "state_seq"}` for a button: `retry`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.state_seq` (an integer) the room showed. Answers `accepted`, or `ignored` when the room state has changed since. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
 
 #### Ending the interview
 
@@ -613,8 +612,8 @@ sides; a segment's interim text is replaced by its later text), the agent's prog
 `end()`. The room shows hideable captions, "Question N of M", the time left as `m:ss left`, a
 mute toggle, End interview and the references panel for the current saved prompt. Once
 `timeWarning` is on, the time left turns red and an alert ("About 2 minutes left. Start
-wrapping up.") is shown and announced. While the agent offers the menu it shows a labelled group of four buttons
-(Try again, Hear the question again, Get a hint, Move on); while the candidate answers it shows
+wrapping up.") is shown and announced. While the agent offers the menu it shows a labelled group of two buttons
+(Try again, Move on); while the candidate answers it shows
 "How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
 choice the agent didn't get shows a short alert. The completed review shows a question's
 `liveFeedback` under its latest answer as "Interviewer feedback". If no agent joins within 15 seconds, or joining

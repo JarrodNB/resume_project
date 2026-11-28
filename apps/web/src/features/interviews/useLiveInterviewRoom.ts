@@ -5,8 +5,7 @@
  * progress until an agent rejoins), live captions for both sides (from LiveKit's
  * `lk.transcription` text streams), the interview progress and counted time left (with the
  * two-minute warning flag) the agent publishes as participant attributes, and lets the candidate mute. Leaving the page disconnects the room.
- * `choose(option)` sends a coaching-menu button (Try again, Hear the question again, Get a hint,
- * Move on) or "How was that?" to the agent over the same RPC (`interview.choose`), with the
+ * `choose(option)` sends a coaching-menu button (Try again, Move on) or "How was that?" to the agent over the same RPC (`interview.choose`), with the
  * room state counter (`cd.state_seq`) the room showed for it; the agent then speaks the choice. A click
  * that landed after the interview moved on by voice answers `ignored`, which is not an error. `end()` asks the agent to end the interview (`{"option":"end"}`), then calls
  * Rails' `endLiveInterview`. With no agent in the room, or when the RPC fails with an error, that
@@ -37,7 +36,7 @@ export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer';
  * 2 minutes of either are left. */
 export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; stateSeq: number | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean; answerHeard: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
-export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
+export type LiveMenuOption = 'retry' | 'next' | 'feedback'
 interface LiveRoomState {
   status: LiveRoomStatus
   /** Rails opened a live room (signed a join token) at least once, so there is a room End interview can finish. */

@@ -29,7 +29,6 @@ from prompts.live_interviewer_turns import (
     FEEDBACK_FIRST,
     FEEDBACK_SO_FAR,
     HINT,
-    HINT_AT_MENU,
     IDLE_GOODBYE,
     MENU,
     MENU_AGAIN,
@@ -42,7 +41,6 @@ from prompts.live_interviewer_turns import (
     NOTHING_TO_COACH,
     NUDGE,
     REPEAT,
-    REPEAT_FROM_MENU,
     RESUME_AT_MENU,
     RETRY,
     STILL_ANSWERING,
@@ -199,7 +197,7 @@ class RetryQuestion:
     """Tool call: the candidate wants to try the whole question again."""
 
 
-MenuOption = Literal["retry", "repeat", "hint", "next", "feedback"]
+MenuOption = Literal["retry", "next", "feedback"]
 
 
 @dataclass(frozen=True)
@@ -418,8 +416,7 @@ LiveAction = (GenerateReply | ReportPromptAsked | ReportAnswerFinished | ReportQ
 FEEDBACK_LIMIT = 1_500  # characters Rails keeps for one question's feedback
 ANSWER_LIMIT = MAX_PROSE_TEXT  # characters Rails accepts for one answer (TextLimits::PROSE)
 RETRY_LIMIT = 2  # retries per question; Rails refuses a third too
-MENU_EVENTS = {"retry": RetryQuestion, "repeat": RepeatQuestion, "hint": GiveHint, "next": NextQuestion,
-               "feedback": GiveFeedback}
+MENU_EVENTS = {"retry": RetryQuestion, "next": NextQuestion, "feedback": GiveFeedback}
 NUDGE_AFTER_SECONDS = 180  # of answering one prompt
 MENU_IDLE_SECONDS = 180  # of the menu waiting for a choice
 CLOSING_WAIT_SECONDS = 20  # the closing finishes the interview by then even if it was never heard as a turn
@@ -835,17 +832,13 @@ class LiveInterviewController:
         self._menu_since = None
         if isinstance(event, NextQuestion):
             return self._advance()
-        if isinstance(event, RepeatQuestion):
-            return [ToolResult(REPEAT_FROM_MENU)]
         if isinstance(event, GiveFeedback):
             return self._feedback(FEEDBACK_AGAIN, then="menu")
-        if isinstance(event, GiveHint):
-            return [ToolResult(HINT_AT_MENU)]
         if isinstance(event, RetryQuestion):
             return self._retry(NO_RETRIES_AT_MENU)
         if isinstance(event, OfferMenu):
             return [ToolResult(MENU_AGAIN)]
-        return [ToolResult(CHOOSING)]
+        return [ToolResult(CHOOSING)]  # also a hint or a repeat: after feedback only these two choices are left
 
     def _retry(self, refusal: str) -> list[LiveAction]:
         """Restart the whole question: Rails drops its answers, follow-ups and feedback, keeping

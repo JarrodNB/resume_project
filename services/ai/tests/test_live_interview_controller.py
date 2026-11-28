@@ -472,7 +472,8 @@ def test_the_spoken_feedback_is_saved_then_the_menu_is_offered_and_published():
     ]
     assert isinstance(actions[2], GenerateReply) and len(actions) == 3
     menu = actions[2].instructions.lower()
-    assert all(choice in menu for choice in ("try", "hear the question again", "hint", "move on"))
+    assert "try the question again or move on" in menu
+    assert "hint" not in menu and "hear the question again" not in menu  # no use once feedback is given
 
 
 def test_the_follow_up_cap_leads_straight_to_feedback():
@@ -549,13 +550,15 @@ def test_long_feedback_is_saved_within_the_rails_limit():
     assert isinstance(report, ReportFeedbackGiven) and len(report.text) <= 1_500
 
 
-def test_hear_the_question_again_from_the_menu_repeats_it_and_offers_the_menu_again():
-    controller = menu_controller()
-    actions = controller.handle(RepeatQuestion())
-    assert len(actions) == 1
-    text = tool_text(actions).lower()
-    assert "repeat the core question" in text and "wait for their choice" in text
-    assert controller.handle(InterviewerTurnFinished(text="Sure. Tell me about a project.")) == []
+def test_after_feedback_a_repeat_or_a_hint_is_refused_and_the_two_choices_stand():
+    for event in (RepeatQuestion(), GiveHint()):
+        controller = menu_controller()
+        actions = controller.handle(event)
+        assert len(actions) == 1
+        text = tool_text(actions).lower()
+        assert "try the question again or move on" in text and "only two choices" in text
+        assert controller.handle(InterviewerTurnFinished(text="You can try again or move on.")) == []
+        assert "wait for their choice" in tool_text(controller.handle(FinishAnswer())).lower()
 
 
 def test_try_again_restarts_the_whole_question_and_the_new_attempt_replaces_the_old():
@@ -588,7 +591,7 @@ def test_a_third_retry_is_refused_politely_and_the_other_choices_are_offered():
     actions = controller.handle(RetryQuestion())
     assert len(actions) == 1
     text = tool_text(actions).lower()
-    assert "both retries" in text and "hint" in text and "move on" in text
+    assert "both retries" in text and "only choice left is to move on" in text
 
 
 def test_retries_already_used_before_a_restart_count_toward_the_limit():
@@ -629,14 +632,6 @@ def test_a_hint_points_to_an_approach_before_answering_and_saves_nothing():
     assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(prompt_message_id="opening-0", transcript="My answer.")
 
 
-def test_a_hint_from_the_menu_stays_at_the_menu():
-    controller = menu_controller()
-    actions = controller.handle(GiveHint())
-    assert len(actions) == 1
-    text = tool_text(actions).lower()
-    assert "finished answer" in text and "wait for their choice" in text
-    assert controller.handle(InterviewerTurnFinished(text="Try leading with the outcome.")) == []
-    assert "wait for their choice" in tool_text(controller.handle(FinishAnswer())).lower()
 
 
 def test_hints_and_retries_wait_until_the_question_has_been_asked_or_feedback_is_spoken():
@@ -652,8 +647,7 @@ def test_hints_and_retries_wait_until_the_question_has_been_asked_or_feedback_is
 def test_menu_buttons_map_to_the_same_steps_as_voice_but_ask_the_model_to_speak():
     # The model never hears a button press, so the reply says which button it was; without that
     # it took "try again" for another offer of the choices and offered them again.
-    for option, voice, label in (("retry", RetryQuestion(), "Try again"), ("repeat", RepeatQuestion(), "Hear the question again"),
-                                 ("hint", GiveHint(), "Get a hint"), ("next", NextQuestion(), "Move on")):
+    for option, voice, label in (("retry", RetryQuestion(), "Try again"), ("next", NextQuestion(), "Move on")):
         by_voice = menu_controller().handle(voice)
         by_button = click(menu_controller(), option)
         assert by_button[:-1] == by_voice[:-1]
@@ -838,10 +832,10 @@ def test_counted_time_excludes_the_waiting_menu_and_is_billed_in_heartbeats():
 
 
 def test_at_the_menu_time_counts_while_the_interviewer_is_speaking_or_thinking():
-    """Waiting for a choice is free, but a hint or repeat the model speaks at the menu is not."""
+    """Waiting for a choice is free, but the choices the model speaks again at the menu are not."""
     controller = menu_controller()
     controller.handle(Tick(now=0.0))
-    click(controller, "hint")
+    controller.handle(OfferMenu())
     controller.handle(SpeakingChanged("interviewer", True))
     controller.handle(Tick(now=15.0))
     controller.handle(SpeakingChanged("interviewer", False))
@@ -1104,7 +1098,7 @@ def test_the_menu_is_offered_again_on_return_and_its_idle_wait_ignores_the_time_
     controller.handle(CandidateLeft(now=100.0))
     controller.handle(Tick(now=200.0))
     actions = controller.handle(CandidateJoined(now=210.0))
-    assert "welcome" in actions[0].instructions.lower() and "choices" in actions[0].instructions.lower()
+    assert "welcome" in actions[0].instructions.lower() and "move on" in actions[0].instructions.lower()
     assert controller.handle(Tick(now=289.0)) == []  # 100 s waited before leaving + 79 s since
     assert isinstance(controller.handle(Tick(now=290.0))[1], SayClosing)
 
@@ -1119,7 +1113,7 @@ def test_nothing_new_is_said_while_the_candidate_is_away():
     assert [type(action) for action in actions] == [ReportFeedbackGiven, PublishRoomState]
     assert controller.handle(HeartbeatReplied(action="warn", allowance_seconds_left=110, sequence=1))[1:] == []
     actions = controller.handle(CandidateJoined(now=30.0))
-    assert len(actions) == 1 and "choices" in actions[0].instructions.lower()
+    assert len(actions) == 1 and "move on" in actions[0].instructions.lower()
     assert "two minutes" in controller.handle(SpeakingChanged(who="interviewer", speaking=False))[0].instructions
 
 
@@ -1179,7 +1173,7 @@ def test_a_resumed_agent_offers_the_menu_after_feedback_or_when_a_follow_up_it_n
         controller, actions = resumed(current_prompt_message_id="prompt", answer_count=1, **restore)
         assert actions[0] == Shown(seconds_left=900, question_position=1, question_total=5, phase="menu",
                                               menu_offered=True)
-        assert "choices" in actions[1].instructions.lower()
+        assert "try the question again or move on" in actions[1].instructions.lower()
         assert controller.handle(NextQuestion())[0] == ReportQuestionAdvanced(question_position=1)
 
 
@@ -1272,7 +1266,7 @@ def test_a_preamble_before_give_feedback_is_not_saved_as_the_feedback():
     assert controller.handle(preamble("Okay, let me think about that.")) == []
     actions = controller.handle(InterviewerTurnFinished(text="Quick feedback: clear example."))
     assert actions[0] == ReportFeedbackGiven(question_position=0, text="Quick feedback: clear example.")
-    assert isinstance(actions[-1], GenerateReply) and "hint" in actions[-1].instructions  # the menu follows it
+    assert isinstance(actions[-1], GenerateReply) and "move on" in actions[-1].instructions  # the menu follows it
 
 
 def test_answers_to_a_prompt_rails_has_not_recorded_yet_are_reported_once_it_is():

@@ -215,7 +215,7 @@ it('sends a menu choice to the agent and reports a failed choice', async () => {
   expect(view.result.current).toMatchObject({ choosing: false, chooseError: null })
 
   room.performRpc.mockRejectedValue(new Error('Application error'))
-  await act(async () => { sent = await view.result.current.choose('hint') })
+  await act(async () => { sent = await view.result.current.choose('next') })
   expect(sent).toBe(false)
   expect(view.result.current).toMatchObject({ choosing: false, chooseError: 'Your interviewer didn’t get that choice. Try again or say it out loud.' })
   room.performRpc.mockResolvedValue('accepted')
@@ -300,7 +300,7 @@ it('reads the documented cd.* attributes and sends each documented interview.cho
     'cd.state_seq': '11', 'cd.menu_offered': 'true', 'cd.seconds_left': '90', 'cd.time_warning': 'true', 'cd.answer_heard': 'true' } }))
   expect(view.result.current.progress).toEqual({ questionPosition: 2, questionTotal: 6, phase: 'menu', stateSeq: 11, menuOffered: true, secondsLeft: 90, timeWarning: true, answerHeard: true })
   room.remoteParticipants.set(agent.identity, agent)
-  for (const option of ['retry', 'repeat', 'hint', 'next', 'feedback'] as const) {
+  for (const option of ['retry', 'next', 'feedback'] as const) {
     await act(async () => { await view.result.current.choose(option) })
     expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'interview.choose', payload: JSON.stringify({ option, state_seq: 11 }) }))
   }

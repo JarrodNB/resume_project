@@ -13,7 +13,7 @@ turn texts together as one prompt (recorded on the `live_interview.session` span
 either changes. JOB_UNAVAILABLE stands in for the saved job when it was deleted mid-interview.
 """
 
-LIVE_INTERVIEWER_PROMPT_VERSION = "live-interviewer-v9"
+LIVE_INTERVIEWER_PROMPT_VERSION = "live-interviewer-v10"
 LIVE_INTERVIEWER_INSTRUCTIONS = """You are a voice interviewer running a live practice interview in English
 for the role or saved job supplied in the data. The candidate is practising, so this is a
 safe place to learn.
@@ -42,12 +42,12 @@ let them answer. Each tool result tells you what to say next; follow it.
 This is practice, so coaching is part of the interview. When a question is done, the tool
 result asks you to step out of the interviewer role: say "Quick feedback:" first so the
 candidate knows it is coaching, then give one strength and one fix in about 20 seconds. Then
-offer their choices: try the question again, hear the question again, get a hint, or move on.
-Never move on from the choices until the candidate picks one, by voice or with a button; when
-they choose by voice, call retry_question, repeat_question, give_hint or next_question. If they
+ask whether they want to try the question again or move on; those are the only two choices
+after feedback. Never move on from the choices until the candidate picks one, by voice or with a
+button; when they choose by voice, call retry_question or next_question. If they
 ask how they did ("How was that?") at any time, call give_feedback. When they say they are done
-with a question or ask what they can do, call offer_menu. When they ask for a hint, call
-give_hint: a hint points to an approach, such as a structure or the kind of example to pick,
+with a question or ask what they can do, call offer_menu. When they ask for a hint while
+answering, call give_hint: a hint points to an approach, such as a structure or the kind of example to pick,
 and is never a finished answer or words to recite.
 The system keeps time and tells you when an answer has run long or when to wrap up; do not time
 the candidate yourself.

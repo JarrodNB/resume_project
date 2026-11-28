@@ -259,10 +259,10 @@ it('shows the completed review of a live session with its questions, latest answ
   expect(screen.getByRole('button', { name: 'Generate feedback' })).toBeEnabled()
 })
 
-const MENU_BUTTONS = ['Try again', 'Hear the question again', 'Get a hint', 'Move on']
+const MENU_BUTTONS = ['Try again', 'Move on']
 const menuProgress = { questionPosition: 0, questionTotal: 5, phase: 'menu', menuOffered: true }
 
-it('shows the four coaching choices only while the interviewer offers the menu', () => {
+it('shows the two coaching choices only while the interviewer offers the menu', () => {
   live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'answering', menuOffered: false } })
   const view = renderInterview()
   expect(screen.queryByRole('group', { name: 'What would you like to do next?' })).not.toBeInTheDocument()
@@ -274,7 +274,7 @@ it('shows the four coaching choices only while the interviewer offers the menu',
   expect([...group.querySelectorAll('button')].map((button) => button.textContent)).toEqual(MENU_BUTTONS)
 })
 
-it.each([['Try again', 'retry'], ['Hear the question again', 'repeat'], ['Get a hint', 'hint'], ['Move on', 'next']] as const)(
+it.each([['Try again', 'retry'], ['Move on', 'next']] as const)(
   'sends %s to the interviewer', (name, option) => {
     live.value = liveRoom({ status: 'connected', agentJoined: true, progress: menuProgress })
     renderInterview()

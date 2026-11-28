@@ -389,9 +389,9 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.state_seq": "8",
             "cd.menu_offered": "true", "cd.seconds_left": "600", "cd.time_warning": "false",
             "cd.answer_heard": "false"}
-        assert "hint" in session.replies[-1].lower()  # the menu is offered
-        assert "finished answer" in (await agent.give_hint(tool_call())).lower()
-        assert "repeat" in (await agent.repeat_question(tool_call())).lower()
+        assert "move on" in session.replies[-1].lower()  # the menu is offered
+        assert "only two choices" in (await agent.give_hint(tool_call())).lower()  # no hint after feedback
+        assert "only two choices" in (await agent.repeat_question(tool_call())).lower()
         assert "question 1" in (await agent.retry_question(tool_call())).lower()
         session.emit_item("assistant", "Let's try again: tell me about a project.")
         await settle()
@@ -450,8 +450,8 @@ def test_menu_buttons_interrupt_and_have_the_interviewer_speak_the_choice():
         await session.agent.next_question(tool_call())
         session.emit_item("assistant", "Quick feedback: clear.")
         await settle()
-        assert await choose(rpc("hint", shown_seq(ctx))) == "accepted"
-        assert "finished answer" in session.replies[-1]
+        with pytest.raises(rtc.RpcError):  # after feedback the only buttons are Try again and Move on
+            await choose(rpc("hint", shown_seq(ctx)))
         assert await choose(rpc("next", shown_seq(ctx))) == "accepted"
         assert "question 2" in session.replies[-1].lower()
 
@@ -1049,7 +1049,7 @@ def test_words_spoken_with_a_tool_call_are_a_preamble_and_the_reply_after_its_re
         session.emit_item("user", "Fewer failed runs.")
         await settle()
         await call_with_preamble("next_question", preamble="Okay.", reply="Quick feedback: clear story.")
-        assert "hint" in session.replies[-1].lower()  # the menu follows the real feedback
+        assert "move on" in session.replies[-1].lower()  # the menu follows the real feedback
         await call_with_preamble("next_question", preamble="Sure, let's wrap up.", reply="Thank you. Goodbye!")
 
     asyncio.run(scenario())
@@ -1180,7 +1180,7 @@ def test_room_attribute_names_and_choose_options_match_the_documented_contract()
         "cd.question_position", "cd.question_total", "cd.phase", "cd.state_seq", "cd.menu_offered", "cd.seconds_left",
         "cd.time_warning", "cd.answer_heard"}
     assert list(ctx.room.local_participant.rpc_methods) == ["interview.choose"]
-    assert MENU_OPTIONS == {"retry", "repeat", "hint", "next", "feedback"}  # plus "end", handled on its own
+    assert MENU_OPTIONS == {"retry", "next", "feedback"}  # plus "end", handled on its own
     assert set(MENU_EVENTS) == MENU_OPTIONS
     assert set(Phase.__args__) == {"asking", "answering", "feedback", "menu", "closing", "ended"}
 

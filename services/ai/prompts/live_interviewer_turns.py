@@ -64,44 +64,38 @@ FEEDBACK_AGAIN = ("Start with \"Quick feedback:\" and, in about 20 seconds, give
 NOTHING_TO_COACH = "The candidate has not answered yet, so there is nothing to give feedback on. Let them answer."
 NO_FEEDBACK_AFTER_RECONNECT = (
     "You reconnected partway through this question and did not hear the candidate's earlier answers. Say briefly "
-    "that you can't give feedback on that part after the reconnect, then offer their choices in one short sentence: "
-    "try the question again, hear the question again, get a hint, or move on. Wait for their choice.")
+    "that you can't give feedback on that part after the reconnect, then ask in one short sentence whether they "
+    "want to try the question again or move on. Wait for their choice.")
 FEEDBACK_FIRST = ("You are already giving this question's quick feedback. Do not start it again and do not add "
                   "anything else now.")
 STILL_ANSWERING = ("The candidate's answer is still very short, so they have probably only paused to think. Do not "
                    "ask a follow-up or move on yet. If they stopped mid-sentence, say only a brief \"Mm-hm, go on.\" "
                    "Otherwise invite them, in one short sentence, to say a bit more about the same thing. Then let "
                    "them talk.")
-MENU = ("Now offer the candidate their choices in one short, friendly sentence: try the question again, hear the "
-        "question again, get a hint, or move on. Then stop and wait for their choice. Never move on until they "
-        "choose.")
-CHOOSING = ("The candidate is choosing what to do next: try the question again, hear the question again, get a "
-            "hint, or move on. Do not ask anything new; wait for their choice.")
-MENU_AGAIN = ("Offer the candidate their choices again in one short sentence: try the question again, hear the "
-              "question again, get a hint, or move on. Then wait for their choice.")
-REPEAT_FROM_MENU = ("Repeat the core question clearly, with the same meaning; you may rephrase it slightly. Then "
-                    "offer the choices again (try again, get a hint, or move on) and wait for their choice.")
+MENU = ("Now ask the candidate in one short, friendly sentence whether they want to try the question again or move "
+        "on. Then stop and wait for their choice. Never move on until they choose.")
+CHOOSING = ("The candidate is choosing whether to try the question again or move on; those are the only two choices "
+            "now. Do not ask anything new; wait for their choice.")
+MENU_AGAIN = ("Ask the candidate again in one short sentence whether they want to try the question again or move on. "
+              "Then wait for their choice.")
 NOT_ASKED = "The question has not been asked yet. Ask it first."
 RETRY = ("The candidate chose to try this question again, and it starts over now. Do not offer the choices again. "
          "Say a few words such as \"Sure, let's take it from the top.\", then ask {question}")
-NO_RETRIES_AT_MENU = ("The candidate has already used both retries for this question. Say so politely, then offer the "
-                      "other choices: hear the question again, get a hint, or move on. Wait for their choice.")
+NO_RETRIES_AT_MENU = ("The candidate has already used both retries for this question. Say so politely and tell them "
+                      "the only choice left is to move on. Wait until they choose to move on.")
 NO_RETRIES_ANSWERING = ("The candidate has already used both retries for this question. Say so politely and let them "
                         "carry on with their answer; they can also ask for a hint or move on.")
 HINT_RULE = ("Give one short hint that points to an approach, such as a structure to follow or the kind of example "
              "to pick. Never give a finished answer or words for them to recite.")
 HINT = HINT_RULE + " Then let them answer."
-HINT_AT_MENU = HINT_RULE + (" Then ask whether they would like to try the question again or choose something else, "
-                            "and wait for their choice.")
 NUDGE = ("The candidate has been answering this for about three minutes. Politely cut in once, in one short "
          "sentence, and ask them to wrap that answer up in a sentence or two.")
 IDLE_GOODBYE = ("The candidate has not chosen anything for three minutes. Say in one or two short sentences that you "
                 "will stop here for now, thank them and say goodbye. Do not ask anything else.")
 CLOSING = ("That was the last question. Thank the candidate warmly in one or two short sentences and "
            "say goodbye. Do not ask anything else or give feedback.")
-RESUME_AT_MENU = ("Greet the candidate briefly and say you will pick up where you left off. Then offer their choices in "
-                  "one short sentence: try the question again, hear the question again, get a hint, or move on. Wait "
-                  "for their choice.")
+RESUME_AT_MENU = ("Greet the candidate briefly and say you will pick up where you left off. Then ask in one short "
+                  "sentence whether they want to try the question again or move on. Wait for their choice.")
 WELCOME_BACK = "The candidate's connection dropped and they are back. Welcome them back in one short sentence, then "
 WELCOME_BACK_TO = {
     "asking": WELCOME_BACK + ("ask the current question or follow-up clearly, with the same meaning, and let them "
@@ -129,8 +123,6 @@ WRAP_UP = {
 # choices, may simply offer them again.
 BUTTON_PRESSED = {
     "retry": "The candidate pressed the \"Try again\" button.",
-    "repeat": "The candidate pressed the \"Hear the question again\" button.",
-    "hint": "The candidate pressed the \"Get a hint\" button.",
     "next": "The candidate pressed the \"Move on\" button.",
     "feedback": "The candidate pressed the \"How was that?\" button.",
 }

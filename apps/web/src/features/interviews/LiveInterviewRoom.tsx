@@ -2,8 +2,8 @@
  * LiveKit (see useLiveInterviewRoom). It shows the connection state, then captions (which the
  * candidate can hide), "Question N of M" and the counted time left from the interviewer agent
  * (with an announced warning at about 2 minutes left) and a mute button. After the
- * interviewer's spoken feedback on a question, it shows the coaching choices (Try again, Hear the
- * question again, Get a hint, Move on) while the agent says the menu is offered; once the
+ * interviewer's spoken feedback on a question, it shows the two choices left (Try again, Move on)
+ * while the agent says the menu is offered; once the
  * candidate has started answering it offers "How was that?". Each button sends the same choice as saying it. The
  * career references panel works exactly as in the turn-based room, for the prompt the agent
  * saved. If the interviewer hasn't joined within 15 seconds (or left and hasn't come back within
@@ -114,8 +114,6 @@ function LiveRoomControls({ room }: { room: LiveRoom }) {
 
 const MENU_CHOICES: { option: LiveMenuOption; label: string }[] = [
   { option: 'retry', label: 'Try again' },
-  { option: 'repeat', label: 'Hear the question again' },
-  { option: 'hint', label: 'Get a hint' },
   { option: 'next', label: 'Move on' },
 ]
 

@@ -319,7 +319,9 @@ For each dispatched job it:
    `prompts/live_interviewer_instructions.py`; the controller's turn instructions and tool results
    are in `prompts/live_interviewer_turns.py`, and `LIVE_INTERVIEWER_PROMPT_VERSION` labels both
    as one prompt on the session span): practice-interviewer framing that marks coaching
-   with "Quick feedback:", the persona/difficulty/focus style, the role or job and the question
+   with "Quick feedback:", the persona/difficulty/focus style (`live_style`: the persona sets how
+   the interviewer talks, probes and coaches, the difficulty sets the follow-up bar and the bar
+   quick feedback judges against, and focus areas steer both), the role or job and the question
    plan, all inside escaped data sections with contact masked. These instructions, including
    the saved job text read here, are deliberately not screened: the live interviewer's only
    actions are moving, restarting or ending the owner's current interview through

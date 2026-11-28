@@ -27,6 +27,8 @@ def test_includes_persona_difficulty_focus_and_the_ordered_question_plan():
     assert "Priya, a tough interviewer" in text
     assert "Difficulty: Stretch." in text
     assert "leadership, impact & metrics" in text
+    assert "Quick feedback bar (Stretch)" in text
+    assert "base the quick feedback's strength or fix on them" in text
     first, second = text.index("Question 1"), text.index("Question 2")
     assert first < text.index("Tell me about a hard calibration.") < second < text.index("How do you check results?")
 
@@ -83,3 +85,14 @@ def test_says_the_saved_job_details_are_unavailable_once_the_job_was_deleted():
     text = build_live_instructions(inputs(role=None, job=None, job_deleted=True))
     assert "job details are no longer available" in text
     assert "Senior lab analyst" not in text and "Tell me about a hard calibration." in text
+
+
+def test_each_persona_talks_probes_and_coaches_differently():
+    texts = {persona: build_live_instructions(inputs(setup=InterviewSetup(question_count=5, interviewer=persona)))
+             for persona in ("maya", "daniel", "priya")}
+    assert "encouraging next step" in texts["maya"]
+    assert "situation, what they personally did, then the result" in texts["daniel"]
+    assert "When they say 'we', ask what they personally did." in texts["priya"]
+    assert "blunt" in texts["priya"] and "blunt" not in texts["maya"]
+    for text in texts.values():
+        assert text.count("Interviewer: ") == 1

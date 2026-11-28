@@ -113,7 +113,9 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   useEffect(() => { shownProgressRef.current = room.progress }, [room.progress])
   useEffect(() => {
     let cancelled = false
-    const livekit = new Room()
+    // The browser's echo cancellation keeps the interviewer's voice from the speakers out of the
+    // microphone, so the interviewer doesn't hear itself as the candidate and stop talking.
+    const livekit = new Room({ audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
     livekitRef.current = livekit
     const audio: HTMLMediaElement[] = []
     const update = (change: (previous: LiveRoomState) => Partial<LiveRoomState>) => { if (!cancelled) setRoom((previous) => ({ ...previous, ...change(previous) })) }

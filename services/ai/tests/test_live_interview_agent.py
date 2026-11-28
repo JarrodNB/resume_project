@@ -683,11 +683,13 @@ def test_dispatch_metadata_holds_only_the_two_ids():
         LiveDispatch.model_validate_json('{"interview_session_id": "s", "live_connection_id": "l", "text": "x"}')
 
 
-def test_realtime_options_use_the_persona_voice_server_vad_and_transcription():
+def test_realtime_options_use_the_persona_voice_patient_turn_detection_and_transcription():
     options = realtime_model_options("daniel")
     assert options["model"] == "gpt-realtime-2.1-mini"
     assert options["voice"] == "cedar"
-    assert options["turn_detection"].type == "server_vad"
+    # Plain silence detection cut candidates off at every short pause.
+    assert (options["turn_detection"].type, options["turn_detection"].eagerness) == ("semantic_vad", "low")
+    assert options["input_audio_noise_reduction"].type == "far_field"
     assert options["input_audio_transcription"].model == "gpt-live-transcribe"
     assert PERSONA_VOICES == {"maya": "marin", "daniel": "cedar", "priya": "shimmer"}
     # Rails dispatches this exact name (services/api/spec/services/interviews/join_live_service_spec.rb).

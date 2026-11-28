@@ -8,13 +8,13 @@ stale; the controller only keeps the conversation's place. Every tool call gets 
 `ToolResult`, its last action, and question positions are zero-based like Rails'. The words
 of its turn instructions and tool results live in prompts/live_interviewer_turns.py.
 
-The behaviour it implements (answers, coaching menu, clock and allowance, dropped connections,
+The behaviour it implements (answers, coaching menu, clock and live budget, dropped connections,
 takeovers) is described in docs/architecture/interview-sessions.md, "Live conversation mode".
 """
 
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from prompts.live_interviewer_turns import (
@@ -78,7 +78,6 @@ class Started:
     question_total: int
     answer_cap: int
     session_seconds_left: int  # counted seconds left on the session's clock (Rails keeps the total)
-    allowance_seconds_left: int  # the user's live seconds left; counted like the session clock
     retry_count: int = 0  # retries the current question already used (Rails keeps the count)
     heartbeat_sequence: int = 0  # the last heartbeat Rails applied for this connection
     current_prompt_message_id: str | None = None  # the current question's latest saved prompt
@@ -233,13 +232,12 @@ class HeartbeatDue:
 
 @dataclass(frozen=True)
 class HeartbeatReplied:
-    """Rails' answer to heartbeat `sequence`: carry on, warn (2 live minutes left) or wrap up
-    now, with the user's live seconds left once that heartbeat's seconds were billed."""
+    """Rails' answer to a heartbeat: carry on, or wrap up now because the user's hidden live budget
+    is spent (`allowance`) or the session is out of time (`time_limit`). Rails never sends the
+    budget itself, and nothing warns before it runs out."""
 
-    action: Literal["continue", "warn", "wrap_up"]
-    allowance_seconds_left: int
+    action: Literal["continue", "wrap_up"]
     reason: Literal["allowance", "time_limit"] | None = None
-    sequence: int = field(kw_only=True)
 
 
 @dataclass(frozen=True)
@@ -347,7 +345,7 @@ FinishReason = Literal["completed", "ended_by_candidate", "idle", "time_limit", 
 @dataclass(frozen=True)
 class ReportFinish:
     """Tell Rails the interview is over and why (`idle`: the menu waited too long for a choice;
-    `time_limit` / `allowance`: the session clock or the live allowance ran out; `disconnected`:
+    `time_limit` / `allowance`: the session clock or the user's live budget ran out; `disconnected`:
     the candidate stayed away for 2 minutes; `failed`: an unrecoverable model error closed the realtime
     session). `final_sequence`
     names the final heartbeat sent just before, so Rails knows all usage was reported."""
@@ -462,10 +460,8 @@ class LiveInterviewController:
         self._closing_reason: Literal["completed", "idle"] = "completed"
         self._closing_since: float | None = None  # first clock tick of the closing
         self._seconds_left = 0.0  # counted seconds left on the session clock
-        self._allowance_left = 0.0  # counted seconds left of the user's live allowance
         self._counted = 0.0  # counted seconds so far in this connection
         self._billed = 0  # whole counted seconds already sent in heartbeats
-        self._billed_at: dict[int, int] = {}  # `_billed` as each unanswered heartbeat left
         self._sequence = 0  # the last heartbeat's sequence number
         self._last_tick: float | None = None
         self._published_seconds = 0  # the seconds left the room last showed
@@ -525,11 +521,8 @@ class LiveInterviewController:
         if isinstance(event, CandidateJoined):
             return self._welcome_back(event.now)
         if isinstance(event, HeartbeatReplied):
-            self._refresh_allowance(event)
             actions: list[LiveAction] = []
-            if event.action == "warn":
-                actions = self._warn()
-            elif event.action == "wrap_up":
+            if event.action == "wrap_up":
                 actions = self._wrap_up("time_limit" if event.reason == "time_limit" else "allowance")
             if any(isinstance(action, PublishRoomState) for action in actions):
                 return actions
@@ -577,7 +570,6 @@ class LiveInterviewController:
         self._questions = event.questions
         self._answer_cap, self._retries = event.answer_cap, event.retry_count
         self._seconds_left = float(event.session_seconds_left)
-        self._allowance_left = float(event.allowance_seconds_left)
         self._sequence = event.heartbeat_sequence
         if event.current_prompt_kind is None:
             self._reporting, self._asks_left = "opening", ASKS_AGAIN
@@ -674,20 +666,18 @@ class LiveInterviewController:
 
     def _count(self, now: float) -> list[LiveAction]:
         """Count the time since the last tick unless the menu is waiting quietly (the interviewer
-        speaking or thinking at the menu counts), and act on what is left. Both the session clock
-        and the live allowance count down; the room shows and warns on whichever is smaller. Only
-        the session clock wraps up here: Rails decides when the allowance has run out."""
+        speaking or thinking at the menu counts), and act on what is left of the session clock. Rails
+        decides when the user's live budget has run out (a heartbeat's `wrap_up`)."""
         elapsed = 0.0 if self._last_tick is None else max(now - self._last_tick, 0.0)
         self._last_tick = now
         if (self._phase == "menu" and not self._interviewer_busy) or not elapsed:
             return []
         self._counted += elapsed
         self._seconds_left -= elapsed
-        self._allowance_left -= elapsed
         if self._seconds_left <= 0 and self._phase != "closing":
             return self._wrap_up("time_limit")
         # A warning returns nothing during a wrap-up or closing, so the clock still moves then.
-        if min(self._seconds_left, self._allowance_left) <= WARNING_SECONDS and (warning := self._warn()):
+        if self._seconds_left <= WARNING_SECONDS and (warning := self._warn()):
             return warning
         return self._clock_moved()
 
@@ -727,16 +717,7 @@ class LiveInterviewController:
         counted = math.ceil(self._counted) if final else math.floor(self._counted)
         delta, self._billed = max(counted - self._billed, 0), max(counted, self._billed)
         self._sequence += 1
-        if not final:  # its answer refreshes the allowance
-            self._billed_at[self._sequence] = self._billed
         return SendHeartbeat(self._sequence, delta, final=final)
-
-    def _refresh_allowance(self, reply: HeartbeatReplied) -> None:
-        """Take Rails' allowance as of the heartbeat it answers, less the time counted since that
-        heartbeat left (Rails has not billed it yet). The reply publishes the change if it is big enough."""
-        billed = self._billed_at.get(reply.sequence, self._billed)
-        self._billed_at = {sequence: seconds for sequence, seconds in self._billed_at.items() if sequence > reply.sequence}
-        self._allowance_left = reply.allowance_seconds_left - (self._counted - billed)
 
     def _warn(self) -> list[LiveAction]:
         """Show the time warning now and say it at the next quiet moment, once overall."""
@@ -923,7 +904,7 @@ class LiveInterviewController:
         self._answering_since, self._nudged, self._short_answer_checked = None, False, False
 
     def _shown_seconds(self) -> int:
-        return max(math.ceil(min(self._seconds_left, self._allowance_left)), 0)
+        return max(math.ceil(self._seconds_left), 0)
 
     def _room_state(self) -> PublishRoomState:
         """Every question or phase change is published here, so this is where the counter moves.

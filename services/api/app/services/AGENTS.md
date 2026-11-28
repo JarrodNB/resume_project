@@ -189,8 +189,8 @@ All business logic, as service objects grouped by domain folder.
   independently of general AI limits; daily spend is one shared total across both scopes.
   A live connection's provider bill (`AiTask::LIVE_BILL_TASK_TYPES`, opened by
   `interviews/live_conversation_bill.rb`) stays queued for the whole conversation, so it is
-  excluded from in-flight checks and from the hidden daily spend; the live allowance
-  (`interviews/live_allowance.rb`) is its limit.
+  excluded from in-flight checks and from the hidden daily spend; the hidden live budget
+  (`interviews/live_allowance.rb`, counted from these bills' cost) is its limit.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
 

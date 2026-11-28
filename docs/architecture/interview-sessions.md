@@ -231,7 +231,7 @@ directly. Unlike turn-based interviews, where Rails accepts each finished turn, 
 for Rails to approve a turn. Instead the agent **records events** to Rails as they happen
 over the internal `live_connections` endpoints below, and Rails stays the source of truth. It
 saves each prompt, answer, feedback and progress step, refuses stale or ended connections, owns
-the time limits and the live allowance, and finishes or recovers the session. Production uses
+the time limits and the live budget, and finishes or recovers the session. Production uses
 LiveKit Cloud (`ai-live` connects out; the server opens no media ports); local Compose runs a
 dev LiveKit server. Setup and keys:
 [production compose](../../infra/compose/README.md#secrets),
@@ -700,35 +700,28 @@ live session's ID (any other setting with it is refused, and the copy is always 
 same request finishes the unfinished live session through
 `FinishLiveService.for_owner(reason: "failed")`: a joined room ends as `failed` by the same
 rule as any finish, so the abandoned live session never stays active. If Rails never opened a
-room (the first join was refused, for example too few live minutes or LiveKit not configured),
+room (the first join was refused, for example the live budget was reached or LiveKit not configured),
 the session is still `ready` with no connection and no answers, so it is abandoned through
 `AbandonService` rather than left resumable for seven days. A refused start leaves the live
 session as it was. The room hides End interview until Rails has opened a room.
 
-#### Time, live minutes and heartbeats
+#### Time, live budget and heartbeats
 
 **Session clock.** Each live session has 25 minutes of counted time
 (`Interviews::LiveAllowance::SESSION_SECONDS`, shared by all its connections). The claim
-response carries `session_seconds_left` (25 minutes minus the session's billed seconds) and
-`allowance_seconds_left`; the controller counts both down the same way. Time counts between clock
-ticks in every phase except `menu`: while the coaching menu waits quietly for a choice nothing is
-counted, for the session clock or the allowance. At the menu, time still counts while the
-interviewer is busy (speaking or thinking of a reply, such as a hint or a repeated question),
-because the model is running then. Each heartbeat answer refreshes the allowance: the controller
-takes Rails' `allowance_seconds_left` (as of the seconds that heartbeat billed) less the time
-counted since that heartbeat left, so another session's use or a plan change shows up within a
-heartbeat. The room shows the smaller of the two, so a trial user with 10 live minutes sees
-10:00, not 25:00. Those seconds reach the room as `cd.seconds_left` with each phase change and
-about every 5 seconds (or when a refresh moves them). With 2 minutes left on either, the
-controller sets `cd.time_warning` `true` and the interviewer says so once, at the next quiet
-moment; Rails' heartbeat `warn` for the allowance leads to the same single warning, whichever
-comes first. While a question or follow-up is still to be asked, or feedback is still to be given,
-it waits until that turn has been heard, because the next interviewer turn then is saved as the
+response carries `session_seconds_left` (25 minutes minus the session's billed seconds), and the
+controller counts it down. Time counts between clock ticks in every phase except `menu`: while
+the coaching menu waits quietly for a choice nothing is counted. At the menu, time still counts
+while the interviewer is busy (speaking or thinking of a reply), because the model is running
+then. Those seconds reach the room as `cd.seconds_left` with each phase change and about every 5
+seconds. With 2 minutes left the controller sets `cd.time_warning` `true` and the interviewer
+says so once, at the next quiet moment. The user's live budget (below) is never shown or warned
+about. While a question or follow-up is still to be asked, or feedback is still to be given,
+the warning waits until that turn has been heard, because the next interviewer turn then is saved as the
 prompt or the feedback. The nudge is only said while answering and the menu prompt only at the
 menu, where nothing is saved; a welcome-back in those saved phases is itself the turn (it asks
 the question or gives the feedback), so it is saved as intended. When the session clock reaches
-zero it wraps up (an allowance at zero waits for Rails' heartbeat `wrap_up`, since Rails decides
-when the allowance is used up):
+zero, or a heartbeat answer says `wrap_up`, it wraps up:
 tools are refused ("time is up"), menu buttons are ignored, and once neither side is speaking
 (the adapter reports LiveKit's `agent_state_changed`, where `thinking` and `speaking` count as
 busy, and `user_state_changed`) it saves the pending answer, publishes `closing` and asks for a
@@ -743,13 +736,12 @@ sequence once: it adds the billed seconds, moves `heartbeat_sequence` and `last_
 and adds the usage. Repeating the latest sequence replays the same answer without changes; an
 older one and an unclaimed or ended connection are refused with 409, invalid counts with 422
 `invalid_request`. The answer
-is `{action, allowance_seconds_left, session_seconds_left, reason?}`: `wrap_up` with reason
-`allowance` once the user's live allowance (counting this running connection) is used up, or
-`time_limit` once the session's 25 minutes are billed or the connection has been open 45 minutes
-since it was first claimed (`LiveAllowance::CONNECTION_WALL_CLOCK`, wall-clock time including
-free menu waits, so a room cannot stay open indefinitely); `warn` at 2 minutes of allowance or
-less; otherwise `continue`. `wrap_up` gives the same clean wrap-up as the clock (finishing with
-its reason), and `warn` the same spoken warning, still only once per session. A heartbeat
+is `{action, session_seconds_left, reason?}`: `wrap_up` with reason `allowance` once the user's
+hidden live budget (counting this heartbeat's cost) is spent, or `time_limit` once the session's
+25 minutes are billed or the connection has been open 45 minutes since it was first claimed
+(`LiveAllowance::CONNECTION_WALL_CLOCK`, wall-clock time including free menu waits, so a room
+cannot stay open indefinitely); otherwise `continue`. `wrap_up` gives the same clean wrap-up as
+the clock, finishing with its reason. The answer never carries the budget or an amount. A heartbeat
 whose answer was lost may still have been applied, so the agent resends it unchanged (same
 sequence and counts) before any newer one and Rails replays it rather than counting it twice;
 seconds counted meanwhile wait for the next new heartbeat. A heartbeat Rails refused was not
@@ -760,19 +752,25 @@ first sends a final heartbeat with the remaining counted seconds and usage and n
 the cap (`WALL_CLOCK_MARGIN`) as `time_limit` by the usual completed/abandoned rule, even while it
 heartbeats.
 
-**Live allowance.** `Interviews::LiveAllowance.remaining_seconds(user)` is separate from the
-hidden daily spend cap: 10 minutes over the whole trial (connections created since the trial
-started, `trial_ends_at` minus the trial length), 60 minutes a UTC day on a paid plan
-(connections created since UTC midnight, plus any connection still open or ended since
-midnight, so a session running across midnight counts fully toward the new day, also after it
-ends) and none once the plan has ended. It sums
-`billed_seconds` of the user's live connections. `joinLiveInterview` refuses a new room with
-fewer than 5 minutes left (error code `LIVE_ALLOWANCE_LOW`; a rejoin of the open room is not
-refused), and so does `startInterview` in live mode. The viewer's remaining seconds are
-`me.liveInterviewSecondsLeft`; setup shows the minutes left when Live is chosen and disables
-Continue and Start with the reason below 5 minutes. The hidden daily spend cap never stops a
-claimed live session, and live costs are recorded but left out of the cap total, so a live session
-never blocks the user's other AI work: the allowance is live mode's only limit.
+**Live budget.** Live mode has its own hidden dollar limit, separate from the hidden daily spend
+cap for everything else, because cost comes from processing, not time: silence costs almost
+nothing and fast back-and-forth costs much more. `Interviews::LiveAllowance.remaining_microdollars(user)`
+is US$1.00 over the whole trial (connections created since the trial started, `trial_ends_at`
+minus the trial length), US$1.50 a UTC day on a paid plan (connections created since UTC
+midnight, plus any connection still open or ended since midnight, so a session running across
+midnight counts fully toward the new day, also after it ends) and nothing once the plan has
+ended. It sums the actual cost on the user's live bills (`LiveConversationBill`, which every
+heartbeat adds to). A bill with an entry the price list could not price counts at least
+US$0.001 per counted second (about twice the usual live cost), so it can't slip past the limit.
+`joinLiveInterview` refuses a new room with less than US$0.50 left (error code
+`LIVE_ALLOWANCE_LOW`; a rejoin of the open room is not refused), and so does `startInterview` in
+live mode. Like the other caps, nothing about it reaches the user until it is reached: no amount,
+no countdown, no warning. The viewer's `me.liveInterviewRefusal` is null until then and the
+refusal text after ("You've reached today's live interview limit…" or, on a trial, that the
+trial's live practice is used); setup shows that text and disables Continue and Start only when
+it is set. The hidden daily spend cap never stops a claimed live session, and live costs are
+left out of its total, so a live session never blocks the user's other AI work, and other AI
+work never uses the live budget.
 
 **Cost.** Live usage goes through the provider ledger; see
 [provider accounting](interview-provider-accounting.md#live-interviews).
@@ -1056,7 +1054,7 @@ Spoken interviews have their own per-user start and in-flight limits: **10 sessi
 **three concurrent operations**, configured by `INTERVIEW_SESSIONS_PER_HOUR` and
 `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. Spoken interview hourly starts and in-flight tasks do not consume
 general AI allowances, and the reverse. Spend is the exception: general AI and every spoken
-interview stage's known cost (except live conversations, limited by the live allowance) count toward one hidden daily spend cap per user, set by plan
+interview stage's known cost (except live conversations, limited by their own live budget) count toward one hidden daily spend cap per user, set by plan
 (see [AI safety and usage](ai-safety-and-usage.md#usage-limits)). Users never see that cap or their spend.
 Written interview question practice remains general AI. No bills or unknown markers are removed.
 

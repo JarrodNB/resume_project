@@ -6,7 +6,7 @@
 # observation. Each heartbeat adds its usage deltas to the report's running totals, one entry per
 # model (the realtime model and its input transcription), so task totals and cost reports see live
 # costs while the interview runs. The hidden daily spend cap never stops a running live session and
-# leaves these costs out of its total (AiUsage::DailySpend); the live allowance is its limit. Finishing closes the report: known only when the agent's final heartbeat
+# leaves these costs out of its total (AiUsage::DailySpend); the live budget (LiveAllowance), counted from these same costs, is its limit. Finishing closes the report: known only when the agent's final heartbeat
 # was the last one applied, no agent took the connection over (`usage_gap`) and every entry has a
 # price; otherwise it stays unknown on the ledger.
 # Callers hold the user, interview and connection locks.

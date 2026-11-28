@@ -1,5 +1,5 @@
 /** Verifies the Turn-based / Live choice in the round step for practice-role and saved-job setup. */
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { InterviewSetup } from './InterviewSetup'
@@ -44,22 +44,23 @@ it('sends a Live choice with a saved-job start', () => {
   expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'LIVE')
 })
 
-function allowance(seconds: number) {
-  return { request: { query: LIVE_INTERVIEW_ALLOWANCE }, result: { data: { me: { __typename: 'User', id: 'owner', liveInterviewSecondsLeft: seconds } } } }
+const LIMIT_REACHED = "You've reached today's live interview limit. Try again tomorrow, or start a turn-based interview."
+
+function allowance(refusal: string | null) {
+  return { request: { query: LIVE_INTERVIEW_ALLOWANCE }, result: { data: { me: { __typename: 'User', id: 'owner', liveInterviewRefusal: refusal } } } }
 }
 
-it('shows the live minutes left once Live is chosen', async () => {
-  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [allowance(430)] })
-  expect(screen.queryByText(/live minutes left/)).not.toBeInTheDocument()
+it('shows nothing about the live limit until it is reached', async () => {
+  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [allowance(null)] })
   fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
-  expect(await screen.findByText('You have 7 live minutes left.')).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to settings' })).toBeEnabled())
+  expect(screen.queryByText(/minute|limit/i)).not.toBeInTheDocument()
 })
 
-it('disables starting a Live interview with the reason when fewer than 5 minutes are left', async () => {
-  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [allowance(240)] })
+it('disables starting a Live interview with the reason once the live limit is reached', async () => {
+  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [allowance(LIMIT_REACHED)] })
   fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
-  const reason = await screen.findByText('You need at least 5 live minutes to start a live interview. You have 4 minutes left.')
+  const reason = await screen.findByText(LIMIT_REACHED)
   const next = screen.getByRole('button', { name: 'Continue to settings' })
   expect(next).toBeDisabled()
   expect(next).toHaveAccessibleDescription(reason.textContent!)

@@ -1,8 +1,8 @@
 # Lets the owner open the LiveKit room for a live interview. The first join moves a ready
 # interview to active without saving an opening (the live agent saves it when spoken).
 # It creates or reuses the session's open live connection and signs a short join token that
-# also asks LiveKit to dispatch the live interviewer agent. A new room needs at least 5 live
-# minutes left (Interviews::LiveAllowance); a rejoin of the open room does not. A new room is also
+# also asks LiveKit to dispatch the live interviewer agent. A new room needs enough of the user's
+# hidden live budget left (Interviews::LiveAllowance); a rejoin of the open room does not. A new room is also
 # refused for a saved-job interview whose job was deleted, because the interviewer reads the job
 # when it starts; an open room is still rejoined (its interviewer carries on without the job
 # details). No LiveKit call happens here.
@@ -33,7 +33,7 @@ module Interviews
         next failure("Interview is not ready") unless @interview.ready? || @interview.active?
         next failure("Prepared questions unavailable") unless @interview.questions.exists?
         connection = @interview.live_connections.open.first
-        # A rejoin reuses its open connection; only a new room needs 5 live minutes and its saved job.
+        # A rejoin reuses its open connection; only a new room needs live budget left and its saved job.
         unless connection
           next failure(JOB_DELETED) if @interview.preparation_kind == "saved_job" && @interview.job.nil?
           refusal = LiveAllowance.start_refusal(@interview.user)

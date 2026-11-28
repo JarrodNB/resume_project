@@ -55,13 +55,13 @@ Existing receipts are backfilled from the subscription status at migration time 
 plan changes were not recorded. This ensures a wave of fake
 signups cannot block paying customers.
 
-## Live interview minutes
+## Live interview budget
 
-Live interviews have their own visible allowance, separate from the hidden cap: 10 minutes over
-the whole trial, 60 minutes per UTC day on a paid plan, none once the plan has ended
-(`Interviews::LiveAllowance`). Only counted time is billed (the coaching menu's waiting time is
-free). A new live interview needs at least 5 minutes left. See
-[time, live minutes and heartbeats](interview-sessions.md#time-live-minutes-and-heartbeats).
+Live interviews have their own hidden budget, separate from the hidden daily cap: US$1.00 over
+the whole trial, US$1.50 per UTC day on a paid plan, none once the plan has ended
+(`Interviews::LiveAllowance`). It is spent by what live sessions actually cost, not by time, and
+users see nothing about it until it is reached. A new live interview needs US$0.50 left. See
+[time, live budget and heartbeats](interview-sessions.md#time-live-budget-and-heartbeats).
 
 ## Stripe
 

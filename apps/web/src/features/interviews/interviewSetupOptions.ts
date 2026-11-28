@@ -29,8 +29,6 @@ export function conversationModeChoice(value: unknown): ConversationModeEnum {
 }
 /** Live interviews offer the short and standard lengths only. */
 export const LIVE_QUESTION_COUNTS = [5, 8]
-/** A new live interview needs at least this many live seconds left (Rails refuses fewer). */
-export const LIVE_MIN_START_SECONDS = 300
 export const lengthOptions = [
   { value: '5', label: 'Short', description: '5 core questions · ~10 min' },
   { value: '8', label: 'Standard', description: '8 core questions · ~20 min' },

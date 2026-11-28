@@ -99,10 +99,10 @@ One candidate join of a live interview's room, with its status, counted seconds 
 Rejoining while it is still open reuses it. A session has at most one live connection that
 has not ended.
 
-**Live allowance**:
-The live interview minutes a user has left: 10 minutes for the whole trial, or 60 minutes per
-UTC day on a paid plan. A new live interview needs at least 5 minutes left. It is live mode's
-only limit and is separate from the hidden daily spend cap.
+**Live budget** (`Interviews::LiveAllowance`):
+Live mode's own hidden spend limit, counted from what live sessions actually cost: one budget for
+the whole trial, or one per UTC day on a paid plan. Users see nothing about it until it is
+reached. It is separate from the hidden daily spend cap for other AI work.
 
 **Question format**:
 The kinds of questions chosen for a practice interview: Mixed, Behavioral, Technical / Role,

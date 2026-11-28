@@ -2,7 +2,7 @@
 # completed when at least one answer is saved, and abandoned (the same clean-up as the
 # Abandon button) when none is. The live agent calls it when it closes or the candidate ends
 # the interview (`idle` when the coaching menu waited three minutes without a choice,
-# `time_limit` after 25 counted minutes, `allowance` when the live minutes ran out,
+# `time_limit` after 25 counted minutes, `allowance` when the hidden live budget ran out,
 # `disconnected` when the candidate stayed away 2 minutes); the owner's End interview mutation
 # calls it when the agent is gone (through `for_owner`), and Interviews::RecoverLiveConnectionsService when the agent's
 # heartbeat stopped (`disconnected`) or a joined room was never claimed (`failed`). It also closes the
@@ -31,7 +31,7 @@ module Interviews
     # owner's failure carries only the message.
     #
     # A live interview whose room was never opened (its first join was refused, for example too few
-    # live minutes or LiveKit not configured) has no connection and no answers, so it is abandoned
+    # live budget left or LiveKit not configured) has no connection and no answers, so it is abandoned
     # through AbandonService rather than staying resumable until it expires.
     #
     # @return [ServiceResult<Hash>] as `call`, or a failure for an interview that is not a live one

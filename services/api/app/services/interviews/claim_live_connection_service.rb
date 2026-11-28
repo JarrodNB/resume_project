@@ -17,7 +17,7 @@ module Interviews
 
     # @return [ServiceResult<Hash>] `{ interview_session_id:, live_connection_id:, user_id:, ai_task_id:,
     #   question_total:, current_question_position:, answer_cap:, current_question_retry_count:,
-    #   session_seconds_left:, allowance_seconds_left:, heartbeat_sequence:, current_prompt_message_id:,
+    #   session_seconds_left:, heartbeat_sequence:, current_prompt_message_id:,
     #   current_prompt_kind:, current_prompt_answered:, current_question_answer_count:,
     #   current_question_feedback_given: }`; only identities, limits and counts, never text
     def call
@@ -41,7 +41,7 @@ module Interviews
         success({ interview_session_id: interview.id, live_connection_id: @connection.id, user_id: interview.user_id,
           ai_task_id: bill.value.id, question_total: interview.questions.count, current_question_position: interview.current_question_position,
           answer_cap: interview.answer_cap, current_question_retry_count: question&.live_retry_count || 0,
-          session_seconds_left: LiveAllowance.session_seconds_left(interview), allowance_seconds_left: LiveAllowance.remaining_seconds(interview.user),
+          session_seconds_left: LiveAllowance.session_seconds_left(interview),
           heartbeat_sequence: @connection.heartbeat_sequence, **current_question_state(interview, question) })
       end || refusal
     end

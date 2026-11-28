@@ -341,7 +341,7 @@ def test_a_heartbeat_refused_as_a_bug_is_logged_as_an_error_with_its_code_and_no
 
 def test_a_reply_names_the_action_rails_wants():
     harness = Harness()
-    harness.rails.heartbeat_reply = HeartbeatReply(action="wrap_up", reason="allowance", allowance_seconds_left=0,
+    harness.rails.heartbeat_reply = HeartbeatReply(action="wrap_up", reason="allowance",
                                                    session_seconds_left=900)
     assert run(harness.reporter.heartbeat(SendHeartbeat(1, 30))).action == "wrap_up"
 

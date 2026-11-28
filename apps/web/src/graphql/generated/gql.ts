@@ -94,7 +94,7 @@ type Documents = {
     "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": typeof types.InterviewPlaybackDocument,
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.BeginInterviewDocument,
     "\n  mutation JoinLiveInterview($interviewId: ID!) {\n    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.JoinLiveInterviewDocument,
-    "\n  query LiveInterviewAllowance { me { id liveInterviewSecondsLeft } }\n": typeof types.LiveInterviewAllowanceDocument,
+    "\n  query LiveInterviewAllowance { me { id liveInterviewRefusal } }\n": typeof types.LiveInterviewAllowanceDocument,
     "\n  mutation EndLiveInterview($interviewId: ID!) {\n    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n": typeof types.EndLiveInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": typeof types.RecentInterviewSessionsDocument,
@@ -220,7 +220,7 @@ const documents: Documents = {
     "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": types.InterviewPlaybackDocument,
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.BeginInterviewDocument,
     "\n  mutation JoinLiveInterview($interviewId: ID!) {\n    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.JoinLiveInterviewDocument,
-    "\n  query LiveInterviewAllowance { me { id liveInterviewSecondsLeft } }\n": types.LiveInterviewAllowanceDocument,
+    "\n  query LiveInterviewAllowance { me { id liveInterviewRefusal } }\n": types.LiveInterviewAllowanceDocument,
     "\n  mutation EndLiveInterview($interviewId: ID!) {\n    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }\n  }\n": types.EndLiveInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": types.RecentInterviewSessionsDocument,
@@ -603,7 +603,7 @@ export function graphql(source: "\n  mutation JoinLiveInterview($interviewId: ID
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query LiveInterviewAllowance { me { id liveInterviewSecondsLeft } }\n"): (typeof documents)["\n  query LiveInterviewAllowance { me { id liveInterviewSecondsLeft } }\n"];
+export function graphql(source: "\n  query LiveInterviewAllowance { me { id liveInterviewRefusal } }\n"): (typeof documents)["\n  query LiveInterviewAllowance { me { id liveInterviewRefusal } }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

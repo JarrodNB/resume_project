@@ -16,8 +16,7 @@ from live_interviews.client import (
 )
 
 CLAIM = {"interview_session_id": "session", "live_connection_id": "live", "user_id": "owner", "ai_task_id": "task",
-         "question_total": 5, "current_question_position": 0, "answer_cap": 2, "session_seconds_left": 1_500,
-         "allowance_seconds_left": 600}
+         "question_total": 5, "current_question_position": 0, "answer_cap": 2, "session_seconds_left": 1_500}
 
 
 def run(coro):
@@ -251,15 +250,15 @@ def test_claim_carries_the_session_clock_and_allowance_seconds():
             return await client.claim("live", room_name="room")
 
     claim = run(check(CLAIM))
-    assert (claim.session_seconds_left, claim.allowance_seconds_left) == (1_500, 600)
+    assert claim.session_seconds_left == 1_500
     with pytest.raises(RailsTransportError):
         run(check({key: value for key, value in CLAIM.items() if key != "session_seconds_left"}))
 
 
 def test_heartbeat_posts_its_sequence_billed_seconds_and_usage_and_validates_the_reply():
     seen, respond = recorded_calls([
-        {"action": "wrap_up", "reason": "allowance", "allowance_seconds_left": 0, "session_seconds_left": 700},
-        {"action": "dance", "allowance_seconds_left": 0, "session_seconds_left": 700},
+        {"action": "wrap_up", "reason": "allowance", "session_seconds_left": 700},
+        {"action": "dance", "session_seconds_left": 700},
     ])
     usage = [{"model": "gpt-realtime-2.1-mini", "input_tokens": 10, "cached_input_tokens": 0, "output_tokens": 5,
               "cost_microdollars": 120}]
@@ -271,7 +270,7 @@ def test_heartbeat_posts_its_sequence_billed_seconds_and_usage_and_validates_the
                 await client.heartbeat("live", sequence=4, billed_seconds_delta=0, usage=[])
             return reply
 
-    assert run(check()) == HeartbeatReply(action="wrap_up", reason="allowance", allowance_seconds_left=0,
+    assert run(check()) == HeartbeatReply(action="wrap_up", reason="allowance",
                                           session_seconds_left=700)
     assert str(seen[0].url) == "http://api:3000/internal/interviews/live_connections/live/heartbeat"
     assert json.loads(seen[0].content) == {"sequence": 3, "billed_seconds_delta": 30, "usage": usage}

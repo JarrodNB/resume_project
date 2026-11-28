@@ -163,7 +163,7 @@ describe('InterviewPage', () => {
   })
   it('practices a completed live interview again with Live already chosen', async () => {
     state.interview = { ...snapshot, status: 'completed', conversationMode: 'LIVE' }
-    const allowance = { request: { query: LIVE_INTERVIEW_ALLOWANCE }, maxUsageCount: Infinity, result: { data: { me: { __typename: 'User', id: 'owner', liveInterviewSecondsLeft: 600 } } } }
+    const allowance = { request: { query: LIVE_INTERVIEW_ALLOWANCE }, maxUsageCount: Infinity, result: { data: { me: { __typename: 'User', id: 'owner', liveInterviewRefusal: null } } } }
     const { router } = renderInterview('/practice/interviews/session', [allowance])
     await userEvent.click(screen.getByRole('link', { name: 'Practice again' }))
     expect(router.state.location.state).toEqual({ practiceSetup: { ...snapshot.setup, conversationMode: 'LIVE' } })

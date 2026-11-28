@@ -60,21 +60,21 @@ RSpec.describe "Live interview GraphQL" do
       expect(Time.iso8601(payload["expiresAt"])).to be_within(1.minute).of(10.minutes.from_now)
     end
 
-    it "refuses a new room with fewer than 5 live minutes left, naming the reason, and reuses an open one" do
+    it "refuses a new room when too little live budget is left, without an amount, and reuses an open one" do
       interview = ready_live_interview(user)
       variables = { input: { interviewId: interview.id } }
-      allow(Interviews::LiveAllowance).to receive(:remaining_seconds).and_return(299)
+      allow(Interviews::LiveAllowance).to receive(:remaining_microdollars).and_return(Interviews::LiveAllowance::MIN_START_MICRODOLLARS - 1)
       refused = execute_graphql(join, user: user, variables: variables)
       expect(refused.dig("data", "joinLiveInterview")).to include("token" => nil, "interview" => nil,
-        "errors" => [ "You need at least 5 live minutes to start a live interview. You have 4 minutes left." ])
+        "errors" => [ Interviews::LiveAllowance::TRIAL_USED ])
       expect(execute_graphql('mutation($input: JoinLiveInterviewInput!) { joinLiveInterview(input: $input) { errorCode } }', user: user,
         variables: variables).dig("data", "joinLiveInterview", "errorCode")).to eq("LIVE_ALLOWANCE_LOW")
       expect(interview.reload).to have_attributes(status: "ready")
       expect(interview.live_connections).to be_empty
 
-      allow(Interviews::LiveAllowance).to receive(:remaining_seconds).and_return(300)
+      allow(Interviews::LiveAllowance).to receive(:remaining_microdollars).and_return(Interviews::LiveAllowance::MIN_START_MICRODOLLARS)
       expect(execute_graphql(join, user: user, variables: variables).dig("data", "joinLiveInterview", "errors")).to eq([])
-      allow(Interviews::LiveAllowance).to receive(:remaining_seconds).and_return(60)
+      allow(Interviews::LiveAllowance).to receive(:remaining_microdollars).and_return(0)
       rejoin = execute_graphql(join, user: user, variables: variables).dig("data", "joinLiveInterview")
       expect(rejoin).to include("errors" => [], "roomName" => interview.live_connections.sole.room_name)
     end
@@ -86,14 +86,15 @@ RSpec.describe "Live interview GraphQL" do
     end
   end
 
-  it "shows the viewer their live seconds left and refuses a live preparation below 5 minutes" do
-    query = '{ me { liveInterviewSecondsLeft } }'
-    expect(execute_graphql(query, user: user).dig("data", "me", "liveInterviewSecondsLeft")).to eq(600)
-    allow(Interviews::LiveAllowance).to receive(:remaining_seconds).and_return(240)
+  it "tells the viewer only whether live can start, and refuses a live preparation once the limit is reached" do
+    query = '{ me { liveInterviewRefusal } }'
+    expect(execute_graphql(query, user: user).dig("data", "me", "liveInterviewRefusal")).to be_nil
+    allow(Interviews::LiveAllowance).to receive(:remaining_microdollars).and_return(0)
+    expect(execute_graphql(query, user: user).dig("data", "me", "liveInterviewRefusal")).to eq(Interviews::LiveAllowance::TRIAL_USED)
     start = 'mutation($input: StartInterviewInput!) { startInterview(input: $input) { interview { id } errors errorCode } }'
     refused = execute_graphql(start, user: user, variables: { input: { conversationMode: "LIVE", setup: { questionCount: 5 } } })
     expect(refused.dig("data", "startInterview")).to include("interview" => nil, "errorCode" => "LIVE_ALLOWANCE_LOW",
-      "errors" => [ "You need at least 5 live minutes to start a live interview. You have 4 minutes left." ])
+      "errors" => [ Interviews::LiveAllowance::TRIAL_USED ])
     turn_based = execute_graphql(start, user: user, variables: { input: { setup: { questionCount: 5 } } })
     expect(turn_based.dig("data", "startInterview", "errors")).to eq([])
     expect(user.interview_sessions.pluck(:conversation_mode)).to eq([ "turn_based" ])

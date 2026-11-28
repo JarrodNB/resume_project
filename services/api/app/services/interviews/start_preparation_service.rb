@@ -11,7 +11,7 @@ module Interviews
     end
 
     # @param conversation_mode [String] "turn_based" or "live"; live allows only 5 or 8 questions
-    #   and needs at least 5 live minutes left
+    #   and needs enough of the hidden live budget left (LiveAllowance)
     # @return [ServiceResult<InterviewSession>] preparing session with source IDs and bounded choices
     def call
       return failure("Choose supported interview settings and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)

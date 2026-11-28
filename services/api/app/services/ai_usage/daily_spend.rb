@@ -2,7 +2,7 @@
 # Adds general AI tasks, spoken interview tasks and background embedding receipts, because all of
 # them are billed to the same cap. Unknown costs add nothing, so the total only counts known charges.
 # Embedding receipts are counted here but never refused: no user is waiting on them.
-# Live conversation tasks are left out: the live allowance is live mode's only limit, so a live
+# Live conversation tasks are left out: the hidden live budget (Interviews::LiveAllowance) is live mode's only limit, so a live
 # session never uses up the cap for other AI work. Their costs stay on the tasks and the ledger for
 # cost reports, and still count toward the site-wide trial budget (SiteDailySpend).
 module AiUsage

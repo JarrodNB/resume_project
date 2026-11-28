@@ -113,8 +113,9 @@ CHOSEN_IN_ROOM = ("The candidate pressed a button in the room while this call wa
 WRAP_UP = {
     "time_limit": ("We are out of time for this practice interview. In one or two short sentences, say that time is "
                    "up, thank the candidate warmly and say goodbye. Do not ask anything else."),
-    "allowance": ("The candidate has used their live minutes for now. In one or two short sentences, say that their "
-                  "live minutes are used up for now, thank them warmly and say goodbye. Do not ask anything else."),
+    "allowance": ("The candidate has reached their live practice limit for now. In one or two short sentences, say "
+                  "that live practice is used up for now, thank them warmly and say goodbye. Do not ask anything "
+                  "else."),
 }
 
 

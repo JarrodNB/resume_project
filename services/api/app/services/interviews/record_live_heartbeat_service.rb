@@ -1,10 +1,11 @@
 # The live agent's heartbeat, about every 30 seconds: counted seconds since the last heartbeat
 # (coaching menu waits excluded) and provider usage deltas. Each sequence number is applied once;
 # repeating the latest one replays its answer without changes and an older one is refused.
-# The answer tells the agent to carry on, to warn the candidate (2 minutes of live allowance
-# left) or to wrap up now because the allowance ran out, or with `time_limit` because the
-# session's 25 counted minutes are used or the connection reached its 45-minute wall-clock cap
-# (LiveAllowance::CONNECTION_WALL_CLOCK; menu waits are free, so counted time alone has no end). The allowance counts this connection's own billed seconds too. Usage for a model the
+# The answer tells the agent to carry on, or to wrap up now: with `allowance` because the user's
+# hidden live budget is spent (LiveAllowance; this heartbeat's own cost already counts), or with
+# `time_limit` because the session's 25 counted minutes are used or the connection reached its
+# 45-minute wall-clock cap (LiveAllowance::CONNECTION_WALL_CLOCK; menu waits are free, so counted
+# time alone has no end). Nothing warns about the budget first, and no amount is sent. Usage for a model the
 # live bill does not know is refused with the code `unknown_usage_model` (and logged), because
 # it means the agent and Rails disagree on the live models.
 module Interviews
@@ -14,8 +15,8 @@ module Interviews
       @usage = usage.nil? ? [] : usage
     end
 
-    # @return [ServiceResult<Hash>] `{ action: "continue" | "warn" | "wrap_up", allowance_seconds_left:,
-    #   session_seconds_left:, reason: "allowance" | "time_limit" (wrap_up only) }`
+    # @return [ServiceResult<Hash>] `{ action: "continue" | "wrap_up", session_seconds_left:,
+    #   reason: "allowance" | "time_limit" (wrap_up only) }`
     def call
       @usage = @usage.map { |entry| entry.respond_to?(:to_h) ? entry.to_h.stringify_keys : entry } if @usage.is_a?(Array)
       if LiveConversationBill.unknown_model?(@usage)
@@ -43,14 +44,11 @@ module Interviews
     end
 
     def answer(interview)
-      allowance = LiveAllowance.remaining_seconds(interview.user)
       session = LiveAllowance.session_seconds_left(interview)
-      seconds = { allowance_seconds_left: allowance, session_seconds_left: session }
-      return { action: "wrap_up", reason: "allowance", **seconds } if allowance <= 0
-      return { action: "wrap_up", reason: "time_limit", **seconds } if session <= 0 || LiveAllowance.wall_clock_passed?(@connection)
-      return { action: "warn", **seconds } if allowance <= LiveAllowance::WARNING_SECONDS
+      return { action: "wrap_up", reason: "allowance", session_seconds_left: session } if LiveAllowance.remaining_microdollars(interview.user) <= 0
+      return { action: "wrap_up", reason: "time_limit", session_seconds_left: session } if session <= 0 || LiveAllowance.wall_clock_passed?(@connection)
 
-      { action: "continue", **seconds }
+      { action: "continue", session_seconds_left: session }
     end
   end
 end

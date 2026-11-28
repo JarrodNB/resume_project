@@ -58,7 +58,7 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
           "ai_task_id" => connection.reload.ai_task_id, "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
-          "current_question_retry_count" => 0, "session_seconds_left" => 1_500, "allowance_seconds_left" => 600,
+          "current_question_retry_count" => 0, "session_seconds_left" => 1_500,
           "heartbeat_sequence" => 0, "current_prompt_message_id" => nil, "current_prompt_kind" => nil,
           "current_prompt_answered" => false, "current_question_answer_count" => 0, "current_question_feedback_given" => false
         )
@@ -110,7 +110,7 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(task.ai_usage_attempts.sole).to have_attributes(attempt_id: connection.observation_id, finalized: false, incomplete: true)
     end
 
-    it "is not stopped by the hidden daily spend cap; the live allowance is its limit" do
+    it "is not stopped by the hidden daily spend cap; the live budget is its limit" do
       connection # prepared and joined before the cap is spent
       user.update!(daily_ai_spend_cap_microdollars: 1)
       user.ai_tasks.create!(task_type: "interview_turn", cost_microdollars: 10, status: "completed")
@@ -500,7 +500,7 @@ RSpec.describe "Internal live interview connections", type: :request do
       travel 30.seconds do
         heartbeat(1)
         expect(response).to have_http_status(:ok)
-        expect(response.parsed_body).to eq("action" => "continue", "allowance_seconds_left" => 570, "session_seconds_left" => 1_470)
+        expect(response.parsed_body).to eq("action" => "continue", "session_seconds_left" => 1_470)
         expect(connection.reload).to have_attributes(billed_seconds: 30, heartbeat_sequence: 1, last_heartbeat_at: Time.current)
       end
       receipt = response.parsed_body
@@ -533,21 +533,27 @@ RSpec.describe "Internal live interview connections", type: :request do
       expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).to be_success
     end
 
-    it "warns at 2 minutes of live allowance left and says wrap up with the reason once it runs out" do
+    it "says wrap up with the reason once the live budget is spent, counting this heartbeat's cost, with no warning first" do
       claim
-      heartbeat(1, billed_seconds_delta: 470)
-      expect(response.parsed_body).to include("action" => "continue", "allowance_seconds_left" => 130)
-      heartbeat(2, billed_seconds_delta: 10)
-      expect(response.parsed_body).to include("action" => "warn", "allowance_seconds_left" => 120)
-      heartbeat(3, billed_seconds_delta: 120)
-      expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "allowance", "allowance_seconds_left" => 0, "session_seconds_left" => 900)
+      spend = Interviews::LiveAllowance::TRIAL_MICRODOLLARS
+      heartbeat(1, usage: [ realtime_usage.merge(cost_microdollars: spend - 1) ])
+      expect(response.parsed_body).to eq("action" => "continue", "session_seconds_left" => 1_470)
+      heartbeat(2, usage: [ realtime_usage.merge(cost_microdollars: 1) ])
+      expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "allowance", "session_seconds_left" => 1_440)
+    end
+
+    it "counts quiet time as nothing: only the reported cost spends the live budget" do
+      claim
+      heartbeat(1, billed_seconds_delta: 1_200, usage: [])
+      expect(response.parsed_body).to eq("action" => "continue", "session_seconds_left" => 300)
+      expect(Interviews::LiveAllowance.remaining_microdollars(user)).to eq(Interviews::LiveAllowance::TRIAL_MICRODOLLARS)
     end
 
     it "says wrap up with time_limit once the session's 25 counted minutes are used" do
       create(:billing_subscription, user: user)
       claim
       heartbeat(1, billed_seconds_delta: 1_500)
-      expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "allowance_seconds_left" => 2_100, "session_seconds_left" => 0)
+      expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "session_seconds_left" => 0)
     end
 
     it "says wrap up with time_limit once the connection has been open 45 minutes, however little was counted" do
@@ -559,8 +565,7 @@ RSpec.describe "Internal live interview connections", type: :request do
       end
       travel(Interviews::LiveAllowance::CONNECTION_WALL_CLOCK + 1.second) do # travel drops sub-seconds
         heartbeat(2, billed_seconds_delta: 0)
-        expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "allowance_seconds_left" => 3_600,
-          "session_seconds_left" => 1_500)
+        expect(response.parsed_body).to eq("action" => "wrap_up", "reason" => "time_limit", "session_seconds_left" => 1_500)
       end
     end
 

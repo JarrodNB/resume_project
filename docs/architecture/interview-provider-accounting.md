@@ -146,8 +146,8 @@ attempts:
   `live_conversation`, provider `openai`, model `gpt-realtime-2.1-mini` (2,000,000
   microdollars, a deliberately generous US$2.00 estimate for 25 counted minutes of audio plus
   input transcription, not a provider ceiling), and an unfinished usage report for that
-  observation. The hidden daily spend cap is not checked there: the live allowance is a live
-  session's limit, and live costs are left out of the daily cap total (`AiUsage::DailySpend`).
+  observation. The hidden daily spend cap is not checked there: the hidden live budget (counted from these
+  same live costs) is a live session's limit, and live costs are left out of the daily cap total (`AiUsage::DailySpend`).
   The task stays queued while the connection is open but runs no work, so it never takes one of
   the interview's in-flight operation slots.
 - **Usage.** Each heartbeat carries priced deltas, at most one per model:

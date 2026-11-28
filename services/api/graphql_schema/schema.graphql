@@ -4579,9 +4579,9 @@ type User {
   links: [ProfileLink!]!
 
   """
-  Live interview seconds left today (paid) or for the trial; a new live interview needs at least 300.
+  Why a new live interview can't start now (the live limit is reached), or null when it can. Never an amount.
   """
-  liveInterviewSecondsLeft: Int!
+  liveInterviewRefusal: String
   location: String
   name: String
   phone: String

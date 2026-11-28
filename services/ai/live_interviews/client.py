@@ -49,7 +49,6 @@ class LiveConnectionClaim(BaseModel):
     answer_cap: int = Field(ge=1, le=3)
     current_question_retry_count: int = Field(default=0, ge=0, le=2)
     session_seconds_left: int = Field(ge=0)  # counted seconds left on the session's 25-minute clock
-    allowance_seconds_left: int = Field(ge=0)
     heartbeat_sequence: int = Field(default=0, ge=0)  # the last heartbeat Rails applied
     current_prompt_message_id: str | None = None  # the current question's latest saved prompt
     current_prompt_kind: Literal["opening", "follow_up"] | None = None
@@ -59,12 +58,11 @@ class LiveConnectionClaim(BaseModel):
 
 
 class HeartbeatReply(BaseModel):
-    """Rails' answer to a heartbeat: carry on, warn the candidate, or wrap up now and why."""
+    """Rails' answer to a heartbeat: carry on, or wrap up now and why (never the live budget itself)."""
 
     model_config = ConfigDict(frozen=True, extra="ignore")
-    action: Literal["continue", "warn", "wrap_up"]
+    action: Literal["continue", "wrap_up"]
     reason: Literal["allowance", "time_limit"] | None = None
-    allowance_seconds_left: int = Field(ge=0)
     session_seconds_left: int = Field(ge=0)
 
 

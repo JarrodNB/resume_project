@@ -18,7 +18,7 @@ nothing more is reported and the controller finishes the interview as `failed`.
 Rails' answers that matter to the controller (a prompt's receipt, a refused prompt, answer,
 advance or retry, the connection ending) go back to it as events. Only counts and the
 controller's report fields are sent, and spoken text is never logged. The rules are in docs/architecture/interview-sessions.md, "Questions, answers and
-coaching" and "Time, live minutes and heartbeats".
+coaching" and "Time, live budget and heartbeats".
 """
 
 import asyncio

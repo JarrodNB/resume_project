@@ -15,7 +15,7 @@
 #   - ai_task_outcomes: separate durable success/failure occurrences, including explicit retries
 class AiTask < ApplicationRecord
   # A live interview's bill: queued for the whole live connection but running no model work of its
-  # own, and limited only by the live allowance. It takes no in-flight slot and stays out of the
+  # own, and limited only by the hidden live budget. It takes no in-flight slot and stays out of the
   # user's daily spend cap (AiUsage::CheckAiTaskAllowanceService, AiUsage::DailySpend).
   LIVE_BILL_TASK_TYPES = %w[interview_live_conversation].freeze
   # Removed preference and reranking types remain readable only for historical usage and queue retirement.

@@ -42,11 +42,11 @@ interviews have their own start and in-flight limits (`INTERVIEW_SESSIONS_PER_HO
 question practice remains general AI. Every spoken stage still has its own durable cost and unknown
 usage records; only its session's hourly admission is shared. Legacy fixture operations also
 use the interview limits, retaining their existing individual hourly admissions. Live
-interviews add a **live allowance** in minutes (10 over the trial, 60 a UTC day paid; at least 5
-to start), which is shown to users. The live allowance is live mode's only per-user limit: live
+interviews add a hidden **live budget** in dollars of actual live cost (US$1.00 over the trial,
+US$1.50 a UTC day paid; US$0.50 left to start), never shown to users. It is live mode's only per-user limit: live
 conversation costs are recorded on their task and the ledger (and count toward the trial site-wide
 limit) but are left out of the hidden daily cap total, so a live session never blocks other AI work. See
-[time, live minutes and heartbeats](interview-sessions.md#time-live-minutes-and-heartbeats),
+[time, live budget and heartbeats](interview-sessions.md#time-live-budget-and-heartbeats),
 [spoken session accounting](interview-sessions.md#http-execution-accounting) and
 [cost accounting and verified receipt reconciliation](ai-cost-accounting.md). The retained
 paid verification database has an additional global allowance/unknown-receipt stop independent

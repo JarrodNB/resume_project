@@ -40,8 +40,7 @@ from telemetry.privacy import ContactSpanProcessor
 
 METADATA = '{"interview_session_id": "session", "live_connection_id": "live"}'
 CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner", ai_task_id="task",
-                            question_total=2, current_question_position=0, answer_cap=2, session_seconds_left=1_500,
-                            allowance_seconds_left=600)
+                            question_total=2, current_question_position=0, answer_cap=2, session_seconds_left=1_500)
 
 @pytest.fixture(autouse=True)
 def short_answer_check_off(monkeypatch):
@@ -207,7 +206,7 @@ class FakeRails:
         self.heartbeat_error = None
         self.lose, self.refuse_reports = {}, set()  # call name -> answers still to lose; names to refuse
         self.holds = {}  # call name -> an asyncio.Event the call waits for (Rails is slow or never answers)
-        self.heartbeat_reply = HeartbeatReply(action="continue", allowance_seconds_left=500, session_seconds_left=1_400)
+        self.heartbeat_reply = HeartbeatReply(action="continue", session_seconds_left=1_400)
 
     async def claim(self, connection_id, *, room_name):
         self.calls.append(("claim", connection_id, room_name))
@@ -330,8 +329,8 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "Prepared question 2?" not in session.replies[0]
         assert ctx.room.local_participant.attributes[0] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.state_seq": "1",
-            "cd.menu_offered": "false", "cd.seconds_left": "600", "cd.time_warning": "false",
-            "cd.answer_heard": "false"}  # the allowance is smaller
+            "cd.menu_offered": "false", "cd.seconds_left": "1500", "cd.time_warning": "false",
+            "cd.answer_heard": "false"}
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -387,7 +386,7 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         await settle()
         assert ctx.room.local_participant.attributes[-1] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.state_seq": "8",
-            "cd.menu_offered": "true", "cd.seconds_left": "600", "cd.time_warning": "false",
+            "cd.menu_offered": "true", "cd.seconds_left": "1500", "cd.time_warning": "false",
             "cd.answer_heard": "false"}
         assert "move on" in session.replies[-1].lower()  # the menu is offered
         assert "only two choices" in (await agent.give_hint(tool_call())).lower()  # no hint after feedback
@@ -823,7 +822,7 @@ def test_the_end_button_after_rails_ended_the_connection_leaves_without_finishin
 
 def test_a_wrap_up_reply_closes_after_the_current_turn_and_finishes_once_the_closing_has_played():
     rails, sessions = FakeRails(), []
-    rails.heartbeat_reply = HeartbeatReply(action="wrap_up", reason="allowance", allowance_seconds_left=0,
+    rails.heartbeat_reply = HeartbeatReply(action="wrap_up", reason="allowance",
                                            session_seconds_left=900)
     ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
 
@@ -833,10 +832,10 @@ def test_a_wrap_up_reply_closes_after_the_current_turn_and_finishes_once_the_clo
         session.handlers["agent_state_changed"](AgentStateChangedEvent(old_state="listening", new_state="speaking"))
         await settle()
         await session.agent._runner.heartbeat()
-        assert not any("live minutes" in reply for reply in session.replies)
+        assert not any("live practice" in reply for reply in session.replies)
         session.handlers["agent_state_changed"](AgentStateChangedEvent(old_state="speaking", new_state="listening"))
         await settle()
-        assert "live minutes" in session.replies[-1]
+        assert "live practice" in session.replies[-1]
         assert ctx.room.local_participant.attributes[-1]["cd.phase"] == "closing"
         session.handles[-1].finish()
         await settle()
@@ -845,27 +844,6 @@ def test_a_wrap_up_reply_closes_after_the_current_turn_and_finishes_once_the_clo
     assert rails.calls[-2:] == [("heartbeat", "live", {"sequence": 2, "billed_seconds_delta": 0, "usage": []}),
                                 ("finish", "live", {"reason": "allowance", "final_sequence": 2})]
     assert ctx.shutdown_reason
-
-
-def test_a_warn_reply_is_shown_and_said_once():
-    rails, sessions = FakeRails(), []
-    rails.heartbeat_reply = HeartbeatReply(action="warn", allowance_seconds_left=100, session_seconds_left=900)
-    ctx, go = run_interview(rails, sessions, heartbeat_seconds=3600)
-
-    async def scenario():
-        await go()
-        session = sessions[0][1]
-        await session.agent._runner.heartbeat()
-        await settle()
-        assert ctx.room.local_participant.attributes[-1]["cd.time_warning"] == "true"
-        assert ctx.room.local_participant.attributes[-1]["cd.seconds_left"] == "100"  # Rails' allowance
-        assert not any("two minutes" in reply for reply in session.replies)  # not while the opening is asked
-        session.emit_item("assistant", "Tell me about a project.")
-        await session.agent._runner.heartbeat()
-        await settle()
-        assert sum("two minutes" in reply for reply in session.replies) == 1
-
-    asyncio.run(scenario())
 
 
 def test_the_session_is_one_trace_with_ids_and_cost_but_no_content():
@@ -1301,8 +1279,7 @@ def test_a_room_state_publish_that_hangs_holds_up_no_tool_or_heartbeat_and_the_n
     async def scenario():
         room.local_participant.hold = asyncio.Event()
         await asyncio.wait_for(runner.handle(
-            Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500,
-                    allowance_seconds_left=3_600)), 1)
+            Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500)), 1)
         await settle()  # the first state's publish has started, and hangs
         await asyncio.wait_for(runner.handle(InterviewerTurnFinished("Tell me about a project.")), 1)
         await asyncio.wait_for(runner.handle(InterviewerTurnFinished("Take your time.")), 1)
@@ -1330,8 +1307,7 @@ def test_a_candidate_join_delivered_before_the_start_is_not_lost():
     async def scenario():
         await runner.handle(CandidateLeft(0.0))
         await runner.handle(CandidateJoined(1.0))
-        await runner.handle(Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500,
-                                    allowance_seconds_left=3_600))
+        await runner.handle(Started(question_position=0, question_total=2, answer_cap=2, session_seconds_left=1_500))
         await runner.handle(Tick(500.0))
 
     asyncio.run(scenario())

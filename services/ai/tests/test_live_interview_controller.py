@@ -650,12 +650,20 @@ def test_hints_and_retries_wait_until_the_question_has_been_asked_or_feedback_is
 
 
 def test_menu_buttons_map_to_the_same_steps_as_voice_but_ask_the_model_to_speak():
-    for option, voice in (("retry", RetryQuestion()), ("repeat", RepeatQuestion()), ("hint", GiveHint()),
-                          ("next", NextQuestion())):
+    # The model never hears a button press, so the reply says which button it was; without that
+    # it took "try again" for another offer of the choices and offered them again.
+    for option, voice, label in (("retry", RetryQuestion(), "Try again"), ("repeat", RepeatQuestion(), "Hear the question again"),
+                                 ("hint", GiveHint(), "Get a hint"), ("next", NextQuestion(), "Move on")):
         by_voice = menu_controller().handle(voice)
         by_button = click(menu_controller(), option)
         assert by_button[:-1] == by_voice[:-1]
-        assert by_button[-1] == GenerateReply(tool_text(by_voice))
+        assert by_button[-1] == GenerateReply(f'The candidate pressed the "{label}" button. {tool_text(by_voice)}')
+
+
+def test_retry_starts_the_question_over_instead_of_offering_the_choices_again():
+    instructions = click(menu_controller(), "retry")[-1].instructions
+    assert "Do not offer the choices again" in instructions
+    assert "Prepared question 1?" in instructions
 
 
 def test_how_was_that_button_while_answering_gives_feedback_on_the_answer_so_far():

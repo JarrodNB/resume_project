@@ -395,7 +395,9 @@ and the candidate's End interview. Every tool call gets one tool result; LiveKit
 realtime model speak in reply to it, so the result says what to say next (ask the follow-up,
 repeat the prompt, give quick feedback, offer the choices, ask question N, close) or why the
 call was refused. A room button has no tool call, so its choice ends with a `generate_reply`
-carrying the same words instead (after interrupting the interviewer). With the realtime model the
+carrying the same words instead (after interrupting the interviewer), led by which button the
+candidate pressed ("The candidate pressed the "Try again" button."): the model never hears the press,
+and without it took "try again" as another offer of the choices. With the realtime model the
 provider may send the candidate's final transcript after the reply it prompted has started, and
 LiveKit runs tools while that reply is generating. So the adapter holds a tool call until every
 candidate turn that has ended (`user_state_changed` from `speaking`) has its final transcript, for

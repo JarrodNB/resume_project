@@ -82,8 +82,8 @@ MENU_AGAIN = ("Offer the candidate their choices again in one short sentence: tr
 REPEAT_FROM_MENU = ("Repeat the core question clearly, with the same meaning; you may rephrase it slightly. Then "
                     "offer the choices again (try again, get a hint, or move on) and wait for their choice.")
 NOT_ASKED = "The question has not been asked yet. Ask it first."
-RETRY = ("Tell the candidate in a few words that they can start this question again from the beginning, then ask "
-         "{question}")
+RETRY = ("The candidate chose to try this question again, and it starts over now. Do not offer the choices again. "
+         "Say a few words such as \"Sure, let's take it from the top.\", then ask {question}")
 NO_RETRIES_AT_MENU = ("The candidate has already used both retries for this question. Say so politely, then offer the "
                       "other choices: hear the question again, get a hint, or move on. Wait for their choice.")
 NO_RETRIES_ANSWERING = ("The candidate has already used both retries for this question. Say so politely and let them "
@@ -121,4 +121,16 @@ WRAP_UP = {
                    "up, thank the candidate warmly and say goodbye. Do not ask anything else."),
     "allowance": ("The candidate has used their live minutes for now. In one or two short sentences, say that their "
                   "live minutes are used up for now, thank them warmly and say goodbye. Do not ask anything else."),
+}
+
+
+# A room button reaches the model only as the next turn instruction, so the instruction first says
+# which button the candidate pressed; otherwise the model, still seeing its own offer of the
+# choices, may simply offer them again.
+BUTTON_PRESSED = {
+    "retry": "The candidate pressed the \"Try again\" button.",
+    "repeat": "The candidate pressed the \"Hear the question again\" button.",
+    "hint": "The candidate pressed the \"Get a hint\" button.",
+    "next": "The candidate pressed the \"Move on\" button.",
+    "feedback": "The candidate pressed the \"How was that?\" button.",
 }

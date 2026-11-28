@@ -20,6 +20,7 @@ from typing import Literal
 from prompts.live_interviewer_turns import (
     ANSWER_SAVED,
     ASK_FOLLOW_UP,
+    BUTTON_PRESSED,
     CHOOSING,
     CLOSING,
     ENDED,
@@ -511,7 +512,8 @@ class LiveInterviewController:
             if not self._choice_applies(event):
                 return [ChoiceIgnored()]
             *actions, result = self._tool(MENU_EVENTS[event.option]())
-            return [*actions, GenerateReply(result.text)]  # no tool call to reply to, so ask the model to speak
+            # No tool call to reply to, so ask the model to speak, saying which button was pressed.
+            return [*actions, GenerateReply(f"{BUTTON_PRESSED[event.option]} {result.text}")]
         if isinstance(event, PromptRecorded) and self._question_position is not None:
             # Also after the finish: an answer heard before it still waits for its prompt's receipt.
             return self._prompt_recorded(event)

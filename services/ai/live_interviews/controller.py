@@ -44,6 +44,7 @@ from prompts.live_interviewer_turns import (
     REPEAT_FROM_MENU,
     RESUME_AT_MENU,
     RETRY,
+    STILL_ANSWERING,
     TIME_UP,
     TIME_WARNING,
     WELCOME_BACK_TO,
@@ -57,6 +58,11 @@ from text_limits import MAX_PROSE_TEXT
 logger = logging.getLogger(__name__)
 
 Phase = Literal["asking", "answering", "feedback", "menu", "closing", "ended"]
+
+# Fewer words than this (for the question's opening prompt, or a follow-up) usually means the
+# candidate paused mid-answer. The first follow-up or finish on such an answer is answered with
+# "go on" instead, once per prompt, so a pause can't spend a follow-up or end the question.
+SHORT_ANSWER_WORDS = {"opening": 20, "follow_up": 6}
 
 
 @dataclass(frozen=True)
@@ -438,6 +444,7 @@ class LiveInterviewController:
         self._retries = 0  # retries the current question has used
         self._answering_since: float | None = None  # first clock tick while answering the current prompt
         self._nudged = False  # the current prompt's one nudge was given
+        self._short_answer_checked = False  # the current prompt's one "go on" for a short answer was given
         self._menu_since: float | None = None  # first clock tick of the menu's current wait
         self._closing_reason: Literal["completed", "idle"] = "completed"
         self._closing_since: float | None = None  # first clock tick of the closing
@@ -774,6 +781,9 @@ class LiveInterviewController:
             return [ToolResult(NOTHING_TO_COACH if isinstance(event, GiveFeedback) else NOT_ANSWERED)]
         if isinstance(event, GiveFeedback):
             return self._feedback(FEEDBACK_SO_FAR, then="answering")
+        if isinstance(event, AskFollowUp | FinishAnswer) and self._answer_looks_unfinished():
+            self._short_answer_checked = True
+            return [ToolResult(STILL_ANSWERING)]
         if self._answer_count() >= self._answer_cap:
             return self._feedback(FEEDBACK_AT_END, then="menu")  # no follow-up is left for this question
         if isinstance(event, FinishAnswer):
@@ -843,6 +853,14 @@ class LiveInterviewController:
     def _has_answer(self) -> bool:
         return self._phase == "answering" and (bool(self._answer_pieces) or self._saved_answer is not None)
 
+    def _answer_looks_unfinished(self) -> bool:
+        """Whether the words heard for the current prompt are too few to be a whole answer, the first
+        time the interviewer tries to move past them."""
+        if self._short_answer_checked or not self._answer_pieces or self._prompt is None:
+            return False
+        kind = "opening" if self._prompt[1] is None else "follow_up"
+        return len(" ".join(self._answer_pieces).split()) < SHORT_ANSWER_WORDS[kind]
+
     def _answer_count(self) -> int:
         pending_new = bool(self._answer_pieces) and self._saved_answer is None
         return self._answered_prompts + int(pending_new)
@@ -868,7 +886,7 @@ class LiveInterviewController:
         self._phase, self._reporting = "asking", kind
         self._unheard_is_current = False
         self._prompt, self._prompt_message_id, self._answer_pieces, self._saved_answer = None, None, [], None
-        self._answering_since, self._nudged = None, False
+        self._answering_since, self._nudged, self._short_answer_checked = None, False, False
 
     def _shown_seconds(self) -> int:
         return max(math.ceil(min(self._seconds_left, self._allowance_left)), 0)

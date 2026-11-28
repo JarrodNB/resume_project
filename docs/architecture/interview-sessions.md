@@ -467,7 +467,11 @@ and ask the current question. Each question then runs like this:
    and increments `accepted_answer_count`; a later report for the same prompt replaces the text
    (only the latest is kept) without counting again. New answers go only to the latest prompt of
    the current question. The controller also refuses `ask_follow_up` before an answer; at the
-   cap it goes to quick feedback instead (step 3).
+   cap it goes to quick feedback instead (step 3). A spoken answer often arrives in pieces, so
+   the first `ask_follow_up` or `finish_answer` on a short answer (under 20 words for the
+   opening prompt, 6 for a follow-up; `SHORT_ANSWER_WORDS`) is answered with "go on" instead,
+   once per prompt. A pause can't spend a follow-up or end the question, and a short complete
+   answer is held back only once.
 3. When a question with at least one answer is done (`next_question` or `offer_menu`, or no
    follow-up is left at the cap), the controller does not advance. It runs the coaching loop:
    - **Quick feedback.** The tool result asks the interviewer to step out of role with "Quick

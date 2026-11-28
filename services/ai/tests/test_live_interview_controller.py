@@ -5,6 +5,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
+import live_interviews.controller as live_controller
 from live_interviews.controller import (
     AnswerNotSaved,
     AskFollowUp,
@@ -48,6 +51,15 @@ from live_interviews.controller import (
     ToolResult,
 )
 from prompts.live_interviewer_turns import NO_FEEDBACK_AFTER_RECONNECT
+
+REAL_SHORT_ANSWER_WORDS = dict(live_controller.SHORT_ANSWER_WORDS)
+
+@pytest.fixture(autouse=True)
+def short_answer_check_off(monkeypatch):
+    """Most tests answer with short placeholder words, so the "still answering" check is off unless a
+    test turns it back on with `REAL_SHORT_ANSWER_WORDS`."""
+    monkeypatch.setattr(live_controller, "SHORT_ANSWER_WORDS", {"opening": 0, "follow_up": 0})
+
 
 
 class RoomController(LiveInterviewController):
@@ -510,7 +522,7 @@ def test_feedback_needs_an_answer_and_waits_while_it_is_being_spoken():
     controller.handle(CandidateTurnFinished(text="My answer."))
     controller.handle(NextQuestion())
     for tool in (NextQuestion(), GiveFeedback(), AskFollowUp(question_text="Why?")):
-        assert "feedback first" in tool_text(controller.handle(tool))
+        assert "already giving" in tool_text(controller.handle(tool))
 
 
 def test_feedback_from_the_menu_replaces_the_saved_feedback_and_offers_the_menu_again():
@@ -629,7 +641,7 @@ def test_hints_and_retries_wait_until_the_question_has_been_asked_or_feedback_is
     asked_and_recorded(controller)
     controller.handle(CandidateTurnFinished(text="My answer."))
     controller.handle(NextQuestion())
-    assert "feedback first" in tool_text(controller.handle(RetryQuestion()))
+    assert "already giving" in tool_text(controller.handle(RetryQuestion()))
 
 
 def test_menu_buttons_map_to_the_same_steps_as_voice_but_ask_the_model_to_speak():
@@ -1393,3 +1405,42 @@ def test_an_event_the_controller_does_not_know_changes_nothing_and_does_not_end_
     actions = controller.handle(EndRequested())  # still running: the answer is saved and it finishes now
     assert actions[0] == ReportAnswerFinished(prompt_message_id="opening-0", transcript="I rebuilt the scheduler.")
     assert ReportFinish("ended_by_candidate", final_sequence=1) in actions
+
+
+def test_a_follow_up_on_a_few_words_says_go_on_once_and_keeps_the_pieces_together(monkeypatch):
+    monkeypatch.setattr(live_controller, "SHORT_ANSWER_WORDS", REAL_SHORT_ANSWER_WORDS)
+    controller, _ = started_controller(answer_cap=3)
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="Yes, when I was migrating our company off a vendor."))
+    actions = controller.handle(AskFollowUp(question_text="What issue did you hit?"))
+    assert len(actions) == 1 and "go on" in tool_text(actions).lower()  # nothing saved, no follow-up spent
+    controller.handle(CandidateTurnFinished(text="The production went"))
+    actions = controller.handle(AskFollowUp(question_text="What issue did you hit?"))  # asked once: it goes ahead
+    assert actions[0] == ReportAnswerFinished(
+        prompt_message_id="opening-0",
+        transcript="Yes, when I was migrating our company off a vendor. The production went")
+    assert "ask" in tool_text(actions).lower()
+
+
+def test_a_full_answer_is_never_held_back_and_each_follow_up_gets_its_own_check(monkeypatch):
+    monkeypatch.setattr(live_controller, "SHORT_ANSWER_WORDS", REAL_SHORT_ANSWER_WORDS)
+    controller, _ = started_controller(answer_cap=3)
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text=" ".join(["word"] * 20)))
+    assert isinstance(controller.handle(AskFollowUp(question_text="Why?"))[0], ReportAnswerFinished)
+    controller.handle(InterviewerTurnFinished(text="Why did that work?"))
+    controller.handle(PromptRecorded(question_position=0, message_id="follow-1", prompt_key="q0-r0-f1"))
+    controller.handle(CandidateTurnFinished(text="Because CloudFront was"))
+    assert "go on" in tool_text(controller.handle(FinishAnswer())).lower()
+    controller.handle(CandidateTurnFinished(text="pointing at the old origin."))
+    assert controller.handle(FinishAnswer())[0] == ReportAnswerFinished(
+        prompt_message_id="follow-1", transcript="Because CloudFront was pointing at the old origin.")
+
+
+def test_a_second_tool_call_during_feedback_does_not_start_the_feedback_again():
+    controller, _ = started_controller(answer_cap=1)
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    assert "Quick feedback:" in tool_text(controller.handle(FinishAnswer()))
+    text = tool_text(controller.handle(AskFollowUp(question_text="Anything else?")))
+    assert "do not start it again" in text.lower()

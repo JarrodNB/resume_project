@@ -22,6 +22,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+import live_interviews.controller as live_controller
 from database.live_interview_inputs import LiveInterviewInputs
 from live_interviews.agent import LiveDispatch, realtime_model_options, run_live_interview
 from live_interviews.client import (
@@ -41,6 +42,13 @@ METADATA = '{"interview_session_id": "session", "live_connection_id": "live"}'
 CLAIM = LiveConnectionClaim(interview_session_id="session", live_connection_id="live", user_id="owner", ai_task_id="task",
                             question_total=2, current_question_position=0, answer_cap=2, session_seconds_left=1_500,
                             allowance_seconds_left=600)
+
+@pytest.fixture(autouse=True)
+def short_answer_check_off(monkeypatch):
+    """Most tests answer with short placeholder words, so the "still answering" check is off unless a
+    test turns it back on with `REAL_SHORT_ANSWER_WORDS`."""
+    monkeypatch.setattr(live_controller, "SHORT_ANSWER_WORDS", {"opening": 0, "follow_up": 0})
+
 
 
 class FakeParticipant:

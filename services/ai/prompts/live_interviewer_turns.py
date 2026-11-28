@@ -56,7 +56,12 @@ NO_FEEDBACK_AFTER_RECONNECT = (
     "You reconnected partway through this question and did not hear the candidate's earlier answers. Say briefly "
     "that you can't give feedback on that part after the reconnect, then offer their choices in one short sentence: "
     "try the question again, hear the question again, get a hint, or move on. Wait for their choice.")
-FEEDBACK_FIRST = "Give your quick feedback first. The candidate then chooses what to do next."
+FEEDBACK_FIRST = ("You are already giving this question's quick feedback. Do not start it again and do not add "
+                  "anything else now.")
+STILL_ANSWERING = ("The candidate's answer is still very short, so they have probably only paused to think. Do not "
+                   "ask a follow-up or move on yet. If they stopped mid-sentence, say only a brief \"Mm-hm, go on.\" "
+                   "Otherwise invite them, in one short sentence, to say a bit more about the same thing. Then let "
+                   "them talk.")
 MENU = ("Now offer the candidate their choices in one short, friendly sentence: try the question again, hear the "
         "question again, get a hint, or move on. Then stop and wait for their choice. Never move on until they "
         "choose.")

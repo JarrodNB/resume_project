@@ -53,7 +53,9 @@ module Interviews
       expires_at = Time.current + TOKEN_TTL
       token = LiveKit::AccessToken.new(api_key: ENV.fetch("LIVEKIT_API_KEY"), api_secret: ENV.fetch("LIVEKIT_API_SECRET"),
         identity: "user-#{@interview.user_id}", ttl: TOKEN_TTL.to_i)
-      token.video_grant = LiveKit::VideoGrant.new(roomJoin: true, room: connection.room_name)
+      # canUpdateOwnMetadata lets the browser publish the candidate's own `cd.silence_seconds`
+      # attribute (their Silence length setting); the agent accepts only the three choices.
+      token.video_grant = LiveKit::VideoGrant.new(roomJoin: true, room: connection.room_name, canUpdateOwnMetadata: true)
       metadata = { interview_session_id: @interview.id, live_connection_id: connection.id }.to_json
       token.room_config = LiveKit::Proto::RoomConfiguration.new(agents: [ LiveKit::Proto::RoomAgentDispatch.new(agent_name: AGENT_NAME, metadata: metadata) ])
       { url: ENV.fetch("LIVEKIT_URL"), token: token.to_jwt, room_name: connection.room_name, expires_at: expires_at }

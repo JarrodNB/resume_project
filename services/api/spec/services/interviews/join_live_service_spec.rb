@@ -25,7 +25,7 @@ RSpec.describe Interviews::JoinLiveService do
     expect(claims).to include("iss" => "test-key", "sub" => "user-#{user.id}")
     expect(claims["exp"] - Time.current.to_i).to be_between(540, 600)
     expect(Time.zone.at(claims["exp"])).to be_within(1.second).of(value[:expires_at])
-    expect(claims["video"]).to eq("roomJoin" => true, "room" => connection.room_name)
+    expect(claims["video"]).to eq("roomJoin" => true, "room" => connection.room_name, "canUpdateOwnMetadata" => true)
     agents = claims.dig("roomConfig", "agents")
     expect(agents.map { |agent| agent["agentName"] }).to eq([ Interviews::JoinLiveService::AGENT_NAME ])
     # The ai-live worker registers under this exact name (services/ai/tests/test_live_interview_agent.py

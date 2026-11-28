@@ -8,7 +8,7 @@ import { END_LIVE_INTERVIEW, JOIN_LIVE_INTERVIEW } from './interviewOperations'
 import { useLiveInterviewRoom } from './useLiveInterviewRoom'
 
 type TextHandler = (reader: AsyncIterable<string> & { info: { id: string; attributes?: Record<string, string> } }, participant: { identity: string }) => void
-type FakeRoom = { handlers: Map<string, (...values: unknown[]) => void>; textHandlers: Map<string, TextHandler>; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; setMicrophoneEnabled: ReturnType<typeof vi.fn>; performRpc: ReturnType<typeof vi.fn>; remoteParticipants: Map<string, unknown> }
+type FakeRoom = { handlers: Map<string, (...values: unknown[]) => void>; textHandlers: Map<string, TextHandler>; connect: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; setMicrophoneEnabled: ReturnType<typeof vi.fn>; setAttributes: ReturnType<typeof vi.fn>; state: string; performRpc: ReturnType<typeof vi.fn>; remoteParticipants: Map<string, unknown> }
 const { rooms } = vi.hoisted(() => ({ rooms: [] as FakeRoom[] }))
 vi.mock('livekit-client', () => {
   class Room {
@@ -18,13 +18,15 @@ vi.mock('livekit-client', () => {
     disconnect = vi.fn().mockResolvedValue(undefined)
     setMicrophoneEnabled = vi.fn().mockResolvedValue(undefined)
     performRpc = vi.fn().mockResolvedValue('ended')
+    setAttributes = vi.fn().mockResolvedValue(undefined)
+    state = 'disconnected'
     remoteParticipants = new Map()
-    localParticipant = { identity: 'user-owner', setMicrophoneEnabled: this.setMicrophoneEnabled, performRpc: this.performRpc }
-    constructor() { rooms.push(this) }
+    localParticipant = { identity: 'user-owner', setMicrophoneEnabled: this.setMicrophoneEnabled, performRpc: this.performRpc, setAttributes: this.setAttributes }
+    constructor() { rooms.push(this); this.connect.mockImplementation(async () => { this.state = 'connected' }) }
     on(event: string, handler: (...values: unknown[]) => void) { this.handlers.set(event, handler); return this }
     registerTextStreamHandler(topic: string, handler: TextHandler) { this.textHandlers.set(topic, handler) }
   }
-  return { Room, RoomEvent: { ParticipantConnected: 'participantConnected', ParticipantDisconnected: 'participantDisconnected', ParticipantAttributesChanged: 'participantAttributesChanged', TrackSubscribed: 'trackSubscribed', Disconnected: 'disconnected', Reconnecting: 'reconnecting', Reconnected: 'reconnected' }, Track: { Kind: { Audio: 'audio' } } }
+  return { Room, ConnectionState: { Connected: 'connected' }, RoomEvent: { ParticipantConnected: 'participantConnected', ParticipantDisconnected: 'participantDisconnected', ParticipantAttributesChanged: 'participantAttributesChanged', TrackSubscribed: 'trackSubscribed', Disconnected: 'disconnected', Reconnecting: 'reconnecting', Reconnected: 'reconnected' }, Track: { Kind: { Audio: 'audio' } } }
 })
 
 /** A text stream that yields its chunks, like a LiveKit transcription segment. */
@@ -39,7 +41,7 @@ function joinMock(payload: Record<string, unknown>): MockLink.MockedResponse {
 }
 function render(mock: MockLink.MockedResponse, ...more: MockLink.MockedResponse[]) {
   const wrapper = ({ children }: { children: ReactNode }) => <MockedProvider mocks={[mock, ...more]}>{children}</MockedProvider>
-  return renderHook(() => useLiveInterviewRoom('session'), { wrapper })
+  return renderHook(({ silence }: { silence: number }) => useLiveInterviewRoom('session', silence), { wrapper, initialProps: { silence: 2.5 } })
 }
 
 beforeEach(() => { rooms.length = 0 })
@@ -302,4 +304,15 @@ it('reads the documented cd.* attributes and sends each documented interview.cho
     await act(async () => { await view.result.current.choose(option) })
     expect(room.performRpc).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'interview.choose', payload: JSON.stringify({ option, state_seq: 11 }) }))
   }
+})
+
+it('the room tells the interviewer the silence length when it connects and when it changes', async () => {
+  const { result, rerender } = render(joinMock({ url: 'wss://live.example', token: 'jwt', roomName: 'room' }))
+  await waitFor(() => expect(result.current.status).toBe('connected'))
+  const room = rooms[0]
+  expect(room.setAttributes).toHaveBeenLastCalledWith({ 'cd.silence_seconds': '2.5' })
+  rerender({ silence: 4 })
+  expect(room.setAttributes).toHaveBeenLastCalledWith({ 'cd.silence_seconds': '4' })
+  rerender({ silence: 4 })
+  expect(room.setAttributes).toHaveBeenCalledTimes(2)
 })

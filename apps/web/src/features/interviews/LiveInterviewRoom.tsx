@@ -30,13 +30,15 @@ import { InterviewCareerReferences } from './InterviewCareerReferences'
 import { LiveCaptions } from './LiveCaptions'
 import { useLiveInterviewRoom, type LiveInterviewRoom as LiveRoom, type LiveMenuOption } from './useLiveInterviewRoom'
 import { useStartInterview } from './useInterviewSession'
+import { SILENCE_LENGTH_OPTIONS, useInterviewMicSettings } from './useInterviewMicSettings'
 
 /** How long the room waits for the interviewer agent before offering the turn-based fallback. */
 export const LIVE_AGENT_JOIN_TIMEOUT_MS = 15_000
 
 export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotFragment }) {
-  const room = useLiveInterviewRoom(interview.id)
   const { user } = useAuth()
+  const microphone = useInterviewMicSettings(user?.id ?? '')
+  const room = useLiveInterviewRoom(interview.id, microphone.silenceSeconds)
   const [referenceVisitId] = useState(() => crypto.randomUUID())
   const [timedOut, setTimedOut] = useState(false)
   useFocusMode(true)
@@ -66,9 +68,23 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
       <Button type="button" className="min-h-11 justify-self-start" onClick={() => void room.rejoin()}>Rejoin interview</Button>
     </div>}
     {!showFallback && (room.status === 'connected' || room.status === 'reconnecting') && <LiveRoomControls room={room} />}
+    {!showFallback && room.status !== 'joining' && <LiveSilenceLength microphone={microphone} />}
     {room.status !== 'joining' && room.roomOpened && <EndLiveInterviewButton room={room} />}
     {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={interview.id} visitId={referenceVisitId} message={reply} disabled={false} />}
   </section>
+}
+
+/** The "Silence length" answer setting, which the interviewer applies as soon as it changes. */
+function LiveSilenceLength({ microphone }: { microphone: ReturnType<typeof useInterviewMicSettings> }) {
+  const id = useId()
+  return <div className="grid max-w-md gap-1">
+    <label className="grid gap-2 text-sm" htmlFor={id}>Silence before your interviewer replies
+      <select id={id} aria-describedby={`${id}-help`} className="min-h-11 rounded-md border bg-background px-3 py-2" value={microphone.silenceSeconds} onChange={(event) => microphone.update({ silenceSeconds: Number(event.target.value) })}>
+        {SILENCE_LENGTH_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.name} ({option.seconds} seconds)</option>)}
+      </select>
+    </label>
+    <p id={`${id}-help`} className="text-sm text-muted-foreground">Choose Patient if you pause to think.</p>
+  </div>
 }
 
 /** Counted seconds as m:ss, such as 24:55 or 1:05. */

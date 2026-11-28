@@ -91,24 +91,32 @@ class LiveDispatch(BaseModel):
     live_connection_id: str
 
 
-END_OF_TURN_SILENCE_MS = 2_000  # quiet needed before the interviewer replies
+# The candidate's "Silence length" answer setting (Quick, Normal, Patient), which the browser
+# publishes as this participant attribute: how long they stay quiet before their turn ends.
+SILENCE_ATTRIBUTE = "cd.silence_seconds"
+SILENCE_CHOICES_MS = {"1.5": 1_500, "2.5": 2_500, "4": 4_000}
+DEFAULT_SILENCE_MS = 2_500  # Normal, until the browser says otherwise
+
+
+def turn_detection(silence_ms: int) -> ServerVad:
+    """End the candidate's turn after `silence_ms` of quiet; their speech interrupts the interviewer."""
+    return ServerVad(type="server_vad", silence_duration_ms=silence_ms, create_response=True, interrupt_response=True)
 
 
 def realtime_model_options(persona: str) -> dict:
     """Keyword arguments for `openai.realtime.RealtimeModel`: model, persona voice, turn detection,
     noise reduction and input transcription (for the candidate's captions).
 
-    Interview answers have thinking pauses, so the candidate's turn ends only after
-    END_OF_TURN_SILENCE_MS of quiet. The default (half a second) and semantic detection (which
-    ends a turn as soon as a phrase sounds complete, e.g. "I had to use FullStory") both cut
-    candidates off mid-answer. Far-field noise reduction filters room noise and
+    The candidate's turn ends after the quiet their "Silence length" setting chooses (Normal until
+    the browser publishes it; `LiveInterviewRunner.use_silence_choice`). OpenAI's default (half a
+    second) and semantic detection (which ends a turn as soon as a phrase sounds complete, e.g.
+    "I had to use FullStory") both cut candidates off mid-answer. Far-field noise reduction filters room noise and
     the interviewer's own voice from laptop speakers before turn detection and transcription, so
     they don't count as the candidate talking."""
     return {
         "model": REALTIME_MODEL,
         "voice": PERSONA_VOICES[persona],
-        "turn_detection": ServerVad(type="server_vad", silence_duration_ms=END_OF_TURN_SILENCE_MS,
-                                    create_response=True, interrupt_response=True),
+        "turn_detection": turn_detection(DEFAULT_SILENCE_MS),
         "input_audio_noise_reduction": NoiseReduction(type="far_field"),
         "input_audio_transcription": AudioTranscription(model=TRANSCRIPTION_MODEL),
     }
@@ -142,6 +150,7 @@ class LiveInterviewRunner:
         self._delivery_wait_seconds = delivery_wait_seconds
         self._deliveries: asyncio.Queue = asyncio.Queue()  # Rails reports, heartbeats and the finish, in order
         self._delivery_task: asyncio.Task | None = None
+        self._silence_ms = DEFAULT_SILENCE_MS  # the turn detection the realtime session uses now
         self._room_state_wanted: dict[str, str] | None = None  # the newest room state not yet published
         self._room_state_task: asyncio.Task | None = None
         self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
@@ -179,7 +188,26 @@ class LiveInterviewRunner:
     def on_participant_connected(self, participant: rtc.RemoteParticipant) -> None:
         """Room callback: the candidate (any participant that is not an agent) joined or rejoined."""
         if participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT:
+            self.use_silence_choice(participant)
             self._spawn(CandidateJoined(self._clock()))
+
+    def use_silence_choice(self, participant) -> None:
+        """Apply the candidate's "Silence length" setting from their participant attribute (when they
+        join, and whenever they change it). Values outside the three choices are ignored."""
+        if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_AGENT:
+            return
+        silence_ms = SILENCE_CHOICES_MS.get(participant.attributes.get(SILENCE_ATTRIBUTE, ""))
+        if silence_ms is None or silence_ms == self._silence_ms:
+            return
+        try:
+            self._session.llm.update_options(turn_detection=turn_detection(silence_ms))
+            self._silence_ms = silence_ms
+        except Exception as error:  # noqa: BLE001 - the interview goes on with the earlier setting
+            logger.warning("Live silence setting not applied: %s", type(error).__name__)
+
+    def on_participant_attributes_changed(self, _changed: dict[str, str], participant) -> None:
+        """Room callback: a participant's attributes changed; the candidate may have a new silence setting."""
+        self.use_silence_choice(participant)
 
     def on_participant_disconnected(self, participant: rtc.RemoteParticipant) -> None:
         """Room callback: the candidate left; the controller waits for them to come back."""
@@ -610,8 +638,11 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             ctx.room.local_participant.register_rpc_method("interview.choose", runner.choose)
             ctx.room.on("participant_connected", runner.on_participant_connected)
             ctx.room.on("participant_disconnected", runner.on_participant_disconnected)
+            ctx.room.on("participant_attributes_changed", runner.on_participant_attributes_changed)
             await session.start(LiveInterviewerAgent(instructions=instructions, runner=runner), room=ctx.room,
                                 record=False, room_options=room_io.RoomOptions(close_on_disconnect=False))
+            for participant in ctx.room.remote_participants.values():
+                runner.use_silence_choice(participant)  # a candidate already here published it before we joined
             if not any(participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT
                        for participant in ctx.room.remote_participants.values()):
                 await runner.handle(CandidateLeft(clock()))  # a fresh agent in an emptied room waits for the candidate

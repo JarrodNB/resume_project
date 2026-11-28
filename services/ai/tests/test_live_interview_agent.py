@@ -78,12 +78,21 @@ class FakeRoom:
     def on(self, event, handler):
         self.handlers[event] = handler
 
-    def emit(self, event, participant):
-        self.handlers[event](participant)
+    def emit(self, event, *arguments):
+        self.handlers[event](*arguments)
 
 
-def candidate():
-    return SimpleNamespace(identity="user-owner", kind=rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD)
+def candidate(**attributes):
+    return SimpleNamespace(identity="user-owner", kind=rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD,
+                           attributes=attributes)
+
+
+class FakeRealtimeModel:
+    def __init__(self):
+        self.turn_detections = []
+
+    def update_options(self, *, turn_detection):
+        self.turn_detections.append(turn_detection)
 
 
 class FakeJob:
@@ -140,6 +149,7 @@ class FakeSession:
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
         self.handles, self.model_usage, self.closed = [], [], False
         self.current_speech = None  # the SpeechHandle playing now, as LiveKit's AgentSession.current_speech
+        self.llm = FakeRealtimeModel()
 
     @property
     def usage(self):
@@ -695,9 +705,10 @@ def test_realtime_options_use_the_persona_voice_patient_turn_detection_and_trans
     options = realtime_model_options("daniel")
     assert options["model"] == "gpt-realtime-2.1-mini"
     assert options["voice"] == "cedar"
-    # Half a second of silence, or semantic detection, cut candidates off mid-sentence.
+    # Half a second of silence, or semantic detection, cut candidates off mid-sentence. Normal
+    # (2.5 seconds) applies until the candidate's own setting arrives.
     detection = options["turn_detection"]
-    assert (detection.type, detection.silence_duration_ms) == ("server_vad", 2_000)
+    assert (detection.type, detection.silence_duration_ms) == ("server_vad", 2_500)
     assert options["input_audio_noise_reduction"].type == "far_field"
     assert options["input_audio_transcription"].model == "gpt-live-transcribe"
     assert PERSONA_VOICES == {"maya": "marin", "daniel": "cedar", "priya": "shimmer"}
@@ -1311,3 +1322,26 @@ def test_a_candidate_join_delivered_before_the_start_is_not_lost():
     asyncio.run(scenario())
     assert session.replies and "question 1" in session.replies[0].lower()
     assert not [call for call in rails.calls if call[0] == "finish"]
+
+
+def test_the_candidates_silence_length_setting_sets_how_long_a_pause_ends_their_turn():
+    rails, sessions = FakeRails(), []
+    ctx, go = run_interview(rails, sessions)
+    ctx.room.remote_participants = {"user-owner": candidate(**{"cd.silence_seconds": "4"})}  # set before we joined
+
+    async def scenario():
+        await go()
+        model = sessions[0][1].llm
+        assert [detection.silence_duration_ms for detection in model.turn_detections] == [4_000]
+        ctx.room.emit("participant_attributes_changed", {"cd.silence_seconds": "1.5"},
+                      candidate(**{"cd.silence_seconds": "1.5"}))
+        ctx.room.emit("participant_attributes_changed", {"cd.silence_seconds": "60"},
+                      candidate(**{"cd.silence_seconds": "60"}))  # not a choice: ignored
+        ctx.room.emit("participant_attributes_changed", {"cd.silence_seconds": "1.5"},
+                      SimpleNamespace(identity="agent-x", kind=rtc.ParticipantKind.PARTICIPANT_KIND_AGENT,
+                                      attributes={"cd.silence_seconds": "2.5"}))  # not the candidate
+        ctx.room.emit("participant_connected", candidate(**{"cd.silence_seconds": "1.5"}))  # unchanged on rejoin
+        assert [detection.silence_duration_ms for detection in model.turn_detections] == [4_000, 1_500]
+        assert model.turn_detections[-1].type == "server_vad"
+
+    asyncio.run(scenario())

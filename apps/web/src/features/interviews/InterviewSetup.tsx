@@ -106,12 +106,12 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
         <p className="interview-setup-help">Bias which questions you get. Leave this empty for a balanced round.</p>
       </div></SetupRow>
       </div> : <>
-      <InterviewAnswerSettings microphone={microphone} canRecord={canRecord} mode={transcriptionMode} changeMode={setTranscriptionMode} />
-      {canRecord && <p className="interview-setup-help">You can always type or correct your answers. Mic access is requested only when an answer starts.</p>}
+      <InterviewAnswerSettings microphone={microphone} canRecord={canRecord} mode={transcriptionMode} changeMode={setTranscriptionMode} live={live} />
+      {canRecord && !live && <p className="interview-setup-help">You can always type or correct your answers. Mic access is requested only when an answer starts.</p>}
       </>}
     </fieldset>
     <div className="interview-setup-footer">
-      <p className="text-sm leading-relaxed"><span className="block text-[15px] font-bold">{roundSummary}</span><span className="text-muted-foreground">With {interviewerName} · {minutes}. {step === 'round' ? 'Next, check your microphone and transcription.' : 'Follow-ups may extend it.'}</span></p>
+      <p className="text-sm leading-relaxed"><span className="block text-[15px] font-bold">{roundSummary}</span><span className="text-muted-foreground">With {interviewerName} · {minutes}. {step === 'round' ? (live ? 'Next, choose how long a pause ends your turn.' : 'Next, check your microphone and transcription.') : 'Follow-ups may extend it.'}</span></p>
       {/* Distinct keys matter: React would otherwise reuse one DOM button and flip its type to
           "submit" mid-click, so the Continue click would also submit the form and start preparation. */}
       {step === 'round'

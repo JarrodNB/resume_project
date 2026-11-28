@@ -68,3 +68,15 @@ it('disables starting a Live interview with the reason when fewer than 5 minutes
   startFromSettings()
   expect(start).toHaveBeenCalledWith('', expect.anything(), undefined, 'TURN_BASED')
 })
+
+it('shows only the silence length in Live settings and remembers the choice for the live room', () => {
+  renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [] })
+  fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Continue to settings' }))
+  for (const name of ['Automatic', 'Tap to start', '3 sec', 'Streaming']) expect(screen.queryByRole('radio', { name })).not.toBeInTheDocument()
+  expect(screen.queryByText('Hands-free')).not.toBeInTheDocument()
+  const patient = screen.getByRole('radio', { name: 'Patient 4 sec' })
+  expect(patient).toBeEnabled()
+  fireEvent.click(patient)
+  expect(JSON.parse(Object.values({ ...localStorage })[0] as string)).toMatchObject({ silenceSeconds: 4 })
+})

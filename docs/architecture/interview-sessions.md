@@ -332,8 +332,9 @@ For each dispatched job it:
    the input bounds still apply.
 4. starts an `AgentSession` on the OpenAI realtime model `gpt-realtime-2.1-mini` with the
    persona's fixed voice (maya `marin`, daniel `cedar`, priya `shimmer`), silence turn detection
-   that ends the candidate's turn only after 2 seconds of quiet (the half-second default and
-   semantic detection both cut candidates off mid-sentence), far-field
+   that ends the candidate's turn after the quiet their "Silence length" setting picks
+   (`cd.silence_seconds` in the room contract; the half-second default and semantic detection
+   both cut candidates off mid-sentence), far-field
    noise reduction, and input transcription with `gpt-live-transcribe`, with LiveKit recording off (`record=False`). Spoken
    text is never logged; logs name only events, error types and refusal codes. Both model names
    are fixed constants (`live_interviews/settings.py`), not settings: Rails bills only these two
@@ -567,6 +568,7 @@ dispatches the agent by name; `JoinLiveService` and the agent's settings are pin
 | `cd.menu_offered` | agent attribute → browser | `true` / `false` |
 | `cd.seconds_left` | agent attribute → browser | counted seconds left, integer as a string |
 | `cd.time_warning` | agent attribute → browser | `true` / `false` |
+| `cd.silence_seconds` | browser attribute → agent | the candidate's "Silence length" answer setting: `1.5`, `2.5` or `4` seconds of quiet end their turn (OpenAI server VAD `silence_duration_ms`). Published on connect and on every change; the agent applies it to the open realtime session and ignores other values. Normal (2.5) until it arrives |
 | RPC `interview.choose` | browser → agent | `{"option", "state_seq"}` for a button: `retry`, `repeat`, `hint`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.state_seq` (an integer) the room showed. Answers `accepted`, or `ignored` when the room state has changed since. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
 
 #### Ending the interview

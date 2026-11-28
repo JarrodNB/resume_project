@@ -1,7 +1,9 @@
 /** The setup step that picks how spoken answers are captured: when the mic opens, whether answers send
  * themselves when you stop talking (hands-free) and after how long a silence, and how speech becomes text.
  * Changing these never requests microphone access or starts capture. They are remembered per account.
- * The live room has its own controls because switching there can discard a recording in progress.
+ * The turn-based room has its own controls because switching there can discard a recording in progress.
+ * A live interview always listens and makes its own captions, so it shows only the silence length:
+ * how long the candidate stays quiet before the interviewer replies.
  */
 import { SetupRow, Switch } from './InterviewSetupControls'
 import type { TranscriptionMode } from './transcriptionCapture'
@@ -13,7 +15,14 @@ const handsFreeOptions = [{ value: 'off', label: 'Off' }, { value: 'on', label: 
 const silenceOptions = SILENCE_LENGTH_OPTIONS.map((option) => ({ value: String(option.seconds), label: `${option.name} ${option.seconds} sec` }))
 const thinkingOptions = [{ value: '0', label: 'Off' }, { value: '3', label: '3 sec' }, { value: '5', label: '5 sec' }, { value: '10', label: '10 sec' }]
 
-export function InterviewAnswerSettings({ microphone, canRecord, mode, changeMode }: { microphone: ReturnType<typeof useInterviewMicSettings>; canRecord: boolean; mode: TranscriptionMode; changeMode: (mode: TranscriptionMode) => void }) {
+export function InterviewAnswerSettings({ microphone, canRecord, mode, changeMode, live = false }: { microphone: ReturnType<typeof useInterviewMicSettings>; canRecord: boolean; mode: TranscriptionMode; changeMode: (mode: TranscriptionMode) => void; live?: boolean }) {
+  if (live) return <div className="interview-answer-settings">
+    <SetupRow title="Silence length">
+      <Switch name="silence-length" options={silenceOptions} value={String(microphone.silenceSeconds)} change={(value) => microphone.update({ silenceSeconds: Number(value) })} />
+      <p className="interview-setup-help">How long you stay quiet before your interviewer replies. Choose Patient if you pause to think. You can change it during the interview.</p>
+    </SetupRow>
+    <SetupRow group={false} title="Microphone"><p className="interview-answer-note">The microphone stays on for the whole live interview, and you can mute it in the room. Captions are made for you as you talk.</p></SetupRow>
+  </div>
   const transcription = SETUP_TRANSCRIPTION_OPTIONS.find((option) => option.value === mode) ?? SETUP_TRANSCRIPTION_OPTIONS[0]
   return <div className="interview-answer-settings">
     {canRecord ? <>

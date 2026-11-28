@@ -23,7 +23,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation } from '@apollo/client/react'
-import { Room, RoomEvent, Track, type Participant, type RemoteTrack } from 'livekit-client'
+import { ConnectionState, Room, RoomEvent, Track, type Participant, type RemoteTrack } from 'livekit-client'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { END_LIVE_INTERVIEW, INTERVIEW_QUERY, JOIN_LIVE_INTERVIEW } from './interviewOperations'
 
@@ -99,7 +99,11 @@ function agentIn(livekit: Room | null) {
   return livekit ? [...livekit.remoteParticipants.values()].find((participant) => participant.isAgent) : undefined
 }
 
-export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
+/** The participant attribute that tells the interviewer agent the candidate's "Silence length"
+ * answer setting: how many seconds of quiet end their turn (1.5, 2.5 or 4). */
+export const LIVE_SILENCE_ATTRIBUTE = 'cd.silence_seconds'
+
+export function useLiveInterviewRoom(interviewId: string, silenceSeconds: number): LiveInterviewRoom {
   const [join] = useMutation(JOIN_LIVE_INTERVIEW)
   const [endLive] = useMutation(END_LIVE_INTERVIEW)
   const client = useApolloClient()
@@ -108,6 +112,8 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
   const connectRef = useRef<(() => Promise<boolean>) | null>(null)
   /** The candidate's mute choice, kept across a rejoin so the microphone matches the button. */
   const mutedRef = useRef(false)
+  /** The candidate's silence length, published when the room connects and again whenever it changes. */
+  const silenceRef = useRef(silenceSeconds)
   /** The progress the room last showed, whose state counter a choice echoes so the agent can ignore a stale click. */
   const shownProgressRef = useRef(NO_PROGRESS)
   useEffect(() => { shownProgressRef.current = room.progress }, [room.progress])
@@ -173,6 +179,7 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
         await livekit.connect(payload.url, payload.token)
         if (cancelled) return true
         update(() => ({ status: 'connected' }))
+        void livekit.localParticipant.setAttributes({ [LIVE_SILENCE_ATTRIBUTE]: String(silenceRef.current) }).catch(() => { /* The agent keeps Normal. */ })
         livekit.remoteParticipants.forEach(noticeAgent)
         await livekit.localParticipant.setMicrophoneEnabled(!mutedRef.current)
         return true
@@ -191,6 +198,12 @@ export function useLiveInterviewRoom(interviewId: string): LiveInterviewRoom {
       audio.forEach((element) => element.remove())
     }
   }, [interviewId, join])
+  useEffect(() => {
+    if (silenceRef.current === silenceSeconds) return
+    silenceRef.current = silenceSeconds
+    const livekit = livekitRef.current
+    if (livekit?.state === ConnectionState.Connected) void livekit.localParticipant.setAttributes({ [LIVE_SILENCE_ATTRIBUTE]: String(silenceSeconds) }).catch(() => { /* Applied after the next connect. */ })
+  }, [silenceSeconds])
   const mute = useCallback(async (on: boolean) => {
     const livekit = livekitRef.current
     if (!livekit) return

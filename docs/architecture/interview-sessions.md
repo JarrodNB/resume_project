@@ -262,8 +262,9 @@ an error, since it would fail the same way every time.
 Each session saves a readonly `conversation_mode` column: `turn_based` (the default, and every
 older session) or `live`, chosen by `startInterview(conversationMode:)` and shown as
 `InterviewSession.conversationMode`, both the GraphQL `ConversationModeEnum` (`TURN_BASED` or
-`LIVE`, built from `InterviewSession::CONVERSATION_MODES`). Live preparations accept
-only 5 or 8 questions; preparation itself is unchanged. `BeginService` refuses live sessions, so
+`LIVE`, built from `InterviewSession::CONVERSATION_MODES`). Live preparations always have
+exactly 5 questions (a live start with no setup gets 5; 8 or 12 is refused), and the web setup
+shows no length choice for Live; preparation itself is unchanged. `BeginService` refuses live sessions, so
 no turn-based opening is saved for them. The other turn-based actions (submitting or skipping a
 turn, reserving a recording, starting a recorded transcription, authorizing streaming
 transcription, clarification and avoiding a prompt) refuse them too with "This is a live

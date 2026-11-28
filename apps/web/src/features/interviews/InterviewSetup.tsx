@@ -1,6 +1,7 @@
 /** Assemble a practice interview from career evidence and deliberate setup choices.
  * Round choices come first as a control panel (switches, interviewer tiles, a focus-area dropdown),
- * including Turn-based or Live; Live offers only the 5 and 8 question lengths. Live has a hidden
+ * including Turn-based or Live; Live always has 5 questions, so it shows no length choice and
+ * switching back to Turn-based brings back the length picked before. Live has a hidden
  * limit of its own: nothing about it shows until it is reached, then Live can't start and the reason shows,
  * then a settings step for how answers are captured, with the round summary beside Start interview.
  * Preparation saves the round choices before review. Settings stay local to this account.
@@ -18,7 +19,7 @@ import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewAnswerSettings } from './InterviewAnswerSettings'
 import { SetupRow, Switch } from './InterviewSetupControls'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
-import { conversationModeChoice, conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_QUESTION_COUNTS, typeOptions } from './interviewSetupOptions'
+import { conversationModeChoice, conversationModeOptions, difficultyOptions, focusOptions, interviewerOptions, lengthOptions, LIVE_QUESTION_COUNT, typeOptions } from './interviewSetupOptions'
 import { LIVE_INTERVIEW_ALLOWANCE } from './interviewOperations'
 import type { InterviewJob } from './InterviewJobContext'
 
@@ -47,17 +48,13 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
   const allowance = useQuery(LIVE_INTERVIEW_ALLOWANCE, { skip: !live, fetchPolicy: 'network-only' })
   const liveRefusal = live ? allowance.data?.me.liveInterviewRefusal ?? null : null
   const liveBlocked = liveRefusal !== null
-  const lengthChoices = live ? lengthOptions.filter((option) => LIVE_QUESTION_COUNTS.includes(Number(option.value))) : lengthOptions
-  function changeConversationMode(value: string) {
-    const mode = conversationModeChoice(value)
-    setConversationMode(mode)
-    if (mode === 'LIVE' && !LIVE_QUESTION_COUNTS.includes(questionCount)) setQuestionCount(8)
-  }
+  // Live is fixed at 5 questions; the Turn-based choice is kept so switching back restores it.
+  const roundQuestionCount = live ? LIVE_QUESTION_COUNT : questionCount
   const selected = {
     type: typeOptions.find((item) => item.value === questionFormat) ?? typeOptions[0],
     difficulty: difficultyOptions.find((item) => item.value === difficulty) ?? difficultyOptions[0],
     interviewer: interviewerOptions.find((item) => item.value === interviewer) ?? interviewerOptions[0],
-    length: lengthOptions.find((item) => item.value === String(questionCount)) ?? lengthOptions[0],
+    length: lengthOptions.find((item) => item.value === String(roundQuestionCount)) ?? lengthOptions[0],
     conversationMode: conversationModeOptions.find((item) => item.value === conversationMode) ?? conversationModeOptions[0],
   }
   const minutes = selected.length.description.split(' · ')[1]
@@ -66,13 +63,13 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
     if (submitting.current) return
     submitting.current = true; setPending(true)
     try {
-      const setup = { questionCount, questionFormat, difficulty, interviewer, focusAreas }
+      const setup = { questionCount: roundQuestionCount, questionFormat, difficulty, interviewer, focusAreas }
       const id = await start('', setup, job?.id, conversationMode)
       if (id) await navigate(`/practice/interviews/${id}`)
     } finally { submitting.current = false; setPending(false) }
   }
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
-  const roundSummary = `${selected.type.label} · ${selected.difficulty.label} · ${questionCount} core questions`
+  const roundSummary = `${selected.type.label} · ${selected.difficulty.label} · ${roundQuestionCount} core questions`
   const interviewerName = selected.interviewer.label.split(' — ')[0]
   return <form className={step === 'round' ? 'interview-setup' : 'interview-setup interview-setup-settings'} onSubmit={(event) => { event.preventDefault(); if (liveBlocked) return; if (step === 'round') setStep('settings'); else void prepare() }}>
     {onChangeRole && step === 'round' && <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={onChangeRole}><ArrowLeft aria-hidden /> Change role</Button>}
@@ -81,7 +78,7 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
       : <h2 className="text-xl font-extrabold tracking-tight">How you’ll answer</h2>}
     <fieldset disabled={busy} className="interview-setup-fields">
       {step === 'round' ? <div className="interview-setup-panel">
-      <SetupRow title="Conversation"><Switch name="conversation" options={conversationModeOptions} value={conversationMode} change={changeConversationMode} /><p className="interview-setup-help">{selected.conversationMode.description}</p></SetupRow>
+      <SetupRow title="Conversation"><Switch name="conversation" options={conversationModeOptions} value={conversationMode} change={(value) => setConversationMode(conversationModeChoice(value))} /><p className="interview-setup-help">{selected.conversationMode.description}</p></SetupRow>
       <SetupRow title="Interview type"><Switch name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} /><p className="interview-setup-help">{selected.type.description}</p></SetupRow>
       <SetupRow title="Difficulty"><Switch name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} /><p className="interview-setup-help">{selected.difficulty.description}</p></SetupRow>
       <SetupRow title="Your interviewer"><div className="interview-setup-people">
@@ -95,9 +92,11 @@ export function InterviewSetup({ notice, initialSetup, job, onChangeRole }: { no
           </label>
         })}
       </div></SetupRow>
-      <SetupRow title="Interview length"><div className="interview-setup-length"><Switch name="length" options={lengthChoices} value={String(questionCount)} change={(value) => setQuestionCount(Number(value))} />
-        <span className="interview-setup-stops" aria-hidden="true">{Array.from({ length: questionCount + 1 }, (_, index) => <i key={index} />)}</span></div>
-        <p className="interview-setup-help">{selected.length.description}. Follow-up questions may extend it.</p></SetupRow>
+      <SetupRow group={!live} title="Interview length">{live
+        ? <p className="interview-setup-help">Live interviews have 5 questions · ~10 min. Follow-up questions may extend it.</p>
+        : <><div className="interview-setup-length"><Switch name="length" options={lengthOptions} value={String(questionCount)} change={(value) => setQuestionCount(Number(value))} />
+          <span className="interview-setup-stops" aria-hidden="true">{Array.from({ length: questionCount + 1 }, (_, index) => <i key={index} />)}</span></div>
+          <p className="interview-setup-help">{selected.length.description}. Follow-up questions may extend it.</p></>}</SetupRow>
       <SetupRow group={false} title={<label htmlFor={`${focusId}-trigger`} id={focusId}>Focus areas <span>(optional)</span></label>}><div className="interview-setup-focus">
         <MultiSelect id={`${focusId}-trigger`} labelId={focusId} emptyLabel="None, a balanced round" options={focusChoices} selected={focusAreas} onChange={setFocusAreas} />
         {focusAreas.length > 0 && <div className="interview-setup-tags">{focusChoices.filter((option) => focusAreas.includes(option.value)).map((option) => <button type="button" key={option.value} aria-label={`Remove ${option.label}`} onClick={() => setFocusAreas((previous) => previous.filter((area) => area !== option.value))}>{option.label}<X size={14} aria-hidden /></button>)}</div>}

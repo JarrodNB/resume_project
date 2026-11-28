@@ -11,7 +11,7 @@ module Mutations
       argument :setup, Types::InterviewSetupInput, required: false
       argument :job_id, ID, required: false
       argument :conversation_mode, Types::ConversationModeEnum, required: false, default_value: "turn_based",
-        description: "TURN_BASED (default) or LIVE; live allows 5 or 8 questions"
+        description: "TURN_BASED (default) or LIVE; live always has 5 questions"
       argument :from_interview_id, ID, required: false,
         description: "An owned interview whose setup, saved job and career focus a new turn-based interview copies. " \
           "Send no other settings with it: career focus, setup, job, a LIVE conversation mode or a non-real execution mode is refused."

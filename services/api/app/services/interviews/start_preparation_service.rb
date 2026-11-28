@@ -2,21 +2,23 @@
 # Provider calls happen later through the private execution interface, never in this transaction.
 module Interviews
   class StartPreparationService < ApplicationService
-    LIVE_QUESTION_COUNTS = [ 5, 8 ].freeze
+    # Live interviews always have exactly this many main questions; turn-based keeps 5, 8 or 12.
+    LIVE_QUESTION_COUNT = 5
 
     def initialize(user:, career_focus: nil, setup: nil, job: nil, conversation_mode: "turn_based")
       @user, @career_focus, @conversation_mode = user, career_focus.to_s.strip, conversation_mode
       @job = job
-      @setup = setup.nil? ? SetupConfiguration::DEFAULT : (setup.is_a?(Hash) ? SetupConfiguration::DEFAULT.merge(setup.stringify_keys) : setup)
+      default = conversation_mode == "live" ? SetupConfiguration::DEFAULT.merge("question_count" => LIVE_QUESTION_COUNT) : SetupConfiguration::DEFAULT
+      @setup = setup.nil? ? default : (setup.is_a?(Hash) ? SetupConfiguration::DEFAULT.merge(setup.stringify_keys) : setup)
     end
 
-    # @param conversation_mode [String] "turn_based" or "live"; live allows only 5 or 8 questions
-    #   and needs enough of the hidden live budget left (LiveAllowance)
+    # @param conversation_mode [String] "turn_based" or "live"; live allows only 5 questions (a live
+    #   start with no setup gets 5), and needs enough of the hidden live budget left (LiveAllowance)
     # @return [ServiceResult<InterviewSession>] preparing session with source IDs and bounded choices
     def call
       return failure("Choose supported interview settings and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
       return failure("Choose a turn-based or live interview") unless InterviewSession::CONVERSATION_MODES.include?(@conversation_mode)
-      return failure("Live interviews use 5 or 8 questions") if @conversation_mode == "live" && !LIVE_QUESTION_COUNTS.include?(@setup["question_count"])
+      return failure("Live interviews use 5 questions") if @conversation_mode == "live" && @setup["question_count"] != LIVE_QUESTION_COUNT
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
       return failure("Record not found") if @job && @job.user_id != @user.id
       @user.with_lock do

@@ -16,9 +16,11 @@ RSpec.describe "Live interview GraphQL" do
     expect(default.dig("data", "startInterview", "interview", "conversationMode")).to eq("TURN_BASED")
     unknown = execute_graphql(query, user: user, variables: { input: { conversationMode: "video" } })
     expect(unknown.dig("errors", 0, "message")).to include("conversationMode")
-    refused = execute_graphql(query, user: user, variables: { input: { conversationMode: "LIVE", setup: { questionCount: 12 } } })
-    expect(refused.dig("data", "startInterview", "interview")).to be_nil
-    expect(refused.dig("data", "startInterview", "errors")).to eq([ "Live interviews use 5 or 8 questions" ])
+    [ 8, 12 ].each do |count|
+      refused = execute_graphql(query, user: user, variables: { input: { conversationMode: "LIVE", setup: { questionCount: count } } })
+      expect(refused.dig("data", "startInterview", "interview")).to be_nil
+      expect(refused.dig("data", "startInterview", "errors")).to eq([ "Live interviews use 5 questions" ])
+    end
   end
 
   it "starts a turn-based interview with a live session's own setup, job and career focus, for its owner only" do

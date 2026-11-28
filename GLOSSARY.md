@@ -91,7 +91,7 @@ Turn-based (hear a question, then record or type and send an answer) or Live.
 
 **Live interview**:
 An interview session in Live conversation mode: the candidate and an AI interviewer talk out
-loud in real time, with quick coaching after each question. It allows 5 or 8 main questions
+loud in real time, with quick coaching after each question. It always has 5 main questions
 and up to 25 minutes of counted time.
 
 **Live connection**:

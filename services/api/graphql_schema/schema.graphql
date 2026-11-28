@@ -3945,7 +3945,7 @@ input StartInterviewInput {
   clientMutationId: String
 
   """
-  TURN_BASED (default) or LIVE; live allows 5 or 8 questions
+  TURN_BASED (default) or LIVE; live always has 5 questions
   """
   conversationMode: ConversationModeEnum = TURN_BASED
   executionMode: String = "real"

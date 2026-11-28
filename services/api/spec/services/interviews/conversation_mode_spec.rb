@@ -10,15 +10,21 @@ RSpec.describe "Interview conversation mode" do
     expect(Interviews::CreateFixtureService.call(user: user).value.conversation_mode).to eq("turn_based")
   end
 
-  it "saves a live choice for five or eight questions and refuses twelve" do
+  it "saves a live choice for five questions and refuses eight or twelve" do
     live = Interviews::StartPreparationService.call(user: user, conversation_mode: "live", setup: { question_count: 5 })
     expect(live).to be_success
     expect(live.value.reload.conversation_mode).to eq("live")
-    expect(Interviews::StartPreparationService.call(user: user, conversation_mode: "live", setup: { question_count: 8 })).to be_success
-    twelve = Interviews::StartPreparationService.call(user: user, conversation_mode: "live", setup: { question_count: 12 })
-    expect(twelve.errors.join).to include("Live interviews use 5 or 8 questions")
+    [ 8, 12 ].each do |count|
+      refused = Interviews::StartPreparationService.call(user: user, conversation_mode: "live", setup: { question_count: count })
+      expect(refused.errors.join).to include("Live interviews use 5 questions")
+    end
     expect(Interviews::StartPreparationService.call(user: user, conversation_mode: "video")).not_to be_success
-    expect(user.interview_sessions.count).to eq(2)
+    expect(user.interview_sessions.count).to eq(1)
+  end
+
+  it "gives a live start with no setup five questions and keeps eight for turn-based" do
+    expect(Interviews::StartPreparationService.call(user: user, conversation_mode: "live").value.setup_config["question_count"]).to eq(5)
+    expect(Interviews::StartPreparationService.call(user: user).value.setup_config["question_count"]).to eq(8)
   end
 
   it "keeps the mode readonly and enforces supported values in the database" do

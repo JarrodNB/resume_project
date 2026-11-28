@@ -3,13 +3,13 @@ module LiveInterviewHelpers
   LIVEKIT_TEST_ENV = { "LIVEKIT_URL" => "wss://live.example.test", "LIVEKIT_API_KEY" => "test-key",
     "LIVEKIT_API_SECRET" => "test-secret-that-is-long-enough-for-hs256" }.freeze
 
-  # A ready live session with eight prepared questions, as preparation leaves it.
+  # A ready session with five prepared questions (live always has five; turn-based gets five too), as preparation leaves it.
   def ready_live_interview(user, conversation_mode: "live")
-    interview = Interviews::StartPreparationService.call(user: user, conversation_mode: conversation_mode).value
+    interview = Interviews::StartPreparationService.call(user: user, conversation_mode: conversation_mode, setup: { question_count: 5 }).value
     operation = interview.operations.first
     claim = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real").value
     role = { "title" => "Laboratory technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Calibration" ] }
-    questions = 8.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Laboratory question #{i}?" } }
+    questions = 5.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Laboratory question #{i}?" } }
     Interviews::AcceptPreparationService.call(operation: operation, attempt_id: claim[:attempt_id],
       claim_generation: claim[:claim_generation], role: role, questions: questions)
     interview.reload

@@ -57,7 +57,7 @@ RSpec.describe "Internal live interview connections", type: :request do
         expect(response.headers["Cache-Control"]).to eq("no-store")
         expect(response.parsed_body).to eq(
           "interview_session_id" => interview.id, "live_connection_id" => connection.id, "user_id" => user.id,
-          "ai_task_id" => connection.reload.ai_task_id, "question_total" => 8, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
+          "ai_task_id" => connection.reload.ai_task_id, "question_total" => 5, "current_question_position" => 0, "answer_cap" => interview.answer_cap,
           "current_question_retry_count" => 0, "session_seconds_left" => 1_500,
           "heartbeat_sequence" => 0, "current_prompt_message_id" => nil, "current_prompt_kind" => nil,
           "current_prompt_answered" => false, "current_question_answer_count" => 0, "current_question_feedback_given" => false
@@ -345,14 +345,14 @@ RSpec.describe "Internal live interview connections", type: :request do
 
     it "stays on the last question without completing the interview" do
       claim
-      interview.update_columns(current_question_position: 7)
-      question_advanced(7)
+      interview.update_columns(current_question_position: 4)
+      question_advanced(4)
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["current_question_position"]).to eq(7)
-      expect(interview.reload).to have_attributes(status: "active", current_question_position: 7)
-      expect(interview.questions.find_by!(position: 7).skipped_at).to be_present
+      expect(response.parsed_body["current_question_position"]).to eq(4)
+      expect(interview.reload).to have_attributes(status: "active", current_question_position: 4)
+      expect(interview.questions.find_by!(position: 4).skipped_at).to be_present
       revision = interview.revision
-      question_advanced(7)
+      question_advanced(4)
       expect(response).to have_http_status(:ok)
       expect(interview.reload.revision).to eq(revision)
     end

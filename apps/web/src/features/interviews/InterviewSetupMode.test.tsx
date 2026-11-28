@@ -26,20 +26,23 @@ it('offers Turn-based by default and sends it with a practice-role start', () =>
   expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8 }), undefined, 'TURN_BASED')
 })
 
-it('hides the twelve-question length for Live and moves a full loop to eight questions', () => {
+it('shows no length choice for Live, says it has 5 questions and restores the Turn-based length', () => {
   renderPage({ path: '/practice/interviews', url: '/practice/interviews', element: <InterviewSetup />, mocks: [] })
   fireEvent.click(screen.getByRole('radio', { name: /Full loop/ }))
   fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
-  expect(screen.queryByRole('radio', { name: /Full loop/ })).not.toBeInTheDocument()
-  expect(screen.getByRole('radio', { name: /Standard/ })).toBeChecked()
+  for (const length of [/Short/, /Standard/, /Full loop/]) expect(screen.queryByRole('radio', { name: length })).not.toBeInTheDocument()
+  expect(screen.getByText(/Live interviews have 5 questions/)).toBeInTheDocument()
+  expect(screen.getByText(/5 core questions/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('radio', { name: 'Turn-based' }))
+  expect(screen.getByRole('radio', { name: /Full loop/ })).toBeChecked()
+  fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
   startFromSettings()
-  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 8 }), undefined, 'LIVE')
+  expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), undefined, 'LIVE')
 })
 
 it('sends a Live choice with a saved-job start', () => {
   renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview', element: <InterviewSetup job={job} />, mocks: [] })
   fireEvent.click(screen.getByRole('radio', { name: 'Live' }))
-  fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
   startFromSettings()
   expect(start).toHaveBeenCalledWith('', expect.objectContaining({ questionCount: 5 }), 'job-1', 'LIVE')
 })

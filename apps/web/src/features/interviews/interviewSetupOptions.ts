@@ -27,8 +27,8 @@ export const conversationModeOptions: { value: ConversationModeEnum; label: stri
 export function conversationModeChoice(value: unknown): ConversationModeEnum {
   return conversationModeOptions.find((option) => option.value === value)?.value ?? 'TURN_BASED'
 }
-/** Live interviews offer the short and standard lengths only. */
-export const LIVE_QUESTION_COUNTS = [5, 8]
+/** Live interviews always have this many main questions, so Live shows no length choice. */
+export const LIVE_QUESTION_COUNT = 5
 export const lengthOptions = [
   { value: '5', label: 'Short', description: '5 core questions · ~10 min' },
   { value: '8', label: 'Standard', description: '8 core questions · ~20 min' },

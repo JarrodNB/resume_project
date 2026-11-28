@@ -101,12 +101,15 @@ class InterviewerTurnFinished:
 
     `unprompted` marks a reply the model made on its own to the candidate's speech, not one this
     controller asked for (a turn instruction or a tool result), and `interrupted` a turn the
-    candidate cut off. Neither is saved as the question being asked; it is asked again instead."""
+    candidate cut off. Neither is saved as the question being asked; it is asked again instead.
+
+    `item_id` is an opaque name for this turn in the model's conversation (LiveKit's item id)."""
 
     text: str
     preamble: bool = False
     unprompted: bool = False
     interrupted: bool = False
+    item_id: str | None = None  # the turn's conversation item, which `ForgetEarlierTurns` names
 
 
 @dataclass(frozen=True)
@@ -310,6 +313,15 @@ class ReportPromptAsked:
 
 
 @dataclass(frozen=True)
+class ForgetEarlierTurns:
+    """A new question (or a retried one) has just been asked as conversation item `item_id`: the
+    model no longer needs anything said before it, so the adapter removes those turns from the
+    model's conversation. Rails keeps every saved turn; only the model's memory shrinks."""
+
+    item_id: str
+
+
+@dataclass(frozen=True)
 class ReportAnswerFinished:
     """Tell Rails the candidate's (latest) answer to a saved prompt."""
 
@@ -407,9 +419,9 @@ class ToolResult:
     text: str
 
 
-LiveAction = (GenerateReply | ReportPromptAsked | ReportAnswerFinished | ReportQuestionAdvanced | ReportFeedbackGiven
-              | ReportQuestionRetried | ReportFinish | SendHeartbeat | SayClosing | PublishRoomState | EndSession
-              | ChoiceIgnored | ToolResult)
+LiveAction = (GenerateReply | ReportPromptAsked | ForgetEarlierTurns | ReportAnswerFinished | ReportQuestionAdvanced
+              | ReportFeedbackGiven | ReportQuestionRetried | ReportFinish | SendHeartbeat | SayClosing
+              | PublishRoomState | EndSession | ChoiceIgnored | ToolResult)
 
 
 FEEDBACK_LIMIT = 1_500  # characters Rails keeps for one question's feedback
@@ -616,7 +628,11 @@ class LiveInterviewController:
         # agent that takes over after a crash cannot save the same follow-up twice.
         key = f"q{self._question_position}-r{self._retries}-f{self._answered_prompts}" if kind == "follow_up" else None
         self._prompt = (self._question_position, key)
-        return [ReportPromptAsked(self._question_position, kind, text, prompt_key=key), self._room_state(),
+        # Once a question's opening has been asked, the model needs only this question's turns:
+        # earlier questions (or the attempt a retry restarted) are saved by Rails, and session
+        # feedback reads Rails' transcripts, so dropping them only saves input on every reply.
+        forget = [ForgetEarlierTurns(event.item_id)] if kind == "opening" and event.item_id else []
+        return [ReportPromptAsked(self._question_position, kind, text, prompt_key=key), *forget, self._room_state(),
                 *self._speak_when_quiet()]  # a warning held back while the prompt was asked
 
     def _prompt_recorded(self, event: PromptRecorded) -> list[LiveAction]:

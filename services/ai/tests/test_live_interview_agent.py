@@ -22,6 +22,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+import live_interviews.agent as live_agent
 import live_interviews.controller as live_controller
 from database.live_interview_inputs import LiveInterviewInputs
 from live_interviews.agent import LiveDispatch, realtime_model_options, run_live_interview
@@ -131,15 +132,13 @@ class FakeSpeechHandle:
             callback(self)
 
 
-class FakeToolSpeech:
+class FakeToolSpeech(FakeSpeechHandle):
     """The speech whose model response called a tool: LiveKit's SpeechHandle records every chat
-    item of that response, and counts a step for each tool round."""
+    item of that response, and counts a step for each tool round. It runs until a test finishes it."""
 
     def __init__(self):
-        self.chat_items, self.num_steps = [], 1
-
-    def done(self):
-        return False
+        super().__init__()
+        self.num_steps = 1
 
 
 def tool_call(speech=None):
@@ -157,6 +156,30 @@ class FakeAgentInput:
         self.audio_enabled_calls.append(enabled)
 
 
+class FakeRealtimeConversation:
+    """The realtime model's conversation as LiveKit's Agent exposes it: `realtime_llm_session.chat_ctx`
+    (LiveKit's copy of OpenAI's conversation) and `update_chat_ctx`, which here simply makes the
+    conversation the one given, as LiveKit's sync with OpenAI does."""
+
+    def __init__(self):
+        self.items, self.updates, self.fail_next = [], [], False
+        self.realtime_llm_session = self
+
+    @property
+    def chat_ctx(self):
+        return llm.ChatContext(list(self.items))
+
+    async def update_chat_ctx(self, chat_ctx, *, exclude_invalid_function_calls=True):
+        if self.fail_next:
+            self.fail_next = False
+            raise llm.RealtimeError("update_chat_ctx timed out.")
+        self.updates.append(([item.id for item in chat_ctx.items], exclude_invalid_function_calls))
+        self.items = list(chat_ctx.items)
+
+    def texts(self):
+        return [item.text_content if item.type == "message" else item.type for item in self.items]
+
+
 class FakeSession:
     def __init__(self):
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
@@ -164,6 +187,8 @@ class FakeSession:
         self.current_speech = None  # the SpeechHandle playing now, as LiveKit's AgentSession.current_speech
         self.llm = FakeRealtimeModel()
         self.input = FakeAgentInput()
+        # AgentSession.current_agent, for its realtime conversation (the tools are on `agent`)
+        self.current_agent = FakeRealtimeConversation()
 
     @property
     def usage(self):
@@ -197,7 +222,13 @@ class FakeSession:
             speech = self.handles[-1]
         if speech is not None:  # LiveKit records the item on its speech just before announcing it
             speech.chat_items.append(item)
+        self.current_agent.items.append(item)  # OpenAI's conversation has it too
         self.handlers["conversation_item_added"](ConversationItemAddedEvent(item=item))
+
+    def add_tool_call(self, name):
+        """A tool call and its output join OpenAI's conversation (LiveKit announces neither as a message)."""
+        call = llm.FunctionCall(call_id=f"call-{len(self.current_agent.items)}", name=name, arguments="{}")
+        self.current_agent.items += [call, llm.FunctionCallOutput(call_id=call.call_id, output="ok", is_error=False)]
 
     def close(self, reason=CloseReason.ERROR):
         """LiveKit closes the session on its own (as `AgentSession._on_error` does on an
@@ -1437,5 +1468,141 @@ def test_the_model_stops_hearing_the_candidate_once_the_goodbye_starts():
         await session.agent._runner.handle(EndRequested())
         await settle()
         assert session.input.audio_enabled_calls == [False, True, False]
+
+    asyncio.run(scenario())
+
+
+async def spoken_reply_to_a_tool(session, tool, *arguments, text):
+    """The model calls `tool` (its call and output join the conversation), then speaks `text` in
+    reply to the result in the same speech, one step later; the speech then finishes."""
+    speech = FakeToolSpeech()
+    session.add_tool_call(tool)
+    result = await getattr(session.agent, tool)(tool_call(speech), *arguments)
+    speech.num_steps += 1
+    session.emit_item("assistant", text, speech=speech)
+    await settle()
+    return result, speech
+
+
+async def spoken_reply(session, text):
+    """The model speaks the turn instruction it was last given, and that speech finishes."""
+    session.emit_item("assistant", text)
+    session.handles[-1].finish()
+    await settle()
+
+
+async def first_question_answered_with_feedback_and_menu(session):
+    await spoken_reply(session, "Tell me about a project.")
+    session.emit_item("user", "I rebuilt the scheduler.")
+    await settle()
+    _result, speech = await spoken_reply_to_a_tool(session, "ask_follow_up", "What changed?",
+                                                   text="What changed for the team?")
+    speech.finish()
+    session.emit_item("user", "Fewer failed runs.")
+    await settle()
+    _result, speech = await spoken_reply_to_a_tool(session, "offer_menu", text="Quick feedback: clear story.")
+    speech.finish()
+    await spoken_reply(session, "Try again, or move on?")  # the menu, spoken after the feedback
+
+
+def test_once_the_next_question_is_asked_the_model_forgets_the_earlier_ones_but_keeps_the_current_one():
+    rails, sessions = FakeRails(claim=CLAIM.model_copy(update={"question_total": 3})), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        conversation, state = session.current_agent, session.handlers["agent_state_changed"]
+        await first_question_answered_with_feedback_and_menu(session)
+        # Within a question nothing is dropped: answers, the follow-up, the tool calls, feedback and the menu.
+        assert conversation.updates == []
+        assert conversation.texts() == [
+            "Tell me about a project.", "I rebuilt the scheduler.", "function_call", "function_call_output",
+            "What changed for the team?", "Fewer failed runs.", "function_call", "function_call_output",
+            "Quick feedback: clear story.", "Try again, or move on?"]
+
+        state(AgentStateChangedEvent(old_state="listening", new_state="speaking"))
+        result, speech = await spoken_reply_to_a_tool(session, "next_question", text="Next: how do you handle conflict?")
+        assert "question 2" in result.lower()
+        assert conversation.updates == []  # the reply that asked it is still running
+        speech.finish()
+        await settle()
+        assert conversation.updates == []  # and the interviewer is still speaking
+        state(AgentStateChangedEvent(old_state="speaking", new_state="listening"))
+        await settle()
+        assert conversation.texts() == ["Next: how do you handle conflict?"]
+        assert conversation.updates[-1][1] is False  # LiveKit keeps every item it is given, tool calls too
+
+        session.emit_item("user", "I listen first.")  # the new question's own turns stay
+        await settle()
+        assert conversation.texts() == ["Next: how do you handle conflict?", "I listen first."]
+        assert len(conversation.updates) == 1
+
+    asyncio.run(scenario())
+    assert ("prompt_asked", "live", {"question_position": 1, "kind": "opening",
+                                     "text": "Next: how do you handle conflict?"}) in rails.calls
+
+
+def test_a_retried_question_forgets_the_earlier_attempt_once_it_is_asked_again():
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        await first_question_answered_with_feedback_and_menu(session)
+        result, speech = await spoken_reply_to_a_tool(session, "retry_question", text="Let's try again: a project?")
+        assert "question 1" in result.lower()
+        speech.finish()
+        await settle()
+        assert session.current_agent.texts() == ["Let's try again: a project?"]
+
+    asyncio.run(scenario())
+
+
+def test_a_failed_forget_is_logged_and_the_interview_goes_on(caplog):
+    rails, sessions = FakeRails(claim=CLAIM.model_copy(update={"question_total": 3})), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        conversation = session.current_agent
+        await first_question_answered_with_feedback_and_menu(session)
+        conversation.fail_next = True
+        _result, speech = await spoken_reply_to_a_tool(session, "next_question", text="Next: how do you handle conflict?")
+        speech.finish()
+        await settle()
+        assert "Live earlier questions not forgotten: RealtimeError" in caplog.text
+        assert len(conversation.items) == 13  # kept as it was
+        session.emit_item("user", "I listen first.")
+        await settle()
+        _result, speech = await spoken_reply_to_a_tool(session, "offer_menu", text="Quick feedback: good.")
+        speech.finish()
+        await spoken_reply(session, "Try again, or move on?")
+        _result, speech = await spoken_reply_to_a_tool(session, "next_question", text="Question three: a failure?")
+        speech.finish()
+        await settle()
+        assert conversation.texts() == ["Question three: a failure?"]  # the next question forgets them all
+
+    asyncio.run(scenario())
+    assert "conflict" not in caplog.text and "scheduler" not in caplog.text  # no spoken words in the logs
+    assert [call[2]["question_position"] for call in rails.calls if call[0] == "prompt_asked"
+            and call[2]["kind"] == "opening"] == [0, 1, 2]
+
+
+def test_an_interviewer_that_is_never_quiet_keeps_the_earlier_questions(caplog, monkeypatch):
+    monkeypatch.setattr(live_agent, "FORGET_WAIT_SECONDS", 0.05)
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        await first_question_answered_with_feedback_and_menu(session)
+        await spoken_reply_to_a_tool(session, "retry_question", text="Let's try again: a project?")  # never finishes
+        await asyncio.sleep(0.1)
+        assert session.current_agent.updates == []
+        assert "never quiet" in caplog.text
 
     asyncio.run(scenario())

@@ -20,6 +20,7 @@ from live_interviews.controller import (
     EndRequested,
     EndSession,
     FinishAnswer,
+    ForgetEarlierTurns,
     GenerateReply,
     GiveFeedback,
     GiveHint,
@@ -1496,3 +1497,33 @@ def test_the_interviewer_is_given_only_the_question_it_is_asked_to_ask_now():
     assert not any("Prepared question" in action.instructions for action in feedback if isinstance(action, GenerateReply))
     text = tool_text(controller.handle(NextQuestion()))
     assert "question 2" in text.lower() and "Prepared question 2?" in text and "Prepared question 3?" not in text
+
+
+def forgets(actions):
+    return [action for action in actions if isinstance(action, ForgetEarlierTurns)]
+
+
+def test_each_asked_opening_lets_the_model_forget_what_came_before_but_a_follow_up_does_not():
+    controller, _actions = started_controller()
+    opening = controller.handle(InterviewerTurnFinished(text="Tell me about a project.", item_id="item-q1"))
+    assert opening[:2] == [ReportPromptAsked(0, "opening", "Tell me about a project."), ForgetEarlierTurns("item-q1")]
+    controller.handle(PromptRecorded(question_position=0, message_id="opening-0"))
+    controller.handle(CandidateTurnFinished("I rebuilt the scheduler."))
+    controller.handle(AskFollowUp("What changed?"))
+    assert forgets(controller.handle(InterviewerTurnFinished(text="What changed?", item_id="item-f1"))) == []
+    controller.handle(CandidateTurnFinished("Fewer failed runs."))
+    controller.handle(FinishAnswer())  # the cap: feedback, then the menu
+    assert forgets(controller.handle(InterviewerTurnFinished(text="Quick feedback: clear.", item_id="item-fb"))) == []
+    assert forgets(controller.handle(InterviewerTurnFinished(text="Try again or move on?", item_id="item-menu"))) == []
+    assert "question 1" in tool_text(controller.handle(RetryQuestion())).lower()
+    assert forgets(controller.handle(InterviewerTurnFinished(text="Again: a project?", item_id="item-retry"))) == [
+        ForgetEarlierTurns("item-retry")]
+
+
+def test_a_reply_that_is_not_the_asked_question_forgets_nothing():
+    controller, _actions = started_controller()
+    for turn in (InterviewerTurnFinished(text="Hi there!", unprompted=True, item_id="item-own"),
+                 InterviewerTurnFinished(text="Tell me", interrupted=True, item_id="item-cut"),
+                 InterviewerTurnFinished(text="Sure.", preamble=True, item_id="item-preamble")):
+        assert forgets(controller.handle(turn)) == []
+    assert forgets(controller.handle(InterviewerTurnFinished(text="Tell me about a project."))) == []  # no item named

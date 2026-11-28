@@ -573,6 +573,31 @@ tick or heartbeat, and the room never sees an older state after a newer one. The
 response also carries `answer_cap`. The GraphQL question type exposes `liveFeedback` (null for
 turn-based questions), and seven-day expiry clears it with the rest of the dialogue.
 
+#### What the model remembers
+
+The realtime model re-reads its whole conversation on every reply, so without trimming each
+reply costs more than the one before: a real 10.5-minute interview used about 277,000 input
+tokens. The model needs only the current question, so it remembers only that. Once a new
+question's opening (or a retried question's) has been asked, the controller returns
+`ForgetEarlierTurns` with that opening's conversation item, and the adapter deletes every item
+before it: earlier questions' turns and tool calls, or the attempt a retry restarted. Within a
+question nothing is dropped, so follow-ups, hints, feedback and the menu still see its answers.
+Rails keeps every saved turn, and session feedback reads Rails' transcripts, not the model's
+memory.
+
+The adapter waits until the interviewer is quiet (no reply being thought of or spoken, no
+speech or tool call still running, at most 60 seconds, `FORGET_WAIT_SECONDS`), because LiveKit
+changes the conversation itself only inside a speech (adding a tool's output, removing words an
+interruption cut off). It then hands `Agent.update_chat_ctx` the realtime session's own copy of
+OpenAI's conversation (`RealtimeSession.chat_ctx`) minus the earlier items. Since every item it
+keeps is the server's own, LiveKit's sync only sends `conversation.item.delete` for the dropped
+ones, and nothing at or after the opening, such as an answer still being heard, is touched. The
+agent's local copy is replaced too, so LiveKit's later sync after an interrupted reply can't bring
+the old items back (livekit-agents `voice/agent_activity.py`, `update_chat_ctx` and
+`_realtime_generation_task_impl`; `llm/_realtime/openai.py`, `_create_update_chat_ctx_events`).
+If the interviewer is never quiet or the deletion fails, the warning is logged, the interview goes
+on, and the next question's opening deletes everything before it.
+
 #### Room contract
 
 These names cross the agent (`live_interviews/agent.py`) and the browser hook

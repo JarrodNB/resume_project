@@ -6,6 +6,10 @@ joins the room, turns LiveKit callbacks (transcripts, tool calls, the `interview
 speaking state, participants, the session closing) into controller events, and carries out the
 controller's actions. It never records audio and never logs spoken text.
 
+It also keeps the realtime model's conversation short: once a new question (or a retried one) has
+been asked, every conversation item before that question's opening is deleted, so each reply reads
+only the current question's turns instead of the whole interview (`_forget_turns_before`).
+
 The LiveKit behaviour it relies on (late transcripts, preambles, rejoining participants, a
 session LiveKit closes on its own) is described with source references in
 docs/architecture/interview-sessions.md, "Live conversation mode".
@@ -46,6 +50,7 @@ from live_interviews.controller import (
     EndRequested,
     EndSession,
     FinishAnswer,
+    ForgetEarlierTurns,
     GenerateReply,
     GiveFeedback,
     GiveHint,
@@ -129,6 +134,9 @@ TRANSCRIPT_WAIT_SECONDS = 3.0  # how long a tool call waits for the candidate's 
 # above it: LiveKit cancels this RPC handler at the caller's response timeout.
 DELIVERY_WAIT_SECONDS = 30.0
 ROOM_STATE_SLOW_SECONDS = 5.0  # a room state publish this slow is logged (and still awaited)
+# How long forgetting earlier questions waits for the interviewer to be quiet (no reply or tool call
+# in progress). If it never is, this question keeps them; the next question's opening tries again.
+FORGET_WAIT_SECONDS = 60.0
 
 
 class LiveInterviewRunner:
@@ -148,6 +156,10 @@ class LiveInterviewRunner:
         self._session, self._room = session, room
         self._leave, self._clock, self._transcript_wait_seconds = leave, clock, transcript_wait_seconds
         self._delivery_wait_seconds = delivery_wait_seconds
+        self._interviewer_state = "initializing"  # LiveKit's agent state: thinking and speaking are busy
+        self._quiet_changed = asyncio.Event()  # set when the agent state changes or a speech finishes
+        self._forget_from: str | None = None  # the newest opening whose earlier turns are still to be deleted
+        self._forget_task: asyncio.Task | None = None
         self._deliveries: asyncio.Queue = asyncio.Queue()  # Rails reports, heartbeats and the finish, in order
         self._delivery_task: asyncio.Task | None = None
         self._silence_ms = DEFAULT_SILENCE_MS  # the turn detection the realtime session uses now
@@ -184,6 +196,8 @@ class LiveInterviewRunner:
         if event.new_state == "speaking" and self.on_first_words is not None:
             first_words, self.on_first_words = self.on_first_words, None
             first_words()
+        self._interviewer_state = event.new_state
+        self._quiet_changed.set()
         self._spawn(SpeakingChanged("interviewer", event.new_state in ("thinking", "speaking")))
 
     def on_user_state_changed(self, event: UserStateChangedEvent) -> None:
@@ -269,7 +283,8 @@ class LiveInterviewRunner:
                 return
             self._spawn(InterviewerTurnFinished(item.text_content or "", preamble=self._spoken_before_a_tool_result(item),
                                                 unprompted=not self._asked_for(item),
-                                                interrupted=bool(getattr(item, "interrupted", False))))
+                                                interrupted=bool(getattr(item, "interrupted", False)),
+                                                item_id=item.id))
         elif isinstance(item, llm.ChatMessage) and item.role == "user":
             task = asyncio.create_task(self._candidate_turn_heard(item.text_content or ""))
             self._tasks.add(task)
@@ -558,11 +573,99 @@ class LiveInterviewRunner:
                 "cd.time_warning": "true" if action.time_warning else "false",
                 "cd.answer_heard": "true" if action.answer_heard else "false",
             })
+        elif isinstance(action, ForgetEarlierTurns):
+            self._forget_turns_before(action.item_id)
         elif isinstance(action, EndSession):
             self._left = True  # the clock and heartbeats stop; the finish goes out before the job ends
             task = asyncio.create_task(self._leave_after_deliveries())
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
+
+    def _forget_turns_before(self, item_id: str) -> None:
+        """Have the model forget everything said before the conversation item `item_id` (a new or
+        retried question's opening), once the interviewer is quiet; never waits.
+
+        Without this the realtime model re-reads the whole interview on every reply, so each reply
+        costs more than the one before. The model needs only the current question: its opening,
+        the answers, follow-ups, hints, feedback and menu that come after it. Rails keeps every
+        saved turn and session feedback reads those, not the model's memory.
+
+        Only one deletion runs at a time; a newer opening replaces one still waiting to be done."""
+        self._forget_from = item_id
+        if self._forget_task is None or self._forget_task.done():
+            self._forget_task = asyncio.create_task(self._forget_when_quiet())
+
+    async def _forget_when_quiet(self) -> None:
+        while self._forget_from is not None and not self._left:
+            quiet = await self._wait_until_quiet()
+            item_id, self._forget_from = self._forget_from, None
+            if item_id is None or self._left:
+                return
+            if not quiet:
+                logger.warning("Live interviewer was never quiet; earlier questions stay in its conversation")
+                continue
+            try:
+                await self._delete_items_before(item_id)
+            except Exception as error:  # noqa: BLE001 - the interview goes on with the longer conversation
+                logger.warning("Live earlier questions not forgotten: %s", type(error).__name__)
+
+    def _interviewer_is_quiet(self) -> bool:
+        """No reply is being thought of or spoken and no speech or tool call we know of is still
+        running. LiveKit changes the realtime conversation itself only inside a speech (adding a
+        tool's output, removing words an interruption cut off), so at a quiet moment nothing of
+        LiveKit's is changing it and no response we started still needs its earlier items."""
+        if self._interviewer_state in ("thinking", "speaking"):
+            return False
+        return not self._unfinished_speeches()
+
+    def _unfinished_speeches(self) -> list:
+        speeches = [self._session.current_speech, *self._instructed_speeches, *self._cut_off_speeches,
+                    *(handle for handle, _step in self._tool_speeches)]
+        return [speech for speech in speeches if speech is not None and not speech.done()]
+
+    async def _wait_until_quiet(self) -> bool:
+        """Wait (at most `FORGET_WAIT_SECONDS`) until the interviewer is quiet; False if it never was."""
+        deadline = asyncio.get_running_loop().time() + FORGET_WAIT_SECONDS
+        watched: set[int] = set()
+        while not self._interviewer_is_quiet():
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            self._quiet_changed.clear()
+            for speech in self._unfinished_speeches():
+                if id(speech) not in watched:
+                    watched.add(id(speech))
+                    speech.add_done_callback(lambda _speech: self._quiet_changed.set())
+            try:
+                await asyncio.wait_for(self._quiet_changed.wait(), remaining)
+            except TimeoutError:
+                pass
+        return True
+
+    async def _delete_items_before(self, item_id: str) -> None:
+        """Delete every item before `item_id` from the realtime conversation, keeping it and all after it.
+
+        The new conversation is built from the realtime session's own copy of OpenAI's conversation
+        (`RealtimeSession.chat_ctx`) minus the items before the opening, and handed to
+        `Agent.update_chat_ctx`, LiveKit's way to change a running agent's conversation. Because
+        every item it keeps is the server's own, LiveKit's sync (`compute_chat_ctx_diff`) sends only
+        `conversation.item.delete` events for the dropped items: nothing is re-created or changed,
+        and nothing after the opening, such as the candidate's answer still being heard, is touched.
+        No await comes between reading that copy and LiveKit working out the deletions, so an item
+        the server adds meanwhile is never mistaken for one to delete. The agent's own copy of the
+        conversation is replaced too, so a later LiveKit sync from it can't bring the old items back.
+        An item OpenAI refuses to delete is logged by LiveKit and the interview goes on."""
+        agent = self._session.current_agent
+        conversation = agent.realtime_llm_session.chat_ctx
+        position = conversation.index_by_id(item_id)
+        if position is None:
+            logger.warning("Live opening not found in the realtime conversation; nothing forgotten")
+            return
+        if position == 0:
+            return  # nothing came before it
+        kept = llm.ChatContext(conversation.items[position:])
+        await agent.update_chat_ctx(kept, exclude_invalid_function_calls=False)
+        logger.info("Live interviewer forgot %d conversation items from before the current question", position)
 
 
 async def _finish_failed_start(rails, connection_id: str) -> None:

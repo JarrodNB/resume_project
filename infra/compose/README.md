@@ -34,17 +34,14 @@ GitHub.
 
 ## Before the first release with live interviews
 
-Deploys do not run Terraform, so two things must be done by hand before the release that adds
-`ai-live` is merged to `master`:
+Deploys do not run Terraform. The server stays a t3.small (2 GiB): `ai-live` keeps one warm
+interview process (`IDLE_PROCESSES` in `services/ai/live_interviews/worker.py`), and a deploy
+briefly runs a second `ai-live` while the old one drains. Watch memory (`free -m`, `docker stats`)
+after the first release and during the first deploy that drains a live interview; if the server
+swaps, raise `instance_type` in `../terraform/variables.tf`. One thing must be done by hand before
+the release that adds `ai-live` is merged to `master`:
 
-1. **Resize the server.** `../terraform/variables.tf` raises `instance_type` from `t3.small` to
-   `t3.medium` (4 GiB of RAM), because `ai-live` needs memory of its own and a deploy briefly
-   runs two of them while the old one drains. From `infra/terraform`, run `terraform plan` (it
-   should only change the instance type in place) and then `terraform apply`. AWS stops and
-   starts the instance to resize it, so the site is down for a few minutes: do it at a quiet time.
-   The Elastic IP and the Postgres volume stay attached, and the stack comes back by itself
-   (`restart: unless-stopped`); check it with `docker compose ps` and the three public addresses.
-2. **Add the LiveKit secrets.** Put `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` in
+1. **Add the LiveKit secrets.** Put `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` in
    `/opt/app/.env` and in Parameter Store under `/jobapp/prod/` (see [Secrets](#secrets)). A
    container reads `.env` only when it starts: the release's deploy recreates `api` (its image
    changes) and starts `ai-live`, so both pick them up. Added after the release instead, they

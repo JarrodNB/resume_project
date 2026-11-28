@@ -51,5 +51,9 @@ async def entrypoint(ctx: JobContext) -> None:
 # (LiveAllowance::CONNECTION_WALL_CLOCK); the extra 5 minutes let it wrap up.
 DRAIN_SECONDS = 50 * 60
 
-server = AgentServer(drain_timeout=DRAIN_SECONDS)
+# One warm interview process instead of LiveKit's default of one per CPU, to save memory on the
+# shared 2 GiB server. A second interview at the same time starts a process on demand (a second or so).
+IDLE_PROCESSES = 1
+
+server = AgentServer(drain_timeout=DRAIN_SECONDS, num_idle_processes=IDLE_PROCESSES)
 server.rtc_session(entrypoint, agent_name=AGENT_NAME)

@@ -54,8 +54,8 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-6.1-terra": ModelPrice(input=1.00, cached_input=0.05, output=5.00, cache_write=1.25),
     "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
-    # The live interviewer's realtime speech model. Rates from the OpenAI model page as of about
-    # 2026-11; NOT yet verified by a human (genai-prices matches them via gpt-realtime-mini).
+    # The live interviewer's realtime speech model, billed by OpenAI (not LiveKit Inference).
+    # Standard rates from https://developers.openai.com/api/docs/pricing, checked 2026-11-28.
     "openai:gpt-realtime-2.1-mini": ModelPrice(input=0.60, cached_input=0.06, output=2.40, audio_input=10.00,
                                                cached_audio_input=0.30, audio_output=20.00),
     # Embeddings bill input tokens only.

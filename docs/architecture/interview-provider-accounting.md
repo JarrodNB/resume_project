@@ -163,9 +163,9 @@ attempts:
   (`LLMModelUsage` with audio, text and cached-read token splits; `STTModelUsage` with audio
   seconds for the realtime session's input transcription). Per million tokens:
   audio input US$10.00, cached audio input US$0.30, audio output US$20.00, text input US$0.60,
-  cached text input US$0.06, text output US$2.40 (`llm/model_prices.py`). These come from the
-  OpenAI model page as of about November 2026 and match the genai-prices catalogue
-  (`gpt-realtime-mini`), but **a human has not verified them yet**. Transcription uses the live
+  cached text input US$0.06, text output US$2.40 (`llm/model_prices.py`). These are OpenAI's
+  standard rates (checked 2026-11-28). The agent calls OpenAI directly with the AI service's key,
+  so LiveKit Inference's per-minute rates do not apply. Transcription uses the live
   transcription rate above (US$0.017/minute); token-billed transcription stays unknown.
 - **Closing.** `FinishLiveService` finalizes the report. It is known (and the reservation is
   reconciled with the total) only when the agent names its final heartbeat (`final_sequence`)

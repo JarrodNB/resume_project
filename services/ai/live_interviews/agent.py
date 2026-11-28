@@ -157,6 +157,7 @@ class LiveInterviewRunner:
         self._turn_heard = asyncio.Event()
         self._tool_speeches: list[tuple] = []  # (speech handle, its step) of each tool call still speaking
         self._cut_off_speeches: list = []  # speech handles a room choice interrupted, still finishing
+        self._instructed_speeches: list = []  # speech handles of the turn instructions we gave
         self._controller = LiveInterviewController()
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
@@ -241,7 +242,9 @@ class LiveInterviewRunner:
         if isinstance(item, llm.ChatMessage) and item.role == "assistant":
             if self._cut_off_by_a_choice(item):
                 return
-            self._spawn(InterviewerTurnFinished(item.text_content or "", preamble=self._spoken_before_a_tool_result(item)))
+            self._spawn(InterviewerTurnFinished(item.text_content or "", preamble=self._spoken_before_a_tool_result(item),
+                                                unprompted=not self._asked_for(item),
+                                                interrupted=bool(getattr(item, "interrupted", False))))
         elif isinstance(item, llm.ChatMessage) and item.role == "user":
             task = asyncio.create_task(self._candidate_turn_heard(item.text_content or ""))
             self._tasks.add(task)
@@ -342,13 +345,24 @@ class LiveInterviewRunner:
         except RuntimeError as error:
             logger.warning("Live interrupt skipped: %s", type(error).__name__)
 
+    def _asked_for(self, item: llm.ChatMessage) -> bool:
+        """Whether this interviewer message answers something we asked for: a turn instruction, or a
+        response that called one of the interview tools (its reply to the tool's result). Anything
+        else is a reply the model made on its own to the candidate's speech (OpenAI's server turn
+        detection replies whenever a candidate turn ends), which never saw our instruction."""
+        speeches = [*self._instructed_speeches, *(handle for handle, _step in self._tool_speeches)]
+        return any(any(recorded is item for recorded in speech.chat_items) for speech in speeches)
+
     def _generate_reply(self, instructions: str):
         """Have the model speak; returns its SpeechHandle, or None once the session is closed."""
         try:
-            return self._session.generate_reply(instructions=instructions)
+            speech = self._session.generate_reply(instructions=instructions)
         except RuntimeError as error:
             logger.warning("Live reply skipped: %s", type(error).__name__)
             return None
+        self._instructed_speeches = [handle for handle in self._instructed_speeches if not handle.done()]
+        self._instructed_speeches.append(speech)
+        return speech
 
     async def choose(self, data: rtc.RpcInvocationData) -> str:
         """The room's `interview.choose` RPC: a menu button, "How was that?" or End interview.
@@ -514,6 +528,7 @@ class LiveInterviewRunner:
                 "cd.menu_offered": "true" if action.menu_offered else "false",
                 "cd.seconds_left": str(action.seconds_left),
                 "cd.time_warning": "true" if action.time_warning else "false",
+                "cd.answer_heard": "true" if action.answer_heard else "false",
             })
         elif isinstance(action, EndSession):
             self._left = True  # the clock and heartbeats stop; the finish goes out before the job ends

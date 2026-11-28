@@ -474,6 +474,12 @@ and ask the current question. Each question then runs like this:
    opening prompt, 6 for a follow-up; `SHORT_ANSWER_WORDS`) is answered with "go on" instead,
    once per prompt. A pause can't spend a follow-up or end the question, and a short complete
    answer is held back only once.
+   Only an interviewer turn we asked for is saved as the prompt being asked: the reply to a turn
+   instruction (`generate_reply`) or to an interview tool's result. OpenAI's server turn detection
+   also replies on its own whenever a candidate turn ends, without our instruction (for example
+   when the candidate speaks as the room opens and cancels the greeting); that reply, and a question
+   the candidate cut off (`interrupted`), is not saved. Once the room is quiet the interviewer
+   acknowledges them and asks the question or follow-up again (at most `ASKS_AGAIN` times).
 3. When a question with at least one answer is done (`next_question` or `offer_menu`, or no
    follow-up is left at the cap), the controller does not advance. It runs the coaching loop:
    - **Quick feedback.** The tool result asks the interviewer to step out of role with "Quick
@@ -568,6 +574,7 @@ dispatches the agent by name; `JoinLiveService` and the agent's settings are pin
 | `cd.menu_offered` | agent attribute → browser | `true` / `false` |
 | `cd.seconds_left` | agent attribute → browser | counted seconds left, integer as a string |
 | `cd.time_warning` | agent attribute → browser | `true` / `false` |
+| `cd.answer_heard` | agent attribute → browser | `true` once the candidate has said something for the current prompt; the room offers "How was that?" only then |
 | `cd.silence_seconds` | browser attribute → agent | the candidate's "Silence length" answer setting: `1.5`, `2.5` or `4` seconds of quiet end their turn (OpenAI server VAD `silence_duration_ms`). Published on connect and on every change; the agent applies it to the open realtime session and ignores other values. Normal (2.5) until it arrives |
 | RPC `interview.choose` | browser → agent | `{"option", "state_seq"}` for a button: `retry`, `repeat`, `hint`, `next` (shown in `menu`) or `feedback` ("How was that?", shown in `answering`), with the `cd.state_seq` (an integer) the room showed. Answers `accepted`, or `ignored` when the room state has changed since. `{"option": "end"}` answers `ended`. Anything else is an RPC error |
 

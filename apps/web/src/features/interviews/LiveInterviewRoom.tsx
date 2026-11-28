@@ -3,8 +3,8 @@
  * candidate can hide), "Question N of M" and the counted time left from the interviewer agent
  * (with an announced warning at about 2 minutes left) and a mute button. After the
  * interviewer's spoken feedback on a question, it shows the coaching choices (Try again, Hear the
- * question again, Get a hint, Move on) while the agent says the menu is offered; while the
- * candidate answers it offers "How was that?". Each button sends the same choice as saying it. The
+ * question again, Get a hint, Move on) while the agent says the menu is offered; once the
+ * candidate has started answering it offers "How was that?". Each button sends the same choice as saying it. The
  * career references panel works exactly as in the turn-based room, for the prompt the agent
  * saved. If the interviewer hasn't joined within 15 seconds (or left and hasn't come back within
  * 15 seconds; the room then says it left), or joining fails, it offers to
@@ -95,7 +95,7 @@ function minutesAndSeconds(seconds: number) {
 /** Progress from the agent's attributes (zero-based position shown as "Question N of M"), the
  * time left and its warning, mute, the coaching choices and captions. */
 function LiveRoomControls({ room }: { room: LiveRoom }) {
-  const { questionPosition, questionTotal, phase, menuOffered, secondsLeft, timeWarning } = room.progress
+  const { questionPosition, questionTotal, phase, menuOffered, secondsLeft, timeWarning, answerHeard } = room.progress
   return <div className="grid gap-3">
     <div className="flex flex-wrap items-center justify-center gap-3">
       {questionPosition !== null && questionTotal !== null && <p className="text-sm font-medium">Question {questionPosition + 1} of {questionTotal}</p>}
@@ -103,7 +103,7 @@ function LiveRoomControls({ room }: { room: LiveRoom }) {
       <Button variant="outline" className="min-h-11" aria-pressed={room.muted} onClick={() => void room.mute(!room.muted)}>
         {room.muted ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}Mute microphone
       </Button>
-      {phase === 'answering' && <Button variant="outline" className="min-h-11" disabled={room.choosing} onClick={() => void room.choose('feedback')}>How was that?</Button>}
+      {phase === 'answering' && answerHeard && <Button variant="outline" className="min-h-11" disabled={room.choosing} onClick={() => void room.choose('feedback')}>How was that?</Button>}
     </div>
     {timeWarning && <p role="alert" className="text-center text-sm font-semibold">About 2 minutes left. Start wrapping up.</p>}
     {menuOffered && <CoachingMenu room={room} />}

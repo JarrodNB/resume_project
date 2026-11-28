@@ -25,6 +25,16 @@ def resume_instructions(question_position: int) -> str:
             "candidate answer.")
 
 
+def ask_again_instructions(kind: str, question_position: int) -> str:
+    """Ask the current prompt after the candidate cut it off, or after a reply the model made on
+    its own instead of asking it."""
+    if kind == "follow_up":
+        return ("Acknowledge what the candidate just said in a few words, then ask your follow-up question now in "
+                "one short, natural spoken question. Then stop and let the candidate answer.")
+    return "Acknowledge what the candidate just said in a few words, then ask " + ask_question_instructions(
+        question_position)
+
+
 def opening_instructions(question_position: int) -> str:
     """The greeting and the current question at the start (a warmer greeting for question 1)."""
     greeting = ("Greet the candidate warmly in one short sentence in your interviewer style, "

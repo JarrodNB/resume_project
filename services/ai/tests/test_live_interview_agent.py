@@ -118,12 +118,16 @@ class FakeContext:
 
 class FakeSpeechHandle:
     def __init__(self):
-        self.callbacks = []
+        self.callbacks, self.chat_items, self.finished = [], [], False
+
+    def done(self):
+        return self.finished
 
     def add_done_callback(self, callback):
         self.callbacks.append(callback)
 
     def finish(self):
+        self.finished = True
         for callback in self.callbacks:
             callback(self)
 
@@ -175,8 +179,12 @@ class FakeSession:
         self.handles.append(FakeSpeechHandle())
         return self.handles[-1]
 
-    def emit_item(self, role, text, speech=None):
-        item = llm.ChatMessage(role=role, content=[text])
+    def emit_item(self, role, text, speech=None, *, unprompted=False, interrupted=False):
+        """Announce a final message. An interviewer message belongs to the last reply we asked for
+        unless `speech` names another one, or `unprompted` makes it the model's own reply."""
+        item = llm.ChatMessage(role=role, content=[text], interrupted=interrupted)
+        if role == "assistant" and speech is None and not unprompted and self.handles:
+            speech = self.handles[-1]
         if speech is not None:  # LiveKit records the item on its speech just before announcing it
             speech.chat_items.append(item)
         self.handlers["conversation_item_added"](ConversationItemAddedEvent(item=item))
@@ -319,7 +327,8 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert "question 1" in session.replies[0].lower()
         assert ctx.room.local_participant.attributes[0] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.state_seq": "1",
-            "cd.menu_offered": "false", "cd.seconds_left": "600", "cd.time_warning": "false"}  # the allowance is smaller
+            "cd.menu_offered": "false", "cd.seconds_left": "600", "cd.time_warning": "false",
+            "cd.answer_heard": "false"}  # the allowance is smaller
         session.emit_item("user", "Hello?")
         session.emit_item("assistant", "Welcome. First, tell me about a project.")
         await settle()
@@ -374,8 +383,9 @@ def test_tools_and_candidate_speech_drive_rails_through_a_whole_interview():
         session.emit_item("assistant", "Quick feedback: clear story. Lead with the result.")
         await settle()
         assert ctx.room.local_participant.attributes[-1] == {
-            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.state_seq": "6",
-            "cd.menu_offered": "true", "cd.seconds_left": "600", "cd.time_warning": "false"}
+            "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "menu", "cd.state_seq": "8",
+            "cd.menu_offered": "true", "cd.seconds_left": "600", "cd.time_warning": "false",
+            "cd.answer_heard": "false"}
         assert "hint" in session.replies[-1].lower()  # the menu is offered
         assert "finished answer" in (await agent.give_hint(tool_call())).lower()
         assert "repeat" in (await agent.repeat_question(tool_call())).lower()
@@ -490,8 +500,10 @@ def test_a_stale_room_button_neither_moves_the_interview_nor_cuts_off_the_interv
         session.emit_item("assistant", "Quick feedback: clear.")
         await settle()
         menu = shown_seq(ctx)
-        await session.agent.next_question(tool_call())  # "move on", said out loud
-        asking = session.current_speech = FakeToolSpeech()  # question 2 is being asked
+        asking = FakeToolSpeech()
+        await session.agent.next_question(tool_call(asking))  # "move on", said out loud
+        asking.num_steps += 1  # the tool's result is in: its reply asks question 2
+        session.current_speech = asking
         replies = len(session.replies)
         assert await choose(rpc("next", menu)) == "ignored"
         assert session.interrupted == 0 and len(session.replies) == replies
@@ -1163,7 +1175,7 @@ def test_room_attribute_names_and_choose_options_match_the_documented_contract()
     asyncio.run(go())
     assert set(ctx.room.local_participant.attributes[0]) == {
         "cd.question_position", "cd.question_total", "cd.phase", "cd.state_seq", "cd.menu_offered", "cd.seconds_left",
-        "cd.time_warning"}
+        "cd.time_warning", "cd.answer_heard"}
     assert list(ctx.room.local_participant.rpc_methods) == ["interview.choose"]
     assert MENU_OPTIONS == {"retry", "repeat", "hint", "next", "feedback"}  # plus "end", handled on its own
     assert set(MENU_EVENTS) == MENU_OPTIONS
@@ -1345,3 +1357,25 @@ def test_the_candidates_silence_length_setting_sets_how_long_a_pause_ends_their_
         assert model.turn_detections[-1].type == "server_vad"
 
     asyncio.run(scenario())
+
+
+def test_a_reply_outside_our_instructions_and_tool_calls_is_not_saved_as_the_opening():
+    """OpenAI replied to the candidate on its own before the greeting: that reply is on no speech we
+    asked for, so it is not question 1, and question 1 is asked again."""
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        asked = len(session.replies)
+        session.emit_item("assistant", "Go ahead, what would you like to practise today?", unprompted=True)
+        await settle()
+        assert not any(call[0] == "prompt_asked" for call in rails.calls)
+        assert len(session.replies) == asked + 1 and "question 1" in session.replies[-1].lower()
+        session.emit_item("assistant", "Sure. Tell me about a project.")  # the reply to that instruction
+        await settle()
+
+    asyncio.run(scenario())
+    assert ("prompt_asked", "live", {"question_position": 0, "kind": "opening",
+                                     "text": "Sure. Tell me about a project."}) in rails.calls

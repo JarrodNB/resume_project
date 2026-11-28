@@ -49,6 +49,7 @@ from prompts.live_interviewer_turns import (
     TIME_WARNING,
     WELCOME_BACK_TO,
     WRAP_UP,
+    ask_again_instructions,
     ask_question_instructions,
     opening_instructions,
     resume_instructions,
@@ -63,6 +64,7 @@ Phase = Literal["asking", "answering", "feedback", "menu", "closing", "ended"]
 # candidate paused mid-answer. The first follow-up or finish on such an answer is answered with
 # "go on" instead, once per prompt, so a pause can't spend a follow-up or end the question.
 SHORT_ANSWER_WORDS = {"opening": 20, "follow_up": 6}
+ASKS_AGAIN = 2  # times a cut-off or replaced question or follow-up is asked again
 
 
 @dataclass(frozen=True)
@@ -93,10 +95,16 @@ class InterviewerTurnFinished:
 
     `preamble` marks words spoken in the same model response as a tool call ("Sure, let's move
     on."), before the tool's result was known. They are never the prompt, feedback or closing
-    that result asked for, which comes in the reply after it."""
+    that result asked for, which comes in the reply after it.
+
+    `unprompted` marks a reply the model made on its own to the candidate's speech, not one this
+    controller asked for (a turn instruction or a tool result), and `interrupted` a turn the
+    candidate cut off. Neither is saved as the question being asked; it is asked again instead."""
 
     text: str
     preamble: bool = False
+    unprompted: bool = False
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)
@@ -377,6 +385,7 @@ class PublishRoomState:
     state_seq: int
     menu_offered: bool = False
     time_warning: bool = False
+    answer_heard: bool = False  # the candidate has said something for the current prompt ("How was that?")
 
 
 @dataclass(frozen=True)
@@ -445,6 +454,8 @@ class LiveInterviewController:
         self._answering_since: float | None = None  # first clock tick while answering the current prompt
         self._nudged = False  # the current prompt's one nudge was given
         self._short_answer_checked = False  # the current prompt's one "go on" for a short answer was given
+        self._ask_again = False  # the prompt being asked was cut off or replaced; ask it at the next quiet moment
+        self._asks_left = 0  # how many more times the current prompt may be asked again
         self._menu_since: float | None = None  # first clock tick of the menu's current wait
         self._closing_reason: Literal["completed", "idle"] = "completed"
         self._closing_since: float | None = None  # first clock tick of the closing
@@ -456,7 +467,7 @@ class LiveInterviewController:
         self._sequence = 0  # the last heartbeat's sequence number
         self._last_tick: float | None = None
         self._published_seconds = 0  # the seconds left the room last showed
-        self._published_view: tuple[int, Phase] | None = None  # the question and phase the room last showed
+        self._published_view: tuple[int, Phase, bool] | None = None  # the question, phase and answer_heard last shown
         self._state_seq = 0  # counts room states with a new question or phase; button presses echo it
         self._warned = False  # the one time warning was given (shown and due to be said)
         self._warning_due = False  # the warning still has to be said at the next quiet moment
@@ -534,7 +545,10 @@ class LiveInterviewController:
             return self._interviewer_turn_finished(event)
         if isinstance(event, CandidateTurnFinished):
             if self._phase == "answering" and event.text.strip():  # also while a wrap-up waits for quiet
+                first = not self._has_answer()
                 self._answer_pieces.append(event.text.strip())
+                if first:
+                    return [self._room_state()]  # "How was that?" can be offered now
             return []
         if isinstance(event, AnswerNotSaved):
             if event.prompt_message_id == self._prompt_message_id and event.transcript == self._saved_answer:
@@ -562,7 +576,7 @@ class LiveInterviewController:
         self._allowance_left = float(event.allowance_seconds_left)
         self._sequence = event.heartbeat_sequence
         if event.current_prompt_kind is None:
-            self._reporting = "opening"
+            self._reporting, self._asks_left = "opening", ASKS_AGAIN
             return [self._room_state(), GenerateReply(opening_instructions(event.question_position))]
         # A fresh agent never heard the conversation so far. It can repeat a saved opening (the
         # question plan has it), but not a follow-up it never asked, so then it offers the menu.
@@ -586,10 +600,18 @@ class LiveInterviewController:
             # that was still being spoken when it began.
             return [] if self._wrap_reason else self._finish(self._closing_reason)
         if self._phase == "feedback":
-            return self._feedback_spoken(text)
+            # A reply the model made on its own isn't the feedback the tool result asked for, which
+            # comes in its own reply.
+            return [] if event.unprompted else self._feedback_spoken(text)
         if self._phase != "asking" or self._reporting is None:
             return []  # chatter, a repeat, a hint or a clarification: nothing new to save
+        if self._phase == "asking" and (event.unprompted or event.interrupted):
+            # Not the prompt: the model answered the candidate on its own (it never saw the turn
+            # instruction), or the candidate cut the question off. Ask it once it is quiet.
+            self._ask_again = self._asks_left > 0
+            return self._speak_when_quiet()
         kind, self._reporting = self._reporting, None
+        self._ask_again = False
         self._phase = "answering"
         # A follow-up's key comes from where it is asked (question, retry, answers so far), so an
         # agent that takes over after a crash cannot save the same follow-up twice.
@@ -735,6 +757,9 @@ class LiveInterviewController:
         feedback being given), so it is said once that turn has been heard."""
         if self._interviewer_busy or self._candidate_speaking or self._phase in ("closing", "ended"):
             return []
+        if self._ask_again and self._phase == "asking" and self._away_since is None and not self._wrap_reason:
+            self._ask_again, self._asks_left = False, self._asks_left - 1
+            return [GenerateReply(ask_again_instructions(self._reporting or "opening", self._question_position or 0))]
         if self._away_since is not None:  # say nothing to an empty room; a wrap-up just finishes
             return [*self._save_answer(), *self._finish(self._wrap_reason)] if self._wrap_reason else []
         if self._wrap_reason:
@@ -884,6 +909,7 @@ class LiveInterviewController:
 
     def _new_prompt(self, kind: Literal["opening", "follow_up"]) -> None:
         self._phase, self._reporting = "asking", kind
+        self._ask_again, self._asks_left = False, ASKS_AGAIN
         self._unheard_is_current = False
         self._prompt, self._prompt_message_id, self._answer_pieces, self._saved_answer = None, None, [], None
         self._answering_since, self._nudged, self._short_answer_checked = None, False, False
@@ -896,9 +922,10 @@ class LiveInterviewController:
         A follow-up or a retry passes through `asking`, so returning to the same question and
         phase still shows a new counter."""
         self._published_seconds = self._shown_seconds()
-        view = (self._question_position or 0, self._phase)
+        answer_heard = self._has_answer()
+        view = (self._question_position or 0, self._phase, answer_heard)
         if view != self._published_view:
             self._published_view, self._state_seq = view, self._state_seq + 1
         return PublishRoomState(view[0], self._question_total, self._phase, seconds_left=self._published_seconds,
                                 state_seq=self._state_seq, menu_offered=self._phase == "menu",
-                                time_warning=self._warned)
+                                time_warning=self._warned, answer_heard=answer_heard)

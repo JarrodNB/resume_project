@@ -35,7 +35,7 @@ export interface LiveCaption { id: string; speaker: 'candidate' | 'interviewer';
  * `secondsLeft` is the lower of the session's counted time left (menu waits are free) and the
  * user's live allowance left, refreshed about every 5 seconds; `timeWarning` turns on once about
  * 2 minutes of either are left. */
-export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; stateSeq: number | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean }
+export interface LiveRoomProgress { questionPosition: number | null; questionTotal: number | null; phase: string | null; stateSeq: number | null; menuOffered: boolean; secondsLeft: number | null; timeWarning: boolean; answerHeard: boolean }
 /** A coaching-menu button or "How was that?" (`feedback`). */
 export type LiveMenuOption = 'retry' | 'repeat' | 'hint' | 'next' | 'feedback'
 interface LiveRoomState {
@@ -66,7 +66,7 @@ export interface LiveInterviewRoom extends LiveRoomState {
 
 /** Keep the screen and memory bounded in a long interview. */
 const MAX_CAPTIONS = 50
-const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false }
+const NO_PROGRESS: LiveRoomProgress = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false, answerHeard: false }
 /** How long End interview waits for the agent's answer. The agent may first spend up to 30 seconds
  * delivering the last answer, usage and its finish to Rails (`DELIVERY_WAIT_SECONDS` in
  * services/ai/live_interviews/agent.py), so this is that wait plus room for the round trip. Finishing
@@ -89,10 +89,10 @@ function wholeNumber(value: string | undefined) {
 }
 
 /** The agent publishes `cd.question_position`, `cd.question_total`, `cd.phase`, `cd.state_seq`,
- * `cd.menu_offered`, `cd.seconds_left` and `cd.time_warning` as strings. */
+ * `cd.menu_offered`, `cd.seconds_left`, `cd.time_warning` and `cd.answer_heard` as strings. */
 function agentProgress(attributes: Record<string, string>): LiveRoomProgress {
   return { questionPosition: wholeNumber(attributes['cd.question_position']), questionTotal: wholeNumber(attributes['cd.question_total']), phase: attributes['cd.phase'] ?? null, stateSeq: wholeNumber(attributes['cd.state_seq']),
-    menuOffered: attributes['cd.menu_offered'] === 'true', secondsLeft: wholeNumber(attributes['cd.seconds_left']), timeWarning: attributes['cd.time_warning'] === 'true' }
+    menuOffered: attributes['cd.menu_offered'] === 'true', secondsLeft: wholeNumber(attributes['cd.seconds_left']), timeWarning: attributes['cd.time_warning'] === 'true', answerHeard: attributes['cd.answer_heard'] === 'true' }
 }
 
 function agentIn(livekit: Room | null) {

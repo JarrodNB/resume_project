@@ -14,7 +14,7 @@ const { state, start, startFrom, live } = vi.hoisted(() => ({
   startFrom: vi.fn(),
   live: { hook: vi.fn(), value: {} as Record<string, unknown> },
 }))
-const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false }
+const NO_PROGRESS = { questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false, answerHeard: false }
 function liveRoom(change: Record<string, unknown> = {}) {
   return { status: 'joining', roomOpened: true, agentJoined: false, agentLeft: false, error: null, captions: [], progress: NO_PROGRESS, muted: false, ending: false, endError: null,
     choosing: false, chooseError: null, mute: vi.fn().mockResolvedValue(undefined), choose: vi.fn().mockResolvedValue(true), end: vi.fn().mockResolvedValue(true),
@@ -293,12 +293,14 @@ it('disables the choices while one is being sent and shows a failed choice', () 
   MENU_BUTTONS.forEach((name) => expect(screen.getByRole('button', { name })).toBeEnabled())
 })
 
-it('offers "How was that?" while the candidate is answering', () => {
-  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'asking', menuOffered: false } })
-  const view = renderInterview()
-  expect(screen.queryByRole('button', { name: 'How was that?' })).not.toBeInTheDocument()
-  view.unmount()
-  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'answering', menuOffered: false } })
+it('offers "How was that?" only once the candidate has started answering', () => {
+  for (const progress of [{ phase: 'asking', answerHeard: false }, { phase: 'answering', answerHeard: false }]) {
+    live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, ...progress, menuOffered: false } })
+    const view = renderInterview()
+    expect(screen.queryByRole('button', { name: 'How was that?' })).not.toBeInTheDocument()
+    view.unmount()
+  }
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, phase: 'answering', answerHeard: true, menuOffered: false } })
   renderInterview()
   fireEvent.click(screen.getByRole('button', { name: 'How was that?' }))
   expect(live.value.choose).toHaveBeenCalledWith('feedback')

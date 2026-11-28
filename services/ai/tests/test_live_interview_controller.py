@@ -87,11 +87,14 @@ class Shown:
     seconds_left: int
     menu_offered: bool = False
     time_warning: bool = False
+    answer_heard: bool | None = None  # None: not checked (it has its own tests)
 
     def __eq__(self, other):
         if not isinstance(other, PublishRoomState):
             return NotImplemented
-        return vars(self) == {key: value for key, value in vars(other).items() if key != "state_seq"}
+        skipped = {"state_seq"} | ({"answer_heard"} if self.answer_heard is None else set())
+        mine = {key: value for key, value in vars(self).items() if key not in skipped}
+        return mine == {key: value for key, value in vars(other).items() if key not in skipped}
 
 
 def click(controller, option):
@@ -1444,3 +1447,59 @@ def test_a_second_tool_call_during_feedback_does_not_start_the_feedback_again():
     assert "Quick feedback:" in tool_text(controller.handle(FinishAnswer()))
     text = tool_text(controller.handle(AskFollowUp(question_text="Anything else?")))
     assert "do not start it again" in text.lower()
+
+
+def test_a_reply_the_model_made_on_its_own_is_not_saved_as_the_question_which_is_asked_once_quiet():
+    """The candidate says something as the room opens: OpenAI cancels the greeting and replies on its
+    own ("go ahead, what would you like to practise?"). That is not question 1."""
+    controller, _ = started_controller()
+    controller.handle(SpeakingChanged("interviewer", True))
+    assert controller.handle(InterviewerTurnFinished(text="Go ahead, I'm listening. What would you like to practise?",
+                                                     unprompted=True)) == []
+    (ask,) = controller.handle(SpeakingChanged("interviewer", False))
+    assert isinstance(ask, GenerateReply) and "question 1" in ask.instructions.lower()
+    assert "acknowledge" in ask.instructions.lower()
+    assert controller.handle(InterviewerTurnFinished(text="Tell me about a project."))[0] == ReportPromptAsked(
+        question_position=0, kind="opening", text="Tell me about a project.")
+
+
+def test_a_question_the_candidate_cut_off_is_asked_again_a_bounded_number_of_times():
+    controller, _ = started_controller()
+    for _ in range(live_controller.ASKS_AGAIN):
+        (ask,) = controller.handle(InterviewerTurnFinished(text="Tell me about a", interrupted=True))
+        assert "question 1" in ask.instructions.lower()
+    assert controller.handle(InterviewerTurnFinished(text="Tell me", interrupted=True)) == []  # no endless loop
+    assert controller.handle(InterviewerTurnFinished(text="Tell me about a project."))[0] == ReportPromptAsked(
+        question_position=0, kind="opening", text="Tell me about a project.")
+
+
+def test_a_cut_off_follow_up_is_asked_again_as_a_follow_up():
+    controller, _ = started_controller(answer_cap=3)
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler."))
+    controller.handle(AskFollowUp(question_text="What changed?"))
+    (ask,) = controller.handle(InterviewerTurnFinished(text="And what", interrupted=True))
+    assert "follow-up" in ask.instructions.lower() and "question 1" not in ask.instructions.lower()
+
+
+def test_a_reply_the_model_made_on_its_own_during_feedback_is_not_saved_as_the_feedback():
+    controller, _ = started_controller(answer_cap=1)
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    controller.handle(FinishAnswer())
+    assert controller.handle(InterviewerTurnFinished(text="Sure!", unprompted=True)) == []
+    assert controller.handle(InterviewerTurnFinished(text="Quick feedback: clear."))[0] == ReportFeedbackGiven(
+        question_position=0, text="Quick feedback: clear.")
+
+
+def test_how_was_that_is_offered_only_once_the_candidate_has_said_something():
+    controller, _ = started_controller()
+    asked = controller.handle(InterviewerTurnFinished(text="Tell me about a project."))
+    assert asked[1] == Shown(seconds_left=1_500, question_position=0, question_total=5, phase="answering",
+                             answer_heard=False)
+    controller.handle(PromptRecorded(question_position=0, message_id="opening-0"))
+    seq = controller.shown_seq
+    assert controller.handle(CandidateTurnFinished(text="I rebuilt the scheduler.")) == [
+        Shown(seconds_left=1_500, question_position=0, question_total=5, phase="answering", answer_heard=True)]
+    assert controller.shown_seq == seq + 1  # a button press from before it showed is stale
+    assert controller.handle(CandidateTurnFinished(text="It cut missed runs.")) == []  # shown once

@@ -71,7 +71,7 @@ it('clears the joined interviewer and its progress when the agent participant le
   expect(view.result.current.agentJoined).toBe(true)
   act(() => room.handlers.get('participantDisconnected')!(agent))
   expect(view.result.current).toMatchObject({ agentJoined: false, agentLeft: true })
-  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false, answerHeard: false })
   act(() => room.handlers.get('participantConnected')!(agent))
   expect(view.result.current).toMatchObject({ agentJoined: true, agentLeft: false })
 })
@@ -110,11 +110,11 @@ it('shows captions for both sides, replacing interim text with the final text pe
 
 it('reads question progress and phase from the agent participant attributes', async () => {
   const { view, room } = await connectedRoom()
-  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: null, questionTotal: null, phase: null, stateSeq: null, menuOffered: false, secondsLeft: null, timeWarning: false, answerHeard: false })
   const agent = { isAgent: true, attributes: { 'cd.question_position': '0', 'cd.question_total': '5', 'cd.phase': 'asking', 'cd.menu_offered': 'false',
     'cd.seconds_left': '1500', 'cd.time_warning': 'false' } }
   act(() => room.handlers.get('participantConnected')!(agent))
-  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', stateSeq: null, menuOffered: false, secondsLeft: 1500, timeWarning: false })
+  expect(view.result.current.progress).toEqual({ questionPosition: 0, questionTotal: 5, phase: 'asking', stateSeq: null, menuOffered: false, secondsLeft: 1500, timeWarning: false, answerHeard: false })
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'answering' }, { ...agent, attributes: { ...agent.attributes, 'cd.phase': 'answering' } }))
   expect(view.result.current.progress.phase).toBe('answering')
   act(() => room.handlers.get('participantAttributesChanged')!({ 'cd.phase': 'x' }, { isAgent: false, attributes: { 'cd.phase': 'x' } }))
@@ -297,8 +297,8 @@ it('stays disconnected with the reason when Rails refuses the rejoin', async () 
 it('reads the documented cd.* attributes and sends each documented interview.choose option', async () => {
   const { view, room } = await connectedRoom()
   act(() => room.handlers.get('participantConnected')!({ ...agent, attributes: { 'cd.question_position': '2', 'cd.question_total': '6', 'cd.phase': 'menu',
-    'cd.state_seq': '11', 'cd.menu_offered': 'true', 'cd.seconds_left': '90', 'cd.time_warning': 'true' } }))
-  expect(view.result.current.progress).toEqual({ questionPosition: 2, questionTotal: 6, phase: 'menu', stateSeq: 11, menuOffered: true, secondsLeft: 90, timeWarning: true })
+    'cd.state_seq': '11', 'cd.menu_offered': 'true', 'cd.seconds_left': '90', 'cd.time_warning': 'true', 'cd.answer_heard': 'true' } }))
+  expect(view.result.current.progress).toEqual({ questionPosition: 2, questionTotal: 6, phase: 'menu', stateSeq: 11, menuOffered: true, secondsLeft: 90, timeWarning: true, answerHeard: true })
   room.remoteParticipants.set(agent.identity, agent)
   for (const option of ['retry', 'repeat', 'hint', 'next', 'feedback'] as const) {
     await act(async () => { await view.result.current.choose(option) })

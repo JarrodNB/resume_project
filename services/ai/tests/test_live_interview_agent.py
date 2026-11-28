@@ -1071,7 +1071,7 @@ def test_words_spoken_with_a_tool_call_are_a_preamble_and_the_reply_after_its_re
         session.emit_item("user", "Fewer failed runs.")
         await settle()
         await call_with_preamble("next_question", preamble="Okay.", reply="Quick feedback: clear story.")
-        assert "move on" in session.replies[-1].lower()  # the menu follows the real feedback
+        assert "finish the interview" in session.replies[-1].lower()  # the menu follows the real feedback, at the last question
         await call_with_preamble("next_question", preamble="Sure, let's wrap up.", reply="Thank you. Goodbye!")
 
     asyncio.run(scenario())
@@ -1421,3 +1421,21 @@ def test_the_interviewers_first_words_log_how_long_each_start_step_took(caplog):
     lines = [record.getMessage() for record in caplog.records if "first spoke" in record.getMessage()]
     assert len(lines) == 1
     assert all(f"{step} " in lines[0] for step in ("claim", "inputs", "join_room", "start_session"))
+
+
+def test_the_model_stops_hearing_the_candidate_once_the_goodbye_starts():
+    """The goodbye is the last thing said: a "thanks, bye" back gets no further (paid) reply."""
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        session.emit_item("assistant", "Welcome. First, tell me about a project.")
+        await settle()
+        from live_interviews.controller import EndRequested
+        await session.agent._runner.handle(EndRequested())
+        await settle()
+        assert session.input.audio_enabled_calls == [False, True, False]
+
+    asyncio.run(scenario())

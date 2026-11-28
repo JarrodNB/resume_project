@@ -288,6 +288,15 @@ it.each([['Try again', 'retry'], ['Move on', 'next']] as const)(
     expect(live.value.choose).toHaveBeenCalledWith(option)
   })
 
+it('offers Finish interview instead of Move on after the last question', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, progress: { ...menuProgress, questionPosition: 4 } })
+  renderInterview()
+  const group = screen.getByRole('group', { name: 'What would you like to do next?' })
+  expect([...group.querySelectorAll('button')].map((button) => button.textContent)).toEqual(['Try again', 'Finish interview'])
+  fireEvent.click(screen.getByRole('button', { name: 'Finish interview' }))
+  expect(live.value.choose).toHaveBeenCalledWith('next')
+})
+
 it('disables the choices while one is being sent and shows a failed choice', () => {
   live.value = liveRoom({ status: 'connected', agentJoined: true, progress: menuProgress, choosing: true })
   const view = renderInterview()

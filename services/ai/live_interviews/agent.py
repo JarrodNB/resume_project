@@ -215,7 +215,7 @@ class LiveInterviewRunner:
 
     def hear_the_candidate(self) -> None:
         """Pass the candidate's microphone to the model, from the first room state past `asking`
-        (the first question has been asked, or a resumed interview is past it) to the end.
+        (the first question has been asked, or a resumed interview is past it) until the closing.
 
         Until then the model hears nothing. OpenAI answers each turn of the candidate's by itself,
         and before the first question it has no question to ask: a "hello" as the room opened got
@@ -223,6 +223,13 @@ class LiveInterviewRunner:
         is dropped, so the candidate can't talk over the opening either."""
         self._session.input.set_audio_enabled(True)
         self._hearing = True
+
+    def stop_hearing_the_candidate(self) -> None:
+        """From the closing on, the model hears nothing: the goodbye is the last thing said, and a
+        "thanks, bye" from the candidate doesn't get (and cost) another reply."""
+        if self._hearing:
+            self._session.input.set_audio_enabled(False)
+            self._hearing = False
 
     def on_participant_attributes_changed(self, _changed: dict[str, str], participant) -> None:
         """Room callback: a participant's attributes changed; the candidate may have a new silence setting."""
@@ -537,7 +544,9 @@ class LiveInterviewRunner:
         elif isinstance(action, SendHeartbeat | ReportFinish | InterviewReport):
             self._deliver(action)
         elif isinstance(action, PublishRoomState):
-            if not self._hearing and action.phase not in ("asking", "ended"):
+            if action.phase in ("closing", "ended"):
+                self.stop_hearing_the_candidate()
+            elif not self._hearing and action.phase != "asking":
                 self.hear_the_candidate()
             self._publish_room_state({
                 "cd.question_position": str(action.question_position),

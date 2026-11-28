@@ -3,7 +3,8 @@
  * until the interviewer's first words, so the start never looks stuck), then captions (which the
  * candidate can hide), "Question N of M" and the counted time left from the interviewer agent
  * (with an announced warning at about 2 minutes left) and a mute button. After the
- * interviewer's spoken feedback on a question, it shows the two choices left (Try again, Move on)
+ * interviewer's spoken feedback on a question, it shows the two choices left (Try again, and Move on, or
+ * Finish interview after the last question)
  * while the agent says the menu is offered; once the
  * candidate has started answering it offers "How was that?". Each button sends the same choice as saying it. The
  * career references panel works exactly as in the turn-based room, for the prompt the agent
@@ -120,18 +121,20 @@ function LiveRoomControls({ room }: { room: LiveRoom }) {
   </div>
 }
 
-const MENU_CHOICES: { option: LiveMenuOption; label: string }[] = [
-  { option: 'retry', label: 'Try again' },
-  { option: 'next', label: 'Move on' },
-]
+/** The choices after the interviewer's feedback. After the last question, moving on finishes the interview. */
+function menuChoices(lastQuestion: boolean): { option: LiveMenuOption; label: string }[] {
+  return [{ option: 'retry', label: 'Try again' }, { option: 'next', label: lastQuestion ? 'Finish interview' : 'Move on' }]
+}
 
 /** The choices after the interviewer's feedback; the interviewer waits until one is made. */
 function CoachingMenu({ room }: { room: LiveRoom }) {
   const headingId = useId()
+  const { questionPosition, questionTotal } = room.progress
+  const lastQuestion = questionPosition !== null && questionTotal !== null && questionPosition + 1 >= questionTotal
   return <div role="group" aria-labelledby={headingId} className="grid justify-items-center gap-2">
     <p id={headingId} className="text-sm font-medium">What would you like to do next?</p>
     <div className="flex flex-wrap justify-center gap-2">
-      {MENU_CHOICES.map(({ option, label }) => <Button key={option} type="button" className="min-h-11" variant={option === 'next' ? 'default' : 'outline'} disabled={room.choosing} onClick={() => void room.choose(option)}>{label}</Button>)}
+      {menuChoices(lastQuestion).map(({ option, label }) => <Button key={option} type="button" className="min-h-11" variant={option === 'next' ? 'default' : 'outline'} disabled={room.choosing} onClick={() => void room.choose(option)}>{label}</Button>)}
     </div>
   </div>
 }

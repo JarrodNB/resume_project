@@ -77,7 +77,7 @@ def test_describes_the_coaching_loop_in_prose():
     for tool in ("give_feedback", "offer_menu", "give_hint", "retry_question"):
         assert tool in text
     assert "one strength and one fix" in lower
-    assert "try the question again or move on; those are the only two choices" in lower
+    assert "try the question again or move on (after the last question, finish the interview instead); those are the only two choices" in lower
     assert "never move on from the choices" in lower
     assert "never a finished answer" in lower
     assert "do not time the candidate yourself" in lower

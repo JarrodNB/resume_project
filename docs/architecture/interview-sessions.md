@@ -505,7 +505,8 @@ and ask the current question. Each question then runs like this:
      words changes nothing. Saving what was spoken, rather than a text the model passes to a
      tool, keeps the review true to what the candidate heard.
    - **The menu.** The controller then has the model offer the two choices left, Try again or
-     Move on, and publishes `cd.menu_offered` `true`. Hearing the question again or getting a hint
+     Move on (after the last question, Try again or Finish interview: the menu texts name the
+     second choice through `with_choices`), and publishes `cd.menu_offered` `true`. Hearing the question again or getting a hint
      is no use once the question's feedback is given, so neither is offered there. From the menu
      it never moves on without a choice: by voice the model calls `retry_question` or
      `next_question`; the room buttons send the RPC options `retry` and `next`, which map to the
@@ -540,8 +541,10 @@ and ask the current question. Each question then runs like this:
    prepared text (the agent's later `prompt_asked` returns it). A question with no answer gets
    `skipped_at`. At the last question nothing moves and the interview stays active; a retry of
    the move just made returns the same receipt.
-5. After the last question the model closes warmly; once that turn is spoken the agent
-   finishes. The closing may never come back as a finished turn (it was spoken only as a
+5. After the last question the model says one short thank-you and goodbye and nothing else (no
+   feedback, summary or advice, which would only add speech and cost); once that turn is spoken
+   the agent finishes. From the first `closing` (or `ended`) room state the agent stops passing
+   the candidate's microphone to the model, so a "thanks, bye" back gets no further reply. The closing may never come back as a finished turn (it was spoken only as a
    preamble, or cut off with nothing forwarded), so any closing (this one, the idle goodbye or a
    wrap-up) also finishes 20 seconds after its first clock tick (`CLOSING_WAIT_SECONDS`). The
    agent calls `finish` (`reason`: `completed`, `ended_by_candidate`, `idle`, `time_limit`, `allowance`,
@@ -620,7 +623,7 @@ sides; a segment's interim text is replaced by its later text), the agent's prog
 mute toggle, End interview and the references panel for the current saved prompt. Once
 `timeWarning` is on, the time left turns red and an alert ("About 2 minutes left. Start
 wrapping up.") is shown and announced. While the agent offers the menu it shows a labelled group of two buttons
-(Try again, Move on); while the candidate answers it shows
+(Try again, and Move on, or Finish interview at the last question); while the candidate answers it shows
 "How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
 choice the agent didn't get shows a short alert. The completed review shows a question's
 `liveFeedback` under its latest answer as "Interviewer feedback". Until the interviewer's first

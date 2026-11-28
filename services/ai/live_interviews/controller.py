@@ -52,6 +52,7 @@ from prompts.live_interviewer_turns import (
     ask_question_instructions,
     opening_instructions,
     resume_instructions,
+    with_choices,
 )
 from text_limits import MAX_PROSE_TEXT
 
@@ -506,7 +507,7 @@ class LiveInterviewController:
                 return [ChoiceIgnored()]
             *actions, result = self._tool(MENU_EVENTS[event.option]())
             # No tool call to reply to, so ask the model to speak, saying which button was pressed.
-            return [*actions, GenerateReply(f"{BUTTON_PRESSED[event.option]} {result.text}")]
+            return [*actions, GenerateReply(f"{self._named(BUTTON_PRESSED[event.option])} {result.text}")]
         if isinstance(event, PromptRecorded) and self._question_position is not None:
             # Also after the finish: an answer heard before it still waits for its prompt's receipt.
             return self._prompt_recorded(event)
@@ -581,7 +582,7 @@ class LiveInterviewController:
         self._unheard_answers = event.answer_count > 0 or event.current_prompt_answered
         if event.feedback_given or event.current_prompt_kind == "follow_up":
             self._phase = "menu"
-            return [self._room_state(), GenerateReply(RESUME_AT_MENU)]
+            return [self._room_state(), GenerateReply(self._named(RESUME_AT_MENU))]
         self._phase, self._prompt_message_id = "answering", event.current_prompt_message_id
         self._prompt = (event.question_position, None)
         self._saved_answer = "" if event.current_prompt_answered else None  # Rails has an answer; new words replace it
@@ -662,7 +663,7 @@ class LiveInterviewController:
         # While the next turn is saved (asking, feedback), the welcome-back asks for that very
         # turn (the question or the feedback), so it is saved as intended.
         welcome = WELCOME_BACK_TO.get(self._phase)
-        return [GenerateReply(welcome)] if welcome else []
+        return [GenerateReply(self._named(welcome))] if welcome else []
 
     def _count(self, now: float) -> list[LiveAction]:
         """Count the time since the last tick unless the menu is waiting quietly (the interviewer
@@ -765,7 +766,7 @@ class LiveInterviewController:
         self._phase, self._menu_since = self._after_feedback, None
         if self._phase == "answering":
             return [report, self._room_state(), *self._speak_when_quiet()]  # a warning held back during feedback
-        return [report, self._room_state(), GenerateReply(MENU)]  # a held warning follows once the menu is heard
+        return [report, self._room_state(), GenerateReply(self._named(MENU))]  # a held warning follows once the menu is heard
 
     def _tool(self, event: ToolEvent) -> list[LiveAction]:
         if self._question_position is None:
@@ -816,10 +817,10 @@ class LiveInterviewController:
         if isinstance(event, GiveFeedback):
             return self._feedback(FEEDBACK_AGAIN, then="menu")
         if isinstance(event, RetryQuestion):
-            return self._retry(NO_RETRIES_AT_MENU)
+            return self._retry(self._named(NO_RETRIES_AT_MENU))
         if isinstance(event, OfferMenu):
-            return [ToolResult(MENU_AGAIN)]
-        return [ToolResult(CHOOSING)]  # also a hint or a repeat: after feedback only these two choices are left
+            return [ToolResult(self._named(MENU_AGAIN))]
+        return [ToolResult(self._named(CHOOSING))]  # also a hint or a repeat: after feedback only these two choices are left
 
     def _retry(self, refusal: str) -> list[LiveAction]:
         """Restart the whole question: Rails drops its answers, follow-ups and feedback, keeping
@@ -840,7 +841,7 @@ class LiveInterviewController:
         actions = self._save_answer()
         if self._unheard_answers:  # never invent (or save) feedback on answers this agent didn't hear
             self._phase, self._menu_since = "menu", None
-            return [*actions, self._room_state(), ToolResult(NO_FEEDBACK_AFTER_RECONNECT)]
+            return [*actions, self._room_state(), ToolResult(self._named(NO_FEEDBACK_AFTER_RECONNECT))]
         self._phase, self._after_feedback = "feedback", then
         return [*actions, self._room_state(), ToolResult(instructions)]
 
@@ -854,6 +855,10 @@ class LiveInterviewController:
         self._answered_prompts, self._retries, self._unheard_answers = 0, 0, False
         self._new_prompt("opening")
         return [*actions, self._room_state(), ToolResult("Now ask " + ask_question_instructions(position + 1, self._question(position + 1)))]
+
+    def _named(self, text: str) -> str:
+        """A menu text with its second choice named: "move on", or "finish the interview" at the last question."""
+        return with_choices(text, last_question=(self._question_position or 0) + 1 >= self._question_total)
 
     def _question(self, position: int) -> str:
         """The prepared question at `position`, as the data section the interviewer is given."""

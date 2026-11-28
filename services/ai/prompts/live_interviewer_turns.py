@@ -65,24 +65,24 @@ NOTHING_TO_COACH = "The candidate has not answered yet, so there is nothing to g
 NO_FEEDBACK_AFTER_RECONNECT = (
     "You reconnected partway through this question and did not hear the candidate's earlier answers. Say briefly "
     "that you can't give feedback on that part after the reconnect, then ask in one short sentence whether they "
-    "want to try the question again or move on. Wait for their choice.")
+    "want to try the question again or {move_on}. Wait for their choice.")
 FEEDBACK_FIRST = ("You are already giving this question's quick feedback. Do not start it again and do not add "
                   "anything else now.")
 STILL_ANSWERING = ("The candidate's answer is still very short, so they have probably only paused to think. Do not "
                    "ask a follow-up or move on yet. If they stopped mid-sentence, say only a brief \"Mm-hm, go on.\" "
                    "Otherwise invite them, in one short sentence, to say a bit more about the same thing. Then let "
                    "them talk.")
-MENU = ("Now ask the candidate in one short, friendly sentence whether they want to try the question again or move "
-        "on. Then stop and wait for their choice. Never move on until they choose.")
-CHOOSING = ("The candidate is choosing whether to try the question again or move on; those are the only two choices "
+MENU = ("Now ask the candidate in one short, friendly sentence whether they want to try the question again or {move_on}. "
+        "Then stop and wait for their choice. Never go ahead until they choose.")
+CHOOSING = ("The candidate is choosing whether to try the question again or {move_on}; those are the only two choices "
             "now. Do not ask anything new; wait for their choice.")
-MENU_AGAIN = ("Ask the candidate again in one short sentence whether they want to try the question again or move on. "
+MENU_AGAIN = ("Ask the candidate again in one short sentence whether they want to try the question again or {move_on}. "
               "Then wait for their choice.")
 NOT_ASKED = "The question has not been asked yet. Ask it first."
 RETRY = ("The candidate chose to try this question again, and it starts over now. Do not offer the choices again. "
          "Say a few words such as \"Sure, let's take it from the top.\", then ask {question}")
 NO_RETRIES_AT_MENU = ("The candidate has already used both retries for this question. Say so politely and tell them "
-                      "the only choice left is to move on. Wait until they choose to move on.")
+                      "the only choice left is to {move_on}. Wait until they choose it.")
 NO_RETRIES_ANSWERING = ("The candidate has already used both retries for this question. Say so politely and let them "
                         "carry on with their answer; they can also ask for a hint or move on.")
 HINT_RULE = ("Give one short hint that points to an approach, such as a structure to follow or the kind of example "
@@ -92,10 +92,10 @@ NUDGE = ("The candidate has been answering this for about three minutes. Politel
          "sentence, and ask them to wrap that answer up in a sentence or two.")
 IDLE_GOODBYE = ("The candidate has not chosen anything for three minutes. Say in one or two short sentences that you "
                 "will stop here for now, thank them and say goodbye. Do not ask anything else.")
-CLOSING = ("That was the last question. Thank the candidate warmly in one or two short sentences and "
-           "say goodbye. Do not ask anything else or give feedback.")
+CLOSING = ("That was the last question, and the interview is over. In one short sentence, thank the candidate "
+           "and say goodbye. Say nothing else: no feedback, summary, advice or questions.")
 RESUME_AT_MENU = ("Greet the candidate briefly and say you will pick up where you left off. Then ask in one short "
-                  "sentence whether they want to try the question again or move on. Wait for their choice.")
+                  "sentence whether they want to try the question again or {move_on}. Wait for their choice.")
 WELCOME_BACK = "The candidate's connection dropped and they are back. Welcome them back in one short sentence, then "
 WELCOME_BACK_TO = {
     "asking": WELCOME_BACK + ("ask the current question or follow-up clearly, with the same meaning, and let them "
@@ -119,11 +119,22 @@ WRAP_UP = {
 }
 
 
+# The second choice after feedback: moving on to the next question, or, after the last question,
+# finishing the interview. The controller fills in `{move_on}` and `{move_on_button}` (`with_choices`).
+MOVE_ON = {False: ("move on", "Move on"), True: ("finish the interview", "Finish interview")}
+
+
+def with_choices(text: str, *, last_question: bool) -> str:
+    """`text` with the second choice named for where the interview is."""
+    words, button = MOVE_ON[last_question]
+    return text.replace("{move_on}", words).replace("{move_on_button}", button)
+
+
 # A room button reaches the model only as the next turn instruction, so the instruction first says
 # which button the candidate pressed; otherwise the model, still seeing its own offer of the
 # choices, may simply offer them again.
 BUTTON_PRESSED = {
     "retry": "The candidate pressed the \"Try again\" button.",
-    "next": "The candidate pressed the \"Move on\" button.",
+    "next": "The candidate pressed the \"{move_on_button}\" button.",
     "feedback": "The candidate pressed the \"How was that?\" button.",
 }

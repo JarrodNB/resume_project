@@ -50,7 +50,7 @@ from live_interviews.controller import (
     Tick,
     ToolResult,
 )
-from prompts.live_interviewer_turns import NO_FEEDBACK_AFTER_RECONNECT
+from prompts.live_interviewer_turns import NO_FEEDBACK_AFTER_RECONNECT, with_choices
 
 REAL_SHORT_ANSWER_WORDS = dict(live_controller.SHORT_ANSWER_WORDS)
 
@@ -474,6 +474,23 @@ def test_the_spoken_feedback_is_saved_then_the_menu_is_offered_and_published():
     menu = actions[2].instructions.lower()
     assert "try the question again or move on" in menu
     assert "hint" not in menu and "hear the question again" not in menu  # no use once feedback is given
+
+
+def test_after_the_last_question_the_choices_are_try_again_or_finish_the_interview():
+    """There is no question to move on to, so the second choice finishes the interview."""
+    controller, _ = started_controller(position=4, total=5)
+    asked_and_recorded(controller, position=4, message_id="opening-4")
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    controller.handle(NextQuestion())
+    menu = controller.handle(InterviewerTurnFinished(text="Quick feedback: clear example."))[-1].instructions.lower()
+    assert "try the question again or finish the interview" in menu and "move on" not in menu
+    assert "finish the interview" in tool_text(controller.handle(OfferMenu()))
+    assert "finish the interview" in tool_text(controller.handle(GiveHint()))  # still only the two choices
+    pressed = click(controller, "next")
+    assert ReportQuestionAdvanced(question_position=4) in pressed
+    closing = pressed[-1].instructions
+    assert closing.startswith('The candidate pressed the "Finish interview" button.')
+    assert "one short sentence" in closing and "Say nothing else" in closing
 
 
 def test_the_follow_up_cap_leads_straight_to_feedback():
@@ -1122,7 +1139,7 @@ def test_a_resumed_answered_opening_counts_toward_the_cap_and_keys_its_follow_up
     actions = controller.handle(FinishAnswer())  # the second answer reaches the cap of 2
     assert actions[0] == ReportAnswerFinished(prompt_message_id="follow-1", transcript="Deadlines.")
     # This agent never heard the opening's answer, so it gives no feedback on the question.
-    assert tool_text(actions) == NO_FEEDBACK_AFTER_RECONNECT
+    assert tool_text(actions) == with_choices(NO_FEEDBACK_AFTER_RECONNECT, last_question=False)
 
 
 def test_a_resumed_agent_offers_the_menu_after_feedback_or_when_a_follow_up_it_never_heard_is_current():
@@ -1143,7 +1160,7 @@ def test_a_resumed_agent_never_gives_or_saves_feedback_on_answers_it_did_not_hea
         controller, _ = resumed(current_prompt_message_id="prompt", answer_count=1, **restore)
         actions = controller.handle(GiveFeedback())
         text = tool_text(actions)
-        assert text == NO_FEEDBACK_AFTER_RECONNECT
+        assert text == with_choices(NO_FEEDBACK_AFTER_RECONNECT, last_question=False)
         assert "reconnect" in text and "move on" in text
         assert not any(isinstance(action, ReportFeedbackGiven) for action in actions)
         assert controller.handle(InterviewerTurnFinished(text="Sorry, I can't comment on that part.")) == []
@@ -1157,7 +1174,7 @@ def test_a_resumed_agent_never_gives_or_saves_feedback_on_answers_it_did_not_hea
 def test_a_resumed_agent_coaches_an_inherited_opening_answer_once_the_candidate_answers_again():
     controller, _ = resumed(current_prompt_message_id="opening-1", current_prompt_kind="opening",
                             current_prompt_answered=True, answer_count=1)
-    assert tool_text(controller.handle(OfferMenu())) == NO_FEEDBACK_AFTER_RECONNECT
+    assert tool_text(controller.handle(OfferMenu())) == with_choices(NO_FEEDBACK_AFTER_RECONNECT, last_question=False)
     controller, _ = resumed(current_prompt_message_id="opening-1", current_prompt_kind="opening",
                             current_prompt_answered=True, answer_count=1)
     controller.handle(CandidateTurnFinished(text="We disagreed on scope."))  # new words replace the unheard answer

@@ -1,4 +1,4 @@
-# Begins a reviewed interview once. The first question is saved under the owner lock;
+# Begins a reviewed turn-based interview once (live interviews start with JoinLiveService). The first question is saved under the owner lock;
 # provider speech is reserved only when explicitly enabled, and executes later.
 module Interviews
   class BeginService < ApplicationService
@@ -11,13 +11,14 @@ module Interviews
       @interview.user.with_lock do
         @interview.lock!
         next failure("Interview expired") if @interview.expired? || @interview.expires_at <= Time.current
+        next failure("Live interviews start from the live room") if @interview.conversation_live?
         opening = @interview.messages.find_by(kind: "opening", position: 0)
         next success(@interview) if opening && (@interview.active? || @interview.completed?)
         next failure("Interview is not ready") unless @interview.ready?
         question = @interview.questions.lock.first
         next failure("Prepared questions unavailable") unless question
         message = @interview.messages.create!(question: question, kind: "opening", position: 0,
-          semantic_key: "question:#{question.id}:opening", content: question.content)
+          semantic_key: QuestionProgression.opening_key(question), content: question.content)
         if SpeechPlayback.provider?(@interview)
           operation = @interview.operations.create!(kind: "speech", question: question, message: message)
           AiExecutions::ScheduleOperationService.call(operation: operation)

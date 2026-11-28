@@ -56,7 +56,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 | `apps/web/`          | React (Vite + TypeScript) app, Apollo GraphQL client           |
 | `apps/landing/`      | Marketing landing page that redirects into the app             |
 | `services/api/`      | Rails API: GraphQL, auth, core domain, service objects         |
-| `services/ai/`       | Python HTTP execution, SQS workers and the `ai-mcp` tool server: models, memory, Logfire |
+| `services/ai/`       | Python HTTP execution, SQS workers, the `ai-mcp` tool server and the `ai-live` LiveKit interviewer: models, memory, Logfire |
 | `infra/`             | Local ElasticMQ/Postgres config; Terraform and production Compose are planned |
 | `docs/`              | Architecture, MVP plan, decisions                              |
 | `GLOSSARY.md`        | Shared domain terms                                            |
@@ -145,6 +145,12 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
   same execution runner, leases and recovery jobs. Browser requests never wait for
   model execution. Chat and interview answer turns opt into the shared streaming layer;
   Rails still accepts only the final result. See docs/architecture/interview-sessions.md and docs/architecture/chat.md.
+- Live interviews are a second interview exception. The `ai-live` LiveKit Agents worker talks to
+  the realtime model directly while the candidate speaks, and records what happened (prompts,
+  answers, feedback, progress, heartbeats, finish) to Rails over the authenticated internal
+  `live_connections` endpoints as it goes. Rails does not approve each turn, but it stays the
+  source of truth: it saves every record, refuses stale or ended connections, and enforces the
+  time limits. See [live conversation mode](docs/architecture/interview-sessions.md#live-conversation-mode).
 - All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
  embeds career library entries and saved interview Q&A itself (OpenAI embeddings API,
  `CareerLibrary::SyncLibraryEmbeddingsJob` and `InterviewPrep::SyncQuestionEmbeddingJob`),

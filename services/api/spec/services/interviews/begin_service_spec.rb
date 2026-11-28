@@ -18,6 +18,13 @@ RSpec.describe "Explicit interview begin" do
     expect(interview.operations.speech.count).to eq(0)
   end
 
+  it "leaves live interviews to the live room so no turn-based opening is saved" do
+    live = ready_live_interview(interview.user)
+    expect(Interviews::BeginService.call(interview: live).errors).to eq([ "Live interviews start from the live room" ])
+    expect(live.reload).to have_attributes(status: "ready")
+    expect(live.messages).to be_empty
+  end
+
   it "retains explicitly selected provider speech" do
     allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")

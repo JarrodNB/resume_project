@@ -11,6 +11,9 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 - `interviews/cleanup_job.rb` — bounded scheduled expiry/content/audio maintenance;
   it never discovers executable work and uses the shared interrupted-job recovery budget.
+- `interviews/recover_live_connections_job.rb` — minutely end of live interview rooms whose agent went
+  quiet (no heartbeat for 150 s, or never claimed within 10 minutes); see
+  `Interviews::RecoverLiveConnectionsService`.
 - `ai_executions/prune_stream_grants_job.rb` — bounded expiry cleanup for observer grants;
   catches up remaining batches without touching durable model execution.
 

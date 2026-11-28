@@ -164,6 +164,12 @@ skip it. Export indexes are not required.
 - `.env.example` — secrets template
 
 - `chat/` — authenticated accepted-history chat adapter on the same shared execution runner; fixed Jev newest-message screening, general AI allowance/accounting, bounded text replies and optional public streaming. The local `save_career_context` tool stages distinct user-requested creations for fenced atomic Rails acceptance; MCP stays read-only. Replies can call read-only tools (career library, saved jobs, practice questions) on the `ai-mcp` server, with a signed token for the claim's user. `CHAT_MODEL` and the configured generative fallback support Luna/Nano.
+- `live_interviews/` — the `ai-live` LiveKit Agents worker for live interviews: a pure
+  event → actions controller, prose instruction builder, Rails client for the internal live
+  connection callbacks, an ordered LiveKit-free reporter (`reporter.py`: report order, resends
+  and heartbeat usage) and the LiveKit adapter (`worker.py` is the entrypoint). It uses the
+  LiveKit OpenAI realtime plugin rather than Pydantic AI; this is the approved live speech
+  exception (see docs/architecture/interview-sessions.md, "Live conversation mode").
 - `mcp_tools/` — the standalone `ai-mcp` MCP tool server (streamable HTTP, token auth, read-only) and the generic client agents use to call it; each tool's server and client halves share one file (see `mcp_tools/AGENTS.md`)
 
 - `mcp_tools/interview_questions.py` lists active saved practice questions with answer/feedback status and signed question references, and reads one referenced question with its answer and current feedback, with caller-owned screening.

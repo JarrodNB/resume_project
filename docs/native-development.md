@@ -125,6 +125,13 @@ on the same executor and protocol/latency checks.
   There is no automatic restart policy; inspect logs and restart after crashes.
   Stale PID files are checked conservatively; verify processes before manually
   removing stale files. Do not move the checkout while services are running.
+- **Live interviews need a LiveKit server, which native setup does not install.** The
+  `ai-live` worker (`python -m livekit.agents start live_interviews/worker.py`) starts only
+  when `LIVEKIT_URL` is set in the shell before `start`, with `LIVEKIT_API_KEY` and
+  `LIVEKIT_API_SECRET`; Rails reads the same three names for room joins. Point them at
+  LiveKit Cloud or a server you run yourself, and supply `OPENAI_API_KEY`. Without them,
+  joining a live interview fails with a configuration message and offers the turn-based
+  fallback. `check` does not check the worker; read `.native/logs/ai-live.log`.
 - The frontend's Docker-only example-resume mount is unavailable. Upload a
   repository example manually to test resume import.
 

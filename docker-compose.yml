@@ -9,6 +9,8 @@
 #   - ai-worker: Python SQS worker
 #   - ai-http: FastAPI app for interactive AI execution
 #   - ai-mcp: internal MCP tool server (read-only tools for AI agents)
+#   - ai-live: LiveKit Agents worker for live interviews (same image and code as ai-http)
+#   - livekit: local LiveKit server in dev mode (ports 7880, 7881, 7882/udp; keys devkey/secret)
 #   - stripe-cli: Stripe test-mode webhook forwarder (only with `--profile billing`)
 #   - web: React app (port 5173)
 #   - landing: landing page (port 5174)
@@ -74,6 +76,10 @@ services:
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
       AI_EXECUTION_SERVICE_SECRET: ${AI_EXECUTION_SERVICE_SECRET:-}
       INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
+      # The browser joins live interview rooms at this URL; set all three to use LiveKit Cloud.
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://localhost:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-secret}
       DB_HOST: db
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
@@ -289,6 +295,54 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  ai-live:
+    # The live interviewer: a LiveKit Agents worker (explicit dispatch by agent name) from the
+    # ai-http image and code. It connects out to LiveKit and calls Rails; it serves no HTTP.
+    # It needs OPENAI_API_KEY from services/ai/.env when a live interview starts.
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile.dev
+    command: python -m livekit.agents start live_interviews/worker.py
+    init: true
+    restart: unless-stopped
+    env_file:
+      - path: ./services/ai/.env
+        required: false
+    environment:
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
+      # The local server inside the Compose network, unless LIVEKIT_URL points both at LiveKit Cloud.
+      # Must use the same key pair as the api service.
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://livekit:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-secret}
+      LOGFIRE_ENVIRONMENT: development
+    volumes:
+      - ./services/ai:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+      livekit:
+        condition: service_started
+
+  livekit:
+    # Local LiveKit server for live interviews. Dev mode uses the placeholder keys devkey/secret.
+    # 7880 is signalling (the browser uses ws://localhost:7880), 7881 WebRTC over TCP and
+    # 7882/udp WebRTC media.
+    image: livekit/livekit-server:v1.13.11
+    command: --dev --bind 0.0.0.0 --udp-port 7882
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+    restart: unless-stopped
 
   # Local Stripe test-mode webhooks. Off by default; start with
   # `docker compose --profile billing up stripe-cli` (see docs/testing.md, "Billing in Stripe test mode").

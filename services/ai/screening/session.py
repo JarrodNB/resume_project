@@ -25,7 +25,7 @@ class ScreeningSession:
     async_locks: dict[tuple, Any] = field(default_factory=dict)
     allowed_sources: set[str] = field(default_factory=set)
     trusted_generated_sources: set[str] = field(default_factory=set)
-    rails_screened_sources: set[str] = field(default_factory=set)
+    interview_dialogue_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
     record_screening: list[Any] = field(default_factory=list)
     record_checks: set[tuple] = field(default_factory=set)
@@ -97,17 +97,22 @@ def trust_generated_source(source: str) -> None:
         session.trusted_generated_sources.add(mask_outbound(source))
 
 
-def trust_rails_screened_source(source: str) -> None:
-    """Cover immutable text Rails accepted after a successful screen, in this execution only.
+def trust_interview_dialogue(source: str) -> None:
+    """Cover saved interview dialogue for interview coaching, in this execution only.
 
-    Use this only for text that passed screening when Rails accepted it and cannot change
-    afterward, such as completed interview dialogue, delivered through an authenticated,
-    owner-scoped Rails grant. It may include the user's own words, which is why it is
-    separate from `trust_generated_source`. Never use it for editable records, text Rails
-    stored without a successful screen, or anything from a browser or external site.
+    Interview dialogue (the candidate's answers, turn-based or live, and the interviewer's
+    questions and follow-ups) is deliberately not screened here. The interview agents' only
+    actions are moving, restarting or ending the owner's current interview through
+    Rails-checked callbacks, and they read nothing beyond the dispatched owner-scoped inputs,
+    so injected text can only change what the same user hears or reads, or steer their own
+    current interview. The exception ends if an interview agent gains a tool that reads other
+    records or acts outside the current interview. Use it only for immutable dialogue read
+    through an authenticated, owner-scoped grant and only for an agent without tools (session
+    feedback). Contact masking and context bounds still apply. Never use it for editable
+    records or other workflows.
     """
     if source and (session := _current.get()) is not None:
-        session.rails_screened_sources.add(mask_outbound(source))
+        session.interview_dialogue_sources.add(mask_outbound(source))
 
 
 def bind_screened_prompt(sources: Sequence[str], render: Callable[[Sequence[str]], str]) -> str:
@@ -115,8 +120,8 @@ def bind_screened_prompt(sources: Sequence[str], render: Callable[[Sequence[str]
 
     The renderer owns escaping and formatting. Every untrusted value it includes must
     appear in sources; do not capture untrusted values in its closure. No approval is
-    minted when a source lacks screening, generated-output provenance or a Rails
-    screened-text grant in this execution.
+    minted when a source lacks screening, generated-output provenance or an
+    interview-dialogue grant in this execution.
     """
     prompt = render(sources)
     session = _current.get()
@@ -129,7 +134,7 @@ def bind_screened_prompt(sources: Sequence[str], render: Callable[[Sequence[str]
 
 def _source_is_trusted(session: ScreeningSession, masked_source: str) -> bool:
     return (masked_source in session.allowed_sources or masked_source in session.trusted_generated_sources
-            or masked_source in session.rails_screened_sources)
+            or masked_source in session.interview_dialogue_sources)
 
 
 def prompt_is_covered(prompt: str) -> bool:

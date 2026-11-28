@@ -1,6 +1,8 @@
 /** User-facing setup choices also label the saved configuration after preparation.
  * An interviewer's sample line is illustrative copy for the setup tile, not a prompt instruction.
  */
+import type { ConversationModeEnum } from '@/graphql/generated/graphql'
+
 export const typeOptions = [
   { value: 'mixed', label: 'Mixed Interview', description: 'Behavioral + role questions. Closest to a real loop.' },
   { value: 'behavioral', label: 'Behavioral', description: 'Past experience, teamwork, conflict, leadership. STAR-focused.' },
@@ -17,6 +19,16 @@ export const interviewerOptions = [
   { value: 'daniel', label: 'Daniel — Professional Hiring Manager', description: 'Neutral and structured, like a real panel member.', sample: 'Walk me through how you handled your last big project.' },
   { value: 'priya', label: 'Priya — Tough Interviewer', description: 'Direct, presses for specifics and measurable impact. Probes after you submit your answer.', sample: 'What changed because of your work? Give me a number.' },
 ]
+export const conversationModeOptions: { value: ConversationModeEnum; label: string; description: string }[] = [
+  { value: 'TURN_BASED', label: 'Turn-based', description: 'Hear a question, then record or type your answer and send it.' },
+  { value: 'LIVE', label: 'Live', description: 'Talk with your interviewer in real time, like a video call without video.' },
+]
+/** The conversation mode named by `value` (a saved setup or a switch choice), or Turn-based. */
+export function conversationModeChoice(value: unknown): ConversationModeEnum {
+  return conversationModeOptions.find((option) => option.value === value)?.value ?? 'TURN_BASED'
+}
+/** Live interviews always have this many main questions, so Live shows no length choice. */
+export const LIVE_QUESTION_COUNT = 5
 export const lengthOptions = [
   { value: '5', label: 'Short', description: '5 core questions · ~10 min' },
   { value: '8', label: 'Standard', description: '8 core questions · ~20 min' },

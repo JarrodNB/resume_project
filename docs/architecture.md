@@ -12,7 +12,7 @@ when changing a contract or feature:
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Rails background jobs](architecture/background-jobs.md) | Durable job storage, transactional enqueue and queue-worker operations |
 | [Job Board](architecture/job-board.md) | Shared US catalogue, on-demand search, caching, private saved Job imports |
-| [Interview sessions](architecture/interview-sessions.md) | Spoken interview records, atomic acceptance, HTTP boundary and recovery ownership |
+| [Interview sessions](architecture/interview-sessions.md) | Spoken interview records, atomic acceptance, HTTP boundary, live interviews (LiveKit) and recovery ownership |
 | [Study guides](architecture/study-guides.md) | Job-description learning material, queued generation and retained results |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [Privacy and account data](architecture/privacy-and-data.md) | Retention periods, account deletion, data export, outside data processors |
@@ -33,6 +33,11 @@ Decision rationale lives beside the behavior it explains in these guides.
   fallback/recovery layer; chat and interview answer turns enable its optional streaming
   output. Both transports
   must tolerate repeated work and results.
+- Live interviews are the other interview exception. The browser and the `ai-live` worker meet
+  in a LiveKit Cloud room; `ai-live` talks to OpenAI's realtime model directly and records each
+  prompt, answer, heartbeat and finish to Rails over internal HTTP as it happens. Rails saves
+  them, checks the time limits and never approves a turn in advance. See
+  [live conversation mode](architecture/interview-sessions.md#live-conversation-mode).
 - LLM calls run in the AI service and are traced in Logfire. Rails background jobs embed career-library entries and saved interview Q&A as an explicit exception; see [embedding ownership](architecture/career-library.md#decisions).
 - Secrets come from per-service environment variables.
 
@@ -57,6 +62,10 @@ Decision rationale lives beside the behavior it explains in these guides.
                                     └──────────────┘
  Lambda (scheduled) ──▶ daily goal emails, weekly summaries, periodic job searches
 ```
+
+Live interviews add one path beside this: the browser joins a LiveKit Cloud room with a token
+from Rails, the `ai-live` worker (same `services/ai` image) joins it, talks to OpenAI's realtime
+model and calls Rails' internal `live_connections` endpoints. Neither side waits on SQS.
 
 ## Code navigation and dependency directions
 
@@ -165,6 +174,8 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   Move Postgres to RDS once losing a day of data or doing our own upgrades is no longer
   acceptable. Reconsider the single server if the app needs high availability or outgrows
   it, or if outbound data grows enough to make DigitalOcean's included bandwidth cheaper.
+  Live interview audio goes through LiveKit Cloud, not a LiveKit server on this machine, so the
+  server opens no media ports and carries no audio relay; only the `ai-live` worker runs here.
 
 The shared `execution/rails_client.py` module owns fixed-origin Rails HTTP limits,
 retry rules and lease/provider-accounting callbacks. Chat and interview clients

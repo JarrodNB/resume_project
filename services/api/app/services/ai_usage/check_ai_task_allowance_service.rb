@@ -73,7 +73,8 @@ module AiUsage
           .where("deadline > ?", Time.current).select(:ai_task_id)
         pool = pool.where(id: live_attempts)
       end
-      tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..)
+      # A live interview's bill stays queued for the whole connection but runs no work of its own.
+      tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..).where.not(task_type: AiTask::LIVE_BILL_TASK_TYPES)
       tasks = tasks.where.not(id: @existing_task.id) if @existing_task
       tasks.count >= limit
     end

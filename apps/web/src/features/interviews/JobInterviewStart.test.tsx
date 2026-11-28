@@ -16,11 +16,11 @@ const job = { id: 'selected-job', title: 'Laboratory technician', company: 'Samp
   requirements: [], responsibilities: [], niceToHaves: [] }
 const defaultSetup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }
 function startMock(setup = defaultSetup, result = vi.fn()): MockLink.MockedResponse {
-  return { request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, jobId: job.id } }, result }
+  return { request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, conversationMode: 'TURN_BASED', jobId: job.id } }, result }
 }
 function started() {
   return { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], errorCode: null, interview: {
-    __typename: 'InterviewSession', id: 'new-session', status: 'preparing', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'browser',
+    __typename: 'InterviewSession', id: 'new-session', status: 'preparing', interviewType: 'basic', conversationMode: 'TURN_BASED', executionMode: 'real', speechPlaybackMode: 'browser',
     preparedRole: {}, revision: 0, answerCap: 3, currentQuestionPosition: 0, expiresAt: '2026-11-01T00:00:00Z',
     jobContext: { ...job, __typename: 'InterviewJobContext' }, setup: { ...defaultSetup, __typename: 'InterviewSetup' }, questions: [], messages: [], operations: [],
   } } } }

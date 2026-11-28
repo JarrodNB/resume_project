@@ -30,7 +30,9 @@ module AiReaderAccess
     interview_clarifications: %w[id interview_session_id message_id ai_task_id claimed_at deadline attempt_count],
     interview_career_references: %w[id interview_session_id message_id ai_task_id claimed_at deadline attempt_count],
     interview_session_feedbacks: %w[id interview_session_id ai_task_id claimed_at deadline attempt_count expected_revision],
-    interview_sessions: %w[id user_id job_id status execution_mode revision current_question_position answer_cap expires_at content_purged_at career_focus preparation_kind prepared_role fixture_context setup_config],
+    interview_sessions: %w[id user_id job_id status execution_mode revision current_question_position answer_cap expires_at content_purged_at career_focus preparation_kind prepared_role fixture_context setup_config conversation_mode],
+    # The live agent checks its connection is still open; room names and billing stay private.
+    interview_live_connections: %w[id interview_session_id status],
     interview_session_operations: %w[id interview_session_id question_id message_id recording_id kind status attempt_id claim_generation lease_expires_at execution_deadline expected_revision candidate_transcript transcription_mode],
     interview_session_questions: %w[id interview_session_id content position accepted_answer_count skipped_at created_at],
     interview_session_messages: %w[id interview_session_id question_id kind content acknowledgement position],

@@ -6,12 +6,12 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { recordingUploadTimeout, useInterviewSession, useStartInterview } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { RETRY_OPERATION, ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION } from './interviewOperations'
+import { RETRY_OPERATION, ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION, START_INTERVIEW_FROM } from './interviewOperations'
 const snapshot = {
   feedback: null, jobContext: null,
   setup: { __typename: 'InterviewSetup' as const, questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
-  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false }],
+  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', conversationMode: 'TURN_BASED', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
+  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false, liveFeedback: null }],
   messages: [], operations: [],
 }
 const pending = { questionId: 'question', recordingId: 'recording', expectedRevision: 0, submissionKey: 'stable-key' }
@@ -23,19 +23,34 @@ function mount(mocks: MockLink.MockedResponse[]) {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 it('sends only the selected job id and setup when starting job-specific preparation', async () => {
   const setup = { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }
-  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, jobId: 'job-1' } },
+  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, conversationMode: 'TURN_BASED', jobId: 'job-1' } },
     result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], interview: { ...snapshot, status: 'preparing' } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   await act(async () => { expect(await result.current.start('', setup, 'job-1')).toBe('session') })
   expect(result.current.error).toBeNull()
 })
 it('starts preparation with the selected length and trimmed career focus', async () => {
-  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: 'Laboratory', setup: { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] } } },
+  const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: 'Laboratory', setup: { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, conversationMode: 'TURN_BASED' } },
     result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [],
       interview: { ...snapshot, status: 'preparing', setup: { __typename: 'InterviewSetup', questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] } } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   await act(async () => { expect(await result.current.start(' Laboratory ', { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })).toBe('session') })
   expect(result.current.error).toBeNull()
+})
+
+it('starts with an earlier interview\'s setup by sending only its id, so Rails copies the setup, job and career focus', async () => {
+  const mocks = [{ request: { query: START_INTERVIEW_FROM, variables: { fromInterviewId: 'live-session' } },
+    result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], errorCode: null, interview: { ...snapshot, status: 'preparing' } } } } }]
+  const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
+  await act(async () => { expect(await result.current.startFrom('live-session')).toBe('session') })
+  expect(result.current.error).toBeNull()
+})
+it('reports a refused start from an earlier interview with its code', async () => {
+  const mocks = [{ request: { query: START_INTERVIEW_FROM, variables: { fromInterviewId: 'live-session' } },
+    result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: ['Daily limit reached'], errorCode: 'AI_DAILY_LIMIT', interview: null } } } }]
+  const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
+  await act(async () => { expect(await result.current.startFrom('live-session')).toBeNull() })
+  expect(result.current).toMatchObject({ error: 'Daily limit reached', errorCode: 'AI_DAILY_LIMIT' })
 })
 
 describe('useInterviewSession', () => {

@@ -275,19 +275,19 @@ def test_projected_source_requires_the_exact_checked_text() -> None:
         assert prompt_is_covered(source)
 
 
-def test_rails_screened_source_covers_exactly_the_given_text() -> None:
-    """Rails-accepted text has its own trust list, separate from generated-output trust."""
+def test_interview_dialogue_covers_exactly_the_given_text() -> None:
+    """Interview dialogue has its own trust list, separate from generated-output trust."""
     from screening.session import (
         current_session,
         prompt_is_covered,
         trust_generated_source,
-        trust_rails_screened_source,
+        trust_interview_dialogue,
     )
 
     with screening_session():
-        trust_rails_screened_source("Accepted answer")
+        trust_interview_dialogue("Accepted answer")
         session = current_session()
-        assert session.rails_screened_sources == {"Accepted answer"}
+        assert session.interview_dialogue_sources == {"Accepted answer"}
         assert not session.allowed_sources and not session.trusted_generated_sources
         render = lambda values: "Review:\n" + "\n".join(values)
         bind_screened_prompt(["Accepted answer"], render)
@@ -296,5 +296,5 @@ def test_rails_screened_source_covers_exactly_the_given_text() -> None:
         assert not prompt_is_covered("Review:\nAccepted answer\nAccepted answer, edited")
 
         trust_generated_source("Generated question")
-        assert "Generated question" not in session.rails_screened_sources
+        assert "Generated question" not in session.interview_dialogue_sources
         assert "Accepted answer" not in session.trusted_generated_sources

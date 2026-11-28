@@ -207,6 +207,24 @@ class NativeSetupTests(unittest.TestCase):
                 native.start()
             self.assertEqual("redis" in started, expected)
 
+    def test_live_interview_worker_starts_only_when_livekit_is_configured(self):
+        (self.state / "emulators/bin").mkdir(parents=True)
+        (self.state / "emulators/bin/moto_server").touch()
+        for livekit_url, expected in [("", False), ("wss://example.livekit.cloud", True)]:
+            started = {}
+            with patch.dict(os.environ, {"LIVEKIT_URL": livekit_url}), \
+                    patch.object(native, "spawn", side_effect=lambda name, args, cwd, env, started=started: (
+                        started.update({name: (args, env)}) or type("Process", (), {"poll": lambda self: None})())), \
+                    patch.object(native, "require_tools"), patch.object(native, "prepare_database"), \
+                    patch.object(native, "run"), patch.object(native, "wait_port"), \
+                    patch.object(native, "check"), patch.object(native.time, "sleep"), patch("socket.socket"):
+                native.start()
+            self.assertEqual("ai-live" in started, expected)
+            if expected:
+                args, env = started["ai-live"]
+                self.assertIn("live_interviews/worker.py", args)
+                self.assertEqual(env["DB_USERNAME"], "ai_reader")
+
     def test_check_accepts_the_recorded_jobs_process_identity(self):
         self.state.mkdir()
         (self.state / "jobs.pid").write_text(json.dumps({

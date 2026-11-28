@@ -11,8 +11,10 @@ from pydantic_ai.usage import RunUsage
 
 from llm.model_prices import (
     MODEL_PRICES,
+    RealtimeUsage,
     build_model_usage,
     estimate_cost_microdollars,
+    estimate_realtime_cost_microdollars,
     reported_model_name,
 )
 from worker.settings import WorkerSettings
@@ -96,3 +98,35 @@ def test_unpriced_usage_preserves_tokens_without_failing_the_task():
     entry = build_model_usage("openai:unknown-model", RunUsage(input_tokens=100))
     assert entry.input_tokens == 100
     assert entry.cost_microdollars is None
+
+
+def test_realtime_audio_and_text_tokens_use_their_own_rates():
+    """gpt-realtime-2.1-mini bills audio and text tokens, and their cached reads, separately."""
+    cost = estimate_realtime_cost_microdollars(
+        "openai:gpt-realtime-2.1-mini", RealtimeUsage(
+            text_input_tokens=1_000_000, cached_text_input_tokens=1_000_000, audio_input_tokens=1_000_000,
+            cached_audio_input_tokens=1_000_000, text_output_tokens=1_000_000, audio_output_tokens=1_000_000))
+    # $0.60 + $0.06 + $10.00 + $0.30 + $2.40 + $20.00 per million of each.
+    assert cost == 33_360_000
+    assert estimate_realtime_cost_microdollars("openai:gpt-realtime-2.1-mini", RealtimeUsage(audio_input_tokens=1)) == 10
+
+
+def test_realtime_usage_without_an_audio_price_is_unknown():
+    with pytest.raises(KeyError):
+        estimate_realtime_cost_microdollars("openai:gpt-realtime-9", RealtimeUsage(audio_input_tokens=1))
+    with pytest.raises(ValueError):
+        estimate_realtime_cost_microdollars("openai:gpt-5-mini", RealtimeUsage(audio_input_tokens=1))
+    with pytest.raises(ValueError):
+        estimate_realtime_cost_microdollars("openai:gpt-realtime-2.1-mini", RealtimeUsage(text_input_tokens=-1))
+
+
+def test_the_live_interview_models_are_fixed_and_priced():
+    """Rails bills only these two models (services/api/spec/services/interviews/live_conversation_bill_spec.rb
+    checks the same names); a heartbeat naming any other model is refused."""
+    from interviews.live_transcription import MICRODOLLARS_PER_MINUTE
+    from live_interviews.settings import REALTIME_MODEL, TRANSCRIPTION_MODEL
+
+    assert (REALTIME_MODEL, TRANSCRIPTION_MODEL) == ("gpt-realtime-2.1-mini", "gpt-live-transcribe")
+    assert MODEL_PRICES[f"openai:{REALTIME_MODEL}"].audio_input is not None
+    assert MODEL_PRICES[f"openai:{REALTIME_MODEL}"].audio_output is not None
+    assert MICRODOLLARS_PER_MINUTE > 0  # the transcription model is priced per audio minute

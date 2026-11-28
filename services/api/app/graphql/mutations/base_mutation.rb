@@ -5,7 +5,8 @@
 # Index:
 #   - current_user: the authenticated user from context
 #   - payload_from: maps a ServiceResult to `{ <record_key> => value, errors: [...], error_code: ... }`
-#   - error_fields_from: the `errors` and `error_code` part alone, for hand-built payloads
+#   - error_fields_from: the `errors` and `error_code` part alone, for hand-built payloads; an
+#     unknown code raises outside production
 module Mutations
   class BaseMutation < GraphQL::Schema::RelayClassicMutation
     argument_class Types::BaseArgument
@@ -30,9 +31,22 @@ module Mutations
     end
 
     # The `errors` and `error_code` fields for a ServiceResult. Use this for hand-built payloads
-    # so the failure code is mapped in one place.
+    # so the failure code is mapped in one place. A code clients do not know is a bug (a service
+    # meant for clients must not return another service's internal code): it raises outside
+    # production, and in production it is logged and left out; the error message still explains it.
     def error_fields_from(result)
-      { errors: result.errors, error_code: result.code&.to_s }
+      code = result.code&.to_s
+      return { errors: result.errors, error_code: code } if code.nil? || Types::MutationErrorCodeEnum::CODES.include?(code)
+
+      report_unknown_error_code(code)
+      { errors: result.errors, error_code: nil }
+    end
+
+    def report_unknown_error_code(code)
+      message = "#{self.class.name} got error code #{code.inspect}, which is not in MutationErrorCodeEnum::CODES"
+      raise ArgumentError, message unless Rails.env.production?
+
+      Rails.logger.warn(message)
     end
   end
 end

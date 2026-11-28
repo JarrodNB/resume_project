@@ -1,9 +1,15 @@
-# Clarification is question-only help: successful wording must be nonblank and bounded.
+# Clarification is question-only, turn-based help: successful wording must be nonblank and
+# bounded, and a live interview is refused (TurnBasedOnly).
 # Its duplicate-claim guard intentionally precedes expiry checks, preserving the existing
 # recovery contract in which a fresh request finalizes an expired claimed attempt.
 module Interviews
   class CurrentPromptWork
     class Clarification < CurrentPromptWork
+      # Clarification is turn-based help: a live interview is refused before anything is saved.
+      def request(interview:, **options)
+        TurnBasedOnly.refusal(interview) || super
+      end
+
       private
 
       def records(interview) = interview.clarifications

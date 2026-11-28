@@ -69,7 +69,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   it does not establish a general detection advantage over whole-document screening.
   `bind_screened_prompt(sources, render)` grants exact rendered-prompt coverage only when
   every supplied source has an allowed decision, validated generated-output provenance,
-  or an immutable Rails-screened-text grant in this execution. Renderers are trusted application code:
+  or an interview-dialogue grant in this execution. Renderers are trusted application code:
   all untrusted values must come from the supplied source arguments, never closure state.
   Empty sources cannot grant coverage. Unknown history and changed prompts remain guarded.
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
@@ -83,9 +83,9 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   Saved library checks can authorize exact sources reconstructed from their approved fields.
   `trust_generated_source` is only for immutable output from an owned completed AI task;
   never use it for user-editable text or external content.
-  `trust_rails_screened_source` is only for immutable text Rails accepted after a successful
-  screen and hands over through an authenticated grant (completed interview dialogue); it
-  keeps its own session set and never covers editable records.
+  `trust_interview_dialogue` is only for saved interview dialogue handed over through an
+  authenticated, owner-scoped grant to an agent without tools (session feedback); it keeps
+  its own session set and never covers editable records or other workflows.
   A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative
@@ -94,6 +94,18 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 - Report each actual classifier model's usage, including retries and calls before failure.
 
 ## Scoped Exceptions
+
+- Interview dialogue and the live interviewer's instructions are deliberately not screened
+  (a product decision). The interview agents' only actions are moving, restarting or ending
+  the owner's current interview through Rails-checked callbacks (the live interviewer's
+  tools; the feedback agent has none), and they read nothing beyond the owner-scoped inputs
+  dispatched for that interview. So injected text can only change what the same user hears
+  or reads, or steer that user's own current interview, which Rails still checks. This
+  covers live speech (saved as it is spoken), session feedback over turn-based or live
+  answers, and the saved job or role text the live agent reads into its instructions at
+  start. Contact masking, context bounds and owner scoping still apply. Do not flag these
+  paths for missing screening. The exception ends if an interview agent gains a tool that
+  reads other records or acts outside the current interview.
 
 - Job study-guide generation uses bounded frozen descriptions and prior generated questions
   without injection classification. Its input guard enforces text bounds only. It reads no

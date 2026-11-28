@@ -120,6 +120,32 @@ def test_prompt_contains_readable_dialogue_and_reuses_screening(task_dependencie
         assert handle_ai_task(request, dependencies).status == "completed"
 
 
+def test_live_answers_are_trusted_without_a_screen(task_dependencies, monkeypatch):
+    """Live speech is not screened: interview agents only act on the owner's current interview (screening/AGENTS.md)."""
+    from screening.session import current_session, prompt_is_covered
+    from worker import interview_session_feedback_handler as handler
+    grant = saved_grant()
+    grant["conversation_mode"] = "live"
+    grant["questions"][0]["dialogue"] += [{"kind": "follow_up", "content": "What changed?"},
+        {"kind": "answer", "content": "My peers attended."}]
+    def no_screen(*args, **kwargs):
+        raise AssertionError("Interview dialogue must not be screened")
+    monkeypatch.setattr("screening.prompt_guardrail.screen_prompt_text", no_screen)
+    monkeypatch.setattr("screening.screen_user_text.screen_user_message", no_screen)
+    seen = {}
+    def generate(prompt, claim, settings):
+        from schemas.interview_session_feedback import InterviewSessionFeedback
+        seen["covered"] = prompt_is_covered(prompt)
+        seen["trusted"] = set(current_session().interview_dialogue_sources)
+        return InterviewSessionFeedback.model_validate(coaching(grant["questions"][0]["question_id"]))
+    monkeypatch.setattr(handler, "generate_interview_session_feedback", generate)
+    request, dependencies = request_and_dependencies(task_dependencies, grant)
+    result = handle_ai_task(request, dependencies)
+    assert result.status == "completed" and result.usage == []
+    assert seen["covered"]
+    assert any("My peers attended." in source for source in seen["trusted"])
+
+
 def test_provider_timeout_finalizes_failure_without_automatic_retry(task_dependencies, monkeypatch):
     from tests.test_process_task_message import FakeResultQueue
     from worker.main import process_task_message

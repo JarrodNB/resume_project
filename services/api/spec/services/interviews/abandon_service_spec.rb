@@ -70,4 +70,20 @@ RSpec.describe "Interview abandonment" do
     expect(interview.messages).to be_empty
     expect(interview.operations).to be_empty
   end
+
+  it "ends an open live connection with its bill unknown, so the agent leaves" do
+    live = ready_live_interview(create(:user))
+    connection = with_livekit_env do
+      Interviews::JoinLiveService.call(interview: live)
+      live.reload.live_connections.sole
+    end
+    Interviews::ClaimLiveConnectionService.call(connection: connection, room_name: connection.room_name)
+
+    expect(Interviews::AbandonService.call(interview: live)).to be_success
+    expect(connection.reload).to have_attributes(status: "ended", end_reason: "ended_by_candidate")
+    expect(connection.ended_at).to be_present
+    expect(connection.ai_task.ai_usage_attempts.sole).to have_attributes(finalized: true, incomplete: true)
+    refusal = Interviews::RecordLiveHeartbeatService.call(connection: connection, sequence: 1, billed_seconds_delta: 1, usage: [])
+    expect(refusal.code).to eq(:connection_ended)
+  end
 end

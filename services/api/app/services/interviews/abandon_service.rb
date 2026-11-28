@@ -1,6 +1,7 @@
 # Stops an unfinished interview without deleting its accounting evidence. Audio becomes
 # unavailable in the transaction; bounded cleanup deletes objects later and reaps late writes.
-# Terminal task changes record owner-visible outcomes in the same transaction.
+# Terminal task changes record owner-visible outcomes in the same transaction. An open live
+# room is closed too (bill unknown), so the live agent is refused and leaves.
 module Interviews
   class AbandonService < ApplicationService
     def initialize(interview:)
@@ -14,6 +15,7 @@ module Interviews
         next success(@interview) if @interview.abandoned?
         next failure("Interview cannot be abandoned") unless %w[preparing ready active].include?(@interview.status) && @interview.expires_at > Time.current
 
+        FinishLiveService.close_open(@interview, reason: "ended_by_candidate")
         @interview.questions.order(:position).lock.load
         @interview.operations.order(:id).lock.each do |operation|
           operation.ai_task&.lock!

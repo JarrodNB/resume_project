@@ -1,30 +1,47 @@
 """Send fixed-origin Rails execution callbacks with bounded requests and retries.
 
 Chat and interview adapters own their claim and acceptance contracts. This module
-owns credentials, byte limits, deadlines and the shared lease/accounting callbacks.
+owns credentials, byte limits, deadlines (RailsCallbackTransport) and the shared
+lease/accounting callbacks for claimed operations (RailsExecutionClient).
 """
 import asyncio
 import json
+import re
 from typing import Any
 from urllib.parse import quote, urlsplit
 
 import httpx
 
+_ERROR_CODE = re.compile(r"[a-z_]{1,64}")
+
 
 class RailsClientError(RuntimeError):
-    """Rails rejected a request; response bodies may contain private data."""
+    """Rails rejected a request; response bodies may contain private data.
 
-    def __init__(self, status_code: int):
-        self.status_code = status_code
+    Only the body's machine-readable `code` (a short snake_case word, or None) is kept."""
+
+    def __init__(self, status_code: int, code: str | None = None):
+        self.status_code, self.code = status_code, code
         super().__init__(f"Rails interview request failed ({status_code})")
+
+
+def _refusal_code(body: bytes) -> str | None:
+    try:
+        code = json.loads(body).get("code")
+    except (ValueError, UnicodeError, AttributeError):
+        return None
+    return code if isinstance(code, str) and _ERROR_CODE.fullmatch(code) else None
 
 
 class RailsTransportError(RuntimeError):
     """No trustworthy receipt arrived; reconcile status before further work."""
 
 
-class RailsExecutionClient:
-    """Share transport and execution callbacks without domain-specific operations."""
+class RailsCallbackTransport:
+    """Send bounded, bearer-authenticated callbacks to one fixed Rails origin.
+
+    Holds only the transport (origin, secret, size limits, deadline, retries), so a client
+    that is not for claimed operations, such as the live interview agent's, exposes only its own calls."""
 
     def __init__(self, origin: str, secret: str, *, transport=None, max_body_bytes=512_000,
                  namespace="interviews"):
@@ -65,18 +82,22 @@ class RailsExecutionClient:
     async def aclose(self):
         await self._client.aclose()
 
-    async def _request(self, method, path, payload=None, *, retry=True, allow_boolean=False):
+    async def _request(self, method, path, payload=None, *, retry=True, retry_busy=True,
+                       allow_boolean=False):
+        """Send one callback. `retry` resends it once after a lost connection and, unless
+        `retry_busy` is False (a caller that retries Rails' 503 itself), once after a 503."""
         # A total deadline also bounds a server that trickles bytes indefinitely.
         try:
             async with asyncio.timeout(25):
                 return await self._bounded_request(
-                    method, path, payload, retry=retry, allow_boolean=allow_boolean
+                    method, path, payload, retry=retry, retry_busy=retry_busy,
+                    allow_boolean=allow_boolean,
                 )
         except TimeoutError:
             raise RailsTransportError("Rails request deadline exceeded") from None
 
     async def _bounded_request(
-        self, method, path, payload=None, *, retry=True, allow_boolean=False
+        self, method, path, payload=None, *, retry=True, retry_busy=True, allow_boolean=False
     ):
         body = (
             json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
@@ -98,10 +119,10 @@ class RailsExecutionClient:
                         chunks.extend(chunk)
                         if len(chunks) > self._limit:
                             raise RailsTransportError("Rails response exceeds size limit")
-                    if response.status_code == 503 and retry and attempt == 0:
+                    if response.status_code == 503 and retry and retry_busy and attempt == 0:
                         continue
                     if response.status_code != 200:
-                        raise RailsClientError(response.status_code)
+                        raise RailsClientError(response.status_code, _refusal_code(chunks))
                     result = json.loads(chunks)
                     if not isinstance(result, dict) and not (
                         allow_boolean and isinstance(result, bool)
@@ -114,6 +135,9 @@ class RailsExecutionClient:
             except (ValueError, UnicodeError):
                 raise RailsTransportError("Invalid Rails receipt") from None
         raise RailsTransportError("Rails receipt unavailable")
+
+class RailsExecutionClient(RailsCallbackTransport):
+    """Share transport and execution callbacks without domain-specific operations."""
 
     @staticmethod
     def _path(operation_id, action=""):

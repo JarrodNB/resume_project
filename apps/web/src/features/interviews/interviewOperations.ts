@@ -3,11 +3,11 @@ import { graphql } from '@/graphql/generated'
 
 export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
-    id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
+    id status interviewType conversationMode executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
     feedback { id status content attemptCount aiTaskId deadline }
     setup { questionCount questionFormat difficulty interviewer focusAreas }
     jobContext { id title company description requirements responsibilities niceToHaves }
-    questions { id content questionType position acceptedAnswerCount skipped }
+    questions { id content questionType position acceptedAnswerCount skipped liveFeedback }
     messages { id questionId kind position content avoided acknowledgement spokenContent careerReferences { id status canRetry attemptCount aiTaskId deadline references { sourceType sourceId title body } } clarification { id status explanation attemptCount aiTaskId deadline } }
     operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry reviewTranscript expectedRevision }
   }
@@ -19,7 +19,11 @@ export const INTERVIEW_UPDATED = graphql(`
   subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }
 `)
 export const START_INTERVIEW = graphql(`
-  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId}) { interview { ...InterviewSnapshot } errors errorCode } }
+  mutation StartInterview($careerFocus: String, $setup: InterviewSetupInput, $jobId: ID, $conversationMode: ConversationModeEnum) { startInterview(input: {careerFocus: $careerFocus, setup: $setup, jobId: $jobId, conversationMode: $conversationMode}) { interview { ...InterviewSnapshot } errors errorCode } }
+`)
+/** Starts a turn-based interview with the same setup, saved job and career focus as an earlier owned interview; Rails copies them. */
+export const START_INTERVIEW_FROM = graphql(`
+  mutation StartInterviewFrom($fromInterviewId: ID!) { startInterview(input: {fromInterviewId: $fromInterviewId}) { interview { ...InterviewSnapshot } errors errorCode } }
 `)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {
@@ -50,6 +54,24 @@ export const INTERVIEW_PLAYBACK = graphql(`
 export const BEGIN_INTERVIEW = graphql(`
   mutation BeginInterview($interviewId: ID!) {
     beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }
+  }
+`)
+
+/** Live interviews only: a LiveKit address and short-lived join token; the first join starts the interview. */
+export const JOIN_LIVE_INTERVIEW = graphql(`
+  mutation JoinLiveInterview($interviewId: ID!) {
+    joinLiveInterview(input: {interviewId: $interviewId}) { url token roomName expiresAt interview { ...InterviewSnapshot } errors errorCode }
+  }
+`)
+
+/** Live interview seconds the viewer has left (trial total or today's paid minutes); a new live interview needs 300. */
+export const LIVE_INTERVIEW_ALLOWANCE = graphql(`
+  query LiveInterviewAllowance { me { id liveInterviewRefusal } }
+`)
+
+export const END_LIVE_INTERVIEW = graphql(`
+  mutation EndLiveInterview($interviewId: ID!) {
+    endLiveInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors errorCode }
   }
 `)
 

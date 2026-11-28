@@ -4,6 +4,7 @@
 # Index:
 #   - id, email (sign-in), name
 #   - billing: plan and dates from Billing::ResolvePlanService
+#   - live_interview_refusal: why a live interview can't start now (Interviews::LiveAllowance)
 #   - profile: contact_email, phone, location, links, summary; derived job search suggestions
 module Types
   class UserType < Types::BaseObject
@@ -22,7 +23,12 @@ module Types
 
     field :billing, Types::BillingType, null: false, description: "Plan and dates only; never limits or spend."
 
+    field :live_interview_refusal, String, null: true,
+          description: "Why a new live interview can't start now (the live limit is reached), or null when it can. Never an amount."
+
     def billing = Billing::ResolvePlanService.call(user: object).value
+
+    def live_interview_refusal = Interviews::LiveAllowance.start_refusal(object)
 
     # Returns structured links while keeping legacy string rows readable.
     def links

@@ -29,7 +29,7 @@ module Interviews
             next success(record)
           end
           next failure("References retry limit reached") if !refresh && record.retry_count >= 1
-          admission = preparation_admission(interview)
+          admission = PreparationAdmission.call(interview)
           next admission unless admission.success?
           allowance = check_allowance(user: interview.user, existing_task: admission.value)
           next allowance unless allowance.success?

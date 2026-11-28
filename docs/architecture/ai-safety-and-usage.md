@@ -20,7 +20,7 @@ The check runs these in order and fails with the first one that applies:
 2. **Daily spend cap.** One hidden cap per user per UTC day, shared by general AI and spoken
    interviews: trial `TRIAL_DAILY_AI_SPEND_CAP_USD` (fallback $0.25), paid `PAID_DAILY_AI_SPEND_CAP_USD`
    (fallback $2.00). `AiUsage::DailySpend` adds the user's known task costs (general AI and every
-   spoken interview stage) and background embedding receipts created today. The worker estimates each
+   spoken interview stage except live conversations) and background embedding receipts created today. The worker estimates each
    request's cost from its token usage and a per-model price table (`services/ai/llm/model_prices.py`)
    and reports it with attempt reports, including unsuccessful attempts. Missing provider usage or prices
    makes accounting incomplete; unknown costs do not block tasks below the cap. When the cap is
@@ -41,7 +41,12 @@ interviews have their own start and in-flight limits (`INTERVIEW_SESSIONS_PER_HO
 `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`, fallback 3) but share the daily spend cap above. Written interview
 question practice remains general AI. Every spoken stage still has its own durable cost and unknown
 usage records; only its session's hourly admission is shared. Legacy fixture operations also
-use the interview limits, retaining their existing individual hourly admissions. See
+use the interview limits, retaining their existing individual hourly admissions. Live
+interviews add a hidden **live budget** in dollars of actual live cost (US$0.50 over the trial,
+US$1.00 a UTC day paid; US$0.20 left to start), never shown to users. It is live mode's only per-user limit: live
+conversation costs are recorded on their task and the ledger (and count toward the trial site-wide
+limit) but are left out of the hidden daily cap total, so a live session never blocks other AI work. See
+[time, live budget and heartbeats](interview-sessions.md#time-live-budget-and-heartbeats),
 [spoken session accounting](interview-sessions.md#http-execution-accounting) and
 [cost accounting and verified receipt reconciliation](ai-cost-accounting.md). The retained
 paid verification database has an additional global allowance/unknown-receipt stop independent
@@ -152,7 +157,12 @@ requests get a JSON 429 with `Retry-After`.
   workflow; optional batches are omitted together. Complete-source caps still apply
   when every field is already approved. One-off messages and uploads keep using the
   direct text screen. Generated output is trusted through its validated server provenance;
-  immutable accepted user text has the separate `trust_rails_screened_source` API.
+  saved interview dialogue has the separate `trust_interview_dialogue` API. Interview dialogue
+  and live interviewer instructions are deliberately not screened: the interview agents' only
+  actions are moving, restarting or ending the owner's current interview through Rails-checked
+  callbacks, and they read nothing beyond the dispatched owner-scoped inputs. The exception
+  ends if an interview agent gains a tool that reads other records or acts outside the current
+  interview (see `services/ai/screening/AGENTS.md`).
   Only session and record-screening code mutate source coverage directly.
   Large sources use 4,000-character chunks with 300 characters of overlap by default.
   A live synthetic comparison of 2,000, 4,000, and whole resumes found identical decisions

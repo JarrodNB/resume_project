@@ -5,6 +5,9 @@ development: &recurring
   cleanup_interviews:
     class: Interviews::CleanupJob
     schedule: every minute
+  recover_live_interview_connections:
+    class: Interviews::RecoverLiveConnectionsJob
+    schedule: every minute
   prune_ai_stream_grants:
     class: AiExecutions::PruneStreamGrantsJob
     schedule: every minute

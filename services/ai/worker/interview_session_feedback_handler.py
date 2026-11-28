@@ -1,7 +1,8 @@
 """Generate coaching from canonical dialogue after interview-help admission.
 
 interview_help owns claims and saved-context loading. This module validates coaching
-sources, reuses their screening and returns bounded feedback.
+sources, trusts the saved dialogue without a fresh screen (the feedback agent has no
+tools or side effects) and returns bounded feedback.
 """
 
 
@@ -12,7 +13,7 @@ from model_inputs.interview_session_feedback import saved_feedback_sources
 from schemas.interview_session_feedback import FeedbackClaim
 from screening.session import (
     bind_screened_prompt,
-    trust_rails_screened_source,
+    trust_interview_dialogue,
     within_screening_session,
 )
 from worker.queue_messages import AiResultMessage
@@ -31,10 +32,10 @@ def coach_claimed_interview(task, dependencies, saved):
             error_message="Saved interview feedback context is invalid",
         )
     sources = saved_feedback_sources(claim)
-    # The authenticated claim and owned DB read establish accepted dialogue provenance.
-    # Do not reclassify accepted answers as new text.
+    # Interview dialogue is not screened (live speech never was): the feedback agent has no
+    # tools or side effects. The authenticated claim and owned read scope it to the owner.
     for source in sources:
-        trust_rails_screened_source(source)
+        trust_interview_dialogue(source)
     prompt = bind_screened_prompt(
         sources, lambda values: "Review this completed interview:\n\n" + "\n\n".join(values)
     )

@@ -29,7 +29,7 @@ module Interviews
         end
         question = questions.first
         message = interview.messages.create!(question: question, kind: "opening", position: 0,
-          semantic_key: "question:#{question.id}:opening", content: question.content)
+          semantic_key: QuestionProgression.opening_key(question), content: question.content)
         operation = interview.operations.create!(kind: "speech", question: question, message: message)
         AiExecutions::ScheduleOperationService.call(operation: operation) if SpeechPlayback.provider?(interview)
         success(interview)

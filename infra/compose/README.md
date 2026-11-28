@@ -7,8 +7,45 @@ Runs on the single EC2 server created by `../terraform`. Reach the server with
 
 Merging to master (a release PR from `develop`) runs `.github/workflows/deploy.yml`: it builds the four images, pushes them
 to ECR tagged with the commit, copies these compose files to the server, restarts the stack
-and checks the three public addresses. AWS access is a role GitHub assumes for runs on master
-only (`../terraform/modules/github`), so no AWS keys are stored in GitHub.
+and checks the three public addresses. One image serves `ai-worker`, `ai-http`, `ai-mcp` and
+`ai-live`, so a change under `services/ai` restarts all four. The restart is
+`restart-changed-services.sh`: it runs `docker compose up -d` for every service except `ai-live`,
+then handles `ai-live` itself, because stopping it waits for its running live interviews:
+
+- If `ai-live`'s image or config did not change, nothing happens to it.
+- If it changed, the new `ai-live` starts next to the old one. Once the new one has registered
+  with LiveKit (within 2 minutes, or the deploy fails and the old one keeps serving), the old one
+  is renamed `...-ai-live-N-draining-<unix time>` and gets one SIGTERM. It takes no new
+  interviews, so LiveKit sends them all to the new worker, and it exits by itself when its
+  running interviews end, after 50 minutes at most (the 45-minute wall-clock cap plus a margin,
+  `DRAIN_SECONDS` in `services/ai/live_interviews/worker.py`). The deploy does not wait for it,
+  and the next deploy removes the exited container.
+
+So a deploy never leaves new live interviews without an interviewer and never cuts off a running
+one. While an old `ai-live` is draining, the two workers use more memory than one (it shows in
+`docker compose ps` as a second `ai-live`). Do not run a plain `docker compose up -d`, `restart`
+or `down` that includes `ai-live` during that time: compose would stop the draining container
+again, and a second stop signal makes the worker exit at once. `script/test_restart_changed_services.py`
+checks the script against a fake `docker` (`python3 -m unittest discover -s script -p
+test_restart_changed_services.py -v` from the repository root); run it and `shellcheck` after
+changing the script. AWS access is a role GitHub
+assumes for runs on master only (`../terraform/modules/github`), so no AWS keys are stored in
+GitHub.
+
+## Before the first release with live interviews
+
+Deploys do not run Terraform. The server stays a t3.small (2 GiB): `ai-live` keeps one warm
+interview process (`IDLE_PROCESSES` in `services/ai/live_interviews/worker.py`), and a deploy
+briefly runs a second `ai-live` while the old one drains. Watch memory (`free -m`, `docker stats`)
+after the first release and during the first deploy that drains a live interview; if the server
+swaps, raise `instance_type` in `../terraform/variables.tf`. One thing must be done by hand before
+the release that adds `ai-live` is merged to `master`:
+
+1. **Add the LiveKit secrets.** Put `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` in
+   `/opt/app/.env` and in Parameter Store under `/jobapp/prod/` (see [Secrets](#secrets)). A
+   container reads `.env` only when it starts: the release's deploy recreates `api` (its image
+   changes) and starts `ai-live`, so both pick them up. Added after the release instead, they
+   need `api` recreated by hand.
 
 ## First-time setup on the server
 
@@ -39,6 +76,13 @@ under `/jobapp/prod/` (the server can read it, not write it). The Stripe secrets
 (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`) need a copy there too when you add
 them. When you change a secret, change both. A container reads `.env` only when it starts, so recreate the services that use the
 value. Restore tested from the S3 backups on 2026-11-20.
+
+Live interviews need `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`. Production uses
+LiveKit Cloud rather than a LiveKit server of its own: take the project URL (the `wss://...` address
+browsers join) and an API key pair from the LiveKit Cloud project's settings. The `api` service
+signs room joins with them and `ai-live` connects with them, so both read the same three values
+from `.env`. Put each in Parameter Store under `/jobapp/prod/` too, like the other secrets. The
+server opens no extra ports for this: `ai-live` only connects out.
 
 `settings.env` holds the settings that are not secret (registry, buckets, domain, AI models). It is not in git. Its copy is
 in Parameter Store under `/jobapp/prod/settings/`, and `bash restore-secrets.sh` writes it, the same way it writes `.env`.

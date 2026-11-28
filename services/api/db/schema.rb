@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -137,7 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text, 'interview_session_feedback'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying, 'interview_session_feedback'::character varying, 'interview_live_conversation'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -430,6 +430,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
     t.index ["operation_id"], name: "index_interview_execution_attempts_on_operation_id"
   end
 
+  create_table "interview_live_connections", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.string "room_name", null: false
+    t.string "status", default: "authorized", null: false
+    t.datetime "connected_at"
+    t.datetime "last_heartbeat_at"
+    t.datetime "ended_at"
+    t.integer "billed_seconds", default: 0, null: false
+    t.string "end_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "heartbeat_sequence", default: 0, null: false
+    t.uuid "observation_id"
+    t.uuid "ai_task_id"
+    t.boolean "usage_gap", default: false, null: false
+    t.datetime "authorized_at"
+    t.index ["ai_task_id"], name: "index_interview_live_connections_on_ai_task_id", unique: true
+    t.index ["interview_session_id", "created_at"], name: "idx_on_interview_session_id_created_at_d5f0267dcc"
+    t.index ["interview_session_id"], name: "index_interview_live_connections_one_open_per_session", unique: true, where: "((status)::text <> 'ended'::text)"
+    t.index ["observation_id"], name: "index_interview_live_connections_on_observation_id", unique: true
+    t.index ["room_name"], name: "index_interview_live_connections_on_room_name", unique: true
+    t.check_constraint "billed_seconds >= 0", name: "interview_live_connection_billed_seconds"
+    t.check_constraint "end_reason IS NULL OR (end_reason::text = ANY (ARRAY['completed'::character varying, 'time_limit'::character varying, 'allowance'::character varying, 'ended_by_candidate'::character varying, 'disconnected'::character varying, 'failed'::character varying, 'idle'::character varying]::text[]))", name: "interview_live_connection_end_reason"
+    t.check_constraint "heartbeat_sequence >= 0", name: "interview_live_connection_heartbeat_sequence"
+    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'connected'::character varying, 'ended'::character varying]::text[])", name: "interview_live_connection_status"
+  end
+
   create_table "interview_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "execution_attempt_id", null: false
     t.uuid "observation_id", null: false
@@ -634,11 +661,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
     t.datetime "skipped_at"
     t.string "skip_submission_key"
     t.integer "skip_expected_revision"
+    t.text "live_feedback"
+    t.integer "live_retry_count", default: 0, null: false
     t.index ["interview_session_id", "id"], name: "interview_session_question_owner_identity", unique: true
     t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_ef5940a581", unique: true
     t.index ["interview_session_id", "skip_submission_key"], name: "interview_question_skip_identity", unique: true
     t.index ["interview_session_id"], name: "index_interview_session_questions_on_interview_session_id"
     t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 3", name: "interview_session_question_counters"
+    t.check_constraint "live_feedback IS NULL OR char_length(live_feedback) >= 1 AND char_length(live_feedback) <= 1500", name: "interview_question_live_feedback"
+    t.check_constraint "live_retry_count >= 0 AND live_retry_count <= 2", name: "interview_question_live_retry_count"
     t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text, 'screening'::character varying::text])", name: "interview_question_type"
   end
 
@@ -662,9 +693,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
     t.uuid "job_id"
     t.string "career_focus", default: "", null: false
     t.string "preparation_kind", default: "fictional_role", null: false
+    t.string "conversation_mode", default: "turn_based", null: false
     t.index ["job_id"], name: "index_interview_sessions_on_job_id"
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
     t.check_constraint "char_length(career_focus::text) <= 200", name: "interview_career_focus_length"
+    t.check_constraint "conversation_mode::text = ANY (ARRAY['turn_based'::character varying, 'live'::character varying]::text[])", name: "interview_conversation_mode"
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "preparation_kind::text = ANY (ARRAY['saved_job'::character varying::text, 'fictional_role'::character varying::text])", name: "interview_preparation_kind"
@@ -1064,6 +1097,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_26_080000) do
   add_foreign_key "interview_clarifications", "interview_session_messages", column: "message_id"
   add_foreign_key "interview_clarifications", "interview_sessions"
   add_foreign_key "interview_execution_attempts", "interview_session_operations", column: "operation_id", on_delete: :cascade
+  add_foreign_key "interview_live_connections", "ai_tasks"
+  add_foreign_key "interview_live_connections", "interview_sessions"
   add_foreign_key "interview_provider_attempts", "interview_execution_attempts", column: "execution_attempt_id", on_delete: :cascade
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"

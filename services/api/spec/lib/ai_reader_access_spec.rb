@@ -123,6 +123,14 @@ RSpec.describe AiReaderAccess do
     end
   end
 
+  it "reads a live interview's mode and connection state but never its room name or billing" do
+    expect(select_as_ai_reader("SELECT conversation_mode FROM interview_sessions")).to eq([])
+    expect(select_as_ai_reader("SELECT id, interview_session_id, status FROM interview_live_connections")).to eq([])
+    %w[room_name billed_seconds].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM interview_live_connections") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+  end
+
   it "reads only required generation and feedback sources from written practice records" do
     expect(select_as_ai_reader("SELECT id, user_id, number, set_type, origin, created_at FROM interview_question_sets")).to eq([])
     expect(select_as_ai_reader("SELECT id, interview_question_set_id, question_text, question_revision, answer_revision, position, retired_at, answer_text, answer_format, answer_drafts, screened_fields FROM interview_questions")).to eq([])

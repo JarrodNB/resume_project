@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import SparkMD5 from 'spark-md5'
 import { PLAN_ENDED_ERROR_CODE, PlanEndedError } from '@/lib/planEnded'
-import type { InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
+import type { ConversationModeEnum, InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION, SKIP_QUESTION } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, START_INTERVIEW_FROM, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION, SKIP_QUESTION } from './interviewOperations'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, type PendingSubmission } from './pendingSubmission'
 
@@ -23,19 +23,34 @@ function requirePayload<T extends { errors: string[]; errorCode?: string | null 
 
 export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
+  const [mutateFrom, { loading: loadingFrom }] = useMutation(START_INTERVIEW_FROM)
   const [error, setError] = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<string | null>(null)
-  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string) {
+  /** Starts preparation; `conversationMode` is `TURN_BASED` (default) or `LIVE`. */
+  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string, conversationMode: ConversationModeEnum = 'TURN_BASED') {
     setError(null)
     setErrorCode(null)
     try {
-      const payload = (await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, ...(jobId ? { jobId } : {}) } })).data?.startInterview
+      const payload = (await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, conversationMode, ...(jobId ? { jobId } : {}) } })).data?.startInterview
       if (payload?.errors.length) setErrorCode(payload.errorCode ?? null)
       return requirePayload(payload).interview?.id ?? null
     }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }
   }
-  return { start, loading, error, errorCode }
+  /** Starts a turn-based interview with the same setup, saved job and career focus as the owned
+   * interview `fromInterviewId`; Rails copies them (and ends that interview's live room if it was
+   * one), so only the id is sent. */
+  async function startFrom(fromInterviewId: string) {
+    setError(null)
+    setErrorCode(null)
+    try {
+      const payload = (await mutateFrom({ variables: { fromInterviewId } })).data?.startInterview
+      if (payload?.errors.length) setErrorCode(payload.errorCode ?? null)
+      return requirePayload(payload).interview?.id ?? null
+    }
+    catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }
+  }
+  return { start, startFrom, loading: loading || loadingFrom, error, errorCode }
 }
 
 /** Time allowed to upload a recording. Slow connections need more than a fixed minute for a

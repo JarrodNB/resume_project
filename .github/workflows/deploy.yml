@@ -114,14 +114,16 @@ jobs:
           tar czf compose.tgz -C infra/compose --exclude=.env --exclude=settings.env --exclude=.gitignore .
           aws s3 cp --only-show-errors compose.tgz "s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz"
 
-      # `compose up -d` only recreates services whose image tag or config changed.
+      # restart-changed-services.sh runs `compose up -d`, which only recreates services whose image
+      # tag or config changed. A changed ai-live starts next to the old one, which drains its live
+      # interviews in the background, so the deploy does not wait for them.
       - name: Restart changed services
         env:
           TAGS: ${{ needs.plan.outputs.tags }}
         run: |
           SERVER=$(aws ec2 describe-instances --filters Name=tag:Name,Values=jobapp Name=instance-state-name,Values=running --query 'Reservations[0].Instances[0].InstanceId' --output text)
           TAGENV="API_TAG=$(jq -r .api <<<"$TAGS") AI_TAG=$(jq -r .ai <<<"$TAGS") WEB_TAG=$(jq -r .web <<<"$TAGS") LANDING_TAG=$(jq -r .landing <<<"$TAGS")"
-          CMD="set -e; cd /opt/app && aws s3 cp --only-show-errors s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz - | tar xz && set -a && . ./.env && . ./settings.env && set +a && aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY} >/dev/null && export ${TAGENV} && docker compose pull -q && docker compose up -d --remove-orphans && docker image prune -af --filter until=12h >/dev/null && docker compose ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'"
+          CMD="set -e; cd /opt/app && aws s3 cp --only-show-errors s3://jobapp-backups-016170038537/deploy/compose-${GITHUB_SHA}.tgz - | tar xz && set -a && . ./.env && . ./settings.env && set +a && aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY} >/dev/null && export ${TAGENV} && docker compose pull -q && bash restart-changed-services.sh && docker image prune -af --filter until=12h >/dev/null && docker compose ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'"
           ID=$(aws ssm send-command --instance-ids "$SERVER" --document-name AWS-RunShellScript \
             --parameters "$(jq -cn --arg c "$CMD" '{commands:[$c],executionTimeout:["900"]}')" \
             --query Command.CommandId --output text)

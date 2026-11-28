@@ -7,7 +7,8 @@ class InterviewSession < ApplicationRecord
   before_destroy -> { Interviews::SessionFeedback.new.purge(interview: self, reason: :deleted) }, prepend: true
   STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
-  attr_readonly :execution_mode, :execution_config, :setup_config, :preparation_kind
+  CONVERSATION_MODES = %w[turn_based live].freeze
+  attr_readonly :execution_mode, :execution_config, :setup_config, :preparation_kind, :conversation_mode
   validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
   validates :execution_config, inclusion: { in: ->(session) { [ Interviews::ExecutionConfiguration::PRESETS[session.execution_mode] ] } }
   validates :career_focus, length: { maximum: 200 }
@@ -21,8 +22,10 @@ class InterviewSession < ApplicationRecord
   has_many :clarifications, class_name: "InterviewClarification", dependent: :destroy
   has_many :operations, class_name: "InterviewSessionOperation", dependent: :destroy
   has_many :transcription_captures, class_name: "InterviewTranscriptionCapture", dependent: :destroy
+  has_many :live_connections, class_name: "InterviewLiveConnection", dependent: :destroy
   enum :status, STATUSES.index_with(&:itself), validate: true
   enum :interview_type, INTERVIEW_TYPES.index_with(&:itself), validate: true
+  enum :conversation_mode, CONVERSATION_MODES.index_with(&:itself), validate: true, prefix: :conversation
   validates :expires_at, presence: true
   validates :revision, :current_question_position, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :answer_cap, inclusion: { in: 1..3 }

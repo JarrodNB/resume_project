@@ -32,17 +32,24 @@ def reviewed_rates():
 
 
 def check_rates():
-    """Return mismatched rates using isolated usage for every priced token category."""
+    """Return mismatched rates using isolated usage for every priced token category (audio
+    categories mark all of their tokens as audio)."""
     issues = []
     for provider, model, rates in reviewed_rates():
         for kind, rate in rates.items():
             fields = {"input_tokens": 0, "output_tokens": 0}
-            if kind == "output":
+            if kind in {"output", "audio_output"}:
                 fields["output_tokens"] = 1_000
+                if kind == "audio_output":
+                    fields["output_audio_tokens"] = 1_000
             else:
                 fields["input_tokens"] = 1_000
-                if kind in {"cached_input", "cache_write"}:
-                    fields["cache_read_tokens" if kind == "cached_input" else "cache_write_tokens"] = 1_000
+                if kind in {"cached_input", "cache_write", "cached_audio_input"}:
+                    fields["cache_write_tokens" if kind == "cache_write" else "cache_read_tokens"] = 1_000
+                if kind in {"audio_input", "cached_audio_input"}:
+                    fields["input_audio_tokens"] = 1_000
+                if kind == "cached_audio_input":
+                    fields["cache_audio_read_tokens"] = 1_000
             try:
                 actual = calc_price(Usage(**fields), model, provider_id=provider).total_price * 1_000
                 if actual != rate:

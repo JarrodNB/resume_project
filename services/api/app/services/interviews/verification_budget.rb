@@ -1,6 +1,7 @@
 # Record conservative cost estimates for each provider call and reconcile them with actual usage.
 # This is bookkeeping only: it does not cap or pause spending. Call inside the owner/operation
-# transaction; reconciliation takes a shared lock and no provider work runs while it is held.
+# transaction; reconciliation takes one exclusive transaction-level advisory lock (every
+# caller waits for it in turn) and no provider work runs while it is held.
 module Interviews
   module VerificationBudget
     LOCK_ID = 741_009
@@ -17,7 +18,11 @@ module Interviews
       %w[screening typesafe jev-1.13.0] => 10_000,
       %w[screening openai gpt-5-nano] => 50_000,
       %w[interviewer openai gpt-6-luna] => 50_000,
-      %w[interviewer openai gpt-6.1-terra] => 150_000 }.freeze
+      %w[interviewer openai gpt-6.1-terra] => 150_000,
+      # One live connection: up to 25 counted minutes of gpt-realtime-2.1-mini audio in and out
+      # (its context is re-read every reply, mostly as cached input) plus the candidate's input
+      # transcription. A deliberately generous US$2.00 estimate, not a provider ceiling.
+      %w[live_conversation openai gpt-realtime-2.1-mini] => 2_000_000 }.freeze
 
     # Records the estimate for one dispatch. It never blocks on other calls' usage:
     # an unresolved or failed call must not stop every user. Per-user allowances still

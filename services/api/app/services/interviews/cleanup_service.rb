@@ -1,6 +1,7 @@
 # Removes expired interview content and private audio in bounded batches. Failed object
 # deletion stays durable for retry; billing identities survive after dialogue is scrubbed.
-# Terminal task changes record owner-visible outcomes in the same transaction.
+# Terminal task changes record owner-visible outcomes in the same transaction. Expiry also
+# closes an open live room (bill unknown).
 module Interviews
   class CleanupService < ApplicationService
     def initialize(limit: 10, storage: MediaStorage.new)
@@ -74,6 +75,7 @@ module Interviews
         interview.lock!
         return false if interview.content_purged_at || interview.expires_at > Time.current
 
+        FinishLiveService.close_open(interview, reason: "failed")
         interview.questions.order(:position).lock.load
         interview.operations.order(:id).lock.each do |operation|
           operation.ai_task&.with_lock do
@@ -95,7 +97,7 @@ module Interviews
               error_message: "interview_expired", completed_at: task.completed_at || Time.current })
           end
         end
-        interview.questions.update_all(content: "[expired]")
+        interview.questions.update_all(content: "[expired]", live_feedback: nil)
         interview.messages.update_all(content: "[expired]", acknowledgement: nil)
         interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, career_focus: "", prepared_role: {}, content_purged_at: Time.current)
       end

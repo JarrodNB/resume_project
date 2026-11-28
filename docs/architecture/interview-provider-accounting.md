@@ -94,6 +94,8 @@ Rails uses server-owned reservation policies, never caller-provided prices:
   bounded prompts, with OpenAI output capped at 1,024 tokens for dialogue/screening or
   4,096 for the complete preparation plan per concrete request.
   They are estimates rather than hard provider ceilings; actual usage is reconciled.
+- gpt-realtime-2.1-mini (`live_conversation`): 2,000,000 microdollars per live connection (see
+  [live interviews](#live-interviews)).
 - All other stage/model/provider combinations fail closed. No generative fallback or
   configurable pricing is enabled by this policy.
 
@@ -129,6 +131,47 @@ a public reconciliation endpoint, or an inferred zero charge. The helper require
 transaction so its transaction-scoped advisory lock remains held until the update commits.
 If reliable evidence is unavailable, keep the actual cost unknown. Never delete
 ledger rows. Old fake QA data remain retained offline.
+
+## Live interviews
+
+The live interviewer (`ai-live`) talks to OpenAI's realtime API through LiveKit Agents, not
+through these HTTP adapters, so its accounting follows the live transcription capture's shape
+(one task and observation per admitted connection) rather than operation-scoped provider
+attempts:
+
+- **Admission.** When the agent first claims a live connection, Rails
+  (`Interviews::LiveConversationBill.open`) creates one `interview_live_conversation` AI task
+  (sharing the interview's hourly admission like other interview child tasks), one observation
+  ID stored on the connection, its `InterviewVerificationReservation` under the stage
+  `live_conversation`, provider `openai`, model `gpt-realtime-2.1-mini` (2,000,000
+  microdollars, a deliberately generous US$2.00 estimate for 25 counted minutes of audio plus
+  input transcription, not a provider ceiling), and an unfinished usage report for that
+  observation. The hidden daily spend cap is not checked there: the hidden live budget (counted from these
+  same live costs) is a live session's limit, and live costs are left out of the daily cap total (`AiUsage::DailySpend`).
+  The task stays queued while the connection is open but runs no work, so it never takes one of
+  the interview's in-flight operation slots.
+- **Usage.** Each heartbeat carries priced deltas, at most one per model:
+  `gpt-realtime-2.1-mini` (`input_tokens`, `cached_input_tokens`, `output_tokens`,
+  `cost_microdollars`) and `gpt-live-transcribe` (`audio_milliseconds`, `cost_microdollars`, or
+  token counts with no cost). Rails adds them to the report's running entries (stage
+  `live_conversation`, one entry per model), which moves the task's known totals, so cost
+  reports include a running interview. Heartbeats apply once per sequence. A
+  delta without a price leaves that model's cost unknown for the rest of the connection. Both
+  model names are fixed in the AI service, not settings; a heartbeat naming any other model is
+  refused with the code `unknown_usage_model` and logged as an error on both sides.
+- **Prices.** The AI service prices from LiveKit Agents 1.9's running `AgentSession.usage`
+  (`LLMModelUsage` with audio, text and cached-read token splits; `STTModelUsage` with audio
+  seconds for the realtime session's input transcription). Per million tokens:
+  audio input US$10.00, cached audio input US$0.30, audio output US$20.00, text input US$0.60,
+  cached text input US$0.06, text output US$2.40 (`llm/model_prices.py`). These are OpenAI's
+  standard rates (checked 2026-11-28). The agent calls OpenAI directly with the AI service's key,
+  so LiveKit Inference's per-minute rates do not apply. Transcription uses the live
+  transcription rate above (US$0.017/minute); token-billed transcription stays unknown.
+- **Closing.** `FinishLiveService` finalizes the report. It is known (and the reservation is
+  reconciled with the total) only when the agent names its final heartbeat (`final_sequence`)
+  and that was the last sequence applied, and every entry has a cost. Otherwise (the owner's
+  End interview without the agent, a lost final heartbeat, later recovery) it stays unknown on
+  the ledger and in `rake ai_usage:unresolved`.
 
 ## Accounted reasoning and screening
 

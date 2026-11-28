@@ -125,7 +125,7 @@ def app_env(service):
     })
     if not env.get("AI_STREAM_REDIS_URL"):
         env["AI_STREAM_REDIS_URL"] = LOCAL_REDIS
-    if service in {"ai", "ai-worker", "ai-http", "ai-mcp"}:
+    if service in {"ai", "ai-worker", "ai-http", "ai-mcp", "ai-live"}:
         env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
                    PGPASSWORD=cfg["reader_password"],
                    DATABASE_URL=f"postgresql://ai_reader:{cfg['reader_password']}@127.0.0.1:{PORT}/api_development")
@@ -328,6 +328,10 @@ s3.put_bucket_cors(Bucket='careerdrafter-uploads', CORSConfiguration={'CORSRules
             "ai-worker": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai-worker")),
             "ai-mcp": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "--factory", "mcp_tools.server:create_app", "--host", "127.0.0.1", "--port", str(MCP_PORT)], "services/ai", app_env("ai-mcp")),
             "ai-http": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--ws-max-size", "65536"], "services/ai", app_env("ai-http")),
+            # Live interviews need a LiveKit server, which is not installed natively; the
+            # worker starts only when LIVEKIT_URL (with its key pair) points at one.
+            **({"ai-live": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "livekit.agents", "start", "live_interviews/worker.py"], "services/ai", app_env("ai-live"))}
+               if env.get("LIVEKIT_URL") else {}),
             "web": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/web", env),
             "landing": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/landing", env),
         }

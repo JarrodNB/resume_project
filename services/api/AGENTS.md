@@ -10,6 +10,8 @@ applications, interviews, contacts, goals.
 Rails (API mode), PostgreSQL with pgvector (`neighbor` gem), graphql-ruby, Devise + Rails sessions
 auth, Shoryuken (SQS) for publishing AI jobs and consuming results, ActionCable with Solid Cable
 for GraphQL subscriptions, the official `openai` gem for career-library and interview Q&A embeddings only.
+`livekit-server-sdk` signs live interview room join tokens only (`Interviews::JoinLiveService`);
+Rails never calls the LiveKit API.
 
 ## Local Rules
 

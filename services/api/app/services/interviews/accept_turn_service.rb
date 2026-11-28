@@ -5,7 +5,7 @@ require "digest"
 
 module Interviews
   class AcceptTurnService < ApplicationService
-    CLOSING = "Thank you. This interview is complete.".freeze
+    CLOSING = QuestionProgression::CLOSING
 
     # Whether this answer uses the question's last allowed answer, so the interview moves on whatever
     # the model decides. Mirrored in services/ai/database/interview_inputs.py (`final_answer`), which
@@ -78,17 +78,8 @@ module Interviews
     def save_response(interview, question, position)
       if @decision == "advance" ||
           self.class.final_answer?(accepted_answer_count: question.accepted_answer_count, answer_cap: interview.answer_cap)
-        next_question = @questions.find { |candidate| candidate.position == question.position + 1 }
-        if next_question
-          interview.current_question_position = next_question.position
-          interview.messages.create!(question: next_question, kind: "opening", position: position,
-            semantic_key: "question:#{next_question.id}:opening", content: next_question.content, acknowledgement: @acknowledgement)
-        else
-          interview.status = "completed"
-          interview.completed_at = Time.current
-          interview.messages.create!(question: question, kind: "closing", position: position,
-            semantic_key: "interview:closing", content: CLOSING, acknowledgement: @acknowledgement)
-        end
+        QuestionProgression.open_next_question(interview, @questions, question, position: position, acknowledgement: @acknowledgement) ||
+          QuestionProgression.complete_with_closing(interview, question, position: position, acknowledgement: @acknowledgement)
       else
         interview.messages.create!(question: question, kind: "follow_up", position: position,
           semantic_key: "turn:#{@operation.id}:reply", content: @reply, acknowledgement: @acknowledgement)

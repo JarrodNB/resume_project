@@ -85,6 +85,25 @@ _Avoid_: Basic Interview when referring to the shared session concept
 **Interview type**:
 The format of an interview session. Basic is the only supported type today.
 
+**Conversation mode**:
+How an interview session is conducted, chosen when preparation starts and never changed:
+Turn-based (hear a question, then record or type and send an answer) or Live.
+
+**Live interview**:
+An interview session in Live conversation mode: the candidate and an AI interviewer talk out
+loud in real time, with quick coaching after each question. It always has 5 main questions
+and up to 25 minutes of counted time.
+
+**Live connection**:
+One candidate join of a live interview's room, with its status, counted seconds and end reason.
+Rejoining while it is still open reuses it. A session has at most one live connection that
+has not ended.
+
+**Live budget** (`Interviews::LiveAllowance`):
+Live mode's own hidden spend limit, counted from what live sessions actually cost: one budget for
+the whole trial, or one per UTC day on a paid plan. Users see nothing about it until it is
+reached. It is separate from the hidden daily spend cap for other AI work.
+
 **Question format**:
 The kinds of questions chosen for a practice interview: Mixed, Behavioral, Technical / Role,
 or HR Screening. It is separate from the session's interview type.

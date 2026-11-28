@@ -10,6 +10,7 @@
 #   - ai-worker: Python SQS worker
 #   - ai-http: FastAPI app for interactive AI execution
 #   - ai-mcp: internal MCP tool server
+#   - ai-live: LiveKit Agents worker that runs live interviews (connects out to LiveKit Cloud)
 #   - redis: AI streaming buffer
 #   - web: static web app
 #   - landing: static landing page
@@ -197,6 +198,30 @@ services:
       retries: 5
     depends_on:
       db:
+        condition: service_healthy
+
+  ai-live:
+    # The live interviewer: a LiveKit Agents worker from the same image. It connects out to the
+    # LiveKit Cloud project (LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET in .env, the same
+    # values the api service signs room joins with), OpenAI and Rails. It serves nothing and needs
+    # no published port: LiveKit Cloud carries the browser's audio.
+    <<: *ai
+    command: python -m livekit.agents start live_interviews/worker.py
+    environment:
+      <<: *ai-db
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      LOGFIRE_ENVIRONMENT: production
+    # On SIGTERM the worker stops taking new interviews and waits for the running ones to end, for
+    # at most 50 minutes (DRAIN_SECONDS in live_interviews/worker.py: the 45-minute wall-clock cap
+    # plus a margin). Deploys do not stop it through compose: restart-changed-services.sh starts
+    # the new ai-live first and lets the old one drain in the background. While one drains, a
+    # plain `docker compose up -d`, `restart` or `down` would stop it a second time, which makes
+    # the worker exit at once. The grace period only matters for a manual stop or down.
+    stop_grace_period: 51m
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
         condition: service_healthy
 
   redis:

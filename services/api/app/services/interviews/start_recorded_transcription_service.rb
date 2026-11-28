@@ -7,6 +7,8 @@ module Interviews
     end
 
     def call
+      live = TurnBasedOnly.refusal(@interview)
+      return live if live
       uuid = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
       return failure("Invalid capture") unless @revision.is_a?(Integer) && @revision >= 0 &&
         [ @question_id, @recording_id ].all? { |id| id.is_a?(String) && id.match?(uuid) }

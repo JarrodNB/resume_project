@@ -7,6 +7,8 @@ module Types
     field :position, Integer, null: false
     field :accepted_answer_count, Integer, null: false
     field :skipped, Boolean, null: false
+    field :live_feedback, String, null: true,
+      description: "The live interviewer's latest spoken feedback for this question, saved as text. Null for turn-based interviews."
 
     def skipped
       object.skipped_at.present?

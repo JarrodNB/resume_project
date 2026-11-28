@@ -55,6 +55,14 @@ Existing receipts are backfilled from the subscription status at migration time 
 plan changes were not recorded. This ensures a wave of fake
 signups cannot block paying customers.
 
+## Live interview budget
+
+Live interviews have their own hidden budget, separate from the hidden daily cap: US$0.50 over
+the whole trial, US$1.00 per UTC day on a paid plan, none once the plan has ended
+(`Interviews::LiveAllowance`). It is spent by what live sessions actually cost, not by time, and
+users see nothing about it until it is reached. A new live interview needs US$0.20 left. See
+[time, live budget and heartbeats](interview-sessions.md#time-live-budget-and-heartbeats).
+
 ## Stripe
 
 - **Gateway seam.** `Billing::Gateway` is the only code that talks to Stripe. `Billing::StripeGateway`

@@ -1,0 +1,188 @@
+/** The room for a live interview: the candidate and the interviewer talk in real time through
+ * LiveKit (see useLiveInterviewRoom). It shows the connection state (on a moving waiting line
+ * until the interviewer's first words, so the start never looks stuck), then captions (which the
+ * candidate can hide), "Question N of M" and the counted time left from the interviewer agent
+ * (with an announced warning at about 2 minutes left) and a mute button. After the
+ * interviewer's spoken feedback on a question, it shows the two choices left (Try again, and Move on, or
+ * Finish interview after the last question)
+ * while the agent says the menu is offered; once the
+ * candidate has started answering it offers "How was that?". Each button sends the same choice as saying it. The
+ * career references panel works exactly as in the turn-based room, for the prompt the agent
+ * saved. If the interviewer hasn't joined within 15 seconds (or left and hasn't come back within
+ * 15 seconds; the room then says it left), or joining fails, it offers to
+ * start a new turn-based interview with the same setup (a fresh preparation, so new questions);
+ * taking it ends the live room as failed so the live session doesn't stay active. If the
+ * connection drops it shows "Reconnecting…" while LiveKit retries, and after a full disconnect a
+ * Rejoin interview button (the interviewer waits about 2 minutes, then finishes the interview).
+ * End interview (after a confirmation) finishes the session: completed with at least one saved
+ * answer, so the page shows the usual review, or abandoned with none. It is hidden when Rails
+ * never opened a room (the first join was refused); the fallback then abandons the live session.
+ */
+import { useEffect, useId, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { Mic, MicOff } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useFocusMode } from '@/components/useFocusMode'
+import { useAuth } from '@/features/auth/useAuth'
+import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
+import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
+import { currentInterviewPrompt } from './currentInterviewPrompt'
+import { InterviewCareerReferences } from './InterviewCareerReferences'
+import { AiWaitingLine } from '@/components/AiWaitingLine'
+import { LiveCaptions } from './LiveCaptions'
+import { useLiveInterviewRoom, type LiveInterviewRoom as LiveRoom, type LiveMenuOption } from './useLiveInterviewRoom'
+import { useStartInterview } from './useInterviewSession'
+import { SILENCE_LENGTH_OPTIONS, useInterviewMicSettings } from './useInterviewMicSettings'
+
+/** How long the room waits for the interviewer agent before offering the turn-based fallback. */
+export const LIVE_AGENT_JOIN_TIMEOUT_MS = 15_000
+
+export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotFragment }) {
+  const { user } = useAuth()
+  const microphone = useInterviewMicSettings(user?.id ?? '')
+  const room = useLiveInterviewRoom(interview.id, microphone.silenceSeconds)
+  const [referenceVisitId] = useState(() => crypto.randomUUID())
+  const [timedOut, setTimedOut] = useState(false)
+  useFocusMode(true)
+  const dropped = room.status === 'reconnecting' || room.status === 'disconnected'
+  const waitingForAgent = !room.agentJoined && !dropped
+  useEffect(() => {
+    if (!waitingForAgent) return
+    const timer = setTimeout(() => setTimedOut(true), LIVE_AGENT_JOIN_TIMEOUT_MS)
+    return () => { clearTimeout(timer); setTimedOut(false) }
+  }, [waitingForAgent])
+  // Until the interviewer's first words, the room is still starting: the status moves along a waiting line.
+  const interviewerSpoke = room.captions.some((caption) => caption.speaker === 'interviewer')
+  const message = room.status === 'joining' ? 'Joining the interview room…'
+    : room.status === 'connecting' ? 'Connecting…'
+    : room.status === 'reconnecting' ? 'Reconnecting…'
+    : room.status === 'disconnected' ? 'You were disconnected. Your interviewer waits about 2 minutes.'
+    : room.status === 'connected' && room.agentJoined && !interviewerSpoke ? 'Your interviewer is getting ready…'
+    : room.status === 'connected' && room.agentJoined ? 'Connected. Your interviewer is here.'
+    : room.status === 'connected' && room.agentLeft ? 'Your interviewer left the room. Waiting for them to come back…'
+    : room.status === 'connected' ? 'Waiting for your interviewer…'
+    : 'Could not connect to the live room.'
+  const showFallback = room.status === 'failed' || (timedOut && waitingForAgent)
+  const starting = !interviewerSpoke && !room.agentLeft && (room.status === 'joining' || room.status === 'connecting' || room.status === 'connected')
+  const { reply } = currentInterviewPrompt(interview)
+  return <section aria-labelledby="live-interview-title" className="interview-stage grid gap-4">
+    <h2 id="live-interview-title" className="text-xl font-semibold">Live interview</h2>
+    {!showFallback && (starting
+      ? <AiWaitingLine key={message} captions={[message.replace(/…$/, '')]} statusLabel={message} />
+      : <p role="status" className="text-sm">{message}</p>)}
+    {showFallback && <TurnBasedFallback interview={interview} reason={room.status === 'failed' ? room.error : null} />}
+    {room.status === 'disconnected' && <div className="grid gap-2">
+      {room.error && <p role="alert" className="text-sm text-destructive">{room.error}</p>}
+      <Button type="button" className="min-h-11 justify-self-start" onClick={() => void room.rejoin()}>Rejoin interview</Button>
+    </div>}
+    {!showFallback && (room.status === 'connected' || room.status === 'reconnecting') && <LiveRoomControls room={room} />}
+    {!showFallback && room.status !== 'joining' && <LiveSilenceLength microphone={microphone} />}
+    {room.status !== 'joining' && room.roomOpened && <EndLiveInterviewButton room={room} />}
+    {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={interview.id} visitId={referenceVisitId} message={reply} disabled={false} />}
+  </section>
+}
+
+/** The "Silence length" answer setting, which the interviewer applies as soon as it changes. */
+function LiveSilenceLength({ microphone }: { microphone: ReturnType<typeof useInterviewMicSettings> }) {
+  const id = useId()
+  return <div className="grid max-w-md gap-1">
+    <label className="grid gap-2 text-sm" htmlFor={id}>Silence before your interviewer replies
+      <select id={id} aria-describedby={`${id}-help`} className="min-h-11 rounded-md border bg-background px-3 py-2" value={microphone.silenceSeconds} onChange={(event) => microphone.update({ silenceSeconds: Number(event.target.value) })}>
+        {SILENCE_LENGTH_OPTIONS.map((option) => <option key={option.seconds} value={option.seconds}>{option.name} ({option.seconds} seconds)</option>)}
+      </select>
+    </label>
+    <p id={`${id}-help`} className="text-sm text-muted-foreground">Choose Patient if you pause to think.</p>
+  </div>
+}
+
+/** Counted seconds as m:ss, such as 24:55 or 1:05. */
+function minutesAndSeconds(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/** Progress from the agent's attributes (zero-based position shown as "Question N of M"), the
+ * time left and its warning, mute, the coaching choices and captions. */
+function LiveRoomControls({ room }: { room: LiveRoom }) {
+  const { questionPosition, questionTotal, phase, menuOffered, secondsLeft, timeWarning, answerHeard } = room.progress
+  return <div className="grid gap-3">
+    <div className="flex flex-wrap items-center justify-center gap-3">
+      {questionPosition !== null && questionTotal !== null && <p className="text-sm font-medium">Question {questionPosition + 1} of {questionTotal}</p>}
+      {secondsLeft !== null && <p className={timeWarning ? 'text-sm font-semibold tabular-nums text-destructive' : 'text-sm font-medium tabular-nums'}>{minutesAndSeconds(secondsLeft)} left</p>}
+      <Button variant="outline" className="min-h-11" aria-pressed={room.muted} onClick={() => void room.mute(!room.muted)}>
+        {room.muted ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}Mute microphone
+      </Button>
+      {phase === 'answering' && answerHeard && <Button variant="outline" className="min-h-11" disabled={room.choosing} onClick={() => void room.choose('feedback')}>How was that?</Button>}
+    </div>
+    {timeWarning && <p role="alert" className="text-center text-sm font-semibold">About 2 minutes left. Start wrapping up.</p>}
+    {menuOffered && <CoachingMenu room={room} />}
+    {room.chooseError && <p role="alert" className="text-sm text-destructive">{room.chooseError}</p>}
+    <LiveCaptions captions={room.captions} />
+  </div>
+}
+
+/** The choices after the interviewer's feedback. After the last question, moving on finishes the interview. */
+function menuChoices(lastQuestion: boolean): { option: LiveMenuOption; label: string }[] {
+  return [{ option: 'retry', label: 'Try again' }, { option: 'next', label: lastQuestion ? 'Finish interview' : 'Move on' }]
+}
+
+/** The choices after the interviewer's feedback; the interviewer waits until one is made. */
+function CoachingMenu({ room }: { room: LiveRoom }) {
+  const headingId = useId()
+  const { questionPosition, questionTotal } = room.progress
+  const lastQuestion = questionPosition !== null && questionTotal !== null && questionPosition + 1 >= questionTotal
+  return <div role="group" aria-labelledby={headingId} className="grid justify-items-center gap-2">
+    <p id={headingId} className="text-sm font-medium">What would you like to do next?</p>
+    <div className="flex flex-wrap justify-center gap-2">
+      {menuChoices(lastQuestion).map(({ option, label }) => <Button key={option} type="button" className="min-h-11" variant={option === 'next' ? 'default' : 'outline'} disabled={room.choosing} onClick={() => void room.choose(option)}>{label}</Button>)}
+    </div>
+  </div>
+}
+
+/** Confirms, then ends the interview through the room hook (the agent, or Rails if the agent is gone). */
+function EndLiveInterviewButton({ room }: { room: LiveRoom }) {
+  const [open, setOpen] = useState(false)
+  const descriptionId = useId()
+  async function confirm() {
+    if (await room.end()) setOpen(false)
+  }
+  return <>
+    <Button type="button" variant="outline" className="min-h-11 justify-self-start" disabled={room.ending} onClick={() => setOpen(true)}>{room.ending ? 'Ending…' : 'End interview'}</Button>
+    {room.endError && !open && <p role="alert" className="text-sm text-destructive">{room.endError}</p>}
+    <Dialog open={open} onOpenChange={(value) => { if (!room.ending) setOpen(value) }}>
+      <DialogContent aria-describedby={descriptionId}>
+        <DialogHeader>
+          <DialogTitle>End this interview?</DialogTitle>
+          <DialogDescription id={descriptionId}>You cannot continue it afterward. Your saved answers stay, and you’ll see your review. If you haven’t answered any question yet, the interview is abandoned.</DialogDescription>
+        </DialogHeader>
+        {room.endError && <p role="alert" className="text-sm text-destructive">{room.endError}</p>}
+        <DialogFooter>
+          <Button type="button" autoFocus variant="outline" disabled={room.ending} onClick={() => setOpen(false)}>Keep interview</Button>
+          <Button type="button" variant="destructive" disabled={room.ending} onClick={() => void confirm()}>{room.ending ? 'Ending…' : 'Confirm end'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
+}
+
+/** Starts a turn-based preparation from this session (Rails copies its setup, saved job and career
+ * focus, and ends this live room as failed in the same request) and opens it like a normal start. */
+function TurnBasedFallback({ interview, reason }: { interview: InterviewSnapshotFragment; reason: string | null }) {
+  const { startFrom, loading, error, errorCode } = useStartInterview()
+  const navigate = useNavigate()
+  const [pending, setPending] = useState(false)
+  async function startTurnBased() {
+    setPending(true)
+    try {
+      const id = await startFrom(interview.id)
+      if (!id) return
+      await navigate(`/practice/interviews/${id}`)
+    } finally { setPending(false) }
+  }
+  const busy = loading || pending
+  return <div className="grid gap-3">
+    <p role="alert">{reason ?? 'Your live interviewer didn’t join.'} You can practice the same round as a turn-based interview instead.</p>
+    <Button className="min-h-11 justify-self-start" disabled={busy} aria-busy={busy} onClick={() => void startTurnBased()}>{busy ? 'Starting…' : 'Start a turn-based interview with the same setup'}</Button>
+    {error && <MutationErrorAlert errors={[error]} errorCode={errorCode} />}
+  </div>
+}

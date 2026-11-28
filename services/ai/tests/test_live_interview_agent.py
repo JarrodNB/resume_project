@@ -695,8 +695,9 @@ def test_realtime_options_use_the_persona_voice_patient_turn_detection_and_trans
     options = realtime_model_options("daniel")
     assert options["model"] == "gpt-realtime-2.1-mini"
     assert options["voice"] == "cedar"
-    # Plain silence detection cut candidates off at every short pause.
-    assert (options["turn_detection"].type, options["turn_detection"].eagerness) == ("semantic_vad", "low")
+    # Half a second of silence, or semantic detection, cut candidates off mid-sentence.
+    detection = options["turn_detection"]
+    assert (detection.type, detection.silence_duration_ms) == ("server_vad", 2_000)
     assert options["input_audio_noise_reduction"].type == "far_field"
     assert options["input_audio_transcription"].model == "gpt-live-transcribe"
     assert PERSONA_VOICES == {"maya": "marin", "daniel": "cedar", "priya": "shimmer"}

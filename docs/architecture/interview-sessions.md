@@ -331,8 +331,9 @@ For each dispatched job it:
    the current interview. Contact masking, owner scoping and
    the input bounds still apply.
 4. starts an `AgentSession` on the OpenAI realtime model `gpt-realtime-2.1-mini` with the
-   persona's fixed voice (maya `marin`, daniel `cedar`, priya `shimmer`), semantic turn detection
-   with low eagerness (plain silence detection cut candidates off at short pauses), far-field
+   persona's fixed voice (maya `marin`, daniel `cedar`, priya `shimmer`), silence turn detection
+   that ends the candidate's turn only after 2 seconds of quiet (the half-second default and
+   semantic detection both cut candidates off mid-sentence), far-field
    noise reduction, and input transcription with `gpt-live-transcribe`, with LiveKit recording off (`record=False`). Spoken
    text is never logged; logs name only events, error types and refusal codes. Both model names
    are fixed constants (`live_interviews/settings.py`), not settings: Rails bills only these two

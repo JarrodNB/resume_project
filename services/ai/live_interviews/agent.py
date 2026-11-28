@@ -31,7 +31,7 @@ from livekit.agents import (
 from livekit.agents.voice.events import CloseReason
 from openai.types.realtime import AudioTranscription
 from openai.types.realtime.realtime_audio_config_input import NoiseReduction
-from openai.types.realtime.realtime_audio_input_turn_detection import SemanticVad
+from openai.types.realtime.realtime_audio_input_turn_detection import ServerVad
 from opentelemetry import trace
 from pydantic import BaseModel, ConfigDict
 
@@ -91,20 +91,24 @@ class LiveDispatch(BaseModel):
     live_connection_id: str
 
 
+END_OF_TURN_SILENCE_MS = 2_000  # quiet needed before the interviewer replies
+
+
 def realtime_model_options(persona: str) -> dict:
     """Keyword arguments for `openai.realtime.RealtimeModel`: model, persona voice, turn detection,
     noise reduction and input transcription (for the candidate's captions).
 
-    Interview answers have long thinking pauses, so turn detection is semantic (the model judges
-    whether the candidate has finished) with low eagerness, not plain silence detection, which
-    ended a turn after half a second of quiet. Far-field noise reduction filters room noise and
+    Interview answers have thinking pauses, so the candidate's turn ends only after
+    END_OF_TURN_SILENCE_MS of quiet. The default (half a second) and semantic detection (which
+    ends a turn as soon as a phrase sounds complete, e.g. "I had to use FullStory") both cut
+    candidates off mid-answer. Far-field noise reduction filters room noise and
     the interviewer's own voice from laptop speakers before turn detection and transcription, so
     they don't count as the candidate talking."""
     return {
         "model": REALTIME_MODEL,
         "voice": PERSONA_VOICES[persona],
-        "turn_detection": SemanticVad(type="semantic_vad", eagerness="low", create_response=True,
-                                      interrupt_response=True),
+        "turn_detection": ServerVad(type="server_vad", silence_duration_ms=END_OF_TURN_SILENCE_MS,
+                                    create_response=True, interrupt_response=True),
         "input_audio_noise_reduction": NoiseReduction(type="far_field"),
         "input_audio_transcription": AudioTranscription(model=TRANSCRIPTION_MODEL),
     }

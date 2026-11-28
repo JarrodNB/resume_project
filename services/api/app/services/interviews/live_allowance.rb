@@ -19,10 +19,11 @@ module Interviews
     SESSION_SECONDS = 25 * 60
     CONNECTION_WALL_CLOCK = 45.minutes
     WARNING_SECONDS = 2 * 60
-    TRIAL_MICRODOLLARS = 1_000_000 # the whole trial: about one full live interview
-    PAID_DAILY_MICRODOLLARS = 1_500_000 # per UTC day: about two full live interviews
-    # A new live room needs this much left, so it isn't cut off after a question or two.
-    MIN_START_MICRODOLLARS = 500_000
+    # A 10.5-minute live interview cost about US$0.32; a full 25 minutes may cost up to about US$1.
+    TRIAL_MICRODOLLARS = 500_000 # US$0.50 for the whole trial
+    PAID_DAILY_MICRODOLLARS = 1_000_000 # US$1.00 per UTC day
+    # A new live room needs this much left (US$0.20), so it isn't cut off after a question or two.
+    MIN_START_MICRODOLLARS = 200_000
     # Counted for a bill the price list can't price: about twice what a live minute usually costs.
     UNPRICED_MICRODOLLARS_PER_SECOND = 1_000
     TRIAL_USED = "You've used the live interview practice included in your trial. Subscribe to keep " \

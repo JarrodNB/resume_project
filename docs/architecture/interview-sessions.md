@@ -767,14 +767,14 @@ heartbeats.
 **Live budget.** Live mode has its own hidden dollar limit, separate from the hidden daily spend
 cap for everything else, because cost comes from processing, not time: silence costs almost
 nothing and fast back-and-forth costs much more. `Interviews::LiveAllowance.remaining_microdollars(user)`
-is US$1.00 over the whole trial (connections created since the trial started, `trial_ends_at`
-minus the trial length), US$1.50 a UTC day on a paid plan (connections created since UTC
+is US$0.50 over the whole trial (connections created since the trial started, `trial_ends_at`
+minus the trial length), US$1.00 a UTC day on a paid plan (connections created since UTC
 midnight, plus any connection still open or ended since midnight, so a session running across
 midnight counts fully toward the new day, also after it ends) and nothing once the plan has
 ended. It sums the actual cost on the user's live bills (`LiveConversationBill`, which every
 heartbeat adds to). A bill with an entry the price list could not price counts at least
 US$0.001 per counted second (about twice the usual live cost), so it can't slip past the limit.
-`joinLiveInterview` refuses a new room with less than US$0.50 left (error code
+`joinLiveInterview` refuses a new room with less than US$0.20 left (error code
 `LIVE_ALLOWANCE_LOW`; a rejoin of the open room is not refused), and so does `startInterview` in
 live mode. Like the other caps, nothing about it reaches the user until it is reached: no amount,
 no countdown, no warning. The viewer's `me.liveInterviewRefusal` is null until then and the

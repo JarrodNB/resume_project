@@ -482,10 +482,14 @@ and ask the current question. Each question then runs like this:
    answer is held back only once.
    Only an interviewer turn we asked for is saved as the prompt being asked: the reply to a turn
    instruction (`generate_reply`) or to an interview tool's result. OpenAI's server turn detection
-   also replies on its own whenever a candidate turn ends, without our instruction (for example
-   when the candidate speaks as the room opens and cancels the greeting); that reply, and a question
-   the candidate cut off (`interrupted`), is not saved. Once the room is quiet the interviewer
-   acknowledges them and asks the question or follow-up again (at most `ASKS_AGAIN` times).
+   also replies on its own whenever a candidate turn ends, without our instruction. Before the
+   first question it has no question to ask and makes one up, so the agent holds the candidate's
+   microphone back from the model (`session.input.set_audio_enabled(False)`, set before the
+   session starts) until the first room state past `asking`: the opening has been asked, or a
+   resumed interview is already past it. What the candidate says until then is dropped, and they
+   can't talk over the opening. Later, an unprompted reply, and a question the candidate cut off
+   (`interrupted`), is not saved. Once the room is quiet the interviewer acknowledges them and
+   asks the question or follow-up again (at most `ASKS_AGAIN` times).
 3. When a question with at least one answer is done (`next_question` or `offer_menu`, or no
    follow-up is left at the cap), the controller does not advance. It runs the coaching loop:
    - **Quick feedback.** The tool result asks the interviewer to step out of role with "Quick

@@ -15,7 +15,7 @@ one (infra/compose/restart-changed-services.sh), so nothing waits on the drain.
 
 import asyncio
 
-from livekit.agents import AgentServer, AgentSession, JobContext
+from livekit.agents import AgentServer, AgentSession, JobContext, JobProcess
 from livekit.plugins import openai
 
 from database.live_interview_inputs import build_live_interview_input_reader
@@ -27,8 +27,15 @@ from settings import AISettings
 from telemetry.tracing import flush_tracing
 
 
-async def entrypoint(ctx: JobContext) -> None:
+def prewarm(_proc: JobProcess) -> None:
+    """Set up tracing while the interview process warms up, before any interview. It imports every
+    AI agent module (for contact masking), which blocked a live room's audio loop for half a second
+    when it ran at the start of the interview."""
     configure_live_tracing()
+
+
+async def entrypoint(ctx: JobContext) -> None:
+    configure_live_tracing()  # already done by prewarm; a no-op then
     settings = LiveInterviewSettings()
 
     def make_session(persona: str) -> AgentSession:
@@ -55,5 +62,5 @@ DRAIN_SECONDS = 50 * 60
 # shared 2 GiB server. A second interview at the same time starts a process on demand (a second or so).
 IDLE_PROCESSES = 1
 
-server = AgentServer(drain_timeout=DRAIN_SECONDS, num_idle_processes=IDLE_PROCESSES)
+server = AgentServer(drain_timeout=DRAIN_SECONDS, num_idle_processes=IDLE_PROCESSES, setup_fnc=prewarm)
 server.rtc_session(entrypoint, agent_name=AGENT_NAME)

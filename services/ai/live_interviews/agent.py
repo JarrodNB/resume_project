@@ -151,6 +151,9 @@ class LiveInterviewRunner:
         self._deliveries: asyncio.Queue = asyncio.Queue()  # Rails reports, heartbeats and the finish, in order
         self._delivery_task: asyncio.Task | None = None
         self._silence_ms = DEFAULT_SILENCE_MS  # the turn detection the realtime session uses now
+        # The model hears the candidate only once a question has been asked (see `hear_the_candidate`).
+        self._hearing = False
+        self._session.input.set_audio_enabled(False)
         self._room_state_wanted: dict[str, str] | None = None  # the newest room state not yet published
         self._room_state_task: asyncio.Task | None = None
         self._unheard_turns = 0  # candidate turns that ended but whose final transcript has not arrived
@@ -205,6 +208,17 @@ class LiveInterviewRunner:
             self._silence_ms = silence_ms
         except Exception as error:  # noqa: BLE001 - the interview goes on with the earlier setting
             logger.warning("Live silence setting not applied: %s", type(error).__name__)
+
+    def hear_the_candidate(self) -> None:
+        """Pass the candidate's microphone to the model, from the first room state past `asking`
+        (the first question has been asked, or a resumed interview is past it) to the end.
+
+        Until then the model hears nothing. OpenAI answers each turn of the candidate's by itself,
+        and before the first question it has no question to ask: a "hello" as the room opened got
+        a made-up interview question, then the real opening on top of it. Audio before this point
+        is dropped, so the candidate can't talk over the opening either."""
+        self._session.input.set_audio_enabled(True)
+        self._hearing = True
 
     def on_participant_attributes_changed(self, _changed: dict[str, str], participant) -> None:
         """Room callback: a participant's attributes changed; the candidate may have a new silence setting."""
@@ -519,6 +533,8 @@ class LiveInterviewRunner:
         elif isinstance(action, SendHeartbeat | ReportFinish | InterviewReport):
             self._deliver(action)
         elif isinstance(action, PublishRoomState):
+            if not self._hearing and action.phase not in ("asking", "ended"):
+                self.hear_the_candidate()
             self._publish_room_state({
                 "cd.question_position": str(action.question_position),
                 "cd.question_total": str(action.question_total),

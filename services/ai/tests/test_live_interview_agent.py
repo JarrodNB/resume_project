@@ -147,12 +147,23 @@ def tool_call(speech=None):
     return SimpleNamespace(speech_handle=speech or FakeToolSpeech())
 
 
+class FakeAgentInput:
+    """AgentSession.input: records each time the candidate's microphone is passed on or held back."""
+
+    def __init__(self):
+        self.audio_enabled_calls = []
+
+    def set_audio_enabled(self, enabled):
+        self.audio_enabled_calls.append(enabled)
+
+
 class FakeSession:
     def __init__(self):
         self.handlers, self.replies, self.started, self.agent, self.interrupted = {}, [], None, None, 0
         self.handles, self.model_usage, self.closed = [], [], False
         self.current_speech = None  # the SpeechHandle playing now, as LiveKit's AgentSession.current_speech
         self.llm = FakeRealtimeModel()
+        self.input = FakeAgentInput()
 
     @property
     def usage(self):
@@ -904,6 +915,39 @@ def test_a_candidate_who_drops_is_welcomed_back_or_after_two_minutes_the_intervi
         ("finish", "live", {"reason": "disconnected", "final_sequence": 1}),
     ]
     assert ctx.shutdown_reason
+
+
+def test_the_model_hears_the_candidate_only_once_the_opening_question_has_been_asked():
+    """OpenAI replies to every turn of the candidate's on its own. Before the first question it has
+    none to ask, so a "hello" as the room opened got a made-up question ahead of the real opening."""
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        session = sessions[0][1]
+        assert session.input.audio_enabled_calls == [False]  # held back from before the session started
+        session.emit_item("assistant", "Welcome. First, tell me about a project.")
+        await settle()
+        assert session.input.audio_enabled_calls == [False, True]
+        session.emit_item("user", "I rebuilt the scheduler.")
+        await session.agent.finish_answer(tool_call())
+        await settle()
+        assert session.input.audio_enabled_calls == [False, True]  # stays on
+
+    asyncio.run(scenario())
+
+
+def test_a_resumed_interview_past_its_question_hears_the_candidate_straight_away():
+    claim = CLAIM.model_copy(update={"current_prompt_message_id": "opening-0", "current_prompt_kind": "opening"})
+    rails, sessions = FakeRails(claim=claim), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        assert sessions[0][1].input.audio_enabled_calls == [False, True]
+
+    asyncio.run(scenario())
 
 
 def test_a_fresh_agent_resumes_from_the_claim():

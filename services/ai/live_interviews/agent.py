@@ -72,7 +72,7 @@ from live_interviews.controller import (
     ToolEvent,
     ToolResult,
 )
-from live_interviews.instructions import build_live_instructions
+from live_interviews.instructions import build_live_instructions, live_question_blocks
 from live_interviews.reporter import SERVER_ERROR_DELAYS, InterviewReport, LiveReporter
 from live_interviews.settings import PERSONA_VOICES, REALTIME_MODEL, TRANSCRIPTION_MODEL
 from live_interviews.usage import LiveUsageTotals
@@ -641,6 +641,9 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             inputs = await asyncio.to_thread(read_inputs, interview_id=claim.interview_session_id,
                                              user_id=claim.user_id, connection_id=claim.live_connection_id)
             instructions = build_live_instructions(inputs)
+            questions = live_question_blocks(inputs)
+            if len(questions) < claim.question_total:  # the controller hands these out one at a time
+                raise ValueError("Live interview is missing prepared questions")
             await ctx.connect()
             session = make_session(inputs.setup.interviewer)
             runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id,
@@ -671,7 +674,8 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
                                         current_prompt_kind=claim.current_prompt_kind,
                                         current_prompt_answered=claim.current_prompt_answered,
                                         answer_count=claim.current_question_answer_count,
-                                        feedback_given=claim.current_question_feedback_given))
+                                        feedback_given=claim.current_question_feedback_given,
+                                        questions=questions))
             background = [asyncio.create_task(runner.tick_forever(tick_seconds)),
                           asyncio.create_task(runner.heartbeat_forever(heartbeat_seconds))]
     except Exception as error:  # noqa: BLE001 - any start failure ends the job; a claimed one is finished first

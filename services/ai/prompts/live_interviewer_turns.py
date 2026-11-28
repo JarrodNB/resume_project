@@ -5,42 +5,42 @@ step and fills in the zero-based question position where a builder takes one. Ou
 the realtime model is told to follow, either as a `generate_reply` turn instruction or as the
 result of one of its interview tools (ask_follow_up, finish_answer, repeat_question,
 next_question, give_feedback, offer_menu, give_hint, retry_question). Questions are numbered from
-1 for the model, matching the question plan in the session instructions.
+1 for the model. The session instructions hold no questions: a builder that asks one is given
+that question's escaped data section (`live_question_blocks` in live_interviews/instructions.py).
 
 These texts and the framing in prompts/live_interviewer_instructions.py are one prompt, labelled
 by LIVE_INTERVIEWER_PROMPT_VERSION there: bump it when either file changes what the model is told.
 """
 
 
-def ask_question_instructions(question_position: int) -> str:
-    """The end of an instruction to ask one prepared question ("...then ask question 2 ...")."""
-    return (f"question {question_position + 1} from the question plan. Keep its meaning and ask it as one "
-            "clear question in your own natural spoken words. Then stop and let the candidate answer.")
+def ask_question_instructions(question_position: int, question: str) -> str:
+    """The end of an instruction to ask one prepared question ("...then ask question 2: ...")."""
+    return (f"question {question_position + 1}, which is:\n{question}\nKeep its meaning and ask it as one clear "
+            "question in your own natural spoken words. Then stop and let the candidate answer.")
 
 
-def resume_instructions(question_position: int) -> str:
+def resume_instructions(question_position: int, question: str) -> str:
     """A fresh agent taking over mid-question greets the candidate and repeats the question."""
-    return (f"Greet the candidate briefly and say you will continue the interview, then repeat question "
-            f"{question_position + 1} from the question plan clearly, with the same meaning. Then stop and let the "
-            "candidate answer.")
+    return ("Greet the candidate briefly and say you will continue the interview, then repeat "
+            + ask_question_instructions(question_position, question))
 
 
-def ask_again_instructions(kind: str, question_position: int) -> str:
+def ask_again_instructions(kind: str, question_position: int, question: str) -> str:
     """Ask the current prompt after the candidate cut it off, or after a reply the model made on
     its own instead of asking it."""
     if kind == "follow_up":
         return ("Acknowledge what the candidate just said in a few words, then ask your follow-up question now in "
                 "one short, natural spoken question. Then stop and let the candidate answer.")
-    return "Acknowledge what the candidate just said in a few words, then ask " + ask_question_instructions(
-        question_position)
+    return ("Acknowledge what the candidate just said in a few words, then ask "
+            + ask_question_instructions(question_position, question))
 
 
-def opening_instructions(question_position: int) -> str:
+def opening_instructions(question_position: int, question: str) -> str:
     """The greeting and the current question at the start (a warmer greeting for question 1)."""
     greeting = ("Greet the candidate warmly in one short sentence in your interviewer style, "
                 "then ask " if question_position == 0 else
                 "Greet the candidate briefly and say you will continue the interview, then ask ")
-    return greeting + ask_question_instructions(question_position)
+    return greeting + ask_question_instructions(question_position, question)
 
 
 NOT_STARTED = "The interview has not started yet. Wait."

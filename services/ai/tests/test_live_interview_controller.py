@@ -105,7 +105,9 @@ def click(controller, option):
 def started_controller(position=0, total=5, answer_cap=2, allowance=3_600):
     controller = RoomController()
     actions = controller.handle(Started(question_position=position, question_total=total, answer_cap=answer_cap,
-                                         session_seconds_left=1_500, allowance_seconds_left=allowance))
+                                         session_seconds_left=1_500, allowance_seconds_left=allowance,
+                                         questions=tuple(f"<question>\nPrepared question {number}?\n</question>"
+                                                         for number in range(1, total + 1))))
     return controller, actions
 
 
@@ -1503,3 +1505,17 @@ def test_how_was_that_is_offered_only_once_the_candidate_has_said_something():
         Shown(seconds_left=1_500, question_position=0, question_total=5, phase="answering", answer_heard=True)]
     assert controller.shown_seq == seq + 1  # a button press from before it showed is stale
     assert controller.handle(CandidateTurnFinished(text="It cut missed runs.")) == []  # shown once
+
+
+def test_the_interviewer_is_given_only_the_question_it_is_asked_to_ask_now():
+    """The session instructions hold no questions, so the interviewer can't jump ahead: each turn
+    that asks a question carries that one question and no other."""
+    controller, actions = started_controller(answer_cap=1)
+    assert "Prepared question 1?" in actions[1].instructions and "Prepared question 2?" not in actions[1].instructions
+    asked_and_recorded(controller)
+    controller.handle(CandidateTurnFinished(text="My answer."))
+    controller.handle(FinishAnswer())
+    feedback = controller.handle(InterviewerTurnFinished(text="Quick feedback: clear."))
+    assert not any("Prepared question" in action.instructions for action in feedback if isinstance(action, GenerateReply))
+    text = tool_text(controller.handle(NextQuestion()))
+    assert "question 2" in text.lower() and "Prepared question 2?" in text and "Prepared question 3?" not in text

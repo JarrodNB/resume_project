@@ -87,6 +87,9 @@ class Started:
     current_prompt_answered: bool = False
     answer_count: int = 0  # answers the current question already has
     feedback_given: bool = False  # Rails has spoken feedback for the current question
+    # Each prepared question as an escaped data section. The interviewer's session instructions
+    # hold none, so it learns a question only when the controller asks for it.
+    questions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -439,6 +442,7 @@ class LiveInterviewController:
     def __init__(self) -> None:
         self._question_position: int | None = None
         self._question_total = 0
+        self._questions: tuple[str, ...] = ()  # each prepared question's data section, in order
         self._answer_cap = 1
         self._phase: Phase = "asking"
         self._reporting: Literal["opening", "follow_up"] | None = None  # the next interviewer turn's kind
@@ -571,15 +575,17 @@ class LiveInterviewController:
         if self._question_position is not None:
             return []
         self._question_position, self._question_total = event.question_position, event.question_total
+        self._questions = event.questions
         self._answer_cap, self._retries = event.answer_cap, event.retry_count
         self._seconds_left = float(event.session_seconds_left)
         self._allowance_left = float(event.allowance_seconds_left)
         self._sequence = event.heartbeat_sequence
         if event.current_prompt_kind is None:
             self._reporting, self._asks_left = "opening", ASKS_AGAIN
-            return [self._room_state(), GenerateReply(opening_instructions(event.question_position))]
+            return [self._room_state(), GenerateReply(opening_instructions(event.question_position,
+                                                                          self._question(event.question_position)))]
         # A fresh agent never heard the conversation so far. It can repeat a saved opening (the
-        # question plan has it), but not a follow-up it never asked, so then it offers the menu.
+        # controller has it), but not a follow-up it never asked, so then it offers the menu.
         self._answered_prompts = event.answer_count
         self._unheard_answers = event.answer_count > 0 or event.current_prompt_answered
         if event.feedback_given or event.current_prompt_kind == "follow_up":
@@ -589,7 +595,8 @@ class LiveInterviewController:
         self._prompt = (event.question_position, None)
         self._saved_answer = "" if event.current_prompt_answered else None  # Rails has an answer; new words replace it
         self._unheard_is_current = self._unheard_answers and event.answer_count <= 1
-        return [self._room_state(), GenerateReply(resume_instructions(event.question_position))]
+        return [self._room_state(), GenerateReply(resume_instructions(event.question_position,
+                                                                       self._question(event.question_position)))]
 
     def _interviewer_turn_finished(self, event: InterviewerTurnFinished) -> list[LiveAction]:
         text = event.text.strip()
@@ -759,7 +766,8 @@ class LiveInterviewController:
             return []
         if self._ask_again and self._phase == "asking" and self._away_since is None and not self._wrap_reason:
             self._ask_again, self._asks_left = False, self._asks_left - 1
-            return [GenerateReply(ask_again_instructions(self._reporting or "opening", self._question_position or 0))]
+            position = self._question_position or 0
+            return [GenerateReply(ask_again_instructions(self._reporting or "opening", position, self._question(position)))]
         if self._away_since is not None:  # say nothing to an empty room; a wrap-up just finishes
             return [*self._save_answer(), *self._finish(self._wrap_reason)] if self._wrap_reason else []
         if self._wrap_reason:
@@ -849,7 +857,8 @@ class LiveInterviewController:
                                     if prompt[0] != self._question_position}
         self._new_prompt("opening")
         return [ReportQuestionRetried(self._question_position, self._retries), self._room_state(),
-                ToolResult(RETRY.format(question=ask_question_instructions(self._question_position)))]
+                ToolResult(RETRY.format(question=ask_question_instructions(self._question_position,
+                                                                        self._question(self._question_position))))]
 
     def _feedback(self, instructions: str, *, then: Literal["answering", "menu"]) -> list[LiveAction]:
         actions = self._save_answer()
@@ -868,7 +877,11 @@ class LiveInterviewController:
         self._question_position = position + 1
         self._answered_prompts, self._retries, self._unheard_answers = 0, 0, False
         self._new_prompt("opening")
-        return [*actions, self._room_state(), ToolResult("Now ask " + ask_question_instructions(position + 1))]
+        return [*actions, self._room_state(), ToolResult("Now ask " + ask_question_instructions(position + 1, self._question(position + 1)))]
+
+    def _question(self, position: int) -> str:
+        """The prepared question at `position`, as the data section the interviewer is given."""
+        return self._questions[position] if position < len(self._questions) else ""
 
     def _finish(self, reason: FinishReason) -> list[LiveAction]:
         heartbeat = self._heartbeat(final=True)

@@ -321,8 +321,12 @@ For each dispatched job it:
    as one prompt on the session span): practice-interviewer framing that marks coaching
    with "Quick feedback:", the persona/difficulty/focus style (`live_style`: the persona sets how
    the interviewer talks, probes and coaches, the difficulty sets the follow-up bar and the bar
-   quick feedback judges against, and focus areas steer both), the role or job and the question
-   plan, all inside escaped data sections with contact masked. These instructions, including
+   quick feedback judges against, and focus areas steer both) and the role or job, inside
+   escaped data sections with contact masked. The prepared questions are deliberately not in
+   the instructions: the controller gets them as data sections (`live_question_blocks`, in
+   `Started.questions`) and puts only the question to ask now into that turn's instruction or
+   tool result, so the model can't run ahead to a later question while Rails is still on an
+   earlier one. The agent refuses to start if it has fewer questions than the claim's total. These instructions, including
    the saved job text read here, are deliberately not screened: the live interviewer's only
    actions are moving, restarting or ending the owner's current interview through
    Rails-checked callbacks, and it reads nothing beyond these owner-scoped inputs, so injected

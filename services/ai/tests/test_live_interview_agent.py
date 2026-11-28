@@ -288,7 +288,8 @@ class FakeRails:
 def fake_inputs(**ids):
     assert ids == {"interview_id": "session", "user_id": "owner", "connection_id": "live"}
     return LiveInterviewInputs(setup=InterviewSetup(question_count=5, interviewer="priya"),
-                               questions=("First question?",), contact=KnownContact())
+                               questions=tuple(f"Prepared question {number}?" for number in range(1, 9)),
+                               contact=KnownContact())
 
 
 async def settle():
@@ -323,8 +324,10 @@ def test_claims_loads_instructions_greets_and_reports_the_spoken_opening():
         assert persona == "priya"
         assert session.started["record"] is False and session.started["room"] is ctx.room
         assert session.started["close_on_disconnect"] is False  # a dropped candidate can come back
-        assert "First question?" in session.started["instructions"]
-        assert "question 1" in session.replies[0].lower()
+        # The session instructions hold no questions: each one comes with the turn that asks it.
+        assert "Prepared question" not in session.started["instructions"]
+        assert "question 1" in session.replies[0].lower() and "Prepared question 1?" in session.replies[0]
+        assert "Prepared question 2?" not in session.replies[0]
         assert ctx.room.local_participant.attributes[0] == {
             "cd.question_position": "0", "cd.question_total": "2", "cd.phase": "asking", "cd.state_seq": "1",
             "cd.menu_offered": "false", "cd.seconds_left": "600", "cd.time_warning": "false",

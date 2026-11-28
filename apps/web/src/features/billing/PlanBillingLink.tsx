@@ -1,11 +1,11 @@
 /** Links to the Plan & billing page wherever the app says AI work is blocked because the free trial ended.
- * `MutationErrorAlert` is for mutation payloads (`errorCode: PLAN_ENDED`); `PlanEndedHint` is for
+ * `MutationErrorAlert` is for mutation payloads (`errorCode: PLAN_ENDED`); `PlanEndedFailureLink` is for
  * chat and interview failures (failure code `plan_ended`). Neither looks at message text.
  */
 import type { ComponentProps } from 'react'
 import { Link } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
-import { PLAN_ENDED_ERROR_CODE, PLAN_ENDED_FAILURE_CODE, PLAN_ENDED_MESSAGE } from '@/lib/planEnded'
+import { PLAN_ENDED_ERROR_CODE, PLAN_ENDED_FAILURE_CODE } from '@/lib/planEnded'
 
 export function PlanBillingLink() {
   return <Link to="/account/billing" className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Plan &amp; billing</Link>
@@ -27,13 +27,7 @@ export function MutationErrorAlert({ errors, errorCode, ...alertProps }: Mutatio
   return <ErrorAlert {...alertProps} messages={errors} action={<PlanEndedErrorLink errorCode={errorCode} />} />
 }
 
-/** The action for an ErrorAlert about a failed chat reply: the billing link when the failure code is `plan_ended`. */
+/** The action for an ErrorAlert about a failed chat reply or interview step: the billing link when the failure code is `plan_ended`. */
 export function PlanEndedFailureLink({ failureCode }: { failureCode: string | null | undefined }) {
   return failureCode === PLAN_ENDED_FAILURE_CODE ? <PlanBillingLink /> : null
-}
-
-/** Under an interview failure line: when the failure code is `plan_ended`, says why and links to billing. */
-export function PlanEndedHint({ failureCode }: { failureCode: string | null | undefined }) {
-  if (failureCode !== PLAN_ENDED_FAILURE_CODE) return null
-  return <p className="text-sm">{PLAN_ENDED_MESSAGE} <PlanBillingLink /></p>
 }

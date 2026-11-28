@@ -68,11 +68,17 @@ it('enters a ready live session through the live room, never the turn-based begi
 it.each([
   ['connecting', false, 'Connecting…'],
   ['connected', false, 'Waiting for your interviewer…'],
-  ['connected', true, 'Connected. Your interviewer is here.'],
+  ['connected', true, 'Your interviewer is getting ready…'],
 ] as const)('shows the %s state (interviewer joined: %s)', (status, agentJoined, text) => {
   live.value = liveRoom({ status, agentJoined })
   renderInterview()
   expect(screen.getByRole('status')).toHaveTextContent(text)
+})
+
+it('says the interviewer is here only once it has started speaking', () => {
+  live.value = liveRoom({ status: 'connected', agentJoined: true, captions: [{ id: 'a1', speaker: 'interviewer', text: 'Hi there.' }] })
+  renderInterview()
+  expect(screen.getByRole('status')).toHaveTextContent('Connected. Your interviewer is here.')
 })
 
 it('offers a turn-based interview with the same setup when no interviewer joins within 15 seconds', async () => {

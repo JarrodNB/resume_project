@@ -348,7 +348,10 @@ For each dispatched job it:
 
 The agent joins the LiveKit room (`ctx.connect()`) only after steps 1 and 2 succeed (the claim
 uses the dispatched room's name from the job), so the browser never sees an interviewer that
-cannot start. A refused claim ends the job without joining. If anything fails after a
+cannot start. When the interviewer first speaks, the agent logs (and records on the session
+span as `start_seconds.*`) how long each start-up step took: the claim, the input read, joining
+the room, starting the session, and the total to its first words. A refused claim ends the job
+without joining. If anything fails after a
 successful claim (the input read, joining or starting the session), the agent calls `finish`
 with `failed` before it shuts down, so Rails completes or abandons the interview instead of
 leaving the candidate waiting. That finish goes through the reporter, so a 5xx (such as Rails' 503,
@@ -620,7 +623,9 @@ wrapping up.") is shown and announced. While the agent offers the menu it shows 
 (Try again, Move on); while the candidate answers it shows
 "How was that?". Buttons are disabled while a choice is in flight (up to 8 seconds), and a
 choice the agent didn't get shows a short alert. The completed review shows a question's
-`liveFeedback` under its latest answer as "Interviewer feedback". If no agent joins within 15 seconds, or joining
+`liveFeedback` under its latest answer as "Interviewer feedback". Until the interviewer's first
+words (its first caption) the connection status moves along the shared waiting line, and once the
+agent has joined it says "Your interviewer is getting ready…", so the start never looks stuck. If no agent joins within 15 seconds, or joining
 fails, the room offers a new turn-based preparation with the same setup. When the agent
 participant leaves the room, the hook clears `agentJoined` and its progress and sets `agentLeft`;
 the room says "Your interviewer left the room. Waiting for them to come back…" and the same

@@ -1,5 +1,6 @@
 /** The room for a live interview: the candidate and the interviewer talk in real time through
- * LiveKit (see useLiveInterviewRoom). It shows the connection state, then captions (which the
+ * LiveKit (see useLiveInterviewRoom). It shows the connection state (on a moving waiting line
+ * until the interviewer's first words, so the start never looks stuck), then captions (which the
  * candidate can hide), "Question N of M" and the counted time left from the interviewer agent
  * (with an announced warning at about 2 minutes left) and a mute button. After the
  * interviewer's spoken feedback on a question, it shows the two choices left (Try again, Move on)
@@ -27,6 +28,7 @@ import { MutationErrorAlert } from '@/features/billing/PlanBillingLink'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
 import { InterviewCareerReferences } from './InterviewCareerReferences'
+import { AiWaitingLine } from '@/components/AiWaitingLine'
 import { LiveCaptions } from './LiveCaptions'
 import { useLiveInterviewRoom, type LiveInterviewRoom as LiveRoom, type LiveMenuOption } from './useLiveInterviewRoom'
 import { useStartInterview } from './useInterviewSession'
@@ -49,19 +51,25 @@ export function LiveInterviewRoom({ interview }: { interview: InterviewSnapshotF
     const timer = setTimeout(() => setTimedOut(true), LIVE_AGENT_JOIN_TIMEOUT_MS)
     return () => { clearTimeout(timer); setTimedOut(false) }
   }, [waitingForAgent])
+  // Until the interviewer's first words, the room is still starting: the status moves along a waiting line.
+  const interviewerSpoke = room.captions.some((caption) => caption.speaker === 'interviewer')
   const message = room.status === 'joining' ? 'Joining the interview room…'
     : room.status === 'connecting' ? 'Connecting…'
     : room.status === 'reconnecting' ? 'Reconnecting…'
     : room.status === 'disconnected' ? 'You were disconnected. Your interviewer waits about 2 minutes.'
+    : room.status === 'connected' && room.agentJoined && !interviewerSpoke ? 'Your interviewer is getting ready…'
     : room.status === 'connected' && room.agentJoined ? 'Connected. Your interviewer is here.'
     : room.status === 'connected' && room.agentLeft ? 'Your interviewer left the room. Waiting for them to come back…'
     : room.status === 'connected' ? 'Waiting for your interviewer…'
     : 'Could not connect to the live room.'
   const showFallback = room.status === 'failed' || (timedOut && waitingForAgent)
+  const starting = !interviewerSpoke && !room.agentLeft && (room.status === 'joining' || room.status === 'connecting' || room.status === 'connected')
   const { reply } = currentInterviewPrompt(interview)
   return <section aria-labelledby="live-interview-title" className="interview-stage grid gap-4">
     <h2 id="live-interview-title" className="text-xl font-semibold">Live interview</h2>
-    {!showFallback && <p role="status" className="text-sm">{message}</p>}
+    {!showFallback && (starting
+      ? <AiWaitingLine key={message} captions={[message.replace(/…$/, '')]} statusLabel={message} />
+      : <p role="status" className="text-sm">{message}</p>)}
     {showFallback && <TurnBasedFallback interview={interview} reason={room.status === 'failed' ? room.error : null} />}
     {room.status === 'disconnected' && <div className="grid gap-2">
       {room.error && <p role="alert" className="text-sm text-destructive">{room.error}</p>}

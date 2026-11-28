@@ -151,6 +151,7 @@ class LiveInterviewRunner:
         self._deliveries: asyncio.Queue = asyncio.Queue()  # Rails reports, heartbeats and the finish, in order
         self._delivery_task: asyncio.Task | None = None
         self._silence_ms = DEFAULT_SILENCE_MS  # the turn detection the realtime session uses now
+        self.on_first_words = None  # called once, when the interviewer first starts speaking
         # The model hears the candidate only once a question has been asked (see `hear_the_candidate`).
         self._hearing = False
         self._session.input.set_audio_enabled(False)
@@ -180,6 +181,9 @@ class LiveInterviewRunner:
 
     def on_agent_state_changed(self, event: AgentStateChangedEvent) -> None:
         """LiveKit callback: the interviewer is busy while thinking of or speaking a reply."""
+        if event.new_state == "speaking" and self.on_first_words is not None:
+            first_words, self.on_first_words = self.on_first_words, None
+            first_words()
         self._spawn(SpeakingChanged("interviewer", event.new_state in ("thinking", "speaking")))
 
     def on_user_state_changed(self, event: UserStateChangedEvent) -> None:
@@ -642,6 +646,13 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
     """
     tracer = tracer or trace.get_tracer("live_interviews")
     span = claim = None
+    # How long each start-up step took, logged with the time to the interviewer's first words, so a
+    # slow start shows where its seconds went. Real time, not `clock`, which tests fake.
+    began, start_seconds = time.monotonic(), {}
+
+    def step(name: str) -> None:
+        start_seconds[name] = round(time.monotonic() - began - sum(start_seconds.values()), 2)
+
     try:
         dispatch = LiveDispatch.model_validate_json(ctx.job.metadata)
         with record_prompt_version(LIVE_INTERVIEWER_PROMPT_VERSION):  # framing and turn texts are one prompt
@@ -650,6 +661,7 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
         # LiveKit's session spans and our tasks join this trace.
         with trace.use_span(span, end_on_exit=False):
             claim = await rails.claim(dispatch.live_connection_id, room_name=ctx.job.room.name)
+            step("claim")
             if claim.interview_session_id != dispatch.interview_session_id:
                 raise ValueError("Live claim belongs to another interview")
             span.set_attributes({"user_id": claim.user_id, **({"ai_task_id": claim.ai_task_id} if claim.ai_task_id else {})})
@@ -659,7 +671,9 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             questions = live_question_blocks(inputs)
             if len(questions) < claim.question_total:  # the controller hands these out one at a time
                 raise ValueError("Live interview is missing prepared questions")
+            step("inputs")
             await ctx.connect()
+            step("join_room")
             session = make_session(inputs.setup.interviewer)
             runner = LiveInterviewRunner(session=session, rails=rails, connection_id=claim.live_connection_id,
                                          room=ctx.room, leave=lambda: ctx.shutdown(reason="live interview finished"),
@@ -674,6 +688,14 @@ async def run_live_interview(ctx, *, rails, read_inputs, make_session, clock=tim
             ctx.room.on("participant_attributes_changed", runner.on_participant_attributes_changed)
             await session.start(LiveInterviewerAgent(instructions=instructions, runner=runner), room=ctx.room,
                                 record=False, room_options=room_io.RoomOptions(close_on_disconnect=False))
+            step("start_session")
+
+            def first_words() -> None:
+                timings = {**start_seconds, "first_words": round(time.monotonic() - began, 2)}
+                span.set_attributes({f"start_seconds.{name}": value for name, value in timings.items()})
+                logger.info("Live interviewer first spoke %.1fs after the job started (%s)", timings["first_words"],
+                            ", ".join(f"{name} {value}s" for name, value in start_seconds.items()))
+            runner.on_first_words = first_words
             for participant in ctx.room.remote_participants.values():
                 runner.use_silence_choice(participant)  # a candidate already here published it before we joined
             if not any(participant.kind != rtc.ParticipantKind.PARTICIPANT_KIND_AGENT

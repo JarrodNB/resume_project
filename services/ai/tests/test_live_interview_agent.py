@@ -1402,3 +1402,22 @@ def test_a_reply_outside_our_instructions_and_tool_calls_is_not_saved_as_the_ope
     asyncio.run(scenario())
     assert ("prompt_asked", "live", {"question_position": 0, "kind": "opening",
                                      "text": "Sure. Tell me about a project."}) in rails.calls
+
+
+def test_the_interviewers_first_words_log_how_long_each_start_step_took(caplog):
+    rails, sessions = FakeRails(), []
+    _ctx, go = run_interview(rails, sessions)
+
+    async def scenario():
+        await go()
+        state = sessions[0][1].handlers["agent_state_changed"]
+        with caplog.at_level("INFO", logger="live_interviews.agent"):
+            state(AgentStateChangedEvent(old_state="listening", new_state="speaking"))
+            state(AgentStateChangedEvent(old_state="speaking", new_state="listening"))
+            state(AgentStateChangedEvent(old_state="listening", new_state="speaking"))  # only the first counts
+        await settle()
+
+    asyncio.run(scenario())
+    lines = [record.getMessage() for record in caplog.records if "first spoke" in record.getMessage()]
+    assert len(lines) == 1
+    assert all(f"{step} " in lines[0] for step in ("claim", "inputs", "join_room", "start_session"))
